@@ -1,0 +1,20 @@
+# Data and training artifacts (tens of GB, keep out of git)
+/data
+outputs/
+real_eval_data/
+synth_eval_data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Compiled extensions and build dirs
+*.so
+evcreader/build/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,56 @@
+SEED: 0
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+
+MODEL:
+  BACKBONE: resnet18
+  POSE_REPR: mano_pca6
+  OUTPUT_DIM: 12
+  MANO_NCOMPS: 6
+  PREDICT_BETA: false
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 60.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 12
+  LOG10: true
+
+TRAIN:
+  DEVICES: 4
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 2048   # 21GB peak in probe; safer under DDP+AMP than 3072
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 8
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 1.1314e-2              # 1e-3 * sqrt((2048*4)/64)
+  WARMUP_STEPS: 500
+  MAX_STEPS: 15000           # ~4-8h at ~2s/step; A/B identical
+  VAL_CHECK_INTERVAL: 1000
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/hand_data51/abs_pca12
+  RUN_NAME: abs_pca12
+
+EVAL:
+  WINDOW_MS: 100
+  OUTPUT_DIR: outputs/hand_data51/abs_pca12/eval

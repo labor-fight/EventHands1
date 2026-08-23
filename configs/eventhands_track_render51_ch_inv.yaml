@@ -1,0 +1,91 @@
+SEED: 0
+
+# Render-channel ablation, arm "inv": the rendered previous state enters as the
+# normalized inverse depth only. Because the renderer multiplies inv by the
+# silhouette, inv > 0 holds exactly where the mask is set, so this arm still sees
+# the mask -- the extra information relative to ch_sil is the depth value itself.
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+
+MODEL:
+  BACKBONE: resnet18
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  ZERO_EVENT_GATE: true
+  RENDER_CHANNELS: [inv]       # 3ch input: LNES + normalized inverse depth
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 1024           # 2 render iterations per step at batch 2048
+  INIT_FROM: outputs/hand_data51/abs_full51/abs_full51-step=6000-val_loss=val_loss=1.1009.ckpt
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  # One run per GPU so all six ablation runs fit on the free cards at once.
+  # 2048 x 1 keeps the effective batch of the 2 x 1024 baseline, so LR is unchanged
+  # and the numbers stay comparable with the published 19.26.
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 2048
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 16
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 4
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 5.656e-3
+  WARMUP_STEPS: 500
+  # The baseline peaked at step=1000 and decayed monotonically afterwards
+  # (19.26 -> 20.04 -> 21.76), so 3000 steps on a 500 grid brackets the optimum.
+  MAX_STEPS: 3000
+  SAVE_EVERY_N_STEPS: 500
+  # Checkpoints are selected by closed-loop RA, not val_loss, so validate once at
+  # the end instead of paying for 122k val samples every 1000 steps.
+  VAL_CHECK_INTERVAL: 3000
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/hand_data51/track_render51_ch_inv
+  RUN_NAME: track_render51_ch_inv
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/hand_data51/track_render51_ch_inv/eval
