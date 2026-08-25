@@ -1,0 +1,133 @@
+# S20b: `s20_keg_mixed.yaml` with one variable changed -- the size of the conditioning-state error
+# the model is trained to tolerate.
+#
+# Why this exists. `tools/run_closed_loop_probe.py` split the KEG arm's tracking error at 50 ms into
+# a single-step part and a closed-loop part and found the frontend already at parity: 11.59 mm
+# against the dense control's 10.95 mm when both condition on the ground-truth previous state, but
+# 30.39 against 20.87 when both condition on their own previous prediction. `tools/run_drift_curve.py`
+# then ruled out the two obvious explanations -- the error does not grow along a run (both arms are
+# flat over 25 s) and neither arm remembers its initialisation (a 4x larger starting displacement
+# changes nothing to three decimals), so the loop is stable and both arms observe absolute pose. The
+# loop simply settles at a higher fixed point.
+#
+# What sets that fixed point is how fast an arm's single-step error grows with the error in the
+# state it conditions on, and the sweep in `prev_noise_sensitivity_50ms.json` measures it:
+#
+#   corruption   x0      x0.5    x1      x2      x4
+#   KEG        13.04   13.20   13.64   15.10   19.14      (+6.11 mm)
+#   LNES       10.95   11.01   11.22   12.11   14.10      (+3.16 mm)
+#
+# KEG is 1.9x more sensitive, which is what its input composition predicts: all twelve of its
+# geometric channels are read at the previous state, whereas the dense arm carries a two-channel
+# event image that is state-free and can be fallen back on. The training schedule's noise was set
+# for that dense arm, so it under-trains this one.
+#
+# The prediction this config tests, stated before running it: the unhardened arm's checkpoint grid
+# peaks at step 1500 and *degrades* thereafter on both seeds (30.39 -> 33.47, 30.92 -> 38.18) while
+# the dense control improves monotonically to step 3500. That is what leaning on a nearly correct
+# conditioning state looks like -- it lowers the training loss and raises the closed-loop
+# sensitivity. If the diagnosis is right, hardening flattens that grid; if the grid still peaks
+# early, the diagnosis is wrong and the deficit is not about state reliance.
+#
+# `s20b_lnes_hardened.yaml` applies the identical schedule to the control, so the frontend stays the
+# single variable of the G2 comparison and neither arm is handed a protocol the other did not get.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 5
+  WINDOW_MAX: 50
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: keg
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: keg
+  ENCODER_HIDDEN: 64
+  ENCODER_FEAT: 256
+  ENCODER_NODE_DIM: 64
+  ENCODER_KSSF: true
+  ENCODER_JOINT_TOKENS: true
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  # Doubled small component and mass shifted toward the large one. The target is that the training
+  # distribution covers the error the loop actually runs at: the unhardened arm settles near 30 mm
+  # RA, while its training noise sat at a corruption the sensitivity sweep scores at 13.64 mm, i.e.
+  # barely displaced at all. The large component is left alone -- at 0.3 rad it is already a gross
+  # displacement, and the gap was in the middle of the range, not at its end.
+  PREV_NOISE_T: 0.010
+  PREV_NOISE_R: 0.10
+  PREV_NOISE_POSE: 0.10
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.30
+  PREV_NOISE_P_LARGE: 0.45
+  PREV_NOISE_P_CORR: 0.25
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 256
+  ACCUMULATE_GRAD_BATCHES: 4
+  NUM_WORKERS: 8
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 4000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s20b_keg_hardened
+  RUN_NAME: s20b_keg_hardened
+
+EVAL:
+  WINDOW_MS: 5
+  OUTPUT_DIR: outputs/semkine/s20b_keg_hardened/eval

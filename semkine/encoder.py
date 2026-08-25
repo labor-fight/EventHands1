@@ -69,13 +69,18 @@ def _pixel_keys(events: torch.Tensor, height: int, width: int) -> torch.Tensor:
     return events[:, EV_BATCH].long() * (height * width) + ys * width + xs
 
 
-def sae_times(events: torch.Tensor, ptr: torch.Tensor, height: int, width: int
-              ) -> Tuple[torch.Tensor, torch.Tensor]:
+def sae_times(events: torch.Tensor, ptr: torch.Tensor, height: int, width: int,
+              fallback: Optional[float] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """Time since last same/opposite polarity at the same pixel, in seconds.
 
     Vectorised via a stable sort on `(packet, pixel, polarity)`. A pixel that has never fired
     this polarity in the packet returns the packet duration, so the feature stays in `[0, 1]`
     after dividing by `Δt`.
+
+    `fallback` overrides that "never fired" value with a constant number of seconds. The packet
+    duration is the right default for a feature that is about to be divided by `Δt`, but it makes
+    the feature depend on the window length, which S18 must not do: a rate-invariant encoder needs
+    every input channel to be a function of absolute time differences alone.
     """
     n = events.shape[0]
     if n == 0:
@@ -136,8 +141,9 @@ def sae_times(events: torch.Tensor, ptr: torch.Tensor, height: int, width: int
 
     same_dt = _prev_same()
     opp_raw = _prev_opp()
-    same = torch.where(same_dt > 0, same_dt, span)
-    opp = torch.where(opp_raw > 0, opp_raw, span)
+    never = span if fallback is None else torch.full_like(span, float(fallback))
+    same = torch.where(same_dt > 0, same_dt, never)
+    opp = torch.where(opp_raw > 0, opp_raw, never)
     return same, opp
 
 

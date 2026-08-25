@@ -1,0 +1,120 @@
+# S21 / E5.5a: deletion-free halo routing. Identical to s20_keg_mixed.yaml in every key except
+# MODEL.ENCODER_KSSF_HALO, so the single variable is what happens to the events the visibility
+# gate used to delete.
+#
+# Why this arm exists (debug session 3eaac2, R1-R5 adjudication, 2026-08-24):
+#   - The soft-vs-hard routing retrain FAILED its gate on both seeds (x2.66/x2.47 vs <= x2.10)
+#     and the same-checkpoint route switch moved the recursive error by only 0.8 mm: the routing
+#     *form* was never the variable.
+#   - The measured variable is evidence deletion. At the GT state the gate keeps vis_frac = 0.62
+#     of events on val_core; under 6.6 / 26 / 50 mm conditioning error that falls to 0.54 / 0.43
+#     / 0.32, and the deleted events sit at median |sdf| 4-9 px -- the contour mismatch evidence
+#     a tracker needs for correction. Deletion grows with error: a positive feedback path the
+#     dense control does not have (it never deletes an event).
+#   - The g-curve (single-step error vs conditioning error) has slope ~0.36 for KEG vs ~0.13 for
+#     LNES. Halo routing attacks exactly this slope; the recursive gate below is the acceptance.
+#
+# Gates (both seeds, val_core, 50 ms, against the s20 probe numbers):
+#   G-a  teacher-forced RA within 1.1 mm of the gated arm (11.59 mm) -- the lift must not cost
+#        single-step accuracy.
+#   G-b  g-curve slope at x4 noise: (RA@26mm - RA@0) / 26 < 0.20 (gated arm: 0.25, LNES: 0.12).
+#   G-c  recursive amplification <= x2.10, or recursive RA <= 21.9 mm (LNES 20.87 + 1.1 replicate
+#        floor). If G-b passes but G-c fails, the residual deficit is the correlated-error echo
+#        (R2) and the unroll arm E5.5b is required on top -- that is a scheduled decision, not a
+#        new bet.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 5
+  WINDOW_MAX: 50
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: keg
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: keg
+  ENCODER_HIDDEN: 64
+  ENCODER_FEAT: 256
+  ENCODER_NODE_DIM: 64
+  ENCODER_KSSF: true
+  ENCODER_KSSF_HALO: true      # <- the single variable vs s20_keg_mixed
+  ENCODER_JOINT_TOKENS: true
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 256
+  ACCUMULATE_GRAD_BATCHES: 4
+  NUM_WORKERS: 8
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 4000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s21_keg_halo
+  RUN_NAME: s21_keg_halo
+
+EVAL:
+  WINDOW_MS: 5
+  OUTPUT_DIR: outputs/semkine/s21_keg_halo/eval

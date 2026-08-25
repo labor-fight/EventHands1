@@ -55,7 +55,12 @@ class ThroughputCallback(pl.Callback):
         if self.t0 is None:
             self.t0 = time.time()
             self.n = 0
-        n = (batch.batch_size if hasattr(batch, "batch_size") else batch[0].shape[0])
+        # A batch is one packet batch, an unroll `(lead, main)` pair, or the legacy tuple of
+        # tensors. Lightning may hand the pair back as a list, so do not test for `tuple`.
+        head = batch
+        if isinstance(batch, (tuple, list)) and hasattr(batch[-1], "batch_size"):
+            head = batch[-1]
+        n = (head.batch_size if hasattr(head, "batch_size") else head[0].shape[0])
         self.n += n * max(trainer.world_size, 1)
         if (batch_idx + 1) % 50 == 0:
             sps = self.n / max(time.time() - self.t0, 1e-6)
@@ -103,6 +108,9 @@ def main() -> None:
     def _collate(items):
         if isinstance(items[0], EventPacket):
             return collate_packets(items)
+        if isinstance(items[0], tuple) and isinstance(items[0][0], EventPacket):
+            # S22 unroll pair: collate each half separately, so both stay ragged batches.
+            return tuple(collate_packets(list(col)) for col in zip(*items))
         return torch.utils.data.default_collate(items)
 
     raw = train_ds.input_mode != "legacy_lnes"
@@ -128,16 +136,12 @@ def main() -> None:
     teacher_ckpt = cfg["MODEL"].get("DISTILL_CKPT")
     if teacher_ckpt:
         teacher_cfg = dict(cfg)
-        tmodel = dict(cfg.get("MODEL", {}))
-        tmodel.pop("ENCODER", None)
-        tmodel.pop("ENCODER_HIDDEN", None)
-        tmodel.pop("ENCODER_FEAT", None)
-        tmodel.pop("ENCODER_CELL", None)
-        tmodel.pop("DISTILL_WEIGHT", None)
-        tmodel.pop("DISTILL_CKPT", None)
-        tmodel.pop("ACTIVE_HEAD", None)
-        tmodel.pop("ACTIVE_FEAT_DIM", None)
-        tmodel.pop("ACTIVE_HIDDEN", None)
+        # The teacher is the frozen dense arm, so every student-side key has to go. Dropping them
+        # by prefix rather than by name means adding a student key (S18 added three) cannot
+        # silently build a teacher that refuses to load its own checkpoint.
+        drop = ("ENCODER", "DISTILL_", "ACTIVE_")
+        tmodel = {k: v for k, v in cfg.get("MODEL", {}).items()
+                  if not any(k == d.rstrip("_") or k.startswith(d) for d in drop)}
         teacher_cfg["MODEL"] = tmodel
         model.teacher = MNISTModel.load_from_checkpoint(
             teacher_ckpt, cfg=teacher_cfg, map_location="cpu").eval()

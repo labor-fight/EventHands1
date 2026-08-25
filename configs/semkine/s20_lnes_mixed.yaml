@@ -1,0 +1,113 @@
+# S20 control arm: the dense LNES baseline given exactly the same short-window schedule.
+#
+# Without this arm the S20 comparison would confound the frontend with the training distribution --
+# the 50 ms baseline has never seen a 5 ms window, and losing to it at 5 ms would prove nothing
+# about representation. Here the only difference from `s20_lnes_mixed.yaml` is the frontend: same
+# log-uniform 5-50 ms windows, same domrand ranges (whose hot-pixel count already scales with the
+# window through `n_slots`), same teacher-forcing noise, same effective batch, same step grid.
+#
+# This is also the arm that measures what a 5 ms LNES frame actually is. Its two channels hold a
+# millisecond-quantised timestamp normalised by the window, so at 5 ms the entire window spans five
+# distinguishable values; the compensating effect is that fewer events collide, which
+# `ARCHITECTURE_AUDIT.md` §7 measured at 70-88% overwritten for 50 ms. Which effect dominates is
+# the question, and the honest way to answer it is to train the arm rather than to argue.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 5
+  WINDOW_MAX: 50
+  USE_MEMMAP: true
+  INPUT_MODE: legacy_lnes
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: resnet18
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  RENDER_CHANNELS: [sil, inv]
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  # The S10 head, same as the KEG arm, so the comparison is about the frontend and not about how
+  # the pose is read off it: the trunk emits a 256-d feature and each joint's own decoder is the
+  # sole pathway to that joint's angle. What the dense arm cannot have is KEG's *per-joint* feature
+  # -- a pixel grid has no node for the ring finger -- and that asymmetry is part of what the
+  # frontend contributes, so it is named here rather than being smuggled in as a head change.
+  ACTIVE_HEAD: true
+  ACTIVE_FEAT_DIM: 256
+  ACTIVE_HIDDEN: 64
+  # No distillation, matching the KEG arm: the only 50 ms teacher available has never seen a 5 ms
+  # window, so its prediction there is an extrapolation rather than a target. It appears in the
+  # S20 table as its own arm instead, which is the honest place for it.
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  # Split the same way as the KEG arm so the two see identical gradient-accumulation arithmetic.
+  BATCH_SIZE_PER_GPU: 256
+  ACCUMULATE_GRAD_BATCHES: 4
+  NUM_WORKERS: 8
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3                   # identical to the dense arm at the same effective batch
+  WARMUP_STEPS: 500
+  MAX_STEPS: 4000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s20_lnes_mixed
+  RUN_NAME: s20_lnes_mixed
+
+EVAL:
+  WINDOW_MS: 5
+  OUTPUT_DIR: outputs/semkine/s20_lnes_mixed/eval

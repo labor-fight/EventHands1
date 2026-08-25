@@ -14,7 +14,8 @@ __pycache__/
 *.so
 evcreader/build/
 
-# Editor / OS
+# Editor / OS / agent debug artifacts
 .vscode/
 .idea/
 .DS_Store
+.cursor/

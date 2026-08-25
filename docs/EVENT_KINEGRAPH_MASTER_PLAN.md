@@ -1,8 +1,64 @@
 # EventKineGraph：单目事件手部 Mesh 的异步运动学图跟踪主方案
 
 > 仓库：`labor-fight/EventHands1`  
-> 审计日期：2026-08-23  
+> 审计日期：2026-08-23；**2026-08-24 修正（S20 实测 + skill 复审）**  
 > 本文状态：**研究与实现合同，不是已取得的 SOTA 结果**
+
+## 0.1 2026-08-24 必须执行的修正（深夜第二次修订：软路由已被否证）
+
+S20 闭环探针已经把“换成 GNN 会丢信息”这件事量清楚了：KEG 单步 11.59 mm vs LNES 10.95 mm（在 1.1 mm 训练分辨率内打平），递推 30.39 vs 20.87 mm，放大倍数 x2.62 vs x1.91。**当晚的软路由重训（两个 seed）已经验收：FAIL**（`closed_loop_probe_soft_50ms.json`：x2.66 / x2.47，gate ≤ x2.10，单步还倒退 0.6–1.4 mm）。修正如下：
+
+1. **禁止把像素 AEGNN / causal hash event graph 当作 LNES 的替换入口。** 不变。`probe_gnn_info_loss.py` 补充了实测：像素 kNN 邻域跨手指率 0.30–0.80。AEGNN 只借“新事件只更新被触及的子图”；子图必须是 16 个 MANO 节点。
+2. **“闭环 Lipschitz 软路由”这一押注已被运行时数据否证，不得再投入。** 机制解释已测出：在闭环真实误差尺度（1 cm / 0.1 rad）下，软 top-4 的路由迁移 TV=1.46–1.78（满分 2），与硬 argmax 相等——蒙皮支撑面整体迁移时凸组合随之整体迁移，Lipschitz-at-zero 买不到闭环稳定。同时 drift 曲线证明闭环是收缩的（x1 与 x4 初始噪声轨迹重合），缺口是**每步误差注入的稳态平衡点太高**，不是误差复利。
+3. **当前最大概率 SOTA 变量是“证据不删除”：visibility 硬门是被忽略的主嫌疑。** 实测：GT 状态下 `keep=vis` 就删掉 ~74% 事件（vis_frac≈0.26），被删事件中位 |sdf| 4–9 px、41–97% 在 12 px 轮廓带内——事件在运动轮廓两侧成对出现，外侧一半被整体清零丢进 BG；状态误差增大时删除率单调上升（7/8 窗口，低事件率序列 x2.5–3.5），构成稠密对照没有的正反馈。修复方向 = 把硬 vis 门换成 SDF 连续带权 `w_geo = exp(-max(sdf,0)/κ)`，轮廓外事件保留几何通道（sdf、normal 本身就是纠错所需的失配几何）并路由到最近轮廓段的关节。是否需要叠加短闭环 unroll 训练，由 `closed_loop_sensitivity_50ms.json` 的不动点分析（R2）裁决：若独立噪声 g 曲线的不动点 ≈ 实测递推稳态，表示层修复优先；若远低于稳态，训练分布修复（unroll）必须同时上。
+4. **论文主张再次收窄并换正确的词。** 可发表贡献不是“Lipschitz 路由”，而是“**证据完备的状态条件事件–运动学路由**（deletion-free state-conditioned routing）+ LTI 时间聚合 + 树更新”，负对照链完整：像素图（跨手指混合）、硬门（删证据）、软化路由（错误的连续性目标）三个失败机制全部有测量支撑，这本身是论文 §analysis 的骨架。
+5. 下文 §2 的三条机制维持上一版裁决：机制 1（因果局部事件图）为负对照；机制 3（16 节点树）相对 routed MLP 仍要过 1.1 mm Gate。新增：任何修复不得再引入“把证据置零/丢弃”的路径——零事件恒等约定除外。
+
+## 0.2 2026-08-24 深夜第三次修订：不动点裁决完成，双支柱定案（debug 3eaac2 收口）
+
+`closed_loop_sensitivity_50ms.json` 四臂扫描（keg_soft / 同 ckpt 硬切换 / keg_hard / lnes ×
+teacher-forced、递推、三档实测条件误差 6.6 / 26.1 / 50.0 mm）把 §0.1 留下的裁决全部关闭，
+详细数字见 `docs/semkine/EXPERIMENT_LOG.md` 的 S20 adjudication 节。结论压缩成四条：
+
+1. **g 曲线定量（R1 CONFIRMED）**：KEG 单步误差对条件状态误差的斜率 ≈0.32，LNES ≈0.15，
+   2.2–2.8 倍。这是状态条件前端自己的敏感度，视觉证据删除率（vis_frac 0.62→0.32 随误差单调降，
+   递推稳态 0.47）与它同向（R3 CONFIRMED）。
+2. **不动点远低于稳态（R2 CONFIRMED，裁决词生效）**：独立噪声不动点 KEG 14.3 mm / LNES
+   12.0 mm，实测递推稳态 32.6 / 20.9 mm——**两臂都有 x1.7–x2.3 的“相关误差回声”超额**，
+   按 §0.1 第 3 条的裁决词：**表示修复与训练分布修复必须同时上**。递推里两臂每步更新坍缩到
+   需要量的 11%（0.069 vs 0.61 rad；LNES 同样 0.071）,是 exposure bias 的教科书指纹
+   （DAgger, Ross & Bagnell AISTATS'11；scheduled sampling, Bengio et al. NeurIPS'15）——
+   在 teacher-forced 加噪下 update_ratio 0.77–0.93,训练分布里从未有过自生漂移(R4 在 TF 域
+   REJECTED、在闭环域 CONFIRMED)。
+3. **路由形式正式出局（R5 REJECTED）**：同 ckpt 硬/软切换递推差 0.8 mm、单步差 0.12 mm，均在
+   1.1 mm 复制底噪内；独立训练的 keg_hard 30.4 mm 也在 seed 方差内。连同软路由重训 FAIL，
+   路由形式的全部变体（硬/软/重训软）都有测量负结果，写进论文负对照链，不再投入。
+4. **双支柱执行序（已启动）**：
+   - **E5.5a `s21_keg_halo`（2026-08-24 夜已启动，seed 3407/3408，GPU 6/7）**：deletion-free
+     halo 路由。`w_geo = exp(-[sdf]_+/6px)` 连续可见性（SoftRas 式把二值覆盖换成 SDF 单调函数，
+     Liu et al. ICCV'19）；最近点投影 `π(x)=x-(d+1)n`（SDF 性质 ∇d=n，窄带内一阶精确）读产生
+     该事件的轮廓段的 LBS；路由测度 `w_geo·Σŵ_k δ_{j_k} + (1-w_geo)·δ_BG` 总质量恒 1。
+     内侧事件与硬门版逐位一致（合同测试已过），单变量 = 被删那一半证据的去向。
+     Gate：G-a 单步 ≤11.59+1.1；G-b g 斜率@26mm <0.20；G-c 放大 ≤x2.10 或递推 ≤21.9 mm。
+   - **E5.5b unroll/scheduled-sampling（第一次 FAIL 已修正，退火版 2026-08-25 16:32 重启，
+     seed 3407/3408 双卡并行）**：短闭环展开训练打两臂共享的回声超额。算术上限已知：只修回声 →
+     KEG 落回不动点 ~14.3 mm；只修表示 → 残留 x1.74–x2.28 回声。E5.5a 验收：G-a PASS（单步
+     12.11/11.16），G-b FAIL（斜率 0.24/0.27 未平），G-c FAIL（递推 27.8 vs 21.9）——但递推双
+     seed 一致改善 2.6–4.8 mm（机制=断删除正反馈，回声超额 x2.28→x1.85–1.95），halo 保留。
+     E5.5b 实现 = 数据集出 `(前导窗, 主窗)` 相邻对（与递推 evaluator 铺贴一致，前导 end = 主窗
+     start-1），训练时用前导窗自预测（stop-gradient）替换主窗的 GT+噪声条件
+     （scheduled sampling, Bengio et al. NeurIPS'15；DAgger on-policy 分布, Ross & Bagnell
+     AISTATS'11）。**第一次训练用恒定 UNROLL_P=0.5 从 step 0 生效——FAIL（step3500 探针
+     TF RA 42.5 mm / 递推 144.5 mm）：早期自预测近随机，一半条件是垃圾，网络学会无视 prev，
+     坍缩回绝对回归档（账本已记）。修复 = TRACK.UNROLL_RAMP [500, 2000] 线性退火（Bengio 原文
+     的 curriculum 正是防此事故），前 500 步纯 teacher-forced（等价 s21），2000 步后满 0.5。
+     退火版 30 分钟处 train_loss 0.507 / val_loss 0.125（constP 同期 39 / 40.9，差两个量级），
+     健康。**合同测试 `tests/test_s22_unroll.py` 4 项已过（含退火曲线）；单变量 vs s21 = 训练
+     条件分布。Gate：G-a 单步 ≤ s21+1.1；G-b 递推 ≤21.9 或放大 ≤x2.10；G-c 递推每步更新量脱离
+     坍缩（pred_step_pose > 0.2 rad,坍缩值 0.069）。
+   - 预算：E5.5a 已占 GPU 6/7 各 ~3h；E5.5b 实现 + 双 seed 另计。s20b（硬化噪声表）与 E5.5b
+     同属训练分布修复，s20b 结果可作为 E5.5b 的下界参考，不重复投入。
+
 
 ## 0. 证据边界
 

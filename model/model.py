@@ -209,9 +209,60 @@ class BaseModel(pl.LightningModule):
             return batch[0], batch[1], batch[2], batch[3], None
         return batch[0], batch[1], batch[2], None, None
 
+    def unroll_p_now(self) -> float:
+        """`UNROLL_P` after the ramp, at the current optimiser step."""
+        if self.unroll_p <= 0.0:
+            return 0.0
+        s0, s1 = self.unroll_ramp
+        if s1 <= s0:
+            return self.unroll_p
+        frac = min(max((int(self.global_step) - s0) / float(s1 - s0), 0.0), 1.0)
+        return self.unroll_p * frac
+
+    def _maybe_unroll(self, batch):
+        """Replace a paired sample's conditioning state with the lead window's prediction.
+
+        The measured defect this addresses: inside its own recursion the network's per-step update
+        collapses to ~11% of the needed motion, while under teacher forcing with independent noise
+        it moves 0.77-0.93 of it. The conditioning distribution training samples (ground truth plus
+        independent noise) never contains self-generated, time-correlated drift, which is exposure
+        bias in its standard form (Ross & Bagnell, AISTATS'11; Bengio et al., NeurIPS'15). The pair
+        is how that distribution enters training.
+
+        The lead forward is under `no_grad` and its result is detached: this changes what the
+        network is conditioned *on*, not how gradient reaches it, so a step costs one extra forward
+        and no extra backward graph.
+
+        Two forms, measured (probe 2026-08-25 21:40, `closed_loop_sensitivity_unroll_50ms.json`):
+
+        - **replacement** (UNROLL_RESIDUAL false): conditioning becomes the lead prediction
+          itself. Because that prediction is near-clean (~1-2 mm off GT), this *narrows* the error
+          curriculum: TF improved to 10.3-10.9 (vs 12.1 without unroll) but the recursive echo
+          excess rose from x1.85-1.95 back to x2.22-2.26 and recursive RA worsened 27.8 -> 31-34.
+          The network learned "prev is trustworthy", the opposite of what the closed loop needs.
+        - **residual** (UNROLL_RESIDUAL true, E5.5c): conditioning becomes
+          `(GT + curriculum noise) + (lead prediction - lead target)` -- the curriculum keeps its
+          large-error coverage and the self-error contributes only its time-correlated structure.
+        """
+        if not (isinstance(batch, (tuple, list)) and len(batch) == 2
+                and hasattr(batch[0], "events") and hasattr(batch[1], "events")):
+            return batch
+        lead, main = batch
+        p = self.unroll_p_now()
+        if p <= 0.0:
+            return main
+        with torch.no_grad():
+            est = self.forward_packet(lead).detach()
+        take = torch.rand(main.prev_state.shape[0], device=main.prev_state.device) < p
+        cond = est.to(main.prev_state.dtype)
+        if self.unroll_residual:
+            cond = main.prev_state + (est - lead.target).to(main.prev_state.dtype)
+        main.prev_state = torch.where(take[:, None], cond, main.prev_state)
+        return main
+
     def _predict_batch(self, batch):
         """One forward that accepts either the legacy 5-tuple or an `EventPacketBatch`."""
-        packed = self._unpack_batch(batch)
+        packed = self._unpack_batch(self._maybe_unroll(batch))
         if hasattr(packed, "events"):
             pred = self.forward_packet(packed)
             return pred, packed.target, packed.betas
@@ -221,6 +272,8 @@ class BaseModel(pl.LightningModule):
     def _maybe_distill(self, pred, batch, loss, parts):
         if self.distill_weight <= 0.0 or self.teacher is None:
             return loss, parts
+        if isinstance(batch, (tuple, list)) and len(batch) == 2 and hasattr(batch[1], "events"):
+            batch = batch[1]          # a paired sample distils on its main window
         packed = batch if hasattr(batch, "events") else None
         if packed is None or packed.lnes is None:
             return loss, parts
@@ -231,6 +284,29 @@ class BaseModel(pl.LightningModule):
             )
         parts["loss_distill"] = F.mse_loss(pred, teacher_out)
         return loss + self.distill_weight * parts["loss_distill"], parts
+
+    #: prefix of the frozen distillation teacher's parameters
+    TEACHER_PREFIX = "teacher."
+
+    def on_save_checkpoint(self, checkpoint):
+        """Leave the frozen teacher out of the student's checkpoint.
+
+        The teacher is a submodule so that Lightning moves it to the right device, which also puts
+        its 11.2 M frozen parameters into `state_dict`. Keeping them would triple the file and,
+        worse, make every downstream loader (`select_checkpoint.py`, `eval_track.py`, the S9/S17
+        tools) fail on unexpected keys unless it happened to rebuild a teacher too.
+        """
+        sd = checkpoint.get("state_dict")
+        if sd is not None:
+            for k in [k for k in sd if k.startswith(self.TEACHER_PREFIX)]:
+                del sd[k]
+
+    def on_load_checkpoint(self, checkpoint):
+        """Accept checkpoints written before `on_save_checkpoint` existed."""
+        sd = checkpoint.get("state_dict")
+        if sd is not None:
+            for k in [k for k in sd if k.startswith(self.TEACHER_PREFIX)]:
+                del sd[k]
 
     def training_step(self, batch, batch_nb):
         pred, y, betas = self._predict_batch(batch)
@@ -332,7 +408,19 @@ class MNISTModel(BaseModel):
             "RENDER_CHUNK", "RENDER_DEPTH_TOL", "INIT_FROM",
             "ACTIVE_HEAD", "ACTIVE_FEAT_DIM", "ACTIVE_HIDDEN",
             "ENCODER", "ENCODER_HIDDEN", "ENCODER_FEAT", "ENCODER_CELL",
+            "ENCODER_KSSF", "ENCODER_KSSF_HALO", "ENCODER_NODE_DIM", "ENCODER_JOINT_TOKENS",
             "DISTILL_WEIGHT", "DISTILL_CKPT",
+        }
+    )
+    #: every TRACK key the model or the dataset understands. Whitelisted for the same reason
+    #: MODEL keys are: `UNROLL_PAIR` / `UNROLL_P` / `UNROLL_RAMP` were once read by nothing, and
+    #: two arms trained to completion as silent copies of the arm they were meant to differ from.
+    TRACK_KEYS = frozenset(
+        {
+            "PREV_NOISE_T", "PREV_NOISE_R", "PREV_NOISE_POSE", "PREV_NOISE_MODE",
+            "PREV_NOISE_LARGE_T", "PREV_NOISE_LARGE_R", "PREV_NOISE_LARGE_POSE",
+            "PREV_NOISE_P_SMALL", "PREV_NOISE_P_LARGE", "PREV_NOISE_P_CORR",
+            "UNROLL_PAIR", "UNROLL_P", "UNROLL_RAMP", "UNROLL_RESIDUAL",
         }
     )
     #: floor of the semsil value inside the mask, so the mask stays readable as a
@@ -349,6 +437,26 @@ class MNISTModel(BaseModel):
             # A silently ignored MODEL key means a config-only "ablation" that never
             # reached the network, so refuse to build instead of running the default.
             raise ValueError(f"unknown MODEL keys: {unknown}")
+        track_cfg = self.cfg.get("TRACK", {}) or {}
+        unknown = sorted(set(track_cfg) - self.TRACK_KEYS)
+        if unknown:
+            raise ValueError(f"unknown TRACK keys: {unknown}")
+        # S22. Probability that a paired sample's main window is re-conditioned on the model's own
+        # prediction for the window before it, annealed over `UNROLL_RAMP = [hold, full]`. The ramp
+        # is not cosmetic: at a constant 0.5 from step 0 half the conditioning states come from an
+        # untrained network, and the measured optimum is to stop reading the conditioning state at
+        # all (teacher-forced RA 42.5 mm against 12.1 without the mixing).
+        self.unroll_p = float(track_cfg.get("UNROLL_P", 0.0))
+        ramp = track_cfg.get("UNROLL_RAMP") or (0, 0)
+        self.unroll_ramp = (int(ramp[0]), int(ramp[1]))
+        # E5.5c: add the lead prediction's *error* on top of the noised state instead of replacing
+        # the state with the prediction. Both replacement variants failed with one root cause: the
+        # lead prediction is near-clean (1-2 mm), so replacement teaches "prev is trustworthy".
+        # Constant-P collapsed outright (TF 42.5 mm); annealed kept TF but pushed the recursive
+        # echo excess back from x1.85-1.95 to x2.22-2.26 (probe 2026-08-25 21:40) because half the
+        # samples lost the large-error curriculum. The residual form keeps GT + curriculum noise
+        # and injects the self-error's correlated *structure* on top.
+        self.unroll_residual = bool(track_cfg.get("UNROLL_RESIDUAL", False))
         self.predict_delta = bool(model_cfg.get("PREDICT_DELTA", False))
         self.prevpos_embed = bool(model_cfg.get("PREVPOS_EMBED", False))
         self.prev_render = bool(model_cfg.get("PREV_RENDER", False))
@@ -375,6 +483,10 @@ class MNISTModel(BaseModel):
             self.encoder_name = ""
         self.distill_weight = float(model_cfg.get("DISTILL_WEIGHT", 0.0))
         self.teacher = None
+        self.encoder_kssf = False
+        self.joint_tokens = False
+        #: set at inference to zero the S18 geometric channels on an unchanged checkpoint (G3)
+        self.ablate_kssf = False
         hid = int(model_cfg.get("ACTIVE_HIDDEN", 64))
         if self.encoder_name:
             # S2 / S16. The dense conv trunk is not built: a raw-event encoder that still
@@ -382,7 +494,26 @@ class MNISTModel(BaseModel):
             # load the wrong weights.
             from semkine.frontends import build_frontend
             feat = int(model_cfg.get("ENCODER_FEAT", model_cfg.get("ACTIVE_FEAT_DIM", 256)))
-            extra = 2 if self.prev_render else 0
+            # S18. `ENCODER_KSSF` replaces the two-channel splat lookup with the twelve-channel
+            # kinematic lift, which is a different quantity and not a wider version of the same
+            # one: the splat gives silhouette and inverse depth, KSSF gives the contour normal,
+            # the skinning weights and the part code, i.e. the terms the event residual is
+            # actually built from. The two are mutually exclusive so the input width is defined.
+            self.encoder_kssf = bool(model_cfg.get("ENCODER_KSSF", False))
+            # E5.5a: replace the visibility hard gate in the geometric lift with the deletion-free
+            # halo routing. A representation property, so it is a config bit that the checkpoint
+            # carries, not an inference-time switch: the routed statistics change distribution and
+            # a gated checkpoint cannot be read through the halo lift.
+            self.kssf_halo = bool(model_cfg.get("ENCODER_KSSF_HALO", False))
+            if self.encoder_kssf and self.encoder_name not in ("keg", "kinematic_graph"):
+                raise ValueError("MODEL.ENCODER_KSSF is defined for the keg frontend only")
+            if self.kssf_halo and not self.encoder_kssf:
+                raise ValueError("MODEL.ENCODER_KSSF_HALO requires MODEL.ENCODER_KSSF")
+            if self.encoder_kssf:
+                from semkine.keg import KSSF_CHANNELS
+                extra = KSSF_CHANNELS
+            else:
+                extra = 2 if self.prev_render else 0
             self.event_encoder = build_frontend(
                 self.encoder_name,
                 height=int(self.cfg.get("DATA", {}).get("HEIGHT", 180)),
@@ -391,14 +522,25 @@ class MNISTModel(BaseModel):
                 feat_dim=feat,
                 extra_channels=extra,
                 cell=int(model_cfg.get("ENCODER_CELL", 16)),
+                node_dim=int(model_cfg.get("ENCODER_NODE_DIM", 64)),
             )
             self.conv1 = None
             self.rn = None
+            # S18/S10. When the frontend already carries a feature per joint, joint `k`'s decoder
+            # reads node `k` instead of the shared vector. That is a strictly stronger form of the
+            # unique-pathway rule: the trunk has no route to a finger angle *and* no route to
+            # another finger's node.
+            self.joint_tokens = bool(model_cfg.get("ENCODER_JOINT_TOKENS", False))
+            if self.joint_tokens and not hasattr(self.event_encoder, "forward_nodes"):
+                raise ValueError("MODEL.ENCODER_JOINT_TOKENS needs a frontend with node outputs")
+            if self.joint_tokens and not self.active_head:
+                raise ValueError("MODEL.ENCODER_JOINT_TOKENS needs MODEL.ACTIVE_HEAD")
             if self.active_head:
                 assert self.output_dim == 51, "the active head is defined for the 51D layout"
                 self.root_head = nn.Linear(feat, 6)
+                jin = int(getattr(self.event_encoder, "node_dim", 0)) if self.joint_tokens else feat
                 self.joint_heads = nn.ModuleList([
-                    nn.Sequential(nn.Linear(feat + 3, hid), nn.ReLU(inplace=True),
+                    nn.Sequential(nn.Linear(jin + 3, hid), nn.ReLU(inplace=True),
                                   nn.Linear(hid, 3))
                     for _ in range(15)
                 ])
@@ -443,6 +585,30 @@ class MNISTModel(BaseModel):
             self.render_chunk = int(model_cfg.get("RENDER_CHUNK", 256))
             self.render_depth_tol = float(model_cfg.get("RENDER_DEPTH_TOL", 5.0e-3))
             self._register_vertex_codes()
+        # Held outside the module tree: KSSF has no parameters and holds a second reference to
+        # `self.mano`, which would duplicate the hand model in `state_dict` and break loading a
+        # checkpoint saved before S18.
+        self._kssf_holder = []
+        if self.encoder_kssf:
+            if not self.prev_render:
+                raise ValueError("MODEL.ENCODER_KSSF needs MODEL.PREV_RENDER for the hand model")
+            from semkine.kssf import KSSF
+
+            k = KSSF(self.mano, height=self.render_h, width=self.render_w,
+                     render_scale=self.render_scale)
+            k.eval()
+            self._kssf_holder.append(k)
+
+    def kssf_on(self, device):
+        """The KSSF rasteriser, moved to `device` on first use.
+
+        It sits outside the module tree, so `Module.to` does not reach its buffers; they are the
+        face list and the canonical per-vertex tables, all of them fixed, so moving once is enough.
+        """
+        k = self._kssf_holder[0]
+        if k.faces.device != device:
+            k.to(device)
+        return k
 
     def _register_vertex_codes(self):
         """Per-vertex semantic constant the rasterizer can splat into the mask value.
@@ -624,8 +790,13 @@ class MNISTModel(BaseModel):
         ]
         return torch.cat(out, dim=0)
 
-    def _decode_active(self, feat, prevpos):
-        """Assemble the 51D output from the root head and the fifteen joint decoders."""
+    def _decode_active(self, feat, prevpos, nodes=None):
+        """Assemble the 51D output from the root head and the fifteen joint decoders.
+
+        `nodes` is `(B, 16, node_dim)` when the frontend emits one feature per MANO joint; joint
+        `k` then reads node `k + 1`, since node 0 is the wrist. Otherwise every decoder reads the
+        shared vector, which is the S10 arrangement.
+        """
         root = self.root_head(feat)
         prev = prevpos.to(feat.dtype)
         cols = [root]
@@ -635,7 +806,8 @@ class MNISTModel(BaseModel):
                 # the output is `prev + out`, so zero here means "this joint does not move".
                 cols.append(torch.zeros(feat.shape[0], 3, device=feat.device, dtype=feat.dtype))
                 continue
-            cols.append(head(torch.cat([feat, prev[:, 6 + 3 * k : 9 + 3 * k]], dim=-1)))
+            src = feat if nodes is None else nodes[:, k + 1].to(feat.dtype)
+            cols.append(head(torch.cat([src, prev[:, 6 + 3 * k : 9 + 3 * k]], dim=-1)))
         return torch.cat(cols, dim=-1)
 
     def forward_packet(self, batch):
@@ -646,15 +818,36 @@ class MNISTModel(BaseModel):
         ptr = batch.ptr
         prev = batch.prev_state
         extra = None
-        if self.prev_render:
+        groups = None
+        if self.encoder_kssf:
+            betas_f, k_f = self._resolve_betas_K(prev, batch.betas, batch.camera_K)
+            with torch.no_grad():
+                # The field is read at the *previous* state, so nothing here needs the answer.
+                fields = self.kssf_on(prev.device)(prev.float(), betas_f, k_f, self.pose_repr)
+            from semkine.keg import kssf_event_channels
+            extra, groups = kssf_event_channels(fields, events, halo=self.kssf_halo)
+            if self.ablate_kssf:
+                # G3's single-variable ablation: silence the geometry but keep the tokens, so the
+                # same checkpoint answers "was the lift load-bearing" rather than "is a smaller
+                # network worse". Grouping falls back to the spatial grid inside the frontend.
+                extra = torch.zeros_like(extra)
+                groups = None
+        elif self.prev_render:
             betas_f, k_f = self._resolve_betas_K(prev, batch.betas, batch.camera_K)
             with torch.no_grad():
                 rend = self._render_prev(prev.float(), betas_f, k_f)
             from semkine.encoder import query_render
             extra = query_render(rend.to(dtype=events.dtype, device=events.device), events)
-        feat = self.event_encoder(events, ptr, batch.delta_t_s, extra)
+        if self.joint_tokens:
+            feat, nodes = self.event_encoder.forward_nodes(
+                events, ptr, batch.delta_t_s, extra, groups)
+        else:
+            nodes = None
+            feat = (self.event_encoder(events, ptr, batch.delta_t_s, extra, groups)
+                    if groups is not None or self.encoder_kssf
+                    else self.event_encoder(events, ptr, batch.delta_t_s, extra))
         if self.active_head:
-            out = self._decode_active(feat, prev)
+            out = self._decode_active(feat, prev, nodes)
         else:
             out = self.pose_head(feat)
         if self.prevpos_embed:

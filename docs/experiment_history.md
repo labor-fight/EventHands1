@@ -1,5 +1,10 @@
 # EventHands hand_data51 实验报告合集
 
+> **全实验系统总结（含 SemKine / KEG、根因三次修正、当前裁决）见**
+> [EXPERIMENT_SYSTEMATIC_SUMMARY.md](EXPERIMENT_SYSTEMATIC_SUMMARY.md)。
+> 本文保留旧协议 §1–14 的逐实验收据，不替代总览。
+
+
 第 1-8 节由 `outputs/hand_data51/report_*.md` 的 8 份报告合并而成，正文逐字保留，仅调整了标题层级
 与图片路径。按实验推进顺序排列。
 

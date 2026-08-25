@@ -153,8 +153,12 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
         if active_policy is not None:
             active_policy.reset()
         prev_end = int(a)
+        need_lnes = (not use_raw) or active_policy is not None
         for end in ends:
-            x = torch.from_numpy(build_lnes(events, offsets, int(end), step_ms)).unsqueeze(0).to(device)
+            # Rasterising LNES for a raw-event arm costs as much as the whole forward pass and is
+            # thrown away, which matters once the step-size sweep multiplies the step count by ten.
+            x = (torch.from_numpy(build_lnes(events, offsets, int(end), step_ms))
+                 .unsqueeze(0).to(device)) if need_lnes else None
             if use_raw:
                 ev5 = _window_events(events, offsets, tsub, int(end), step_ms)
                 pred = model.forward_packet(make_eval_packet(ev5, prev_t, betas, camera_K,

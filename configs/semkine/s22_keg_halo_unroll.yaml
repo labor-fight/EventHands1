@@ -1,0 +1,135 @@
+# S22 / E5.5b: closed-loop unroll on top of the halo lift. Identical to s21_keg_halo.yaml in
+# every key except TRACK.UNROLL_PAIR / TRACK.UNROLL_P, so the single variable is the training
+# conditioning distribution.
+#
+# Why this arm exists (debug 3eaac2, E5.5a verdict, 2026-08-25):
+#   - The halo lift removed the evidence-deletion feedback and improved the recursive steady
+#     state by 2.6-4.8 mm on both seeds (30.4-32.6 -> 27.8), but missed the recursive gate:
+#     27.8 mm against LNES's 20.9.
+#   - The fixed-point analysis says why: both frontends settle far above their independent-noise
+#     fixed points (halo-KEG 27.8 vs ~14.6, LNES 20.9 vs 12.0). Inside the real loop both arms
+#     collapse to 11% of the needed per-step update (0.069 vs 0.61 rad) while moving 0.77-0.93
+#     of the needed step under teacher-forced noise: the loop's conditioning distribution (the
+#     model's own drifted output, time-correlated) is one that GT + independent noise never
+#     samples. Textbook exposure bias.
+#   - The fix follows scheduled sampling (Bengio et al., NeurIPS'15) / DAgger's on-policy state
+#     distribution argument (Ross & Bagnell, AISTATS'11): each training sample carries the
+#     adjacent leading window; with probability UNROLL_P the main window is conditioned on the
+#     model's own (stop-gradiented) leading prediction instead of GT + noise. The window pair
+#     tiles exactly like the recursive evaluator (leading window ends 1 ms before the main one).
+#   - Interaction bet, stated before the run: unroll teaches the network to *use* the mismatch
+#     geometry (sdf, normal) from drifted states, and the halo is what keeps that geometry in
+#     the input when drifted -- the gated lift deleted it exactly then. So unroll-on-halo should
+#     beat what unroll-on-gated would have bought.
+#
+# Gates (both seeds, val_core, 50 ms):
+#   G-a  teacher-forced RA within 1.1 mm of s21's (12.11 / 11.16 mm) -- the mixed conditioning
+#        must not cost single-step accuracy.
+#   G-b  recursive RA <= 21.9 mm (LNES 20.87 + 1.1 replicate floor), or amplification <= x2.10.
+#   G-c  the per-step update collapse must lift: recursive pred_step_pose > 0.2 rad against the
+#        0.069 measured pre-fix (probe delta stats).
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 5
+  WINDOW_MAX: 50
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: keg
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: keg
+  ENCODER_HIDDEN: 64
+  ENCODER_FEAT: 256
+  ENCODER_NODE_DIM: 64
+  ENCODER_KSSF: true
+  ENCODER_KSSF_HALO: true
+  ENCODER_JOINT_TOKENS: true
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+  UNROLL_PAIR: true            # <- the single variable vs s21_keg_halo (with UNROLL_P/RAMP)
+  UNROLL_P: 0.5
+  # Annealed, not constant. The first s22 run mixed at a constant 0.5 from step 0: the network's
+  # early self-predictions are near-random, half the conditioning states were garbage, and its
+  # optimum was to ignore prev entirely -- it collapsed to absolute-regression accuracy
+  # (teacher-forced RA 42.5 mm, recursive 144.5 mm; ledger entry 2026-08-25). Scheduled sampling
+  # anneals for exactly this reason. Ramp: pure teacher forcing until step 500 (the LR warmup),
+  # linear to the full 0.5 at step 2000, held for the remaining 2000 steps.
+  UNROLL_RAMP: [500, 2000]
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 256
+  ACCUMULATE_GRAD_BATCHES: 4
+  NUM_WORKERS: 8
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 4000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s22_keg_halo_unroll
+  RUN_NAME: s22_keg_halo_unroll
+
+EVAL:
+  WINDOW_MS: 5
+  OUTPUT_DIR: outputs/semkine/s22_keg_halo_unroll/eval

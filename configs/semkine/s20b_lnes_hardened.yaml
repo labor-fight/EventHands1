@@ -1,0 +1,107 @@
+# S20b control arm: `s20_lnes_mixed.yaml` under the hardened conditioning-state noise schedule.
+#
+# `s20b_keg_hardened.yaml` explains why the schedule changed. It changes here too, unchanged in
+# every value, because the G2 comparison's single variable is the frontend: hardening only the arm
+# that the diagnosis says needs it would turn a protocol advantage into a frontend result. The dense
+# arm's measured sensitivity is half the sparse arm's, so the expectation is that this costs it
+# little either way -- but that is an expectation, and the arm is trained rather than assumed.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 5
+  WINDOW_MAX: 50
+  USE_MEMMAP: true
+  INPUT_MODE: legacy_lnes
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: resnet18
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  RENDER_CHANNELS: [sil, inv]
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  # The S10 head, same as the KEG arm, so the comparison is about the frontend and not about how
+  # the pose is read off it: the trunk emits a 256-d feature and each joint's own decoder is the
+  # sole pathway to that joint's angle. What the dense arm cannot have is KEG's *per-joint* feature
+  # -- a pixel grid has no node for the ring finger -- and that asymmetry is part of what the
+  # frontend contributes, so it is named here rather than being smuggled in as a head change.
+  ACTIVE_HEAD: true
+  ACTIVE_FEAT_DIM: 256
+  ACTIVE_HIDDEN: 64
+  # No distillation, matching the KEG arm: the only 50 ms teacher available has never seen a 5 ms
+  # window, so its prediction there is an extrapolation rather than a target. It appears in the
+  # S20 table as its own arm instead, which is the honest place for it.
+
+TRACK:
+  PREV_NOISE_T: 0.010
+  PREV_NOISE_R: 0.10
+  PREV_NOISE_POSE: 0.10
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.30
+  PREV_NOISE_P_LARGE: 0.45
+  PREV_NOISE_P_CORR: 0.25
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  # Split the same way as the KEG arm so the two see identical gradient-accumulation arithmetic.
+  BATCH_SIZE_PER_GPU: 256
+  ACCUMULATE_GRAD_BATCHES: 4
+  NUM_WORKERS: 8
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3                   # identical to the dense arm at the same effective batch
+  WARMUP_STEPS: 500
+  MAX_STEPS: 4000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s20b_lnes_hardened
+  RUN_NAME: s20b_lnes_hardened
+
+EVAL:
+  WINDOW_MS: 5
+  OUTPUT_DIR: outputs/semkine/s20b_lnes_hardened/eval

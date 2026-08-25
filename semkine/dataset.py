@@ -105,6 +105,7 @@ class SemKineDataset(Dataset):
         prev_noise_mix: Tuple[float, float, float] = (0.5, 0.3, 0.2),
         render_scale: float = 0.375,
         seed: int = 0,
+        unroll_pair: bool = False,
     ):
         if input_mode not in self.INPUT_MODES:
             raise ValueError(f"INPUT_MODE must be one of {self.INPUT_MODES}, got {input_mode!r}")
@@ -132,6 +133,10 @@ class SemKineDataset(Dataset):
         self.prev_noise_mix = tuple(v / s for v in mix)
         self.render_scale = float(render_scale)
         self.seed = int(seed)
+        # S22. Return `(leading, main)` instead of one packet, so training can condition a window
+        # on the model's own prediction for the window before it. Training only: randomising or
+        # re-conditioning the evaluation input would make the metric a moving target.
+        self.unroll_pair = bool(unroll_pair) and self.train
 
         self._handles: Dict[int, SequenceHandles] = {}
         self._pid = os.getpid()
@@ -271,6 +276,43 @@ class SemKineDataset(Dataset):
         return ev[:, 0].astype(np.int64), ev[:, 1].astype(np.int64), \
             np.clip(ev[:, 2].astype(np.int64), 0, 1), us
 
+    def _domrand_events(self, xs, ys, ps, us, window, dr, camera_K, rng):
+        """Geometric map, dropout and hot pixels, in the draw order the S1 arms were trained with.
+
+        Factored out so the S22 leading window can be transformed by the *same* virtual camera as
+        the main window: a pair whose two halves saw different cameras would train the model to
+        estimate a state in one frame and apply it in another.
+        """
+        if len(xs):
+            keep = DR.transform_events(xs, ys, dr, camera_K, self.render_scale,
+                                       self.width, self.height)
+            m = DR.keep_mask(len(xs), dr.keep, rng)
+            if m is not None:
+                keep = keep & m
+            xs, ys, ps, us = xs[keep], ys[keep], ps[keep], us[keep]
+        hot = DR.sample_hot_pixels(dr.n_hot, window, self.width, self.height, rng)
+        if hot is not None:
+            # Hot pixels are camera noise: injected after the geometric map, since a hot
+            # pixel is a property of the sensor and does not move with the virtual camera.
+            xs = np.concatenate([xs, hot[:, 1]])
+            ys = np.concatenate([ys, hot[:, 2]])
+            ps = np.concatenate([ps, hot[:, 3]])
+            us = np.concatenate([us, hot[:, 0] * 1000 + rng.integers(0, 1000, len(hot))])
+            order = np.argsort(us, kind="stable")
+            xs, ys, ps, us = xs[order], ys[order], ps[order], us[order]
+        return xs, ys, ps, us
+
+    @staticmethod
+    def _polarity(xs, ys, ps, flip, swap_mask):
+        """Polarity augmentation, applied once, to the event polarity itself."""
+        if not len(ps):
+            return ps
+        p_eff = 1 - ps if flip else ps
+        if swap_mask is not None:
+            sel = swap_mask[ys.astype(np.intp), xs.astype(np.intp)]
+            p_eff = np.where(sel, 1 - p_eff, p_eff)
+        return p_eff
+
     @staticmethod
     def _splat_lnes(xs, ys, ps, ms_rel, window, height, width) -> np.ndarray:
         img = np.zeros((height, width, 2), np.float32)
@@ -297,23 +339,7 @@ class SemKineDataset(Dataset):
         n_slots = self.height * self.width * 2 * window
         dr = DR.sample_params(self.domrand, rng, n_slots)
         if self.domrand.enabled:
-            if len(xs):
-                keep = DR.transform_events(xs, ys, dr, camera_K, self.render_scale,
-                                           self.width, self.height)
-                m = DR.keep_mask(len(xs), dr.keep, rng)
-                if m is not None:
-                    keep = keep & m
-                xs, ys, ps, us = xs[keep], ys[keep], ps[keep], us[keep]
-            hot = DR.sample_hot_pixels(dr.n_hot, window, self.width, self.height, rng)
-            if hot is not None:
-                # Hot pixels are camera noise: injected after the geometric map, since a hot
-                # pixel is a property of the sensor and does not move with the virtual camera.
-                xs = np.concatenate([xs, hot[:, 1]])
-                ys = np.concatenate([ys, hot[:, 2]])
-                ps = np.concatenate([ps, hot[:, 3]])
-                us = np.concatenate([us, hot[:, 0] * 1000 + rng.integers(0, 1000, len(hot))])
-                order = np.argsort(us, kind="stable")
-                xs, ys, ps, us = xs[order], ys[order], ps[order], us[order]
+            xs, ys, ps, us = self._domrand_events(xs, ys, ps, us, window, dr, camera_K, rng)
             stacked, camera_K = DR.transform_labels(
                 np.stack([prev, target]), dr, camera_K, h.j0, self.render_scale
             )
@@ -325,45 +351,18 @@ class SemKineDataset(Dataset):
             if noise is not None:
                 prev = prev + noise
 
-        # -------- polarity augmentation, applied once, to the event polarity itself
         flip = self.polarity_flip and int(rng.integers(0, 2)) == 1
         swap_mask = None
         if self.pixel_polarity_swap and self.train:
             swap_mask = rng.integers(0, 2, size=(self.height, self.width)).astype(bool)
-        if len(ps):
-            p_eff = 1 - ps if flip else ps
-            if swap_mask is not None:
-                sel = swap_mask[ys.astype(np.intp), xs.astype(np.intp)]
-                p_eff = np.where(sel, 1 - p_eff, p_eff)
-        else:
-            p_eff = ps
+        p_eff = self._polarity(xs, ys, ps, flip, swap_mask)
 
-        ms_rel = us // 1000
-        out: Dict[str, object] = {}
-        if self.input_mode in ("legacy_lnes", "both"):
-            out["lnes"] = self._splat_lnes(xs, ys, p_eff, ms_rel, window,
-                                           self.height, self.width)
-        if self.input_mode in ("raw_packed", "both"):
-            ev = np.empty((len(xs), 4), dtype=np.float32)
-            if len(xs):
-                ev[:, 0] = xs
-                ev[:, 1] = ys
-                ev[:, 2] = us.astype(np.float32) * 1e-6
-                ev[:, 3] = p_eff
-            out["events"] = ev
-
-        packet = EventPacket(
-            events=out.get("events", np.zeros((0, 4), np.float32)),
-            sequence_id=si,
-            t_start_us=int(start) * 1000,
-            t_end_us=(int(end) + 1) * 1000,
-            is_sequence_start=bool(start == int(self.index[idx][2])),
-            is_sequence_end=bool(end == int(self.index[idx][3]) - 1),
-            target=np.asarray(target, np.float32),
-            prev_state=np.asarray(prev, np.float32),
-            betas=h.betas.copy(),
-            camera_K=np.asarray(camera_K, np.float32),
-            lnes=out.get("lnes"),
+        packet = self._pack(
+            si, h, xs, ys, p_eff, us, window,
+            t_start_us=int(start) * 1000, t_end_us=(int(end) + 1) * 1000,
+            target=target, prev=prev, camera_K=camera_K,
+            is_start=bool(start == int(self.index[idx][2])),
+            is_end=bool(end == int(self.index[idx][3]) - 1),
             meta={"window_ms": window, "end_idx": end, "seq": h.seq,
                   "category": h.category, "domrand": dr},
         )
@@ -376,7 +375,88 @@ class SemKineDataset(Dataset):
                 torch.from_numpy(packet.betas),
                 torch.from_numpy(packet.camera_K),
             )
-        return packet
+        if not self.unroll_pair:
+            return packet
+        # Drawn after the main window is complete, so every draw the non-pair path makes keeps its
+        # position in the stream and `unroll_pair=False` stays bitwise identical to S1.
+        lead = self._leading_packet(idx, si, h, start, window, dr, flip, swap_mask, rng)
+        return lead, packet
+
+    def _pack(self, si, h, xs, ys, p_eff, us, window, *, t_start_us, t_end_us,
+              target, prev, camera_K, is_start, is_end, meta) -> EventPacket:
+        out: Dict[str, object] = {}
+        if self.input_mode in ("legacy_lnes", "both"):
+            out["lnes"] = self._splat_lnes(xs, ys, p_eff, us // 1000, window,
+                                           self.height, self.width)
+        if self.input_mode in ("raw_packed", "both"):
+            ev = np.empty((len(xs), 4), dtype=np.float32)
+            if len(xs):
+                ev[:, 0] = xs
+                ev[:, 1] = ys
+                ev[:, 2] = us.astype(np.float32) * 1e-6
+                ev[:, 3] = p_eff
+            out["events"] = ev
+        return EventPacket(
+            events=out.get("events", np.zeros((0, 4), np.float32)),
+            sequence_id=si,
+            t_start_us=int(t_start_us),
+            t_end_us=int(t_end_us),
+            is_sequence_start=bool(is_start),
+            is_sequence_end=bool(is_end),
+            target=np.asarray(target, np.float32),
+            prev_state=np.asarray(prev, np.float32),
+            betas=h.betas.copy(),
+            camera_K=np.asarray(camera_K, np.float32),
+            lnes=out.get("lnes"),
+            meta=meta,
+        )
+
+    def _leading_packet(self, idx, si, h, main_start, window, dr, flip, swap_mask,
+                        rng) -> EventPacket:
+        """The window immediately before the main one, for the S22 unroll pair.
+
+        It ends exactly where the main window starts and its target is the main window's
+        *un-noised* conditioning state, so a prediction on it estimates what the main window is
+        conditioned on -- which is what turns a pair into one step of the deployed recursion.
+
+        At a run boundary there is nothing before the main window. The pair then degenerates to a
+        zero-length interval at that same instant, where the zero-event gate returns the
+        conditioning state unchanged and the sample falls back to plain teacher forcing.
+        """
+        run_a = int(self.index[idx][2])
+        end_l = int(main_start) - 1
+        w = min(int(window), end_l - run_a + 1)
+        camera_K = h.camera_K.copy()
+        if w < 1:
+            start_l = int(main_start)
+            xs = ys = ps = us = np.zeros(0, np.int64)
+        else:
+            start_l = end_l - w + 1
+            xs, ys, ps, us = self._raw_events(h, end_l, w)
+        target = self._to_target(h.pos51[int(main_start)])
+        prev = self._to_target(h.pos51[start_l])
+
+        if self.domrand.enabled:
+            if w >= 1:
+                xs, ys, ps, us = self._domrand_events(xs, ys, ps, us, w, dr, camera_K, rng)
+            stacked, camera_K = DR.transform_labels(
+                np.stack([prev, target]), dr, camera_K, h.j0, self.render_scale
+            )
+            prev, target = stacked[0], stacked[1]
+        if self.train:
+            noise = self._sample_prev_noise(rng)
+            if noise is not None:
+                prev = prev + noise
+        p_eff = self._polarity(xs, ys, ps, flip, swap_mask)
+
+        return self._pack(
+            si, h, xs, ys, p_eff, us, max(w, 1),
+            t_start_us=start_l * 1000, t_end_us=int(main_start) * 1000,
+            target=target, prev=prev, camera_K=camera_K,
+            is_start=bool(start_l == run_a), is_end=False,
+            meta={"window_ms": max(w, 0), "end_idx": end_l, "seq": h.seq,
+                  "category": h.category, "domrand": dr, "leading": True},
+        )
 
 
 # -------------------------------------------------------------------- builders
@@ -430,4 +510,5 @@ def build_dataset(cfg: dict, split: str, components: np.ndarray,
                         float(track.get("PREV_NOISE_P_CORR", 0.2))),
         render_scale=float(cfg.get("MODEL", {}).get("RENDER_SCALE", 0.375)),
         seed=int(cfg.get("SEED", 0)),
+        unroll_pair=bool(track.get("UNROLL_PAIR", False)) and bool(train),
     )

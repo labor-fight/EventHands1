@@ -1,0 +1,124 @@
+# S23 / E5.5c: residual unroll. Identical to s22_keg_halo_unroll.yaml except
+# TRACK.UNROLL_RESIDUAL, so the single variable is the *form* of the mixed conditioning:
+# replacement (s22) vs residual addition (here).
+#
+# Why (probe 2026-08-25 21:40, closed_loop_sensitivity_unroll_50ms.json, debug 3eaac2):
+#   - Annealed replacement unroll (s22) improved the small-error end -- TF RA 10.26/10.92 vs
+#     12.11 for s21-halo, and TF@6.6mm 11.0-11.7 vs 12.5 -- because the lead prediction it
+#     conditions on is near-clean (1-2 mm from GT). For the same reason it *narrowed* the error
+#     curriculum: on half the samples the 6.6-26 mm noise-table coverage was swapped for that
+#     near-clean prediction. Measured cost: g-slope 0.29 -> 0.38-0.42, recursive RA
+#     27.76 -> 31.0-34.2, echo excess x1.85-1.95 -> x2.22-2.26 (both seeds). A training scheme
+#     built to fight exposure bias made the exposure gap worse by teaching "prev is trustworthy".
+#   - The residual form keeps the curriculum and adds only what replacement was supposed to
+#     deliver: the self-error's time-correlated structure. Conditioning becomes
+#     (GT + curriculum noise) + (lead prediction - lead target), stop-gradiented.
+#   - Falsifiable either way: if the recursive RA still does not beat s21-halo's 27.8 mm, the
+#     two-window training-distribution family is dead (its self-error amplitude, 1-2 mm, cannot
+#     represent a 27 mm steady state) and the next single variable is the g-slope itself
+#     (state-free fallback channels in the lift, E5.6).
+#
+# Gates (both seeds, val_core, 50 ms):
+#   G-a  teacher-forced RA <= 13.2 (s21's 12.11 + 1.1 floor).
+#   G-b  recursive RA < 27.8 (must beat s21-halo, else the family is dead), target <= 21.9.
+#   G-c  recursive per-step update pred_step_pose > 0.2 rad (collapse value 0.069).
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 5
+  WINDOW_MAX: 50
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: keg
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: keg
+  ENCODER_HIDDEN: 64
+  ENCODER_FEAT: 256
+  ENCODER_NODE_DIM: 64
+  ENCODER_KSSF: true
+  ENCODER_KSSF_HALO: true
+  ENCODER_JOINT_TOKENS: true
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+  UNROLL_PAIR: true
+  UNROLL_P: 0.5
+  UNROLL_RAMP: [500, 2000]
+  UNROLL_RESIDUAL: true        # <- the single variable vs s22_keg_halo_unroll
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 256
+  ACCUMULATE_GRAD_BATCHES: 4
+  NUM_WORKERS: 8
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 4000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s23_keg_unroll_resid
+  RUN_NAME: s23_keg_unroll_resid
+
+EVAL:
+  WINDOW_MS: 5
+  OUTPUT_DIR: outputs/semkine/s23_keg_unroll_resid/eval

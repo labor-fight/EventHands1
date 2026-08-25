@@ -10,6 +10,8 @@ citation. Each arm is a *minimum mechanism*, not a framework port:
 * `sparse_cell`  S2 fallback
 * `aegnn_lite`   k-NN graph in (x, y, t), two message-passing layers, global pool
                  -- no detection head, no voxelization, no async framework
+* `keg`          S18 kinematic event graph: the same message passing on 16 MANO nodes instead of
+                 a pixel k-NN graph, with a diagonal-LTI temporal readout. See `keg.py`.
 
 SAST / FARSE / SNN thought-arms are represented by the same graph module with a different
 neighbour rule rather than by importing those repositories. rpg_asynet is not used.
@@ -112,6 +114,9 @@ def build_frontend(kind: str, **kw) -> nn.Module:
         return SparseCellEncoder(**shared, **_pick(kw, "cell"))
     if kind in ("aegnn_lite", "aegnn", "graph"):
         return AEGNNLite(**shared, **_pick(kw, "k", "t_scale"))
+    if kind in ("keg", "kinematic_graph"):
+        from .keg import KinematicEventGraph
+        return KinematicEventGraph(**shared, **_pick(kw, "node_dim", "n_layers"))
     raise ValueError(f"unknown frontend {kind!r}")
 
 
