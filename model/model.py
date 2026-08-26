@@ -2,6 +2,8 @@
 """EventHands absolute-pose models (config-driven 12D / 51D)."""
 from __future__ import annotations
 
+import contextlib
+import dataclasses
 import gc
 from typing import Any, Dict, Optional
 
@@ -251,7 +253,12 @@ class BaseModel(pl.LightningModule):
         p = self.unroll_p_now()
         if p <= 0.0:
             return main
-        with torch.no_grad():
+        with torch.no_grad(), self._frozen_bn_stats():
+            # `no_grad` stops the gradient but not the BatchNorm buffer writes, so without the
+            # second guard the lead window updates all 20 running statistics an extra time per
+            # step. Measured on the penalty's identical second forward: checksum 5120.95 ->
+            # 5409.75 in one step, and recursive RA 16.64 -> 18.6-20.5 mm. The s22/s23 arms were
+            # trained with that leak, so their numbers confound unroll against BN contamination.
             est = self.forward_packet(lead).detach()
         take = torch.rand(main.prev_state.shape[0], device=main.prev_state.device) < p
         cond = est.to(main.prev_state.dtype)
@@ -260,14 +267,119 @@ class BaseModel(pl.LightningModule):
         main.prev_state = torch.where(take[:, None], cond, main.prev_state)
         return main
 
+    def _sample_cond_delta(self, ref):
+        """A conditioning-state perturbation drawn from the curriculum's own noise distribution.
+
+        The penalty is only meaningful if it measures sensitivity over the same directions the
+        tracker actually meets, so the per-block scales come from the same `PREV_NOISE_*` entries
+        the dataset and the evaluation protocol use, and the layout matches
+        `semkine.eval_track.sample_init_noise`: translation, global rotation, then pose.
+        """
+        track = self.cfg.get("TRACK", {}) or {}
+        s = torch.empty(51, device=ref.device, dtype=ref.dtype)
+        s[0:3] = float(track.get("PREV_NOISE_T", 0.0))
+        s[3:6] = float(track.get("PREV_NOISE_R", 0.0))
+        s[6:51] = float(track.get("PREV_NOISE_POSE", 0.0))
+        return torch.randn_like(ref) * s * self.gain_reg_scale
+
+    @contextlib.contextmanager
+    def _frozen_bn_stats(self):
+        """Run a forward pass without letting it touch the BatchNorm running statistics.
+
+        The trunk has 20 BatchNorm layers, so a second train-mode forward updates every one of them
+        a second time, using a batch whose conditioning state was deliberately corrupted. Inference
+        then normalises with statistics that are part real and part perturbation. Measured: the
+        running-stat checksum moved 5120.95 -> 5409.75 across the penalty forward at step 0, and
+        recursive RA jumped from the baseline's 16.64 mm to 18.8-19.7 mm at *every* lambda, largest
+        at the smallest lambda -- the damage tracked the extra forward, not the penalty weight.
+
+        `track_running_stats = False` in train mode makes `F.batch_norm` receive `None` for both
+        buffers while still normalising with batch statistics, so the penalty sees exactly the
+        normalisation the task forward saw and the buffers are left alone. Switching the modules to
+        eval mode instead would normalise with running statistics, which changes what the penalty
+        measures.
+        """
+        bn = [m for m in self.modules() if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d))]
+        was = [m.track_running_stats for m in bn]
+        for m in bn:
+            m.track_running_stats = False
+        try:
+            yield
+        finally:
+            for m, w in zip(bn, was):
+                m.track_running_stats = w
+
+    def _ra_joints(self, params, betas):
+        """Root-aligned MANO joints, the space the probe's gain is measured in."""
+        _, j = self._fk(params, betas)
+        return j - j[:, self.FK_ROOT_JOINT : self.FK_ROOT_JOINT + 1]
+
+    def _gain_penalty(self, packed, pred):
+        """Squared retention, measured in root-aligned joint space.
+
+        The metric is not a detail, it is the whole term. The probe's `gain_rand` -- the quantity
+        that correlates +0.955 with recursive error -- is a ratio of *root-aligned joint distances
+        in millimetres* (`tools/tmp_probe_echo_gain.py:88`). Taking the same ratio in the raw 51-D
+        parameter space instead is a different objective, because that norm mixes metres with
+        radians and is ~97% dominated by the 45-D pose block (sqrt(45)*0.05 rad against
+        sqrt(3)*0.005 m), while root alignment discards global translation outright. Measured: a
+        parameter-space penalty was monotone in lambda yet drove joint-space retention *above* the
+        unregularised baseline at matched step 2000 (0.457/0.439/0.335/0.221 against 0.242), i.e.
+        it optimised a direction nearly orthogonal to the one that predicts drift. Note that the
+        magnitudes agreed (0.182 against the probe's 0.236) even while the metrics did not, so
+        agreeing magnitudes are not evidence that two sensitivities are the same quantity.
+
+        Both output branches keep their graph, so a step costs one extra forward and one extra
+        backward. Detaching `f(x)` would turn this into a one-sided pull of the perturbed branch
+        toward the current unperturbed output, which is a different objective. The denominator is
+        under `no_grad` because it does not depend on the parameters.
+        """
+        if not self.prev_render:
+            # `self.mano` only exists on the render path, and silently falling back to a
+            # parameter-space ratio is the exact failure this docstring documents.
+            raise ValueError("TRACK.GAIN_REG_W needs MODEL.PREV_RENDER for the MANO forward pass")
+        if hasattr(packed, "events"):
+            prev, betas = packed.prev_state, packed.betas
+            d = self._sample_cond_delta(prev)
+            with self._frozen_bn_stats():
+                out = self.forward_packet(dataclasses.replace(packed, prev_state=prev + d))
+        else:
+            x, prev, _y, betas, camera_K = packed
+            d = self._sample_cond_delta(prev)
+            with self._frozen_bn_stats():
+                out = self(x, prev + d, betas=betas, camera_K=camera_K)
+        betas, _ = self._resolve_betas_K(prev, betas, None)
+        d_out = (self._ra_joints(out.float(), betas)
+                 - self._ra_joints(pred.float(), betas)).norm(dim=-1).mean(-1)
+        with torch.no_grad():
+            d_in = (self._ra_joints((prev + d).float(), betas)
+                    - self._ra_joints(prev.float(), betas)).norm(dim=-1).mean(-1)
+        return (d_out / d_in.clamp_min(1e-9)).pow(2).mean()
+
+    def _bn_checksum(self):
+        """Sum of every BatchNorm running statistic, as a single number."""
+        t = 0.0
+        for m in self.modules():
+            if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d)):
+                if m.running_mean is not None:
+                    t += float(m.running_mean.double().abs().sum())
+                if m.running_var is not None:
+                    t += float(m.running_var.double().abs().sum())
+        return t
+
     def _predict_batch(self, batch):
-        """One forward that accepts either the legacy 5-tuple or an `EventPacketBatch`."""
+        """One forward that accepts either the legacy 5-tuple or an `EventPacketBatch`.
+
+        Returns the unpacked batch as well, so a second forward can reuse the exact conditioning
+        state this one saw: `_maybe_unroll` and the dataset's noise are both random, and
+        re-unpacking would silently compare two different conditioning states.
+        """
         packed = self._unpack_batch(self._maybe_unroll(batch))
         if hasattr(packed, "events"):
             pred = self.forward_packet(packed)
-            return pred, packed.target, packed.betas
+            return pred, packed.target, packed.betas, packed
         x, prevpos, y, betas, camera_K = packed
-        return self(x, prevpos, betas=betas, camera_K=camera_K), y, betas
+        return self(x, prevpos, betas=betas, camera_K=camera_K), y, betas, packed
 
     def _maybe_distill(self, pred, batch, loss, parts):
         if self.distill_weight <= 0.0 or self.teacher is None:
@@ -309,9 +421,17 @@ class BaseModel(pl.LightningModule):
                 del sd[k]
 
     def training_step(self, batch, batch_nb):
-        pred, y, betas = self._predict_batch(batch)
+        pred, y, betas, packed = self._predict_batch(batch)
         loss, parts = self._compute_loss(pred, y, betas)
         loss, parts = self._maybe_distill(pred, batch, loss, parts)
+        if self.gain_reg_w > 0.0:
+            g2 = self._gain_penalty(packed, pred)
+            loss = loss + self.gain_reg_w * g2
+            # Log the retention itself, not its square: the pre-registered mechanism gate is that
+            # it falls monotonically with the penalty weight, and that has to be readable here
+            # rather than only in a post-hoc probe.
+            self.log("train_gain_rand", g2.detach().clamp_min(0).sqrt(), prog_bar=True,
+                     sync_dist=True)
         self.log("train_loss", loss, prog_bar=True, sync_dist=True)
         self.log("train_mano_loss", parts["mano_loss"], sync_dist=True)
         self.log("train_pos_loss", parts["pos_loss"], sync_dist=True)
@@ -325,8 +445,12 @@ class BaseModel(pl.LightningModule):
         return out
 
     def validation_step(self, batch, batch_nb):
-        pred, y, betas = self._predict_batch(batch)
+        pred, y, betas, packed = self._predict_batch(batch)
         loss, parts = self._compute_loss(pred, y, betas)
+        if self.gain_reg_w > 0.0:
+            self.log("val_gain_rand",
+                     self._gain_penalty(packed, pred).detach().clamp_min(0).sqrt(),
+                     sync_dist=True, on_epoch=True)
         self.log("val_loss", loss, prog_bar=True, sync_dist=True, on_epoch=True)
         self.log("val_mano_loss", parts["mano_loss"], sync_dist=True, on_epoch=True)
         self.log("val_pos_loss", parts["pos_loss"], sync_dist=True, on_epoch=True)
@@ -421,6 +545,7 @@ class MNISTModel(BaseModel):
             "PREV_NOISE_LARGE_T", "PREV_NOISE_LARGE_R", "PREV_NOISE_LARGE_POSE",
             "PREV_NOISE_P_SMALL", "PREV_NOISE_P_LARGE", "PREV_NOISE_P_CORR",
             "UNROLL_PAIR", "UNROLL_P", "UNROLL_RAMP", "UNROLL_RESIDUAL",
+            "GAIN_REG_W", "GAIN_REG_SCALE",
         }
     )
     #: floor of the semsil value inside the mask, so the mask stays readable as a
@@ -457,6 +582,14 @@ class MNISTModel(BaseModel):
         # samples lost the large-error curriculum. The residual form keeps GT + curriculum noise
         # and injects the self-error's correlated *structure* on top.
         self.unroll_residual = bool(track_cfg.get("UNROLL_RESIDUAL", False))
+        # Retention penalty. Measured across 11 checkpoints and two seeds, the recursive error is
+        # ranked by how much of a conditioning-state error survives one step (Spearman +0.93/+1.00)
+        # and *anti*-ranked by single-step accuracy (-0.61/-1.00): `s22`'s unroll arm has the best
+        # teacher-forced error in the set and the worst tracking. Retention spans 0.215-0.693 across
+        # recipes and reproduces to within 0.05 across seeds, so it is a stable property that no
+        # recipe has ever optimised on purpose. `GAIN_REG_W` optimises it directly.
+        self.gain_reg_w = float(track_cfg.get("GAIN_REG_W", 0.0))
+        self.gain_reg_scale = float(track_cfg.get("GAIN_REG_SCALE", 1.0))
         self.predict_delta = bool(model_cfg.get("PREDICT_DELTA", False))
         self.prevpos_embed = bool(model_cfg.get("PREVPOS_EMBED", False))
         self.prev_render = bool(model_cfg.get("PREV_RENDER", False))

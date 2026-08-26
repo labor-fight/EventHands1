@@ -106,7 +106,7 @@ def test_unroll_conditions_main_on_the_lead_prediction():
     m.train()
     assert m.unroll_p == 1.0
     before = batch[1].prev_state.clone()
-    pred, target, betas = m._predict_batch(batch)
+    pred, target, betas, _packed = m._predict_batch(batch)
     # At UNROLL_P = 1 every main window must be re-conditioned on the lead prediction. The lead
     # windows here are real event packets, so the prediction differs from the noised GT prev.
     assert not torch.allclose(batch[1].prev_state, before)

@@ -56,6 +56,7 @@
 | raw recurrent scan | 尚未完成公平 battle | B×T padding、逐事件 Python loop 在高事件率下风险大，但思想未被精度证伪 | 不误删；先作为 F0/raw control，优化 scan 后再裁决 |
 | sparse cell frontend | 尚未完成公平 battle | 可能重新离散为粗网格，局部几何信息不足 | 保留作效率对照，不作为默认主方案 |
 | domain randomization | PASS | 覆盖低事件率/采集域，双副本改善大且方向一致 | 必须保留并对所有新旧模型公平使用 |
+| 08-22 起的全部训练：数据划分被静默替换 | 协议错误，非方法失败；08-22 后每次训练只用了 5/10 受试者，43% 数据被闲置在评测集 | `dataset.py` 划分解析是"优先 `splits_semkine.json`，否则回退 `splits.json`"，而前者在 08-22 被写入且切法完全不同；config 不记录划分，日志不打印受试者 | 划分已统一回采集时的 9 训练受试者 / zgz 留出；旧划分退役为 `_retired_splits_semkine_5v2v3.json`；训练元数据强制记录 `train_subjects`；`select_checkpoint.py` 加受试者泄漏断言。**所有 08-22–08-26 的数字必须标注为"5 受试者训练"协议，不可与新数字混用** |
 | E5.5b 恒定 UNROLL_P=0.5(无退火) | FAIL,TF RA 42.5 mm / 递推 144.5 mm(step 3500 探针) | 从 step 0 就有一半样本以近随机的自预测做条件,网络最优解是无视 prev,坍缩回绝对回归(历史绝对回归正是 ~40 mm 档) | 产物留在 `outputs/semkine/s22_keg_halo_unroll_s34xx` 作负对照;修复=UNROLL_RAMP [500,2000] 线性退火(scheduled sampling 原文的 curriculum,Bengio et al. NeurIPS'15),重启臂名 `s22r_keg_halo_unroll` |
 
 ## 3. 源码/产物分类
@@ -222,3 +223,101 @@ docs/REPRODUCIBILITY.md                  # 环境、manifest、命令、最终�
 - 没有把 60 角色模拟评审冒充真实专家实验。
 
 这份账本的作用是让下一次 Codex 执行先清理证据和协议，再实现最小 E1/E2，而不是重复启动已经被否证的完整大网络。
+
+## select_checkpoint.py 会静默选中发散的 checkpoint（2026-08-26 修）
+
+`best = min(rows, key=lambda r: r[KEY])`：NaN 与任何数比较都返回 False，
+所以当网格里第一个 checkpoint 发散成 NaN 时，`min` 永远不会替换它，直接把
+坏模型选出来。运行时证据（`logs/seed2_final_1p05.log`）：
+
+```
+  step=500    RA=     nan  abs=     nan
+selected step=500  RA=nan  .../s24_lowg_1p05_bnfix_s3408-step=500.ckpt
+```
+
+正确答案是 step=5500 / RA=19.6107。触发条件是 λ ≥ 1 的 LowG arm 早期不稳定
+（同一网格上还有 step=1500 RA=105.17、step=6000 RA=71.36 这类尖峰），
+所以任何高 λ / 高学习率的 run 都可能中招，而且**不报错**。
+
+已修：先按 `math.isfinite` 过滤，全部非有限则 `SystemExit`，
+过滤掉的 step 会打印出来。受影响的 `s24_lowg_1p05_bnfix_s3408/selection_*.json`
+已按存档 grid 重算修正（无需重跑 checkpoint 评估）。
+
+教训：任何"取最小值选模型"的地方都要先过滤非有限值——
+发散产生的 NaN 会伪装成"最优"。
+
+## 数据划分被静默替换，一半训练受试者消失了 5 天（2026-08-27 修）
+
+**这是本项目至今影响面最大的坑，而且它不报错、不警告、不留痕。**
+
+`semkine/dataset.py` 的划分解析是"优先文件名，否则回退"：
+
+```python
+mp = Path(manifest_path) if manifest_path else root / "splits_semkine.json"
+if mp.exists():
+    m = json.loads(mp.read_text())
+    if split in m:
+        return [(s, m[split]["legacy_dir"][s]) for s in m[split]["trials"]]
+legacy = json.loads((root / "splits.json").read_text())   # 永远走不到
+```
+
+数据根目录里同时存在两个划分文件，对**同一批 74 条序列**给出完全不同的切法：
+
+| 文件 | 日期 | train | 留出 |
+|---|---|---|---|
+| `splits.json`（采集时划分，作者本意） | 08-11 | **9 受试者 / 72 序列** | zgz / 2 序列 |
+| `splits_semkine.json` | 08-22 | **5 受试者 / 40 序列** | lr,lyq（val）+ ycy,ylf,zgz（test） |
+
+`splits_semkine.json` 存在，于是 `if mp.exists()` 命中，legacy 那行**永远执行不到**。
+08-22 之后的每一次训练都只用了 5 个受试者，而 config 里没有任何一行提到划分，
+作者的认知和 `splits.json` 一致（10 人分出 1 个），日志也从不打印受试者列表。
+
+运行时证据（`outputs/semkine/s1_track_domrand_s3407/training_metadata.json`）：
+
+```
+train_sequences = 40 条
+  -> 受试者(5) = ['ch', 'lfz', 'lpc', 'ly', 'lyh']
+train_samples = 2491120
+```
+
+**后果不止是数据少了。** 08-22 的重划分本意是给出 subject-disjoint 的三段划分，
+让选点集和上报集互不重叠（`_leakage` 记录 `clean`，动机是合理的），
+代价是把 lr、lyq、ycy、ylf 这 4 个受试者、32 条序列（**全数据集的 43%**）
+从训练搬到了评测。于是：
+
+- §12 测出的 9.2 mm"跨受试者泛化差距"，是在**训练受试者只有一半**的条件下测的；
+- 项目门面数字 16.638 mm 是在 `val_core` = lr,lyq 上测的，
+  而这两人在作者本意的划分里**属于训练集** —— 也就是说这个数字一直是
+  "5 受试者训练 + 跨受试者评测"，比作者以为的协议严格得多，两者不可直接比较；
+- §12.4 预注册的"留一受试者"闸门因此是多余的：不需要重新留出，
+  4 个受试者的数据本来就闲置在评测集里。
+
+已修：
+
+1. `splits_semkine.json` 现在就是采集时划分（9 受试者训练 / zgz 留出），
+   由 `tools/build_splits_semkine.py` 生成，5/2/3 那份退役为
+   `_retired_splits_semkine_5v2v3.json`（仅供追溯 docs 里已有的旧数字）。
+   因为改的是**默认路径**，20+ 个工具和所有 config **一行都不用改**就统一了。
+2. `semkine/dataset.py` 新增 `splits_manifest(cfg)`：config 可用
+   `DATA.SPLITS_MANIFEST` 显式钉住划分，不设则用默认。
+3. `semkine/train.py` 在 `training_metadata.json` 里记录 `splits_manifest`
+   和 `train_subjects`，并在启动时打印划分文件名与受试者列表。
+4. `tools/select_checkpoint.py` 断言被评测的受试者不在该 run 的训练集里
+   （`--manifest` 可覆盖划分，用于拿旧 checkpoint 跨协议评测）。
+5. `tools/run_s26_9subj.sh` 启动前校验"9 训练受试者 + 留出 zgz"，不符就拒跑。
+
+**教训（两条，都比这个 bug 本身更通用）**：
+
+- **"优先文件名，否则回退"的解析顺序必须把选中结果打印出来。**
+  任何一段 `if path.exists(): use it` 的默认查找逻辑，都是一个可以被
+  凭空出现的文件劫持的开关；不打印就等于没有。
+- **不记录划分的 config 是不可审计的 config。** 训练元数据里必须有
+  受试者列表这种"人一眼能看出不对"的字段。这个 bug 存活 5 天的唯一原因，
+  是没有任何一处输出会让人发现受试者从 9 个变成了 5 个 ——
+  `train_samples = 2491120` 这种数字没人能看出异常。
+
+遗留待办：`data/hand_data51/buckets/{train,val,test}_step50.json` 是 08-22
+按旧划分生成的（`val_step50.json` 里是 lr+lyq，不含 zgz）。
+`masks_for_sequence` 对找不到的序列返回 `{}` 而不报错，
+所以这是**同一类静默降级**。它不影响选点（`track_sequence` 的
+`bucket_manifest=None`），但按新划分做分桶分析前必须重新生成。

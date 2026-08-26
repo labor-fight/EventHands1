@@ -40,7 +40,7 @@ from config import load_config          # noqa: E402
 from model import MNISTModel            # noqa: E402
 
 from semkine import domrand as DR       # noqa: E402
-from semkine.dataset import build_dataset   # noqa: E402
+from semkine.dataset import build_dataset, splits_manifest   # noqa: E402
 from semkine.events import EventPacket, collate_packets  # noqa: E402
 
 
@@ -97,9 +97,17 @@ def main() -> None:
     dr = DR.DomRandConfig.from_cfg(cfg)
     train_ds = build_dataset(cfg, "train", components, train=True)
     val_ds = build_dataset(cfg, "val_core", components, train=False)
+    # Name the split and its subjects on stdout. A run that silently trains on half the subjects
+    # is indistinguishable from a correct one in every other line of this log.
+    manifest = splits_manifest(cfg)
+    manifest_name = manifest.name if manifest else "splits_semkine.json"
+    train_subjects = sorted({s.split("_")[0] for s, _ in train_ds.sequences})
     print(f"seed={cfg['SEED']} input_mode={train_ds.input_mode} domrand={dr.enabled}\n"
-          f"train: {len(train_ds.sequences)} seqs / {len(train_ds)} samples\n"
-          f"val_core: {len(val_ds.sequences)} seqs / {len(val_ds)} samples", flush=True)
+          f"splits: {manifest_name}\n"
+          f"train: {len(train_ds.sequences)} seqs / {len(train_ds)} samples / "
+          f"{len(train_subjects)} subjects {train_subjects}\n"
+          f"val_core: {len(val_ds.sequences)} seqs / {len(val_ds)} samples "
+          f"{sorted({s.split('_')[0] for s, _ in val_ds.sequences})}", flush=True)
 
     bsz = int(args.batch_size or tcfg["BATCH_SIZE_PER_GPU"])
     nw = int(args.num_workers if args.num_workers is not None else tcfg["NUM_WORKERS"])
@@ -185,6 +193,7 @@ def main() -> None:
         "seed": int(cfg["SEED"]), "input_mode": train_ds.input_mode,
         "domrand": dr.__dict__, "train_sequences": [s for s, _ in train_ds.sequences],
         "val_core_sequences": [s for s, _ in val_ds.sequences],
+        "splits_manifest": manifest_name, "train_subjects": train_subjects,
         "train_samples": len(train_ds), "val_samples": len(val_ds),
         "batch_size_per_gpu": bsz, "devices": devices, "max_steps": max_steps,
         "save_every_n_steps": every, "lr": tcfg["LR"],

@@ -7,13 +7,15 @@ the metric that matters is what happens after a hundred steps of feeding predict
 checkpoint on the pre-registered step grid is evaluated with the recursive protocol on `val_core`
 and the best is reported, so selection uses the same quantity the paper will claim.
 
-Selection runs on `val_core` only, keeping the rest of the validation subjects clean for the
-comparisons that follow.
+Selection runs on `val_core`. Under the canonical split that is the whole held-out subject, so the
+step is chosen on the set it is reported on; the grid median and spread are printed beside the
+selected value to bound how much of the gain is selection noise.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -30,7 +32,7 @@ from mano_layer import ManoLayer                         # noqa: E402
 from model import MNISTModel                            # noqa: E402
 
 from semkine import eval_track as ET                    # noqa: E402
-from semkine.dataset import sequences_for_split         # noqa: E402
+from semkine.dataset import sequences_for_split, splits_manifest  # noqa: E402
 
 KEY = "mpjpe_ra_mm"
 
@@ -49,6 +51,9 @@ def main() -> None:
     ap.add_argument("--run-dir", required=True)
     ap.add_argument("--config", default=None, help="defaults to the config copied into the run")
     ap.add_argument("--split", default="val_core")
+    ap.add_argument("--manifest", default=None,
+                    help="override the config's split manifest; needed to score a run trained "
+                         "under one subject split against another protocol's held-out subject")
     ap.add_argument("--step-ms", type=int, default=50)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--delta-trust", type=float, default=1.0)
@@ -64,10 +69,18 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     mano = ManoLayer(cfg["MANO"]["NPZ"], add_mean=False).to(device).eval()
     root = Path(cfg["DATA"]["ROOT"])
-    seqs = sequences_for_split(root, a.split, None)
+    mani = Path(a.manifest) if a.manifest else splits_manifest(cfg)
+    if mani and not mani.is_absolute() and not mani.exists():
+        mani = root / mani
+    seqs = sequences_for_split(root, a.split, mani)
+    # Scoring a run on subjects it trained on would report a fit, not a generalisation number.
+    trained = json.loads((run / "training_metadata.json").read_text()).get("train_sequences", [])
+    leak = {s.split("_")[0] for s, _ in seqs} & {s.split("_")[0] for s in trained}
+    assert not leak, f"{a.split} subjects {sorted(leak)} are in {run.name}'s training set"
     grid = grid_checkpoints(run)
     assert grid, f"no step-grid checkpoints in {run}"
-    print(f"{run.name}: {len(grid)} checkpoints, {len(seqs)} sequences in {a.split}")
+    print(f"{run.name}: {len(grid)} checkpoints, {len(seqs)} sequences in {a.split}"
+          f" [{mani.name if mani else 'splits_semkine.json'}]")
 
     rows = []
     for step, ckpt in grid:
@@ -88,10 +101,28 @@ def main() -> None:
         del model
         torch.cuda.empty_cache()
 
-    best = min(rows, key=lambda r: r[KEY])
+    # A diverged checkpoint scores NaN, and NaN compares False against everything, so a bare
+    # min() would return it whenever it sorts first and silently select a broken model.
+    finite = [r for r in rows if math.isfinite(r[KEY])]
+    if not finite:
+        raise SystemExit(f"every checkpoint in {run.name} scored non-finite {KEY}")
+    if len(finite) < len(rows):
+        skipped = [r["step"] for r in rows if not math.isfinite(r[KEY])]
+        print(f"  (skipped {len(skipped)} non-finite checkpoint(s): steps {skipped})")
+    best = min(finite, key=lambda r: r[KEY])
     print(f"\nselected step={best['step']}  RA={best[KEY]:.4f}  {best['ckpt']}")
-    out = run / f"selection_{a.split}_step{a.step_ms}.json"
+    # With one held-out subject there is no set left to select on that is not also the reported set,
+    # so a selected step carries an optimistic bias. Quote the grid's spread against it: if selection
+    # barely beats the grid median the bias is immaterial, and if it does not, it is selection noise.
+    vals = sorted(r[KEY] for r in finite)
+    med = vals[len(vals) // 2]
+    print(f"grid median={med:.4f}  spread={vals[-1] - vals[0]:.4f}  "
+          f"selection gain over median={med - best[KEY]:.4f} mm")
+    tag = f"_{mani.stem}" if mani else ""
+    out = run / f"selection_{a.split}_step{a.step_ms}{tag}.json"
     out.write_text(json.dumps({"run": run.name, "split": a.split, "step_ms": a.step_ms,
+                               "manifest": mani.name if mani else "splits_semkine.json",
+                               "grid_median": med, "selection_gain_over_median": med - best[KEY],
                                "selected": best, "grid": rows}, indent=2))
     print("wrote", out)
 

@@ -1,0 +1,105 @@
+# S25: is the retention penalty worth anything, asked as a fine-tuning intervention.
+#
+# A full retrain costs ~10 h under the current machine load and answers a noisier question, because
+# two runs from scratch differ by their whole trajectory. Warm-starting both arms from the selected
+# baseline checkpoint (step 3500, recursive RA 16.638 mm) and running the *same* short schedule with
+# and without the penalty isolates the penalty itself: the only difference between the two configs
+# below is TRACK.GAIN_REG_W.
+#
+# The paired control is the point. Without it, any change after fine-tuning could just as well come
+# from continuing to train at a new learning rate, and this project has already been burned by an
+# arm that differed from its reference by more than the variable it was named after.
+#
+# Reads: does the penalty push the probe's joint-space G_rand below the baseline's, and if it does,
+# does recursive RA follow it down or move against it? The second answer is the one that decides
+# whether the +0.93/+1.00 frontier correlation is causal or merely observational.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: legacy_lnes
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: resnet18
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  INIT_FROM: outputs/semkine/s1_track_domrand_s3407/s1_track_domrand_s3407-step=3500.ckpt
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+  GAIN_REG_W: 1.053
+  GAIN_REG_SCALE: 1.0
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 8
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-4                   # 10x down: this is a fine-tune, not a fresh run
+  WARMUP_STEPS: 50
+  MAX_STEPS: 800
+  VAL_CHECK_INTERVAL: 100000   # no val: the gate is the recursive protocol, not val_loss
+  SAVE_EVERY_N_STEPS: 100      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s25_ft_lowg
+  RUN_NAME: s25_ft_lowg
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s25_ft_lowg/eval

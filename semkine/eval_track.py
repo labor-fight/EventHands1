@@ -127,7 +127,10 @@ def root_align(x: np.ndarray) -> np.ndarray:
 def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step_ms: int,
                    device, rng, noise_scale: float, delta_trust: float = 1.0,
                    bucket_manifest: Optional[dict] = None,
-                   state_hook=None, active_policy=None) -> Optional[dict]:
+                   state_hook=None, active_policy=None,
+                   window_ms: Optional[int] = None) -> Optional[dict]:
+    """`window_ms` decouples the evidence window from the update interval; it defaults to
+    `step_ms`, which is the tying LNES imposes and which every recorded number was measured under."""
     events, offsets, aux, pos51 = load_sequence(root, legacy_dir, seq)
     tsub_path = root / legacy_dir / f"{seq}_tsub.npy"
     tsub = np.load(tsub_path, mmap_mode="r") if tsub_path.exists() else None
@@ -141,9 +144,10 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
     runs = np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2)
     assert cfg["MODEL"]["POSE_REPR"] == "mano_full_axis_angle", "tracking eval expects 51D"
 
+    win = int(window_ms or step_ms)
     preds, gts, elapsed, run_ids = [], [], [], []
     for run_id, (a, b) in enumerate(runs):
-        ends = np.arange(a + step_ms - 1, b, step_ms, dtype=np.int64)
+        ends = np.arange(a + max(step_ms, win) - 1, b, step_ms, dtype=np.int64)
         if not len(ends):
             continue
         prev = pos51[a].copy() + sample_init_noise(cfg, rng, noise_scale)
@@ -157,12 +161,12 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
         for end in ends:
             # Rasterising LNES for a raw-event arm costs as much as the whole forward pass and is
             # thrown away, which matters once the step-size sweep multiplies the step count by ten.
-            x = (torch.from_numpy(build_lnes(events, offsets, int(end), step_ms))
+            x = (torch.from_numpy(build_lnes(events, offsets, int(end), win))
                  .unsqueeze(0).to(device)) if need_lnes else None
             if use_raw:
-                ev5 = _window_events(events, offsets, tsub, int(end), step_ms)
+                ev5 = _window_events(events, offsets, tsub, int(end), win)
                 pred = model.forward_packet(make_eval_packet(ev5, prev_t, betas, camera_K,
-                                                             step_ms, device))
+                                                             win, device))
             else:
                 pred = model(x, prev_t)
             if delta_trust != 1.0:

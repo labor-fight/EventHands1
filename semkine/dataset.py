@@ -473,10 +473,24 @@ def sequences_for_split(root: Path, split: str,
     return [(s, key) for s in legacy[key]["trials"]]
 
 
+def splits_manifest(cfg: dict) -> Optional[Path]:
+    """The manifest a config pins itself to, so which subject split a run used is recorded.
+
+    Unset means the loader's default (`splits_semkine.json`). Relative names resolve against the
+    data root, which is where both manifests live.
+    """
+    name = (cfg.get("DATA", {}) or {}).get("SPLITS_MANIFEST")
+    if not name:
+        return None
+    p = Path(name)
+    return p if p.is_absolute() else Path(cfg["DATA"]["ROOT"]) / p
+
+
 def build_dataset(cfg: dict, split: str, components: np.ndarray,
                   train: Optional[bool] = None, input_mode: Optional[str] = None,
                   manifest_path: Optional[Path] = None) -> SemKineDataset:
     root = Path(cfg["DATA"]["ROOT"])
+    manifest_path = manifest_path or splits_manifest(cfg)
     if train is None:
         train = split == "train"
     track = cfg.get("TRACK", {}) or {}

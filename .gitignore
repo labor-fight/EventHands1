@@ -1,6 +1,7 @@
 # Data and training artifacts (tens of GB, keep out of git)
 /data
 outputs/
+logs/
 real_eval_data/
 synth_eval_data/
 
