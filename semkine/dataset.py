@@ -29,6 +29,7 @@ import torch
 from torch.utils.data import Dataset
 
 from semkine import domrand as DR
+from semkine import events as EV
 from semkine.events import EventPacket
 
 H_DEFAULT, W_DEFAULT = 180, 240
@@ -104,6 +105,7 @@ class SemKineDataset(Dataset):
         prev_noise_large: Tuple[float, float, float] = (0.05, 0.3, 0.3),
         prev_noise_mix: Tuple[float, float, float] = (0.5, 0.3, 0.2),
         render_scale: float = 0.375,
+        event_channels: Sequence[str] = ("last",),
         seed: int = 0,
         unroll_pair: bool = False,
     ):
@@ -137,6 +139,7 @@ class SemKineDataset(Dataset):
         # on the model's own prediction for the window before it. Training only: randomising or
         # re-conditioning the evaluation input would make the metric a moving target.
         self.unroll_pair = bool(unroll_pair) and self.train
+        self.event_channels = tuple(event_channels)
 
         self._handles: Dict[int, SequenceHandles] = {}
         self._pid = os.getpid()
@@ -313,14 +316,15 @@ class SemKineDataset(Dataset):
             p_eff = np.where(sel, 1 - p_eff, p_eff)
         return p_eff
 
-    @staticmethod
-    def _splat_lnes(xs, ys, ps, ms_rel, window, height, width) -> np.ndarray:
-        img = np.zeros((height, width, 2), np.float32)
-        if len(xs):
-            img[ys.astype(np.intp), xs.astype(np.intp), ps.astype(np.intp)] = (
-                ms_rel.astype(np.float32) / float(window)
-            )
-        return img
+    def _splat_lnes(self, xs, ys, ps, ms_rel, window, height, width) -> np.ndarray:
+        """Delegates to the one shared builder, which `eval_track` also calls.
+
+        The two used to be separate implementations kept in step by inspection. They are now the
+        same function, so a representation change cannot reach training without reaching
+        evaluation -- with more than one plane there is much more to get out of step.
+        """
+        return EV.splat_event_image(xs, ys, ps, ms_rel, window, height, width,
+                                    self.event_channels)
 
     # ---------------------------------------------------------------- getitem
     def __getitem__(self, idx: int):
@@ -525,4 +529,5 @@ def build_dataset(cfg: dict, split: str, components: np.ndarray,
         render_scale=float(cfg.get("MODEL", {}).get("RENDER_SCALE", 0.375)),
         seed=int(cfg.get("SEED", 0)),
         unroll_pair=bool(track.get("UNROLL_PAIR", False)) and bool(train),
+        event_channels=EV.event_channels(cfg),
     )

@@ -1,0 +1,122 @@
+# S28: stop the event representation from discarding three quarters of its input.
+#
+# Single variable versus `s1_track_domrand`, the strongest tracker in the repository:
+# DATA.EVENT_CHANNELS. Warm start, domain randomisation, noise curriculum, optimiser, schedule,
+# split and checkpoint grid are carried over unchanged.
+#
+# The defect is measured, not suspected. LNES writes one normalised timestamp per (pixel, polarity)
+# and lets later events overwrite earlier ones, so its capacity is 180*240*2 slots regardless of how
+# many events arrive. At the 50 ms operating point (`outputs/semkine/lnes_capacity.json`):
+#
+#     events in window   23474        occupied slots    2367  (2.7% of the surface)
+#     overwritten        73.8%        at 400 ms         90.7%
+#
+# Three quarters of the evidence is destroyed by construction, and what survives is one number per
+# slot. Two extra faces are the cheapest way to stop discarding:
+#     count   how many events hit the slot, log-compressed -- the multiplicity overwriting deletes
+#     first   the earliest timestamp in the slot; with `last` this brackets the dwell time of the
+#             moving edge, a velocity cue no single timestamp can carry
+#
+# Why here and not in the readout. The repository's own architecture law
+# (`docs/ASYNC_SPARSE_SOTA_MASTER_VERDICT_20260826.md` 3.5) is that evidence encoding must be
+# state-independent, because dPhi/dx != 0 is what made the pose-conditioned frontend's loop gain
+# uncontrollable (KEG: single-step 12.4 mm, recursive 26.6). All three faces are functions of the
+# events alone, so this widens capacity in the one place that cannot feed the loop.
+#
+# And this is where the error actually is. Probed on the selected baseline checkpoint
+# (`outputs/semkine/spec_gain_postfix_a.json`): single-step teacher-forced bias b = 15.42 mm,
+# recursive 17.17 mm. The loop contributes 11%; b is the other 90%. Two independent interventions on
+# the loop term have now been run and neither helped -- the isotropic retention penalty moves its
+# own target 2.6x with no effect on recursion (S24), and the spectral one makes it monotonically
+# worse (S27: 19.9 / 23.6 / 31.2 mm as lambda rises). The remaining term is b.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  # Pinned: the default manifest was replaced on 2026-08-27 by the 9-subject
+  # capture-time split, and every arm compared against here used the 5/2/3 one.
+  SPLITS_MANIFEST: _retired_splits_semkine_5v2v3.json
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: legacy_lnes
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: resnet18
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  INIT_FROM: outputs/semkine/s1_abs_domrand_s3407/last.ckpt
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 1024
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 8
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3                   # 1e-3 * sqrt(1024/64), one device
+  WARMUP_STEPS: 500
+  MAX_STEPS: 6000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s28_ctrl_s3407
+  RUN_NAME: s28_ctrl_s3407
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s28_ctrl_s3407/eval

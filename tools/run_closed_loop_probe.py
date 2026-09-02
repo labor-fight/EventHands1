@@ -36,7 +36,7 @@ from config import load_config                                    # noqa: E402
 from mano_layer import ManoLayer                                  # noqa: E402
 from model import MNISTModel                                      # noqa: E402
 from semkine import eval_track as ET                              # noqa: E402
-from semkine.dataset import sequences_for_split                   # noqa: E402
+from semkine.dataset import sequences_for_split, splits_manifest  # noqa: E402
 
 class _DeltaHook:
     """Collects per-step update magnitudes from the recursive evaluator's own loop.
@@ -236,6 +236,12 @@ def main() -> None:
                     help="per-arm inference-time routing override for the KEG frontend; lets the "
                          "same checkpoint be probed under both routings (same-checkpoint ablation)")
     ap.add_argument("--split", default="val_core")
+    ap.add_argument("--manifest", default=None,
+                    help="split manifest; defaults to each arm's own DATA.SPLITS_MANIFEST. "
+                         "Passing None to `sequences_for_split` reads the *current* default "
+                         "manifest, which stopped being the 5/2/3 split on 2026-08-27, so an arm "
+                         "trained under the old one would be probed on a different held-out "
+                         "subject than it was selected on.")
     ap.add_argument("--step-ms", type=int, default=50)
     ap.add_argument("--prev-noise", default="",
                     help="comma-separated teacher-forcing corruption scales; adds a sensitivity "
@@ -254,10 +260,17 @@ def main() -> None:
             ckpt, cfg=cfg, map_location=device).to(device).eval()
         mano = ManoLayer(cfg["MANO"]["NPZ"], add_mean=False).to(device).eval()
         root = Path(cfg["DATA"]["ROOT"])
-        seqs = sequences_for_split(root, a.split, None)
+        mani = Path(a.manifest) if a.manifest else splits_manifest(cfg)
+        if mani and not mani.is_absolute() and not mani.exists():
+            mani = root / mani
+        seqs = sequences_for_split(root, a.split, mani)
         os.environ["EVENTHANDS_KEG_ROUTE"] = routes.get(label, "soft")
+        print(f"{label}: {len(seqs)} sequences in {a.split} "
+              f"[{mani.name if mani else 'splits_semkine.json'}]", flush=True)
 
-        out = {"route": routes.get(label, "soft"), "ckpt": ckpt}
+        out = {"route": routes.get(label, "soft"), "ckpt": ckpt,
+               "manifest": mani.name if mani else "splits_semkine.json",
+               "sequences": [s for s, _ in seqs]}
         for forced in (True, False):
             regime = "teacher_forced" if forced else "recursive"
             per = [_run(model, mano, cfg, root, d, s, a.step_ms, device, forced)

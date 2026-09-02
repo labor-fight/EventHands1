@@ -1,0 +1,122 @@
+# S38: joint-query readout on top of S37. Seed 3408.
+#
+#
+# Single-variable arm against S37 (`s37_fkdirect_s3408.yaml`): the *only* change is the
+# readout. S37 feeds all fifteen joint decoders the same pooled 512-D vector; here each
+# decoder reads a per-joint feature -- a softmax spatial kernel over the event nodes,
+# centred on the previous state`s projected LBS joint, with a learnable per-joint sigma
+# (`EventGNN._query_readout`). The pooled vector still feeds the root head.
+#
+# Why this might win: the readout is the measured bottleneck (probe_s36_nodes: 512 -> 4096
+# nodes moved recursive RA 0.09 mm while the pooled width stayed 512). Why it might lose:
+# the kernel is centred by prev, so a prev error larger than sigma reads the wrong region
+# (KEG`s failure, moved from structure to readout -- H6); or sigma grows until the kernel
+# is flat and the readout degenerates to global pooling (KSGN laziness -- H7).
+#
+# Contract (test_s38_joint_readout.py): the graph and messages never see the queries; the
+# pooled feature is bitwise identical with and without them. A joint`s local feature is
+# its decoder`s only evidence path. Everything else: S37 verbatim.
+SEED: 3408
+
+DATA:
+  ROOT: data/hand_data51
+  # Pinned: the default manifest became the 9-subject capture-time split on 2026-08-27 and every
+  # arm compared against here was trained on the 5/2/3 one.
+  SPLITS_MANIFEST: _retired_splits_semkine_5v2v3.json
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_gnn
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  # The tracking recipe, unchanged from S34/S36 -- except the conditioning path:
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: false
+  PREV_FK_DIRECT: true
+  ENCODER_JOINT_READOUT: true
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: event_gnn
+  ENCODER_HIDDEN: 128
+  ENCODER_FEAT: 512
+  ENCODER_LAYERS: 3
+  ENCODER_K: 8
+  ENCODER_MAX_NODES: 2048
+  ENCODER_WINDOW: 32
+  ENCODER_T_SCALE: 1.0
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  # 512 x 2 cards = the same effective 1024 S34 trained at, so LR does not move.
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 6000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s38_jointreadout_s3408
+  RUN_NAME: s38_jointreadout_s3408
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s38_jointreadout_s3408/eval

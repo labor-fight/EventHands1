@@ -38,6 +38,83 @@ POLARITY_NOTE = "stored polarity == model polarity == LNES channel index; conver
 EV_BATCH, EV_X, EV_Y, EV_T, EV_P = range(5)
 EV_COLS = 5
 
+#: The event-image faces, each contributing one plane per polarity. `last` alone is LNES.
+EVENT_CHANNELS = ("last", "count", "first")
+#: Event multiplicity is heavy-tailed, so the count plane is log-compressed and saturates here.
+#: At the 50 ms operating point the mean occupied slot holds ~10 events, which lands mid-range.
+COUNT_REF = 32.0
+
+
+def event_channels(cfg: dict) -> tuple:
+    """`DATA.EVENT_CHANNELS`, validated. Unset means LNES, so every existing config is unchanged."""
+    ch = tuple((cfg.get("DATA", {}) or {}).get("EVENT_CHANNELS", ("last",)))
+    bad = [c for c in ch if c not in EVENT_CHANNELS]
+    if bad or not ch or ch[0] != "last" or len(set(ch)) != len(ch):
+        raise ValueError(
+            f"DATA.EVENT_CHANNELS must be a duplicate-free subset of {list(EVENT_CHANNELS)} "
+            f"beginning with 'last', got {list(ch)}")
+    return ch
+
+
+def splat_event_image(xs, ys, ps, ms_rel, window: int, height: int, width: int,
+                      channels=("last",)) -> np.ndarray:
+    """The dense event image, `(H, W, 2 * len(channels))`, planes ordered as `channels`.
+
+    `last` is LNES exactly as it has always been: one normalised timestamp per (pixel, polarity),
+    later events overwriting earlier ones. Its cost is measured, not assumed --
+    `outputs/semkine/lnes_capacity.json` puts 23474 events into 2367 occupied slots at the 50 ms
+    operating point, so **73.8% of the events are overwritten and discarded**, and the surface it
+    produces is 97.3% empty. Every event that survives contributes exactly one number.
+
+    The other two faces are the cheapest way to stop discarding, and they are chosen so that
+    together the three recover what a single overwrite destroys:
+
+    * `count`   how many events hit the slot, log-compressed. This is the multiplicity that
+                overwriting deletes outright.
+    * `first`   the *earliest* normalised timestamp in the slot. With `last`, this brackets the
+                interval the slot was active in; the difference is the dwell time of a moving edge,
+                which is a velocity cue that no single timestamp can carry.
+
+    `first` requires the events to arrive in time order, which is the module's standing contract
+    (storage order is AEDAT4 packet order, and the one place that perturbs it, hot-pixel injection,
+    re-sorts). It is then a reversed splat: last-write-wins over a reversed stream leaves the
+    earliest event standing. The reversal has to be materialised. A negative-stride *view* is
+    iterated in memory order, so `plane[y[::-1], x[::-1], p[::-1]] = t[::-1]` silently returns
+    `last` again -- it did, until `test_the_new_planes_carry_what_overwriting_deleted` caught it.
+    `test_first_matches_the_unique_reference` pins the fast form against
+    `np.unique(..., return_index=True)`, which is 32x slower but has a defined first-occurrence
+    index; at 23k events per window the difference is 3.4 ms against 0.11 ms per sample, which is
+    the whole data-loading budget at batch 1024.
+
+    All three are functions of the events alone. That is the property that matters here: the
+    repository's own architecture law (`docs/ASYNC_SPARSE_SOTA_MASTER_VERDICT_20260826.md` 3.5)
+    is that evidence encoding must be state-independent, because `dPhi/dx != 0` is what made the
+    pose-conditioned frontend's loop gain uncontrollable. Widening a state-independent encoder adds
+    capacity in the one place that cannot feed the loop.
+    """
+    out = np.zeros((height, width, 2 * len(channels)), np.float32)
+    if not len(xs):
+        return out
+    yi, xi, pi = ys.astype(np.intp), xs.astype(np.intp), ps.astype(np.intp)
+    tval = ms_rel.astype(np.float32) / float(window)
+    idx = None
+    for k, name in enumerate(channels):
+        face = np.zeros((height, width, 2), np.float32)
+        if name == "last":
+            face[yi, xi, pi] = tval
+        else:
+            if idx is None:
+                idx = (yi * width + xi) * 2 + pi
+            if name == "first":
+                flat = face.reshape(-1)
+                flat[np.ascontiguousarray(idx[::-1])] = np.ascontiguousarray(tval[::-1])
+            elif name == "count":
+                n = np.bincount(idx, minlength=height * width * 2).astype(np.float32)
+                face = (np.log1p(n) / np.log1p(COUNT_REF)).clip(max=1.0
+                                                                ).reshape(height, width, 2)
+        out[:, :, 2 * k:2 * k + 2] = face
+    return out
+
 
 @dataclass
 class EventPacket:

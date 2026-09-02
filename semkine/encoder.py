@@ -89,12 +89,12 @@ def sae_times(events: torch.Tensor, ptr: torch.Tensor, height: int, width: int,
     B = int(ptr.numel() - 1)
     span_b = events.new_zeros(B)
     counts = ptr[1:] - ptr[:-1]
-    if bool((counts > 0).any()):
-        # Packet duration from first to last event; empty packets stay 0 and are never indexed.
-        last = ptr[1:] - 1
-        first = ptr[:-1]
-        ok = counts > 0
-        span_b[ok] = (events[last[ok], EV_T] - events[first[ok], EV_T]).clamp_min(EPS_DT)
+    ok = counts > 0
+    # No `.any().item()`: empty packets keep span 0; indices for those rows are dummies.
+    safe_first = torch.where(ok, ptr[:-1], torch.zeros_like(ptr[:-1]))
+    safe_last = torch.where(ok, ptr[1:] - 1, torch.zeros_like(ptr[:-1]))
+    span_b = torch.where(
+        ok, (events[safe_last, EV_T] - events[safe_first, EV_T]).clamp_min(EPS_DT), span_b)
     span = span_b[events[:, EV_BATCH].long()]
 
     pix = _pixel_keys(events, height, width)
@@ -102,6 +102,8 @@ def sae_times(events: torch.Tensor, ptr: torch.Tensor, height: int, width: int,
     ts = events[:, EV_T]
     t_us = (ts * 1e6).long()
     idx = torch.arange(n, device=events.device)
+    # Packets here are ≤300 ms; a fixed 1 s ceiling avoids `t_us.max().item()` (a device sync).
+    TMAX_US = 1_000_000
 
     def _prev_same() -> torch.Tensor:
         key = pix * 2 + pol
@@ -116,27 +118,28 @@ def sae_times(events: torch.Tensor, ptr: torch.Tensor, height: int, width: int,
         return out
 
     def _prev_opp() -> torch.Tensor:
-        """Last earlier opposite-polarity event at the same pixel, via searchsorted."""
+        """Last earlier opposite-polarity event at the same pixel, via searchsorted.
+
+        Every tensor here is a fixed `(n,)`: no `nonzero`, no boolean gathers. Those have
+        data-dependent output shapes, which forces the host to drain the CUDA queue before it
+        can allocate, and at batch 1 the S36 latency audit measured the stalls costing more
+        than the arithmetic. Wrong-polarity events ride along as `-1` sentinel keys that sort
+        to the front and can never equal a real query (`pix >= 0`), which also makes an empty
+        polarity side correct without a branch.
+        """
         out = torch.zeros_like(ts)
-        tmax = int(t_us.max().item()) + 2
+        q_all = pix * TMAX_US + t_us
         for src_pol, dst_pol in ((0, 1), (1, 0)):
-            src = pol == src_pol
-            dst = pol == dst_pol
-            if not bool(src.any()) or not bool(dst.any()):
-                continue
-            keys_dst = pix[dst] * tmax + t_us[dst]
-            order = torch.argsort(keys_dst)
-            keys_sorted = keys_dst[order]
-            queries = pix[src] * tmax + t_us[src]
-            pos = torch.searchsorted(keys_sorted, queries).sub(1)
-            valid = pos >= 0
-            pos_c = pos.clamp(min=0)
-            cand_pix = pix[dst][order][pos_c]
-            cand_t = ts[dst][order][pos_c]
-            hit = valid & (cand_pix == pix[src]) & (cand_t < ts[src])
-            tmp = torch.zeros(int(src.sum()), device=events.device, dtype=events.dtype)
-            tmp[hit] = ts[src][hit] - cand_t[hit]
-            out[src] = tmp
+            is_dst = pol == dst_pol
+            key = torch.where(is_dst, q_all, torch.full_like(q_all, -1))
+            order = torch.argsort(key)
+            key_sorted = key[order]
+            cand_pix = torch.where(is_dst, pix, torch.full_like(pix, -1))[order]
+            cand_t = ts[order]
+            # Last key strictly below the query; landing on a sentinel means "no candidate".
+            pos = torch.searchsorted(key_sorted, q_all).sub(1).clamp(min=0)
+            hit = (pol == src_pol) & (cand_pix[pos] == pix) & (cand_t[pos] < ts)
+            out = torch.where(hit, ts - cand_t[pos], out)
         return out
 
     same_dt = _prev_same()

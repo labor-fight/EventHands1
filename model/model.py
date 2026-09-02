@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import gc
+import math
 from typing import Any, Dict, Optional
 
 import torch
@@ -12,6 +13,8 @@ from torch import nn, optim
 import torch.nn.functional as F
 from torchvision import models
 import pytorch_lightning as pl
+
+from semkine import events as EV
 
 from pose_repr import (
     axis_angle_to_quaternion,
@@ -32,6 +35,9 @@ class BaseModel(pl.LightningModule):
     """
 
     LOSS_TYPES = ("mse_51d", "so3_trans_fk")
+    #: cosine decays to this fraction of the peak rather than to zero, so the last
+    #: steps still move and the grid's final points are not all the same checkpoint.
+    LR_FLOOR = 0.02
     #: wrist index in the 21-joint OpenPose ordering ManoLayer returns
     FK_ROOT_JOINT = 0
 
@@ -86,7 +92,7 @@ class BaseModel(pl.LightningModule):
     def _compute_loss(self, pred, y, betas=None):
         if self.loss_type == "so3_trans_fk":
             return self._so3_fk_loss(pred, y, betas)
-        return self._mse_51d_loss(pred, y)
+        return self._mse_51d_loss(pred, y, betas)
 
     def _so3_fk_loss(self, pred, y, betas):
         """L_rot + L_trans + 2 L_FK, all three read off the same MANO decode.
@@ -168,7 +174,7 @@ class BaseModel(pl.LightningModule):
             "rot_loss": loss_fk,
         }
 
-    def _mse_51d_loss(self, pred, y):
+    def _mse_51d_loss(self, pred, y, betas=None):
         # Match original EventHands weighted MSE for 12D:
         # (mano*6/0.1 + pos*3/0.0001 + rot*3/0.05)/12
         # which equals (60*mano + 30000*pos + 60*rot)/12 when using mean MSE.
@@ -195,12 +201,34 @@ class BaseModel(pl.LightningModule):
             + self.lambda_r * l_root
             + self.lambda_t * l_t
         ) / self.normalizer
-        return loss, {
+        parts = {
             "mano_loss": l_local,
             "pos_loss": l_t,
             "rot_loss": l_root,
             "z_loss": F.mse_loss(pred[:, self.slices.transl][:, 2:3], y[:, self.slices.transl][:, 2:3]),
         }
+        # S42. The one piece of S39 that measured well, grafted onto the loss that wins
+        # recursive RA: `so3_trans_fk` lost RA (+1.39, fingers) but improved absolute MPJPE
+        # by 2.5 mm, and the abs gain is attributable to the metre-scale absolute-FK term.
+        # Added under a weight so `mse_51d` keeps its finger-favouring implicit weighting;
+        # weight 0 is bit-identical to every existing mse arm. Guarded by loss_type so the
+        # legacy-logging call inside `_so3_fk_loss` never pays a second FK.
+        if self.abs_fk_weight > 0 and self.loss_type == "mse_51d":
+            if not hasattr(self, "mano"):
+                raise RuntimeError("LOSS.ABS_FK_WEIGHT on mse_51d needs MANO "
+                                   "(MODEL.PREV_FK_DIRECT or PREV_RENDER)")
+            with torch.autocast(device_type=pred.device.type, enabled=False):
+                pred32, y32 = pred.float(), y.float()
+                betas_r, _ = self._resolve_betas_K(pred32, betas, None)
+                _, joints_p = self._fk(pred32, betas_r)
+                with torch.no_grad():
+                    _, joints_g = self._fk(y32, betas_r)
+                abs_dist = torch.norm(joints_p - joints_g, dim=-1)
+                loss_abs_fk = abs_dist.mean()
+            loss = loss + self.abs_fk_weight * loss_abs_fk
+            parts["loss_abs_fk"] = loss_abs_fk
+            parts["abs_joint_error_mm"] = abs_dist.mean().detach() * 1000.0
+        return loss, parts
 
     def _unpack_batch(self, batch):
         if hasattr(batch, "events"):
@@ -319,8 +347,8 @@ class BaseModel(pl.LightningModule):
 
         The metric is not a detail, it is the whole term. The probe's `gain_rand` -- the quantity
         that correlates +0.955 with recursive error -- is a ratio of *root-aligned joint distances
-        in millimetres* (`tools/tmp_probe_echo_gain.py:88`). Taking the same ratio in the raw 51-D
-        parameter space instead is a different objective, because that norm mixes metres with
+        in millimetres* (`outputs/semkine/echo_gain_50ms.json`). Taking the same ratio in the raw
+        51-D parameter space instead is a different objective, because that norm mixes metres with
         radians and is ~97% dominated by the 45-D pose block (sqrt(45)*0.05 rad against
         sqrt(3)*0.005 m), while root alignment discards global translation outright. Measured: a
         parameter-space penalty was monotone in lambda yet drove joint-space retention *above* the
@@ -334,10 +362,11 @@ class BaseModel(pl.LightningModule):
         toward the current unperturbed output, which is a different objective. The denominator is
         under `no_grad` because it does not depend on the parameters.
         """
-        if not self.prev_render:
-            # `self.mano` only exists on the render path, and silently falling back to a
+        if not (self.prev_render or self.prev_fk):
+            # `self.mano` only exists on the conditioning paths, and silently falling back to a
             # parameter-space ratio is the exact failure this docstring documents.
-            raise ValueError("TRACK.GAIN_REG_W needs MODEL.PREV_RENDER for the MANO forward pass")
+            raise ValueError("TRACK.GAIN_REG_W needs MODEL.PREV_RENDER or PREV_FK_DIRECT "
+                             "for the MANO forward pass")
         if hasattr(packed, "events"):
             prev, betas = packed.prev_state, packed.betas
             d = self._sample_cond_delta(prev)
@@ -419,6 +448,11 @@ class BaseModel(pl.LightningModule):
         if sd is not None:
             for k in [k for k in sd if k.startswith(self.TEACHER_PREFIX)]:
                 del sd[k]
+            # S27 briefly carried a `gain_u` power-iteration buffer. The arm it belonged to was
+            # falsified and the buffer is gone, but the S27/S28 grids were written while it
+            # existed, and Lightning loads strictly. Dropping the key keeps those checkpoints
+            # loadable; nothing reads it.
+            sd.pop("gain_u", None)
 
     def training_step(self, batch, batch_nb):
         pred, y, betas, packed = self._predict_batch(batch)
@@ -461,6 +495,13 @@ class BaseModel(pl.LightningModule):
     def _log_so3_fk_parts(self, stage, parts, on_epoch=False):
         """Named logs for the SO(3)+FK terms; the aliases above are too opaque to read."""
         if self.loss_type != "so3_trans_fk":
+            # S42: the mse arm can carry the absolute-FK regulariser; its trajectory is
+            # the readable evidence for whether the term is doing anything.
+            if "loss_abs_fk" in parts:
+                self.log(f"{stage}_loss_abs_fk", parts["loss_abs_fk"],
+                         sync_dist=True, on_epoch=on_epoch)
+                self.log(f"{stage}_abs_joint_error_mm", parts["abs_joint_error_mm"],
+                         sync_dist=True, on_epoch=on_epoch)
             return
         for key in ("loss_rot", "loss_trans", "loss_fk", "legacy_loss_51d",
                     "rotation_error_deg", "joint_error_mm"):
@@ -472,17 +513,38 @@ class BaseModel(pl.LightningModule):
     def test_step(self, batch, batch_nb):
         return self.validation_step(batch, batch_nb)
 
+    #: `TRAIN.LR_SCHEDULE` values. `constant` is the historical warmup-then-flat path.
+    LR_SCHEDULES = ("constant", "cosine")
+
     def configure_optimizers(self):
-        lr = float(self.cfg.get("TRAIN", {}).get("LR", 1e-3))
+        tcfg = self.cfg.get("TRAIN", {})
+        lr = float(tcfg.get("LR", 1e-3))
         opt = optim.Adam(self.parameters(), lr=lr)
-        warmup = int(self.cfg.get("TRAIN", {}).get("WARMUP_STEPS", 0))
-        if warmup <= 0:
+        warmup = int(tcfg.get("WARMUP_STEPS", 0))
+        schedule = str(tcfg.get("LR_SCHEDULE", "constant"))
+        if schedule not in self.LR_SCHEDULES:
+            raise ValueError(f"TRAIN.LR_SCHEDULE must be one of {list(self.LR_SCHEDULES)}, "
+                             f"got {schedule!r}")
+        total = int(tcfg.get("MAX_STEPS", 0))
+        if schedule == "cosine" and total <= warmup:
+            raise ValueError("TRAIN.LR_SCHEDULE=cosine needs MAX_STEPS > WARMUP_STEPS")
+        if warmup <= 0 and schedule == "constant":
             return opt
 
+        # The decay exists because the checkpoint grid says the run never settles. Held at
+        # 4e-3 for all 6000 steps, the control recipe's own grid reads
+        # 17.55 / 17.96 / 18.80 / 21.16 / 90.93 / 18.26 / 17.80 / 132.62 / 17.66 / ... --
+        # two outright divergences and a 1.1 mm spread among the survivors, so the reported number
+        # is the minimum of a noisy trajectory rather than where training converged. Four runs of
+        # that recipe give 16.638 / 17.744 / 17.496 / 17.657 (sd 0.51 mm), which is the resolution
+        # any claim has to clear.
         def lr_lambda(step):
-            if step < warmup:
+            if warmup > 0 and step < warmup:
                 return float(step + 1) / float(warmup)
-            return 1.0
+            if schedule == "constant":
+                return 1.0
+            p = min(max((step - warmup) / float(total - warmup), 0.0), 1.0)
+            return self.LR_FLOOR + (1.0 - self.LR_FLOOR) * 0.5 * (1.0 + math.cos(math.pi * p))
 
         sched = optim.lr_scheduler.LambdaLR(opt, lr_lambda)
         return {
@@ -517,6 +579,13 @@ class MNISTModel(BaseModel):
                    instead of a flat 1: see :meth:`_register_vertex_codes`. A
                    drop-in replacement for `sil` at the same channel count.
 
+    Render-free conditioning (MODEL.PREV_FK_DIRECT, S37, raw-event line only):
+    the previous state still goes through the MANO forward pass, but instead of
+    rasterizing it into images and sampling those at event pixels, each event
+    node gets analytic distances to the *projected* FK output directly -- see
+    :meth:`_fk_extra`. Mutually exclusive with PREV_RENDER by construction so an
+    arm is attributable to exactly one conditioning path.
+
     The whole hand-model path is confined to the rasterizer: the trunk stays a
     plain conv1 adapter followed by an unmodified resnet18.
     """
@@ -527,12 +596,14 @@ class MNISTModel(BaseModel):
     MODEL_KEYS = frozenset(
         {
             "BACKBONE", "POSE_REPR", "OUTPUT_DIM", "MANO_NCOMPS", "PREDICT_BETA",
-            "PREDICT_DELTA", "PREVPOS_EMBED", "PREV_RENDER", "ZERO_EVENT_GATE",
+            "PREDICT_DELTA", "PREVPOS_EMBED", "PREV_RENDER", "PREV_FK_DIRECT",
+            "FK_DIRECTIONAL", "ZERO_EVENT_GATE",
             "RENDER_CHANNELS", "RENDER_H", "RENDER_W", "RENDER_SCALE",
             "RENDER_CHUNK", "RENDER_DEPTH_TOL", "INIT_FROM",
             "ACTIVE_HEAD", "ACTIVE_FEAT_DIM", "ACTIVE_HIDDEN",
-            "ENCODER", "ENCODER_HIDDEN", "ENCODER_FEAT", "ENCODER_CELL",
-            "ENCODER_KSSF", "ENCODER_KSSF_HALO", "ENCODER_NODE_DIM", "ENCODER_JOINT_TOKENS",
+            "ENCODER", "ENCODER_HIDDEN", "ENCODER_FEAT", "ENCODER_CELL", "ENCODER_LAYERS",
+            "ENCODER_K", "ENCODER_MAX_NODES", "ENCODER_WINDOW", "ENCODER_T_SCALE",
+            "ENCODER_JOINT_READOUT", "ENCODER_ATTN_POOL",
             "DISTILL_WEIGHT", "DISTILL_CKPT",
         }
     )
@@ -551,6 +622,21 @@ class MNISTModel(BaseModel):
     #: floor of the semsil value inside the mask, so the mask stays readable as a
     #: binary support (the background gap is this large, vs a ~2e-3 bf16 step)
     SEMSIL_FLOOR = 0.35
+    #: S37 render-free conditioning. Decay lengths of the analytic proximity
+    #: channels, in render pixels. 8 px against a ~2.5 px projected vertex
+    #: spacing makes `g_surf` read ~1 inside the silhouette and fall to noise a
+    #: couple of vertex spacings outside it, which is the soft version of the
+    #: binary `sil` face; joints sit ~15 px apart so their kernel is twice as wide.
+    FK_TAU_SURF = 8.0
+    FK_TAU_SKEL = 16.0
+    #: the depth channel takes the min z over this many nearest projected
+    #: vertices: a 2D-nearest vertex may belong to the *back* surface, and the
+    #: min over a small neighbourhood is the z-buffer's front-surface answer
+    #: without a z-buffer.
+    FK_DEPTH_K = 8
+    #: chunk of sampled nodes per (nodes x 778) distance block, bounding the
+    #: transient at ~400 MB where the full 1M-node batch would need ~13 GB
+    FK_CHUNK = 32768
 
     def __init__(self, cfg: Optional[Dict[str, Any]] = None, num_classes: Optional[int] = None):
         super().__init__(cfg)
@@ -593,9 +679,38 @@ class MNISTModel(BaseModel):
         self.predict_delta = bool(model_cfg.get("PREDICT_DELTA", False))
         self.prevpos_embed = bool(model_cfg.get("PREVPOS_EMBED", False))
         self.prev_render = bool(model_cfg.get("PREV_RENDER", False))
+        self.prev_fk = bool(model_cfg.get("PREV_FK_DIRECT", False))
+        if self.prev_fk and self.prev_render:
+            # One conditioning path per arm, or a difference is not attributable.
+            raise ValueError("PREV_FK_DIRECT and PREV_RENDER are mutually exclusive")
+        # S38. The pooled vector stays for the root head; the fifteen joint heads read a
+        # per-joint spatial-kernel readout centred on the previous state's projected LBS
+        # joints instead. The queries reuse the PREV_FK_DIRECT forward pass, so that path
+        # is a prerequisite rather than an independent switch.
+        self.joint_readout = bool(model_cfg.get("ENCODER_JOINT_READOUT", False))
+        if self.joint_readout and not self.prev_fk:
+            raise ValueError("ENCODER_JOINT_READOUT needs MODEL.PREV_FK_DIRECT "
+                             "(the queries are the projected FK of the previous state)")
+        # S40. Two more FK-direct channels: the unit direction from the event to the nearest
+        # projected vertex, gated by g_surf. `g_surf` is the magnitude of the distance field's
+        # local description; this is its direction -- the raster `sil` had neither.
+        self.fk_directional = bool(model_cfg.get("FK_DIRECTIONAL", False))
+        if self.fk_directional and not self.prev_fk:
+            raise ValueError("FK_DIRECTIONAL extends the PREV_FK_DIRECT channels")
+        # S41. Content-based attention pooling in the frontend readout. State-free by
+        # construction (the queries are learned constants), so it is on the right side of
+        # the S38/KEG law; incompatible with the retired state-centred joint readout so
+        # every arm has exactly one readout mechanism.
+        self.attn_pool = int(model_cfg.get("ENCODER_ATTN_POOL", 0))
+        if self.attn_pool and self.joint_readout:
+            raise ValueError("ENCODER_ATTN_POOL and ENCODER_JOINT_READOUT are exclusive")
         self.zero_event_gate = bool(model_cfg.get("ZERO_EVENT_GATE", self.prev_render))
         self.render_channels = self._parse_render_channels(model_cfg)
-        in_ch = 2 + sum(self.RENDER_FACES[c] for c in self.render_channels)
+        # Two planes per event face. `DATA.EVENT_CHANNELS` is unset in every existing config, which
+        # resolves to `("last",)` -- plain LNES, two planes, the historical width.
+        self.event_channels = EV.event_channels(self.cfg)
+        in_ch = (2 * len(self.event_channels)
+                 + sum(self.RENDER_FACES[c] for c in self.render_channels))
         # Keep parameter names conv1 / rn for loading original 12D checkpoints.
         self.conv1 = nn.Conv2d(in_ch, 3, kernel_size=3, padding=1)
 
@@ -616,10 +731,6 @@ class MNISTModel(BaseModel):
             self.encoder_name = ""
         self.distill_weight = float(model_cfg.get("DISTILL_WEIGHT", 0.0))
         self.teacher = None
-        self.encoder_kssf = False
-        self.joint_tokens = False
-        #: set at inference to zero the S18 geometric channels on an unchanged checkpoint (G3)
-        self.ablate_kssf = False
         hid = int(model_cfg.get("ACTIVE_HIDDEN", 64))
         if self.encoder_name:
             # S2 / S16. The dense conv trunk is not built: a raw-event encoder that still
@@ -627,26 +738,13 @@ class MNISTModel(BaseModel):
             # load the wrong weights.
             from semkine.frontends import build_frontend
             feat = int(model_cfg.get("ENCODER_FEAT", model_cfg.get("ACTIVE_FEAT_DIM", 256)))
-            # S18. `ENCODER_KSSF` replaces the two-channel splat lookup with the twelve-channel
-            # kinematic lift, which is a different quantity and not a wider version of the same
-            # one: the splat gives silhouette and inverse depth, KSSF gives the contour normal,
-            # the skinning weights and the part code, i.e. the terms the event residual is
-            # actually built from. The two are mutually exclusive so the input width is defined.
-            self.encoder_kssf = bool(model_cfg.get("ENCODER_KSSF", False))
-            # E5.5a: replace the visibility hard gate in the geometric lift with the deletion-free
-            # halo routing. A representation property, so it is a config bit that the checkpoint
-            # carries, not an inference-time switch: the routed statistics change distribution and
-            # a gated checkpoint cannot be read through the halo lift.
-            self.kssf_halo = bool(model_cfg.get("ENCODER_KSSF_HALO", False))
-            if self.encoder_kssf and self.encoder_name not in ("keg", "kinematic_graph"):
-                raise ValueError("MODEL.ENCODER_KSSF is defined for the keg frontend only")
-            if self.kssf_halo and not self.encoder_kssf:
-                raise ValueError("MODEL.ENCODER_KSSF_HALO requires MODEL.ENCODER_KSSF")
-            if self.encoder_kssf:
-                from semkine.keg import KSSF_CHANNELS
-                extra = KSSF_CHANNELS
-            else:
-                extra = 2 if self.prev_render else 0
+            # The previous state reaches the frontend the way it does in the arm that actually
+            # tracks: two rendered values sampled at each event's own pixel. Comparative, not
+            # indexing -- the event's position in the representation does not move with the pose.
+            # S37 keeps that contract but computes four analytic values instead of sampling a
+            # rasterized image; see `_fk_extra`.
+            extra = 2 if self.prev_render else (
+                (6 if self.fk_directional else 4) if self.prev_fk else 0)
             self.event_encoder = build_frontend(
                 self.encoder_name,
                 height=int(self.cfg.get("DATA", {}).get("HEIGHT", 180)),
@@ -655,25 +753,31 @@ class MNISTModel(BaseModel):
                 feat_dim=feat,
                 extra_channels=extra,
                 cell=int(model_cfg.get("ENCODER_CELL", 16)),
-                node_dim=int(model_cfg.get("ENCODER_NODE_DIM", 64)),
+                n_layers=int(model_cfg.get("ENCODER_LAYERS", 2)),
+                # S36 `event_gnn`. The events are the nodes, so the cost knobs are how many of them
+                # survive per packet, how far back the causal neighbour search looks, and how many
+                # edges each node keeps. `max_nodes` is what holds memory flat as the event rate
+                # rises -- the property the retired `aegnn_lite` did not have.
+                k=int(model_cfg.get("ENCODER_K", 8)),
+                max_nodes=int(model_cfg.get("ENCODER_MAX_NODES", 768)),
+                window=int(model_cfg.get("ENCODER_WINDOW", 32)),
+                t_scale=float(model_cfg.get("ENCODER_T_SCALE", 1.0)),
+                joint_queries=16 if self.joint_readout else 0,
+                attn_pool=self.attn_pool,
             )
             self.conv1 = None
             self.rn = None
-            # S18/S10. When the frontend already carries a feature per joint, joint `k`'s decoder
-            # reads node `k` instead of the shared vector. That is a strictly stronger form of the
-            # unique-pathway rule: the trunk has no route to a finger angle *and* no route to
-            # another finger's node.
-            self.joint_tokens = bool(model_cfg.get("ENCODER_JOINT_TOKENS", False))
-            if self.joint_tokens and not hasattr(self.event_encoder, "forward_nodes"):
-                raise ValueError("MODEL.ENCODER_JOINT_TOKENS needs a frontend with node outputs")
-            if self.joint_tokens and not self.active_head:
-                raise ValueError("MODEL.ENCODER_JOINT_TOKENS needs MODEL.ACTIVE_HEAD")
             if self.active_head:
                 assert self.output_dim == 51, "the active head is defined for the 51D layout"
                 self.root_head = nn.Linear(feat, 6)
-                jin = int(getattr(self.event_encoder, "node_dim", 0)) if self.joint_tokens else feat
+                # S38: with the joint readout each decoder reads its own joint's local
+                # feature (`hidden`-wide), and that is its *only* evidence -- the S10/KSGN
+                # law that a bypass which can be ignored will be ignored, applied to the
+                # readout. Without it, every decoder reads the shared pooled vector.
+                head_in = (int(model_cfg.get("ENCODER_HIDDEN", 128))
+                           if self.joint_readout else feat)
                 self.joint_heads = nn.ModuleList([
-                    nn.Sequential(nn.Linear(jin + 3, hid), nn.ReLU(inplace=True),
+                    nn.Sequential(nn.Linear(head_in + 3, hid), nn.ReLU(inplace=True),
                                   nn.Linear(hid, 3))
                     for _ in range(15)
                 ])
@@ -704,9 +808,11 @@ class MNISTModel(BaseModel):
             nn.init.zeros_(self.prev_mlp[2].weight)
             nn.init.zeros_(self.prev_mlp[2].bias)
 
+        if self.prev_fk and not self.encoder_name:
+            raise ValueError("PREV_FK_DIRECT conditions event nodes; it needs MODEL.ENCODER")
         self._ctx_betas = None
         self._ctx_K = None
-        if self.prev_render:
+        if self.prev_render or self.prev_fk:
             from mano_layer import ManoLayer
 
             mano_npz = self.cfg.get("MANO", {}).get("NPZ", "assets/mano_right.npz")
@@ -717,31 +823,16 @@ class MNISTModel(BaseModel):
             self.render_scale = float(model_cfg.get("RENDER_SCALE", 240.0 / 640.0))
             self.render_chunk = int(model_cfg.get("RENDER_CHUNK", 256))
             self.render_depth_tol = float(model_cfg.get("RENDER_DEPTH_TOL", 5.0e-3))
+        if self.prev_render:
             self._register_vertex_codes()
-        # Held outside the module tree: KSSF has no parameters and holds a second reference to
-        # `self.mano`, which would duplicate the hand model in `state_dict` and break loading a
-        # checkpoint saved before S18.
-        self._kssf_holder = []
-        if self.encoder_kssf:
-            if not self.prev_render:
-                raise ValueError("MODEL.ENCODER_KSSF needs MODEL.PREV_RENDER for the hand model")
-            from semkine.kssf import KSSF
-
-            k = KSSF(self.mano, height=self.render_h, width=self.render_w,
-                     render_scale=self.render_scale)
-            k.eval()
-            self._kssf_holder.append(k)
-
-    def kssf_on(self, device):
-        """The KSSF rasteriser, moved to `device` on first use.
-
-        It sits outside the module tree, so `Module.to` does not reach its buffers; they are the
-        face list and the canonical per-vertex tables, all of them fixed, so moving once is enough.
-        """
-        k = self._kssf_holder[0]
-        if k.faces.device != device:
-            k.to(device)
-        return k
+        if self.joint_readout:
+            # Column j of the MANO skinning matrix says which vertices joint j drives; its
+            # normalised transpose turns posed vertices into per-joint surface centroids, in
+            # exactly the order the fifteen decoders and `prev[6+3k : 9+3k]` already use.
+            w = self.mano.weights  # (778, 16)
+            self.register_buffer(
+                "lbs_wn", (w / w.sum(0, keepdim=True).clamp(min=1e-8)).T.contiguous(),
+                persistent=False)
 
     def _register_vertex_codes(self):
         """Per-vertex semantic constant the rasterizer can splat into the mask value.
@@ -923,12 +1014,132 @@ class MNISTModel(BaseModel):
         ]
         return torch.cat(out, dim=0)
 
+    def _joint_queries(self, verts, camera_K):
+        """S38. Pixel positions of the previous state's 16 LBS joints; (B, 16, 2).
+
+        Surface centroids under the skinning weights rather than the 21 OpenPose joints the
+        MANO layer returns: the centroids are indexed by the same 16 LBS columns the decoders
+        are ordered by, so joint head `k` and query `k + 1` agree by construction instead of
+        by a hand-written joint-order mapping.
+        """
+        cent = torch.einsum("jv,bvc->bjc", self.lbs_wn, verts.float())
+        fx, fy, cx, cy = self._intrinsics(camera_K)
+        x, y, z = cent.unbind(-1)
+        z = z.clamp(min=1e-6)
+        return torch.stack([fx[:, None] * x / z + cx[:, None],
+                            fy[:, None] * y / z + cy[:, None]], dim=-1)
+
+    def _fk_extra(self, events, ptr, verts, joints, camera_K):
+        """S37. The previous state's MANO FK corresponds to the events directly, no raster.
+
+        The render path answers two questions at each event's pixel -- "is the predicted hand
+        here" (`sil`) and "how deep is its front surface here" (`inv`) -- by drawing 778
+        projected vertices into an image and reading the image back at N pixels. This method
+        answers the same questions by measuring each event against the projected FK output
+        itself, which removes the z-buffer scatter and the (B, H, W, C) materialisation:
+
+          g_surf  exp(-d_vert / FK_TAU_SURF): distance to the nearest projected vertex, as a
+                  soft occupancy. Inside the silhouette a vertex projects within ~2.5 px of
+                  every pixel, so this reads ~1 there and decays outside -- `sil`, made soft,
+                  plus the gradient direction `sil` never had.
+          z_surf  min z over the FK_DEPTH_K nearest vertices, normalised like `inv` and gated
+                  by `g_surf`. The min stands in for the z-buffer: the 2D-nearest vertex may
+                  be on the back of the hand, the min over a small 2D neighbourhood is the
+                  front surface.
+          g_skel / z_skel  the same pair against the 21 projected joints, a coarser skeleton
+                  proximity the raster never provided.
+
+        Contract notes, both load-bearing:
+          * State enters as *values* on the nodes, never as structure -- same design law the
+            render channels obey (KEG's state-routed graph is the measured counterexample).
+          * Features are only computed for the <= `max_nodes` events the encoder will actually
+            gather (`_sample` is deterministic, so calling it here and inside the encoder gives
+            the same rows). Computing against all events would be an (N x 778) matrix with N in
+            the tens of millions per training batch. Rows the encoder never reads stay zero,
+            and the sampled indices are pairwise distinct, so the scatter is deterministic.
+
+        Takes the FK products rather than the raw state so a caller that also needs the
+        S38 queries pays for one MANO forward, not two.
+
+        With `MODEL.FK_DIRECTIONAL` (S40) two more channels follow: the unit direction from
+        the event to its nearest projected vertex, gated by `g_surf`. `g_surf` is the local
+        magnitude of the distance field; the pair is its direction, so together they are the
+        field's first-order description at the event -- which way the predicted surface lies,
+        not only how far. Divisor clamped at 1 px: inside the silhouette the direction is
+        noise, and the clamp fades it to zero smoothly instead of normalising the noise up.
+
+        Returns `(N, 4)` float32 aligned with `events`, `(N, 6)` under FK_DIRECTIONAL.
+        """
+        n_ev = int(events.shape[0])
+        width = 6 if self.fk_directional else 4
+        out = torch.zeros(n_ev, width, device=events.device, dtype=torch.float32)
+        if n_ev == 0:
+            return out
+        if not hasattr(self.event_encoder, "_sample"):
+            raise RuntimeError("PREV_FK_DIRECT needs a frontend with node subsampling")
+        src, mask = self.event_encoder._sample(events, ptr)
+        keep = mask.reshape(-1)
+        flat = src.reshape(-1)[keep]
+        if flat.numel() == 0:
+            return out
+        B = int(ptr.numel() - 1)
+        b_idx = (torch.arange(B, device=events.device)
+                 .unsqueeze(1).expand_as(src).reshape(-1)[keep])
+
+        fx, fy, cx, cy = self._intrinsics(camera_K)
+
+        def project(pts):
+            x, y, z = pts.float().unbind(-1)
+            z = z.clamp(min=1e-6)
+            return (fx[:, None] * x / z + cx[:, None],
+                    fy[:, None] * y / z + cy[:, None], z)
+
+        vu, vv, vz = project(verts)
+        ju, jv, jz = project(joints)
+        eu = events[flat, EV.EV_X].float()
+        ev_y = events[flat, EV.EV_Y].float()
+
+        chunks = []
+        for i0 in range(0, int(flat.numel()), self.FK_CHUNK):
+            sl = slice(i0, i0 + self.FK_CHUNK)
+            b = b_idx[sl]
+            d2v = ((vu[b] - eu[sl, None]).square()
+                   + (vv[b] - ev_y[sl, None]).square())          # (m, 778)
+            near = d2v.topk(self.FK_DEPTH_K, dim=-1, largest=False)
+            d_surf = near.values[:, 0].clamp(min=0.0).sqrt()
+            z_surf = vz[b].gather(1, near.indices).amin(dim=-1)
+            d2j = ((ju[b] - eu[sl, None]).square()
+                   + (jv[b] - ev_y[sl, None]).square())          # (m, 21)
+            d2j_min, j_arg = d2j.min(dim=-1)
+            d_skel = d2j_min.clamp(min=0.0).sqrt()
+            z_skel = jz[b].gather(1, j_arg.unsqueeze(1)).squeeze(1)
+            g_surf = torch.exp(-d_surf / self.FK_TAU_SURF)
+            g_skel = torch.exp(-d_skel / self.FK_TAU_SKEL)
+            inv_s = (1.0 / z_surf).clamp(0.0, 5.0) / 5.0
+            inv_k = (1.0 / z_skel).clamp(0.0, 5.0) / 5.0
+            cols = [g_surf, inv_s * g_surf, g_skel, inv_k * g_skel]
+            if self.fk_directional:
+                idx0 = near.indices[:, 0]
+                du = vu[b].gather(1, idx0.unsqueeze(1)).squeeze(1) - eu[sl]
+                dv = vv[b].gather(1, idx0.unsqueeze(1)).squeeze(1) - ev_y[sl]
+                den = d_surf.clamp(min=1.0)
+                cols += [du / den * g_surf, dv / den * g_surf]
+            chunks.append(torch.stack(cols, dim=-1))
+        out[flat] = torch.cat(chunks, dim=0)
+        return out
+
     def _decode_active(self, feat, prevpos, nodes=None):
         """Assemble the 51D output from the root head and the fifteen joint decoders.
 
         `nodes` is `(B, 16, node_dim)` when the frontend emits one feature per MANO joint; joint
         `k` then reads node `k + 1`, since node 0 is the wrist. Otherwise every decoder reads the
         shared vector, which is the S10 arrangement.
+
+        The fifteen decoders are executed as a Python loop on purpose. Batching them into one
+        `baddbmm` computes the same math ~0.7 ms faster per recursive step, but the different
+        accumulation order perturbs the output by ~1e-6, and the closed loop amplified that to
+        0.15 mm of recursive RA on seed 3408 -- past the 0.05 mm reproduction gate that pins
+        every recorded number (S36 latency audit, 2026-08-29). Bit-reproducibility wins.
         """
         root = self.root_head(feat)
         prev = prevpos.to(feat.dtype)
@@ -951,34 +1162,29 @@ class MNISTModel(BaseModel):
         ptr = batch.ptr
         prev = batch.prev_state
         extra = None
-        groups = None
-        if self.encoder_kssf:
-            betas_f, k_f = self._resolve_betas_K(prev, batch.betas, batch.camera_K)
-            with torch.no_grad():
-                # The field is read at the *previous* state, so nothing here needs the answer.
-                fields = self.kssf_on(prev.device)(prev.float(), betas_f, k_f, self.pose_repr)
-            from semkine.keg import kssf_event_channels
-            extra, groups = kssf_event_channels(fields, events, halo=self.kssf_halo)
-            if self.ablate_kssf:
-                # G3's single-variable ablation: silence the geometry but keep the tokens, so the
-                # same checkpoint answers "was the lift load-bearing" rather than "is a smaller
-                # network worse". Grouping falls back to the spatial grid inside the frontend.
-                extra = torch.zeros_like(extra)
-                groups = None
-        elif self.prev_render:
+        if self.prev_render:
             betas_f, k_f = self._resolve_betas_K(prev, batch.betas, batch.camera_K)
             with torch.no_grad():
                 rend = self._render_prev(prev.float(), betas_f, k_f)
+            rend = rend.to(dtype=events.dtype, device=events.device)
             from semkine.encoder import query_render
-            extra = query_render(rend.to(dtype=events.dtype, device=events.device), events)
-        if self.joint_tokens:
-            feat, nodes = self.event_encoder.forward_nodes(
-                events, ptr, batch.delta_t_s, extra, groups)
+            extra = query_render(rend, events)
+        queries = None
+        if self.prev_fk:
+            betas_f, k_f = self._resolve_betas_K(prev, batch.betas, batch.camera_K)
+            # `no_grad` for the same reason the render is: the state is conditioning,
+            # not a differentiable pathway.
+            with torch.no_grad():
+                verts_p, joints_p = self._fk(prev.float(), betas_f)
+                extra = self._fk_extra(events, ptr, verts_p, joints_p, k_f)
+                if self.joint_readout:
+                    queries = self._joint_queries(verts_p, k_f)
+            extra = extra.to(dtype=events.dtype)
+        nodes = None
+        if queries is not None:
+            feat, nodes = self.event_encoder(events, ptr, batch.delta_t_s, extra, queries)
         else:
-            nodes = None
-            feat = (self.event_encoder(events, ptr, batch.delta_t_s, extra, groups)
-                    if groups is not None or self.encoder_kssf
-                    else self.event_encoder(events, ptr, batch.delta_t_s, extra))
+            feat = self.event_encoder(events, ptr, batch.delta_t_s, extra)
         if self.active_head:
             out = self._decode_active(feat, prev, nodes)
         else:

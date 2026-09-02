@@ -31,7 +31,7 @@ MANO_NPZ = REPO / "assets/mano_right.npz"
 pytestmark = pytest.mark.skipif(not MANO_NPZ.exists(), reason="mano_right.npz not available")
 
 
-def _cfg(w=0.0, scale=1.0):
+def _cfg(w=0.0, scale=1.0, **track):
     return {
         "MODEL": {"POSE_REPR": "mano_full_axis_angle", "OUTPUT_DIM": 51,
                   "PREDICT_DELTA": True, "PREVPOS_EMBED": True,
@@ -40,7 +40,7 @@ def _cfg(w=0.0, scale=1.0):
         "DATA": {"HEIGHT": H, "WIDTH": W},
         "MANO": {"NPZ": str(MANO_NPZ)},
         "TRACK": {"PREV_NOISE_T": 0.01, "PREV_NOISE_R": 0.05, "PREV_NOISE_POSE": 0.05,
-                  "GAIN_REG_W": w, "GAIN_REG_SCALE": scale},
+                  "GAIN_REG_W": w, "GAIN_REG_SCALE": scale, **track},
         "LOSS": {"TYPE": "mse_51d", "LAMBDA_POSE": 1.0, "LAMBDA_T": 1.0, "LAMBDA_R": 1.0,
                  "NORMALIZER": 51, "LOG10": False},
         "TRAIN": {"LR": 1e-3, "WARMUP_STEPS": 0},

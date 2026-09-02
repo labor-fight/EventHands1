@@ -1,0 +1,121 @@
+# S41: the readout, revisited on the legal side of the S38/KEG law. Seed 3408.
+#
+# Single-variable arm against S37 (`s37_fkdirect_s3407.yaml`): the only change is
+# MODEL.ENCODER_ATTN_POOL=4 -- four *learned constant* query vectors replace mean+max as
+# the node readout (Set-Transformer-style pooling-by-attention, single head each).
+#
+# The measured context: the readout is the frontend's bottleneck (nodes 512 -> 4096 moved
+# recursive RA 0.09 mm), and S38 proved the *state-centred* fix is anti-selected by the
+# tracking noise curriculum (sigma trained 16 -> 365 px, +4.43 mm). Content-based attention
+# keeps the extra readout capacity but the selection weights depend on node features only,
+# so the curriculum has nothing to anti-select: the previous state cannot steer it.
+# Queries are zero-init, so every head starts as exact mean pooling and the arm deforms
+# continuously from the baseline readout. Cost: proj widens 2C -> 4C (+~180k params).
+#
+# Pre-registered gates (H12, debug session ea00d3):
+#   adopt if two-seed mean recursive RA <= 28.72; |delta| < 1.0 is a tie (attention
+#   collapsing back to uniform reproduces the baseline, which is the bounded downside).
+SEED: 3408
+
+DATA:
+  ROOT: data/hand_data51
+  # Pinned: the default manifest became the 9-subject capture-time split on 2026-08-27 and every
+  # arm compared against here was trained on the 5/2/3 one.
+  SPLITS_MANIFEST: _retired_splits_semkine_5v2v3.json
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_gnn
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  # The tracking recipe, unchanged from S34/S36 -- except the conditioning path:
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: false
+  PREV_FK_DIRECT: true
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: event_gnn
+  ENCODER_HIDDEN: 128
+  ENCODER_FEAT: 512
+  ENCODER_LAYERS: 3
+  ENCODER_K: 8
+  ENCODER_MAX_NODES: 2048
+  ENCODER_WINDOW: 32
+  ENCODER_T_SCALE: 1.0
+  ENCODER_ATTN_POOL: 4
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  # 512 x 2 cards = the same effective 1024 S34 trained at, so LR does not move.
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 6000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s41_attnpool_s3408
+  RUN_NAME: s41_attnpool_s3408
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s41_attnpool_s3408/eval

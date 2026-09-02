@@ -41,6 +41,7 @@ from pose_repr import decode_to_mano_inputs         # noqa: E402
 from semkine import buckets as BK                   # noqa: E402
 from semkine import metrics as MT                   # noqa: E402
 from semkine.dataset import _read_meta51, sequences_for_split   # noqa: E402
+from semkine import events as EV                                 # noqa: E402
 from semkine.events import EV_COLS, EventPacketBatch            # noqa: E402
 
 H, W = 180, 240
@@ -96,18 +97,22 @@ def make_eval_packet(ev5, prev, betas, camera_K, window_ms: int, device) -> Even
     )
 
 
-def build_lnes(events, offsets, end: int, window: int) -> np.ndarray:
-    """Identical to `model/eval_track.build_lnes`; duplicated so parity is exact by inspection."""
-    img = np.zeros((H, W, 2), np.float32)
+def build_lnes(events, offsets, end: int, window: int, channels=("last",)) -> np.ndarray:
+    """The evaluator's event image. `channels=("last",)` is the legacy LNES, bit for bit.
+
+    The splat itself now comes from `semkine.events`, the same call the dataset makes, so training
+    and evaluation cannot drift apart. They used to be two implementations kept in step by
+    inspection, which was survivable while there was one plane to compare.
+    """
     start = end - window + 1
     a0, a1 = int(offsets[start]), int(offsets[end + 1])
-    if a1 > a0:
-        ev = events[a0:a1]
-        counts = np.diff(offsets[start : end + 2]).astype(np.int64)
-        tval = np.repeat(np.arange(window, dtype=np.float32), counts) / float(window)
-        img[ev[:, 1].astype(np.intp), ev[:, 0].astype(np.intp),
-            np.clip(ev[:, 2].astype(np.intp), 0, 1)] = tval
-    return img
+    if a1 <= a0:
+        return np.zeros((H, W, 2 * len(channels)), np.float32)
+    ev = events[a0:a1]
+    counts = np.diff(offsets[start : end + 2]).astype(np.int64)
+    ms_rel = np.repeat(np.arange(window, dtype=np.float32), counts)
+    return EV.splat_event_image(ev[:, 0], ev[:, 1], np.clip(ev[:, 2], 0, 1),
+                                ms_rel, window, H, W, channels)
 
 
 def sample_init_noise(cfg, rng, scale: float) -> np.ndarray:
@@ -145,6 +150,7 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
     assert cfg["MODEL"]["POSE_REPR"] == "mano_full_axis_angle", "tracking eval expects 51D"
 
     win = int(window_ms or step_ms)
+    ev_ch = EV.event_channels(cfg)
     preds, gts, elapsed, run_ids = [], [], [], []
     for run_id, (a, b) in enumerate(runs):
         ends = np.arange(a + max(step_ms, win) - 1, b, step_ms, dtype=np.int64)
@@ -161,7 +167,7 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
         for end in ends:
             # Rasterising LNES for a raw-event arm costs as much as the whole forward pass and is
             # thrown away, which matters once the step-size sweep multiplies the step count by ten.
-            x = (torch.from_numpy(build_lnes(events, offsets, int(end), win))
+            x = (torch.from_numpy(build_lnes(events, offsets, int(end), win, ev_ch))
                  .unsqueeze(0).to(device)) if need_lnes else None
             if use_raw:
                 ev5 = _window_events(events, offsets, tsub, int(end), win)

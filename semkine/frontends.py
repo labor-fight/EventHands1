@@ -8,10 +8,25 @@ citation. Each arm is a *minimum mechanism*, not a framework port:
 * `lnes`         the existing dense surface (not reimplemented)
 * `raw_scan`     S2 gated scan
 * `sparse_cell`  S2 fallback
-* `aegnn_lite`   k-NN graph in (x, y, t), two message-passing layers, global pool
-                 -- no detection head, no voxelization, no async framework
-* `keg`          S18 kinematic event graph: the same message passing on 16 MANO nodes instead of
-                 a pixel k-NN graph, with a diagonal-LTI temporal readout. See `keg.py`.
+* `event_gnn`    S36 AEGNN proper: the events themselves are the nodes, edges are a causal k-NN in
+                 a temporal window, and the message carries the relative `(dx, dy, dt)`. See
+                 `event_gnn.py`.
+
+Three graph-shaped arms were removed on 2026-08-28 after being measured to a conclusion. Their
+numbers, and the reasoning that retires them, are in `docs/GNN_ARMS_ARCHIVE_20260828.md`; do not
+reintroduce any of them without reading it first.
+
+* `aegnn_lite`   a full-packet `torch.cdist` k-NN. Structural NO-GO: `O(N^2)`, and packets reach
+                 788 817 events, so cost grew with the square of the event rate. `event_gnn`
+                 replaces it with a windowed causal search of the same neighbourhood semantics at
+                 `O(N * window)`.
+* `cell_gnn`     an active-cell lattice that called itself a graph. S35 showed it is a 3x3
+                 convolution with its nine taps tied to two matrices. `event_gnn` beat it by
+                 5.23 mm recursive RA on half the parameters.
+* `keg`          message passing on 16 MANO nodes with state-conditioned routing. Its single-step
+                 error was *better* than the dense arm's (12.43 vs 15.42 mm) and its recursive
+                 error much worse (26.59 vs 17.17 mm), because routing on the previous pose put
+                 the closed-loop gain at 0.910 against the dense arm's 0.449.
 
 SAST / FARSE / SNN thought-arms are represented by the same graph module with a different
 neighbour rule rather than by importing those repositories. rpg_asynet is not used.
@@ -22,83 +37,9 @@ RA excludes zero in its favour; a tie keeps LNES.
 """
 from __future__ import annotations
 
-from typing import Optional
-
-import torch
 from torch import nn
 
-from .encoder import TOKEN_DIM, RawEventEncoder, SparseCellEncoder, event_tokens
-from .events import EV_BATCH, EV_T, EV_X, EV_Y
-
-
-class AEGNNLite(nn.Module):
-    """Two-layer k-NN graph on event tokens. Pool is mean+max over the packet."""
-
-    def __init__(self, height: int = 180, width: int = 240, hidden: int = 96,
-                 feat_dim: int = 256, k: int = 16, t_scale: float = 80.0,
-                 extra_channels: int = 0):
-        super().__init__()
-        self.height, self.width = int(height), int(width)
-        self.k = int(k)
-        self.t_scale = float(t_scale)
-        self.feat_dim = int(feat_dim)
-        in_dim = TOKEN_DIM + int(extra_channels)
-        self.enc = nn.Linear(in_dim, hidden)
-        # Single linear maps keep the arm inside the ±10% parameter budget of `raw_scan`.
-        self.msg = nn.Linear(2 * hidden, hidden)
-        self.upd = nn.Linear(2 * hidden, hidden)
-        self.proj = nn.Sequential(nn.Linear(2 * hidden, feat_dim), nn.ReLU(inplace=True),
-                                  nn.Linear(feat_dim, feat_dim))
-
-    def _knn(self, events: torch.Tensor, ptr: torch.Tensor) -> torch.Tensor:
-        """For each event, indices of its k nearest neighbours in the same packet. `(N, k)`."""
-        n = events.shape[0]
-        if n == 0:
-            return events.new_zeros((0, self.k), dtype=torch.long)
-        xyz = torch.stack([
-            events[:, EV_X] / self.width,
-            events[:, EV_Y] / self.height,
-            events[:, EV_T] * self.t_scale,
-        ], -1)
-        idx = torch.zeros(n, self.k, dtype=torch.long, device=events.device)
-        B = int(ptr.numel() - 1)
-        for b in range(B):
-            a, z = int(ptr[b]), int(ptr[b + 1])
-            if z <= a:
-                continue
-            p = xyz[a:z]
-            d = torch.cdist(p, p)
-            d.fill_diagonal_(1e6)
-            kk = min(self.k, max(z - a - 1, 1))
-            nbr = d.topk(kk, largest=False).indices
-            if kk < self.k:
-                pad = nbr[:, :1].expand(-1, self.k).clone()
-                pad[:, :kk] = nbr
-                nbr = pad
-            idx[a:z] = nbr + a
-        return idx
-
-    def forward(self, events, ptr, delta_t_s, extra: Optional[torch.Tensor] = None
-                ) -> torch.Tensor:
-        B = int(ptr.numel() - 1)
-        tok = event_tokens(events, ptr, delta_t_s, self.height, self.width)
-        if extra is not None and extra.shape[0]:
-            tok = torch.cat([tok, extra], -1)
-        if events.shape[0] == 0:
-            return events.new_zeros((B, self.feat_dim))
-        h = torch.relu(self.enc(tok))
-        nbr = self._knn(events, ptr)
-        src = h[nbr]                                                      # (N, k, H)
-        msg = torch.relu(self.msg(torch.cat([h.unsqueeze(1).expand_as(src), src], -1))).mean(1)
-        h = torch.relu(self.upd(torch.cat([h, msg], -1)))
-        out = events.new_zeros(B, 2 * h.shape[-1])
-        for b in range(B):
-            a, z = int(ptr[b]), int(ptr[b + 1])
-            if z <= a:
-                continue
-            hh = h[a:z]
-            out[b] = torch.cat([hh.mean(0), hh.max(0).values], 0)
-        return self.proj(out)
+from .encoder import RawEventEncoder, SparseCellEncoder
 
 
 def _pick(kw, *names):
@@ -112,11 +53,11 @@ def build_frontend(kind: str, **kw) -> nn.Module:
         return RawEventEncoder(**shared)
     if kind in ("sparse_cell", "fallback", "cell"):
         return SparseCellEncoder(**shared, **_pick(kw, "cell"))
-    if kind in ("aegnn_lite", "aegnn", "graph"):
-        return AEGNNLite(**shared, **_pick(kw, "k", "t_scale"))
-    if kind in ("keg", "kinematic_graph"):
-        from .keg import KinematicEventGraph
-        return KinematicEventGraph(**shared, **_pick(kw, "node_dim", "n_layers"))
+    if kind in ("event_gnn", "eventgnn", "aegnn"):
+        from .event_gnn import EventGNN
+        return EventGNN(**shared,
+                        **_pick(kw, "k", "n_layers", "max_nodes", "window", "t_scale",
+                                "joint_queries", "attn_pool"))
     raise ValueError(f"unknown frontend {kind!r}")
 
 

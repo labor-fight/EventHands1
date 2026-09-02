@@ -1,0 +1,110 @@
+# S29: let the run settle. Single variable versus `s28_ctrl`: TRAIN.LR_SCHEDULE.
+#
+# The recipe holds LR at 4e-3 for all 6000 steps with nothing but a 500-step warmup, and the
+# checkpoint grid says it never converges. `s28_ctrl_s3407`, the control's own grid:
+#
+#   500     1000    1500    2000    2500    3000    3500    4000    4500    5000    5500    6000
+#   17.55   17.96   18.80   21.16   90.93   18.26   17.80  132.62   17.66   17.79   17.88   17.50
+#
+# Two outright divergences, and a 1.1 mm spread among the points that survive. The reported number
+# is therefore the minimum of a noisy trajectory rather than where training ended up, which is why
+# four runs of this identical recipe give 16.638 / 17.744 / 17.496 / 17.657 -- mean 17.38, sd 0.51,
+# range 1.11 mm. That spread is the resolution any claim on this dataset has to clear, and the
+# published 16.638 is the best of those four draws.
+#
+# Cosine decay to 2% of peak after the same warmup. This is not a tuning sweep: it is one variable,
+# it is the variable the grid points at, and its prediction is falsifiable in the shape of the grid
+# as well as its minimum -- if the instability is the constant high rate, the late points should
+# stop diverging and bunch, and the grid median should approach the selected value.
+SEED: 3408
+
+DATA:
+  ROOT: data/hand_data51
+  # Pinned: the default manifest was replaced on 2026-08-27 by the 9-subject
+  # capture-time split, and every arm compared against here used the 5/2/3 one.
+  SPLITS_MANIFEST: _retired_splits_semkine_5v2v3.json
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: legacy_lnes
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: resnet18
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  INIT_FROM: outputs/semkine/s1_abs_domrand_s3408/last.ckpt
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 1024
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 8
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3                   # 1e-3 * sqrt(1024/64), one device
+  WARMUP_STEPS: 500
+  LR_SCHEDULE: cosine
+  MAX_STEPS: 6000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s29_cos_s3408
+  RUN_NAME: s29_cos_s3408
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s29_cos_s3408/eval

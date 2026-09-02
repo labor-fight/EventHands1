@@ -1,0 +1,154 @@
+# S36: AEGNN on the events themselves. Seed 3407.
+#
+# The frontend is the only thing that changed. Everything the tracking recipe is made of --
+# PREDICT_DELTA, PREVPOS_EMBED, PREV_RENDER, ZERO_EVENT_GATE, the S10 active heads, the low
+# event-rate domain randomisation that moved recursive RA from 19.26 mm to 12.77 mm, the 5/2/3
+# manifest, the 30-300 ms window schedule, the loss and the fixed checkpoint grid -- is S34
+# verbatim, so a difference is attributable to the graph and not to the loop around it.
+#
+# Why this arm exists. `CellGNN` is a 3x3 convolution whose nine spatial taps are tied to two free
+# matrices (S35: it reproduces a plain `F.conv2d` to 5e-7). Its adjacency is a fixed lattice, its
+# aggregation kernel is a constant buffer, and every one of the 690 tiles is convolved whatever the
+# occupancy. Nothing in it is a graph. `event_gnn` makes the events the nodes, so the adjacency is
+# data-dependent, the message carries the relative `(dx, dy, dt)`, and the operator is anisotropic.
+#
+# The two failure modes this design is built around, both already paid for in this repo:
+#
+# 1. **`AEGNNLite`'s quadratic search.** A full-packet `torch.cdist` on a 29 000-event window is
+#    8.4e8 pairwise distances, which is why that arm was a structural NO-GO and is deleted as of
+#    S36. Here neighbours are searched among the `ENCODER_WINDOW` events immediately preceding each
+#    node in time, which is `O(N * window)` and exact whenever the true neighbour radius fits in
+#    that window -- events far apart in time are not spatio-temporal neighbours. `ENCODER_MAX_NODES`
+#    then caps the node count per packet, so cost is flat in the event rate rather than growing
+#    with it (`test_the_neighbour_search_does_not_grow_with_the_event_rate`).
+# 2. **KEG's state-conditioned routing.** KEG's loop gain hit 0.910 against the dense arm's 0.449
+#    because which joint an event reached depended on the previous pose. Here the adjacency is
+#    built from `(x, y, t)` alone and the previous state enters only as two rendered values sampled
+#    at each event's own pixel -- comparative, not indexing, exactly as in the arm that tracks
+#    (`test_the_graph_is_state_free`).
+#
+# Edges are causal by construction: a node only reads events older than itself
+# (`test_no_edge_points_into_the_future`). That is the precondition for AEGNN's real claim -- a new
+# event only recomputes the sub-graph it touched -- but no latency number may be reported until a
+# runtime exists whose prefix output matches the synchronous one. This arm claims accuracy only.
+#
+# Dual card. `DEVICES: 2` over GPU 0 and 1 with 512 packets each, so the *effective* batch is 1024,
+# identical to S34's single-card 1024, and `LR: 4.0e-3` carries over unchanged. Scaling the batch
+# instead would have moved the LR and broken comparability against the 1.1 mm replicate floor.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  # Pinned: the default manifest became the 9-subject capture-time split on 2026-08-27 and every
+  # arm compared against here was trained on the 5/2/3 one.
+  SPLITS_MANIFEST: _retired_splits_semkine_5v2v3.json
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_gnn
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  # The tracking recipe, unchanged from S34.
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: true
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: event_gnn
+  ENCODER_HIDDEN: 128
+  ENCODER_FEAT: 512
+  # Three rounds of message passing. With k=8 that is a neighbourhood of neighbourhoods of
+  # neighbourhoods, which is as far as a node needs to see before the pooled readout takes over.
+  ENCODER_LAYERS: 3
+  ENCODER_K: 8
+  # Nodes per packet after uniform-stride subsampling. Stride, not a head-of-packet cut: a packet
+  # spans up to 300 ms and the readout has to see the whole window -- measured `t_span_kept` is
+  # 1.0000, so the sample still spans the packet.
+  #
+  # This is the arm's honest weakness and it is a memory ceiling, not a choice. A packet averages
+  # ~30 000 events and runs to 495 554 in the tail, so 2048 nodes keeps ~7% of them. Measured on
+  # 2 x L20 at 512 packets/card: 2048 -> 1.43 s/it, 2560 -> 1.61, 3072 -> 1.80, 4096 -> OOM.
+  # 2048 is chosen over 3072 for headroom over a 6000-step run, not because more would not help.
+  # Note the cost is flat in the event rate -- a 495k-event packet costs exactly what a 30k one
+  # does -- which is the property `AEGNNLite` lacked and the reason this arm is runnable at all.
+  ENCODER_MAX_NODES: 2048
+  # How far back the causal neighbour search looks, in sampled events. 32 of 768 is ~4% of the
+  # packet duration, so the k-NN is effectively "spatially nearest among the recent past".
+  ENCODER_WINDOW: 32
+  # How many frame-widths one packet-length of time is worth when measuring "near".
+  ENCODER_T_SCALE: 1.0
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  # 512 x 2 cards = the same effective 1024 S34 trained at, so LR does not move.
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 6000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s36_eventgnn_s3407
+  RUN_NAME: s36_eventgnn_s3407
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s36_eventgnn_s3407/eval
