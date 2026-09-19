@@ -1,9 +1,14 @@
 # S36: AEGNN on the events themselves. Seed 3407.
 #
+# Protocol note (2026-09-05): every arm under configs/semkine trains on the nine-subject default
+# split (splits_semkine.json) and validates, selects and reports on the held-out subject zgz
+# only. The 5-subject / lr-lyq line these files were first run on was purged; its numbers in
+# docs/ are historical (docs/FAILURE_AND_CLEANUP_LEDGER.md).
+#
 # The frontend is the only thing that changed. Everything the tracking recipe is made of --
 # PREDICT_DELTA, PREVPOS_EMBED, PREV_RENDER, ZERO_EVENT_GATE, the S10 active heads, the low
-# event-rate domain randomisation that moved recursive RA from 19.26 mm to 12.77 mm, the 5/2/3
-# manifest, the 30-300 ms window schedule, the loss and the fixed checkpoint grid -- is S34
+# event-rate domain randomisation that moved recursive RA from 19.26 mm to 12.77 mm, the
+# 30-300 ms window schedule, the loss and the fixed checkpoint grid -- is S34
 # verbatim, so a difference is attributable to the graph and not to the loop around it.
 #
 # Why this arm exists. `CellGNN` is a 3x3 convolution whose nine spatial taps are tied to two free
@@ -39,9 +44,6 @@ SEED: 3407
 
 DATA:
   ROOT: data/hand_data51
-  # Pinned: the default manifest became the 9-subject capture-time split on 2026-08-27 and every
-  # arm compared against here was trained on the 5/2/3 one.
-  SPLITS_MANIFEST: _retired_splits_semkine_5v2v3.json
   WIDTH: 240
   HEIGHT: 180
   WINDOW_MIN: 30

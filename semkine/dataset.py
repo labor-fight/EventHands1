@@ -464,10 +464,25 @@ class SemKineDataset(Dataset):
 
 
 # -------------------------------------------------------------------- builders
+#: set to "1" only to re-score an artefact of a retired split for the record; never for training
+ALLOW_RETIRED_SPLITS_ENV = "EVENTHANDS_ALLOW_RETIRED_SPLITS"
+
+
 def sequences_for_split(root: Path, split: str,
                         manifest_path: Optional[Path] = None) -> List[Tuple[str, str]]:
-    """`[(seq, legacy_dir)]` for a split, from the SemKine manifest or the legacy splits."""
+    """`[(seq, legacy_dir)]` for a split, from the SemKine manifest or the legacy splits.
+
+    Protocol (2026-09-05): the only split is `splits_semkine.json` -- nine subjects train, and
+    `val` = `val_core` = `test` = the held-out subject zgz (`zgz_global`, `zgz_local`). Selection,
+    validation and reporting all happen on those two sequences. Manifests whose file name starts
+    with `_retired` (the 5-subject / lr-lyq line, purged the same day) are refused here so that no
+    config, script or CLI flag can quietly bring the old protocol back.
+    """
     mp = Path(manifest_path) if manifest_path else root / "splits_semkine.json"
+    if mp.name.startswith("_retired") and os.environ.get(ALLOW_RETIRED_SPLITS_ENV) != "1":
+        raise ValueError(f"{mp.name} is a retired split manifest; validation is zgz-only "
+                         f"(splits_semkine.json). Set {ALLOW_RETIRED_SPLITS_ENV}=1 only to "
+                         f"re-score an archived artefact for the record.")
     if mp.exists():
         m = json.loads(mp.read_text())
         if split in m:

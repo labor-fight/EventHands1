@@ -84,21 +84,22 @@ class EdgeConv(nn.Module):
 
 
 class EventGNN(nn.Module):
-    """`(events, ptr, delta_t_s[, extra[, queries]])` in, one feature vector per packet out;
-    with `queries` also one readout feature per query point (S38 joint readout).
+    """`(events, ptr, delta_t_s[, extra])` in, one feature vector per packet out.
 
     The pose head stays in `MNISTModel`: this module may not contain a second path to a finger
     angle, same contract as every other frontend here.
     """
 
-    #: initial spatial kernel width of the S38 joint readout, in pixels: half a finger
-    #: length, so a query sees its own digit and not the whole hand
-    QUERY_SIGMA0_PX = 16.0
+    #: node attribute sets. `token7` is the S36 token (x, y, p, t, log inter-event dt, two
+    #: surface-of-active-events ages); `raw4` is the event itself, (x, y, p, t), nothing derived.
+    NODE_ATTRS = {"token7": TOKEN_DIM, "raw4": 4}
+    #: per-node edge summary width: mean (dx, dy, dt) over the node's edges and their mean length
+    EDGE_SUMMARY_DIM = 4
 
     def __init__(self, height: int = 180, width: int = 240, hidden: int = 96,
                  feat_dim: int = 512, k: int = 8, n_layers: int = 3,
                  max_nodes: int = 768, window: int = 32, t_scale: float = 1.0,
-                 extra_channels: int = 0, joint_queries: int = 0, attn_pool: int = 0):
+                 extra_channels: int = 0, node_attrs: str = "token7", readout: bool = True):
         super().__init__()
         self.height, self.width = int(height), int(width)
         self.hidden, self.feat_dim = int(hidden), int(feat_dim)
@@ -106,33 +107,21 @@ class EventGNN(nn.Module):
         self.max_nodes = int(max_nodes)
         #: how many pixels one normalised time unit is worth when measuring "near"
         self.t_scale = float(t_scale)
-        self.in_dim = TOKEN_DIM + int(extra_channels)
+        if node_attrs not in self.NODE_ATTRS:
+            raise ValueError(f"node_attrs must be one of {sorted(self.NODE_ATTRS)}, got {node_attrs!r}")
+        self.node_attrs = node_attrs
+        self.in_dim = self.NODE_ATTRS[node_attrs] + int(extra_channels)
         self.embed = nn.Linear(self.in_dim, self.hidden)
         self.layers = nn.ModuleList([EdgeConv(self.hidden) for _ in range(int(n_layers))])
-        # S41. Content-based attention pooling: `attn_pool` learned query vectors replace
-        # mean+max as the readout. The selection weights depend on the node *features* alone
-        # -- the queries are constants -- so this is on the legal side of the S38/KEG law
-        # (the previous state may not steer evidence selection; here it cannot). Queries are
-        # zero-init: every head starts as exact mean pooling and sharpens only if the loss
-        # asks it to, so the arm deforms continuously from the baseline readout.
-        self.attn_pool = int(attn_pool)
-        pooled = (self.attn_pool if self.attn_pool else 2) * self.hidden
-        if self.attn_pool:
-            self.pool_q = nn.Parameter(torch.zeros(self.attn_pool, self.hidden))
-            self.pool_key = nn.Linear(self.hidden, self.hidden)
-        self.proj = nn.Sequential(
-            nn.Linear(pooled, self.feat_dim),
-            nn.ReLU(inplace=True),
-            nn.Linear(self.feat_dim, self.feat_dim),
-        )
-        # S38. One spatial-kernel readout per query point (the projected LBS joints of the
-        # previous state). The parameter is created only when asked for: an always-present
-        # but sometimes-unused parameter breaks DDP's gradient contract and changes every
-        # older checkpoint's key set.
-        self.joint_queries = int(joint_queries)
-        if self.joint_queries:
-            self.query_log_sigma = nn.Parameter(
-                torch.full((self.joint_queries,), math.log(self.QUERY_SIGMA0_PX)))
+        # mean + max readout. Not built when the consumer reads the nodes directly (S37 mesh
+        # query): DDP runs with find_unused_parameters=False, so an unused head is an error.
+        self.readout = bool(readout)
+        if self.readout:
+            self.proj = nn.Sequential(
+                nn.Linear(2 * self.hidden, self.feat_dim),
+                nn.ReLU(inplace=True),
+                nn.Linear(self.feat_dim, self.feat_dim),
+            )
 
     # ------------------------------------------------------------------ nodes
     def _sample(self, events: torch.Tensor, ptr: torch.Tensor
@@ -186,45 +175,33 @@ class EventGNN(nn.Module):
               - p.unsqueeze(2)) * emask.unsqueeze(-1)
         return idx, dp, emask
 
-    # --------------------------------------------------------------- readout
-    def _query_readout(self, h: torch.Tensor, px: torch.Tensor, py: torch.Tensor,
-                       mask: torch.Tensor, any_node: torch.Tensor,
-                       queries: torch.Tensor) -> torch.Tensor:
-        """S38. One feature per query point: a softmax spatial kernel over the nodes.
-
-        `w_ij = softmax_i(-d^2(node_i, query_j) / 2 sigma_j^2)` with a learnable per-query
-        sigma. This is where -- and only where -- the previous state is allowed to steer
-        aggregation: the graph and the messages upstream never saw it as structure (the KEG
-        law), and the readout is the measured bottleneck (nodes 512 -> 4096 moved recursive
-        RA by 0.09 mm while the pooled vector stayed 512-D).
-
-        Dead nodes are filled with a finite -1e4 rather than -inf: an event-free packet then
-        takes a uniform softmax over rows of `h` that the mask already zeroed, so the readout
-        is exactly zero without a NaN path, and `ZERO_EVENT_GATE` keeps its contract.
-        """
-        sig2 = (self.query_log_sigma.exp() ** 2).view(1, -1, 1).to(torch.float32)
-        d2 = ((px.unsqueeze(1) - queries[..., 0].unsqueeze(-1)).square()
-              + (py.unsqueeze(1) - queries[..., 1].unsqueeze(-1)).square())      # (B, J, N)
-        logit = (-0.5 * d2 / sig2).masked_fill(~mask.unsqueeze(1), -1e4)
-        w = torch.softmax(logit, dim=-1).to(h.dtype)
-        return torch.bmm(w, h) * any_node.unsqueeze(-1)
-
     # ---------------------------------------------------------------- forward
     def forward(self, events: torch.Tensor, ptr: torch.Tensor, delta_t_s: torch.Tensor,
-                extra: Optional[torch.Tensor] = None,
-                queries: Optional[torch.Tensor] = None):
-        """Packet feature vector; with `queries` (B, J, 2) pixel points, also (B, J, hidden)."""
+                extra: Optional[torch.Tensor] = None, return_nodes: bool = False):
+        """Packet feature vector, `(B, feat_dim)` (`None` when built without a readout).
+
+        With `return_nodes`, also the per-node features after message passing, a per-node summary
+        of the edges that fed them, and where the nodes sit:
+        `(out, h (B, N, hidden), g (B, N, 4), px (B, N), py (B, N), mask (B, N))`, pixels in the
+        event frame. This is the hand-off for a readout that anchors the previous state's geometry
+        to the graph (S37): the graph and the features are computed exactly as without the flag --
+        the state has not entered yet -- and the pooled `out` is bitwise the S36 readout.
+        """
         B = int(ptr.numel() - 1)
         dev = events.device
-        if queries is not None and not self.joint_queries:
-            raise RuntimeError("queries passed but the module was built without joint_queries")
+        wdtype = self.embed.weight.dtype
         if events.shape[0] == 0:
-            z = torch.zeros(B, self.feat_dim, device=dev, dtype=self.embed.weight.dtype)
-            if queries is None:
-                return z
-            return z, torch.zeros(B, queries.shape[1], self.hidden, device=dev, dtype=z.dtype)
+            z = torch.zeros(B, self.feat_dim, device=dev, dtype=wdtype) if self.readout else None
+            if return_nodes:
+                e = torch.zeros(B, 0, device=dev, dtype=torch.float32)
+                return (z, torch.zeros(B, 0, self.hidden, device=dev, dtype=wdtype),
+                        torch.zeros(B, 0, self.EDGE_SUMMARY_DIM, device=dev, dtype=torch.float32),
+                        e, e, torch.zeros(B, 0, device=dev, dtype=torch.bool))
+            return z
 
         tok = event_tokens(events, ptr, delta_t_s, self.height, self.width)
+        if self.node_attrs == "raw4":
+            tok = tok[:, :4]                      # (x_norm, y_norm, polarity, t_norm), T_COL kept
         if extra is not None and extra.shape[0]:
             tok = torch.cat([tok, extra], dim=-1)
 
@@ -245,28 +222,24 @@ class EventGNN(nn.Module):
             h = (h + layer(h, idx, dp.to(h.dtype), emask.to(h.dtype))) * mask.unsqueeze(-1)
 
         any_node = mask.any(1, keepdim=True).to(h.dtype)
-        if self.attn_pool:
-            # (B, K, N) logits; dead nodes get a finite -1e4 (same recipe as the S38
-            # readout) so an event-free packet is a uniform softmax over zeroed rows
-            # and the readout is exactly zero without a NaN path.
-            logit = torch.einsum("qc,bnc->bqn", self.pool_q.to(h.dtype),
-                                 self.pool_key(h)) / math.sqrt(self.hidden)
-            logit = logit.masked_fill(~mask.unsqueeze(1), -1e4)
-            w = torch.softmax(logit, dim=-1)
-            pooled = torch.bmm(w, h).reshape(h.shape[0], -1)
-        else:
+        out = None
+        if self.readout:
             live = mask.sum(1, keepdim=True).clamp_min(1.0).to(h.dtype)
             mean = h.sum(1) / live
             peak = h.masked_fill(~mask.unsqueeze(-1), -1e4).max(1).values
-            pooled = torch.cat([mean, peak * any_node], dim=-1)
-        out = self.proj(pooled)
-        # An event-free packet must return exactly zero so `MODEL.ZERO_EVENT_GATE` gates an update
-        # that was already nothing.
-        out = out * any_node
-        if queries is None:
-            return out
-        nodes = self._query_readout(
-            h, ev[..., EV_X].to(torch.float32) * mask,
-            ev[..., EV_Y].to(torch.float32) * mask, mask, any_node,
-            queries.to(torch.float32))
-        return out, nodes
+            out = self.proj(torch.cat([mean, peak * any_node], dim=-1))
+            # An event-free packet must return exactly zero so `MODEL.ZERO_EVENT_GATE` gates an
+            # update that was already nothing.
+            out = out * any_node
+        if return_nodes:
+            # Edge summary per node: the mean relative position of the events it read (in graph
+            # coordinates: frame widths / heights, packet-normalised time) and their mean length.
+            # This is the graph's own local-motion reading, handed to the readout unpooled.
+            n_e = emask.sum(-1, keepdim=True).clamp_min(1.0)                         # (B, N, 1)
+            dp32 = dp.to(torch.float32)
+            g = torch.cat([(dp32 * emask.unsqueeze(-1)).sum(2) / n_e,
+                           (dp32.norm(dim=-1) * emask).sum(-1, keepdim=True) / n_e], dim=-1)
+            g = g * mask.unsqueeze(-1)
+            return (out, h, g, ev[..., EV_X].to(torch.float32) * mask,
+                    ev[..., EV_Y].to(torch.float32) * mask, mask)
+        return out

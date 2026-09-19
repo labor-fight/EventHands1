@@ -81,6 +81,9 @@ def main() -> None:
     ap.add_argument("--run-name", default=None)
     ap.add_argument("--output-dir", default=None)
     ap.add_argument("--no-logger", action="store_true")
+    ap.add_argument("--resume", default=None,
+                    help="Lightning checkpoint to continue from (model, optimizer, scheduler, "
+                         "global_step); the fixed checkpoint grid continues from its step")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
@@ -199,9 +202,12 @@ def main() -> None:
         "save_every_n_steps": every, "lr": tcfg["LR"],
         "selection_policy": "fixed step grid; select by recursive RA on val_core",
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+        "resumed_from": args.resume,
     }, indent=2))
 
-    trainer.fit(model, train_loader, val_loader)
+    if args.resume:
+        print(f"resuming from {args.resume}", flush=True)
+    trainer.fit(model, train_loader, val_loader, ckpt_path=args.resume)
     print("done. last:", ckpt_cb.last_model_path, flush=True)
 
 

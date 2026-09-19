@@ -324,3 +324,29 @@ def test_sequences_for_split_falls_back_to_legacy(root, tmp_path):
     got = sequences_for_split(root, "train", manifest_path=tmp_path / "nope.json")
     legacy = json.loads((root / "splits.json").read_text())["train"]["trials"]
     assert [s for s, _ in got] == legacy
+
+
+# ------------------------------------------------------------------ protocol since 2026-09-05: zgz only
+
+def test_default_split_validates_selects_and_reports_on_zgz_only(root):
+    """Nine subjects train; val = val_core = test = the held-out subject zgz."""
+    train = [s for s, _ in sequences_for_split(root, "train")]
+    assert sorted({s.split("_")[0] for s in train}) == ["ch", "lfz", "lpc", "lr", "ly", "lyh", "lyq", "ycy", "ylf"]
+    assert len(train) == 72
+    for split in ("val", "val_core", "test"):
+        assert sorted(s for s, _ in sequences_for_split(root, split)) == ["zgz_global", "zgz_local"], split
+
+
+def test_retired_split_manifests_are_refused(root, monkeypatch):
+    from semkine.dataset import ALLOW_RETIRED_SPLITS_ENV
+    retired = root / "_retired_splits_semkine_5v2v3.json"
+    monkeypatch.delenv(ALLOW_RETIRED_SPLITS_ENV, raising=False)
+    with pytest.raises(ValueError, match="retired"):
+        sequences_for_split(root, "val_core", manifest_path=retired)
+    # the configs of every arm must not pin it either
+    for p in (ROOT / "configs").rglob("*.yaml"):
+        assert "_retired_splits" not in p.read_text(), p
+    # re-scoring an archived artefact for the record stays possible, explicitly
+    monkeypatch.setenv(ALLOW_RETIRED_SPLITS_ENV, "1")
+    if retired.exists():
+        assert [s for s, _ in sequences_for_split(root, "val_core", manifest_path=retired)]

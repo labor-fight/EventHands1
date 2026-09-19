@@ -33,9 +33,6 @@ SEED: 3407
 
 DATA:
   ROOT: data/hand_data51
-  # Pinned: the default manifest was replaced on 2026-08-27 by the 9-subject
-  # capture-time split, and every arm compared against here used the 5/2/3 one.
-  SPLITS_MANIFEST: _retired_splits_semkine_5v2v3.json
   EVENT_CHANNELS: [last, count]
   WIDTH: 240
   HEIGHT: 180

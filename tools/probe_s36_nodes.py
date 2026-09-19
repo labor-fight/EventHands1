@@ -58,8 +58,8 @@ def main() -> None:
         p = subprocess.run([a.python, "tools/select_checkpoint.py", "--run-dir", str(work),
                             "--config", str(work / "cfg.yaml")],
                            cwd=REPO, capture_output=True, text=True)
-        sel = work / "selection_val_core_step50__retired_splits_semkine_5v2v3.json"
-        if not sel.exists():
+        sel = next(iter(sorted(work.glob("selection_val_core_step50*.json"))), None)
+        if sel is None:
             print(f"nodes={n:<6d} FAILED\n{p.stdout[-800:]}\n{p.stderr[-800:]}")
             continue
         d = json.loads(sel.read_text())["selected"]

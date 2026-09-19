@@ -1,0 +1,124 @@
+# S37 mesh query (2026-09-07, the user's design): the previous state enters the network in one form
+# only -- its MANO FK mesh -- and the mesh reads the event graph. Seed 3407; seed 3408 is this file
+# with `--seed 3408`. (The S37 number restarted on 2026-09-06 after everything past S36 was purged;
+# `s37_routed` is the intermediate arm that routed events to joints, kept as a record.)
+#
+# Protocol: nine-subject default split (splits_semkine.json), validate / select / report on the
+# held-out subject zgz only (docs/FAILURE_AND_CLEANUP_LEDGER.md).
+#
+# The arm (docs/S37_MESHQ_PREREG.md):
+#   * graph: nodes are the events themselves, (x, y, p, t) and nothing derived (ENCODER_NODE_ATTRS
+#     raw4), causal k-NN edges with (dx, dy, dt), EdgeConv x3 -- exactly S36's graph minus the
+#     rendered channels and the three derived token features; no pooled readout is built;
+#   * state: MANO FK of prev, projected; 192 fixed query vertices (12 per joint) each gather the
+#     node features, the graph's per-node edge summary (local motion) and the event offsets within
+#     16 px with a fixed 8 px kernel; skinning weights carry vertex evidence to the 16 joints;
+#   * heads: joint decoder k reads its joint's evidence only and is gated by that joint's coverage
+#     (no events near the joint -> the joint does not move); the root reads the mesh aggregate plus
+#     the sixteen joint evidences in joint order. No prev_mlp, no prev angles in the heads.
+#
+# Differences against S36, all part of the design: PREV_RENDER, PREVPOS_EMBED, ENCODER_NODE_ATTRS,
+# MESH_QUERY (+ its three knobs). Everything else -- sampling, k-NN, EdgeConv, loss, curriculum,
+# grid, DDP -- S36 verbatim (`tests/test_s37_meshq.py::test_s37_meshq_config_diff_against_s36`).
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_gnn
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: false          # S37 meshq: prev enters through its FK mesh only
+  PREV_RENDER: false            # S37 meshq: the graph is state-free
+  MESH_QUERY: true              # S37 meshq: the FK mesh reads the graph and drives the joints
+  MESH_QUERY_TOKENS: 192
+  MESH_QUERY_BAND_PX: 16.0
+  MESH_QUERY_SIGMA_PX: 8.0
+  ENCODER_NODE_ATTRS: raw4      # S37 meshq: nodes are the events (x, y, p, t), no derived tokens
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: event_gnn
+  ENCODER_HIDDEN: 128
+  ENCODER_FEAT: 512
+  ENCODER_LAYERS: 3
+  ENCODER_K: 8
+  ENCODER_MAX_NODES: 2048
+  ENCODER_WINDOW: 32
+  ENCODER_T_SCALE: 1.0
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 6000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s37_meshq_s3407
+  RUN_NAME: s37_meshq_s3407
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s37_meshq_s3407/eval

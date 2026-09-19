@@ -1,0 +1,119 @@
+# S37 FK graph (2026-09-07, the user's design): the previous state's MANO FK *is* the graph and
+# the events are its observations. Seed 3407; seed 3408 is this file with `--seed 3408`.
+#
+# Protocol note: trains on the nine-subject default split (splits_semkine.json) and validates,
+# selects and reports on the held-out subject zgz only (docs/FAILURE_AND_CLEANUP_LEDGER.md).
+#
+# The arm under test (docs/S37_FKGRAPH_PREREG.md, `semkine/fk_graph.py`):
+#   * graph = FK of prev: 16 joint nodes (skinning-weighted surface centroids) + 192 sampled
+#     surface vertices (12 per joint, farthest-point in the rest pose) + 1 background node; edges
+#     along the rest-pose mesh (k-NN 6), along the skinning weights (top-2 joints of a vertex) and
+#     along the kinematic tree; edge feature = edge type only;
+#   * events are not nodes and not tokens: every event goes to the node under its pixel (16 px
+#     band, else background) and each node's input is only what its events say -- log-count share,
+#     mean offset, spread, mean time, polarity balance, local flow (b_u, b_v) fitted per node;
+#   * no rendering, no geometric node/edge features, no event k-NN graph, no subsampling;
+#   * EdgeConv x3 on the fixed graph; joint decoder k reads joint node k+1 (+ its prev angle), the
+#     root reads the sixteen joint nodes in order plus the background node; prev_mlp and the
+#     zero-event gate as in S36.
+#
+# Differences against S36 (`tests/test_s37_fk_graph.py::test_s37_fkgraph_config_diff_against_s36`):
+# MODEL.ENCODER, PREV_RENDER, the FK_GRAPH_* knobs, and the event-graph knobs that no longer apply
+# (ENCODER_FEAT / K / MAX_NODES / WINDOW / T_SCALE). Training, loss, curriculum, grid, DDP: S36 verbatim.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_gnn
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: false            # S37 fkgraph: nothing is rendered
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375           # still the projection intrinsics used to place the nodes
+  RENDER_CHUNK: 256
+  ENCODER: fk_graph             # S37 fkgraph: the FK is the graph, events are its observations
+  FK_GRAPH_VERTS: 192
+  FK_GRAPH_BAND_PX: 16.0
+  FK_GRAPH_K: 6
+  FK_GRAPH_NODE_ID: true
+  ENCODER_HIDDEN: 128
+  ENCODER_LAYERS: 3
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  # 512 x 2 cards = the same effective 1024 S34/S36 trained at, so LR does not move.
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 6000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s37_fkgraph_s3407
+  RUN_NAME: s37_fkgraph_s3407
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s37_fkgraph_s3407/eval

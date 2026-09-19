@@ -27,7 +27,7 @@ sys.path.insert(0, str(REPO / "model"))
 from config import load_config                       # noqa: E402
 from model import MNISTModel                         # noqa: E402
 from semkine import eval_track as ET                 # noqa: E402
-from semkine.dataset import sequences_for_split      # noqa: E402
+from semkine.dataset import sequences_for_split, splits_manifest      # noqa: E402
 from semkine.encoder import event_tokens, query_render   # noqa: E402
 from semkine.events import EV_X, EV_Y, EventPacketBatch  # noqa: E402
 from semkine.event_gnn import T_COL                  # noqa: E402
@@ -71,11 +71,10 @@ def timeit(fn, items, passes=3, warm=100):
 def main() -> None:
     device = torch.device("cuda")
     run = REPO / "outputs/semkine/s36_eventgnn_s3407"
-    sel = json.loads((run / "selection_val_core_step50"
-                            "__retired_splits_semkine_5v2v3.json").read_text())["selected"]
+    sel = json.loads(next(run.glob("selection_val_core_step50*.json")).read_text())["selected"]
     cfg = load_config(json.loads((run / "training_metadata.json").read_text())["config_path"])
     root = Path(cfg["DATA"]["ROOT"])
-    seqs = sequences_for_split(root, "val_core", root / "_retired_splits_semkine_5v2v3.json")
+    seqs = sequences_for_split(root, "val_core", splits_manifest(cfg))   # zgz under the current protocol
     model = MNISTModel.load_from_checkpoint(sel["ckpt"], cfg=cfg,
                                             map_location=device).to(device).eval()
     enc = model.event_encoder

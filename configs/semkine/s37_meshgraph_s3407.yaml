@@ -1,0 +1,124 @@
+# S37 mesh graph (2026-09-18, the user's drawing): the previous state's *full* MANO mesh is the
+# graph, the events are its observations, the skinning weights pool the graph into the joints.
+# Seed 3407; seed 3408 is this file with `--seed 3408`.
+#
+# Protocol note: trains on the nine-subject default split (splits_semkine.json) and validates,
+# selects and reports on the held-out subject zgz only (docs/FAILURE_AND_CLEANUP_LEDGER.md).
+#
+# The arm under test (`semkine/mesh_graph.py`, `semkine/fk_graph.py` for the shared pieces):
+#   * graph = FK of prev: all 778 vertices are the nodes (+ 1 background node), the edges are the
+#     mesh faces (1-ring, max degree 8), edge feature = edge type (mesh) only;
+#   * a vertex may receive events only if it is visible: it faces the camera (back-face culling on
+#     the posed mesh) and passes a point-splat z-buffer (3 x 3 px window, 1 cm depth tolerance) for
+#     occlusion by another part -- the back of the hand projects onto the front's pixels;
+#   * events are not nodes and not tokens: every event goes to the nearest visible vertex (16 px
+#     band, else background) and a node's input is only what its events say -- log-count share,
+#     mean offset, spread, mean time, polarity balance (6 channels; the flow fit is off, H6 of
+#     docs/S37_FKGRAPH_PREREG.md measured it at zero contribution);
+#   * EdgeConv x3 on the fixed mesh; then fixed LBS pooling: joint j's evidence = [skinning-weighted
+#     mean over its observed vertices, hard-part max, coverage of its visible surface];
+#   * joint decoder k reads evidence k+1 (+ its prev angle), the root reads all sixteen evidences
+#     in joint order plus the background node; prev_mlp and the zero-event gate as in S36/fkgraph;
+#   * the state and the delta are the 51D MANO parameters (FK needs rotations, not joint points).
+#
+# Differences against S37 fkgraph (`tests/test_s37_mesh_graph.py::test_s37_meshgraph_config_diff_against_fkgraph`):
+# MODEL.ENCODER, the FK_GRAPH_* knobs that no longer apply and the MESH_GRAPH_* knobs. Training,
+# loss, curriculum, grid, DDP: fkgraph / S36 verbatim.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_gnn
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: false            # nothing is rendered
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375           # still the projection intrinsics used to place the vertices
+  RENDER_CHUNK: 256
+  ENCODER: mesh_graph           # S37 meshgraph: the full FK mesh is the graph, events are its observations
+  MESH_GRAPH_BAND_PX: 16.0
+  MESH_GRAPH_FRONT_PX: 1.0
+  MESH_GRAPH_Z_TOL: 0.01
+  MESH_GRAPH_OBS_FLOW: false
+  MESH_GRAPH_NODE_ID: true
+  ENCODER_HIDDEN: 128
+  ENCODER_LAYERS: 3
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  # 512 x 2 cards = the same effective 1024 S34/S36 trained at, so LR does not move.
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 6000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s37_meshgraph_s3407
+  RUN_NAME: s37_meshgraph_s3407
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s37_meshgraph_s3407/eval
