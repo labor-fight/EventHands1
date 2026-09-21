@@ -176,6 +176,12 @@ CUDA_VISIBLE_DEVICES=6 python tools/run_closed_loop_probe.py --split val_core --
 - 09-20 17:45：GPU 空出，`s38_mesh3d` 两种子并行训练 → 19:11 选点完成；`s38_rootlever` 19:11 → 20:30。`finish_s38.sh` 20:32 → 21:06 全部跑完
   （`logs/finish_s38_summary.log`）。四个 run 的主行复现漂移 **0.0000 mm**。
 - 09-21 11:30：§8 / §9 填入，账本 zgz 表与 §2 更新。
+- 09-21 16:10：**按用户指令，两臂只留本文与账本条目，其余全部删除**：代码（`semkine/mesh_graph.py` 的 `edge_vectors / lever_arms / part_positions /
+  RigidNode / PartLever`、`FKGraphEncoder.forward` 的 `edge_feat`、`model.py` 的 4 个旋钮与 `_mesh_graph_forward` 的几何分支、`make_s36_row.py` 的按模块计头部 MACs）
+  回退到 S37 提交 `2649ea0` 的版本；`configs/semkine/s38_{mesh3d,rootlever}_s3407.yaml`、`tests/test_s38_mesh3d.py`、`tools/run_s38.sh`、`tools/finish_s38.sh`、
+  `tools/probe_s38_gate.py` 删除；`outputs/semkine/s38_*`（4 个 run 目录 ≈ 360 MB、主行 / 探针 / 闭环 JSON）与 `logs/*s38*` 删除。
+  **可恢复证据：快照提交 `bf4f0ca`**（代码、config、测试、工具、本文、账本），`git checkout bf4f0ca -- <path>` 即可取回任何一件；checkpoint 不在 git 里，
+  按 §6 命令重训约 1 h/臂可复现（四个 run 的复现漂移都是 0.0000 mm）。删除前的产物登记见 §8 末"产物登记"。
 
 ## 8. 结果（2026-09-20，两臂 × 两种子，zgz 两条序列 2590 帧）
 
@@ -199,6 +205,16 @@ CUDA_VISIBLE_DEVICES=6 python tools/run_closed_loop_probe.py --split val_core --
 | 机制门：观测置零后闭环 RA | 42.8（+22.6）/ 56.9（+27.4） | 101（+79） | 95.8（**+65.3**）/ 41.6（+18.2）；abs 11013 / 170 | 130.7（**+108.7**）/ 49.4（+28.0）；abs 978 / 165 | ≥ 1.5 | 都过；劣化量远大于 meshgraph |
 | corr(网格 RA, 旋转) / (RA, 手指) | 0.96 / −0.01；0.89 / −0.20 | 0.91 / −0.02；0.34 / −0.60 | 0.80 / −0.19；0.76 / 0.00 | 0.97 / −0.26；0.73 / 0.20 | — | 不稳定仍全在 root 旋转 |
 | 主行：延迟 / FLOPs / 参数 | 11.99 ms / 0.314 G / 0.44 M | 5.38 / 0.084 / 0.23 | 13.07 ms / 0.327 G / 0.47 M | 12.83 ms / 0.315 G / 0.46 M | 记录 | |
+
+**产物登记（删除前，账本 §3.3 要求）**——训练提交：代码状态 = 快照 `bf4f0ca`（训练时未提交，内容逐字相同）；训练受试者 9 人
+`ch lfz lpc lr ly lyh lyq ycy ylf`，验证 / 选点 zgz；选中 checkpoint 与 sha256：
+
+| run | 选中 step | 文件 | sha256 | RA | abs | zgz_global / zgz_local |
+|---|---|---|---|---|---|---|
+| s38_mesh3d_s3407 | 500 | `s38_mesh3d_s3407-step=500.ckpt` | `21580addb52ace272eddae036660339e0dd855a1be2abae5a1b325d22135fb26` | 30.45 | 97.8 | 21.08 / 41.25 |
+| s38_mesh3d_s3408 | 6000 | `s38_mesh3d_s3408-step=6000.ckpt` | `af99727519d43b24833af0097fcc2dd979bd0646014f23fbbf155752da0dd76c` | 23.34 | 62.6 | 14.49 / 33.53 |
+| s38_rootlever_s3407 | 2000 | `s38_rootlever_s3407-step=2000.ckpt` | `7791015dee546c5c94b0014d7cdc4747850feedc55cfd9932ef3199e5c5c6f94` | 22.05 | 77.6 | 15.67 / 29.39 |
+| s38_rootlever_s3408 | 5000 | `s38_rootlever_s3408-step=5000.ckpt` | `cf4d5a954c4c670f828675d84075d879214c8668d5cfbe840a832aed32f3fe2c` | 21.48 | 75.8 | 13.30 / 30.90 |
 
 **网格轨迹（闭环 zgz_local，step: RA / 旋转 p50）**：S38a 3407 `5:41/29° 10:52/40° 15:74/54° … 60:57/49°`——从第一个 checkpoint 起就在 40 以上、
 越训越坏；S38b 3407 `5:27/20° 20:31/20° 25:50/31° … 60:45/28°`——前 2000 步好，之后退化到 45–52（与 fk_graph "最佳点都在前 2000 步、后半退化"同一形态）；

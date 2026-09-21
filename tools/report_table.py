@@ -9,8 +9,8 @@ two seeds in parentheses because the protocol reports per-seed numbers), so the 
 drift from the artifacts. The first row is the published EventHands-PCA6 baseline the user's
 table starts from.
 
-    python tools/report_table.py s37_routed s37_fkgraph s37_meshgraph s38_mesh3d s38_rootlever
-    python tools/report_table.py --no-seeds --label s38_rootlever="S38b 部件杠杆臂" s38_rootlever
+    python tools/report_table.py s36_eventgnn s37_routed s37_fkgraph s37_meshgraph
+    python tools/report_table.py --no-seeds --label s37_routed="S37 路由读出（当前臂）" s37_routed
 """
 from __future__ import annotations
 

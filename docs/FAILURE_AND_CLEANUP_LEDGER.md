@@ -544,3 +544,9 @@ root 头没有长程通路；fk_graph 的关节节点 + 运动学树边正是这
 这条写进后续任何几何臂的契约。
 
 下一个单变量按 H5：课程（把 root 旋转噪声与平移 / 手指噪声解耦，或降大噪声比例），其余不动。
+
+**清理（09-21 16:10，用户指令："踩坑和实验内容留在 docs 里，其余的记录删除"）**：保留 `docs/S38_MESH3D_PREREG.md`（设计、门槛、结果、判读、产物登记含选中 checkpoint sha256）
+与本文条目；代码回退到 S37 提交 `2649ea0`（`semkine/mesh_graph.py`、`semkine/fk_graph.py`、`model/model.py`、`tools/make_s36_row.py`），
+`configs/semkine/s38_*`、`tests/test_s38_mesh3d.py`、`tools/{run_s38.sh,finish_s38.sh,probe_s38_gate.py}` 删除，`outputs/semkine/s38_*`（≈ 360 MB）与 `logs/*s38*` 删除。
+**快照提交 `bf4f0ca`** 含删除前的全部代码、config、测试、工具与文档，任何一件 `git checkout bf4f0ca -- <path>` 可取回；checkpoint 按 prereg §6 重训可复现。
+与 S38 无关而同期加入的 `tools/report_table.py` 与 `AGENTS.md`（统一结果表）保留。

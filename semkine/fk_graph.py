@@ -274,20 +274,14 @@ class FKGraphEncoder(nn.Module):
         self.register_buffer("etype", spec.etype.clone(), persistent=False)
         self.register_buffer("emask", spec.emask.clone(), persistent=False)
 
-    def forward(self, obs: torch.Tensor, edge_feat: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """`edge_feat (B, N, K, 3)`, when given, rides on `EdgeConv`'s three edge channels instead
-        of the fixed one-hot edge type -- the S38 mesh graph passes the 3D vector to each
-        neighbour (`semkine.mesh_graph.edge_vectors`). Without it the behaviour is S37's."""
+    def forward(self, obs: torch.Tensor) -> torch.Tensor:
         B = obs.shape[0]
         h = self.obs_embed(obs.to(self.obs_embed.weight.dtype))
         if self.node_id is not None:
             h = h + self.node_id.weight.unsqueeze(0).to(h.dtype)
         h = torch.relu(h)
         idx = self.idx.unsqueeze(0).expand(B, -1, -1)
-        if edge_feat is None:
-            dp = self.etype.unsqueeze(0).expand(B, -1, -1, -1).to(h.dtype)
-        else:
-            dp = edge_feat.to(h.dtype)
+        dp = self.etype.unsqueeze(0).expand(B, -1, -1, -1).to(h.dtype)
         emask = self.emask.unsqueeze(0).expand(B, -1, -1).to(h.dtype)
         for layer in self.layers:
             h = h + layer(h, idx, dp, emask)

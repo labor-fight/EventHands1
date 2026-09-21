@@ -181,15 +181,8 @@ def macs_s36(cfg):
         macs, _ = profile(enc, inputs=(obs,), verbose=False)
         if str(mc.get("ENCODER", "")).lower() == "mesh_graph":
             # fingers read [mean, max, coverage] of their joint; root reads all sixteen + background
-            # (+ the S38 rigid node / part lever terms, counted from the modules: the rigid node
-            # runs its message on every one of the 778 vertices, the lever term on 16 parts)
             ev_dim = 2 * hidden + 1
-            heads = m.root_head.in_features * 6 + 15 * ((ev_dim + 3) * hid + hid * 3) + 2 * 51 * 64
-            if getattr(m, "rigid_node", None) is not None:
-                rn = m.rigid_node
-                heads += 778 * rn.msg.in_features * rn.msg.out_features + rn.out[0].in_features * rn.out[0].out_features
-            if getattr(m, "part_lever", None) is not None:
-                heads += 16 * m.part_lever.lin.in_features * m.part_lever.lin.out_features
+            heads = (16 * ev_dim + hidden) * 6 + 15 * ((ev_dim + 3) * hid + hid * 3) + 2 * 51 * 64
         else:
             heads = (17 * hidden) * 6 + 15 * ((hidden + 3) * hid + hid * 3) + 2 * 51 * 64
         n_params = sum(p.numel() for p in m.parameters())

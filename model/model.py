@@ -581,9 +581,6 @@ class MNISTModel(BaseModel):
             "FK_GRAPH_VERTS", "FK_GRAPH_BAND_PX", "FK_GRAPH_K", "FK_GRAPH_NODE_ID",
             "MESH_GRAPH_BAND_PX", "MESH_GRAPH_FRONT_PX", "MESH_GRAPH_Z_TOL",
             "MESH_GRAPH_OBS_FLOW", "MESH_GRAPH_NODE_ID",
-            # S38: relative 3D geometry on the edges / at the root (docs/S38_MESH3D_PREREG.md)
-            "MESH_GRAPH_EDGE_GEO", "MESH_GRAPH_RIGID_NODE", "MESH_GRAPH_ROOT_LEVER",
-            "MESH_GRAPH_GEO_SCALE",
             "RENDER_CHANNELS", "RENDER_H", "RENDER_W", "RENDER_SCALE",
             "RENDER_CHUNK", "RENDER_DEPTH_TOL", "INIT_FROM",
             "ACTIVE_HEAD", "ACTIVE_FEAT_DIM", "ACTIVE_HIDDEN",
@@ -747,7 +744,7 @@ class MNISTModel(BaseModel):
             ])
         elif self.mesh_graph:
             from semkine.fk_graph import OBS_DIM, FKGraphEncoder
-            from semkine.mesh_graph import GEO_SCALE, MeshGraphSpec, PartLever, RigidNode
+            from semkine.mesh_graph import MeshGraphSpec
             self._build_mano(model_cfg)
             hidden = int(model_cfg.get("ENCODER_HIDDEN", 128))
             self.mg_spec = MeshGraphSpec.from_mano(self.mano)
@@ -758,19 +755,6 @@ class MNISTModel(BaseModel):
             # FK-graph pre-registration measured it at zero contribution in 50 ms packets, so the
             # default here is the first six channels; MESH_GRAPH_OBS_FLOW restores all eight.
             self.mg_obs_dim = OBS_DIM if bool(model_cfg.get("MESH_GRAPH_OBS_FLOW", False)) else OBS_DIM - 2
-            # S38 (2026-09-20, docs/S38_MESH3D_PREREG.md): relative 3D geometry of prev's FK on
-            # the *edges*, camera frame, centimetres. All off = the S37 mesh graph, bitwise.
-            #   EDGE_GEO   (A)  1-ring edge feature = X_j - X_i instead of the constant edge type
-            #   RIGID_NODE (B)  one node fed by every observed vertex with its lever arm about the
-            #                   root joint; the root reads it (long-range path + rotation moment)
-            #   ROOT_LEVER (B') the root additionally reads u_j = relu(W[e_j ; r_j]) for the sixteen
-            #                   parts, r_j = part centroid about the root joint; width = the value.
-            #                   The graph is untouched -- the minimal test of the lever-arm
-            #                   hypothesis.
-            self.mg_geo_scale = float(model_cfg.get("MESH_GRAPH_GEO_SCALE", GEO_SCALE))
-            self.mg_edge_geo = bool(model_cfg.get("MESH_GRAPH_EDGE_GEO", False))
-            self.mg_rigid = bool(model_cfg.get("MESH_GRAPH_RIGID_NODE", False))
-            self.mg_root_lever = int(model_cfg.get("MESH_GRAPH_ROOT_LEVER", 0))
             self.event_encoder = FKGraphEncoder(
                 self.mg_spec, hidden=hidden, n_layers=int(model_cfg.get("ENCODER_LAYERS", 3)),
                 node_id=bool(model_cfg.get("MESH_GRAPH_NODE_ID", True)), obs_dim=self.mg_obs_dim)
@@ -779,13 +763,8 @@ class MNISTModel(BaseModel):
             assert self.output_dim == 51, "the active head is defined for the 51D layout"
             # evidence per joint = [skinning-weighted mean, hard-part max, coverage] over vertices;
             # the root reads the sixteen evidences in joint order plus the background node
-            # (+ the rigid node, + the sixteen part lever terms, when built)
             ev_dim = 2 * hidden + 1
-            self.rigid_node = RigidNode(hidden) if self.mg_rigid else None
-            self.part_lever = PartLever(ev_dim, self.mg_root_lever) if self.mg_root_lever > 0 else None
-            root_in = (16 * ev_dim + hidden + (hidden if self.mg_rigid else 0)
-                       + 16 * self.mg_root_lever)
-            self.root_head = nn.Linear(root_in, 6)
+            self.root_head = nn.Linear(16 * ev_dim + hidden, 6)
             self.joint_heads = nn.ModuleList([
                 nn.Sequential(nn.Linear(ev_dim + 3, hid), nn.ReLU(inplace=True),
                               nn.Linear(hid, 3))
@@ -1184,24 +1163,15 @@ class MNISTModel(BaseModel):
         """S37 mesh graph: FK of `prev` -> 778 projected vertices and their visibility -> events
         handed to the nearest visible vertex and summarised per node -> EdgeConv on the mesh ->
         skinning weights pool the vertices into sixteen joint evidences `(B, 16, 2C+1)`; the
-        background node `(B, C)` goes to the root.
-
-        S38 adds, from the same FK and under the same `no_grad`: the 3D vector along every mesh
-        edge as the EdgeConv edge feature (`mg_edge_geo`), a rigid node over the observed vertices
-        with their lever arms about the root joint (`mg_rigid`), and a per-part lever term
-        `relu(W[e_j ; r_j])` over the sixteen part centroids about the root joint for the root
-        head (`mg_root_lever`). The root's extra input is `[background || rigid node || part
-        lever terms]`, in that order, whichever are built."""
+        background node `(B, C)` goes to the root."""
         from semkine.fk_graph import assign_and_observe
-        from semkine.mesh_graph import (assign_events_by_lut, edge_vectors, lbs_pool_evidence,
-                                        lever_arms, nearest_node_lut, part_positions,
-                                        visible_vertices)
+        from semkine.mesh_graph import (assign_events_by_lut, lbs_pool_evidence,
+                                        nearest_node_lut, visible_vertices)
         prev_geo = prev if self.route_prev_override is None else \
             self.route_prev_override.to(prev.device, prev.dtype)
         betas_f, k_f = self._resolve_betas_K(prev_geo, batch.betas, batch.camera_K)
-        edge_feat = arms = parts = None
         with torch.no_grad():
-            verts, joints = self._fk(prev_geo.float(), betas_f)                      # (B, 778, 3)
+            verts, _ = self._fk(prev_geo.float(), betas_f)                           # (B, 778, 3)
             uv, z = self._project_verts(verts, k_f)                                  # (B, 778, 2)
             vis = visible_vertices(verts, uv, z, self.mano.f, self.render_h, self.render_w,
                                    self.mg_front_px, self.mg_z_tol)                  # (B, 778)
@@ -1217,36 +1187,17 @@ class MNISTModel(BaseModel):
                 "route_frac_routed": (assign < uv.shape[1]).float().mean() if n_ev else obs.new_zeros(()),
                 "mg_frac_visible": vis.float().mean(),
             }
-            # S38 geometry: relative to prev's own FK, camera frame, centimetres. The pivot is the
-            # posed MANO root joint (OpenPose joint 0), the point the root rotation delta acts about.
-            pivot = joints[:, 0].float()
-            if self.mg_edge_geo:
-                edge_feat = edge_vectors(verts, self.event_encoder.idx, self.event_encoder.emask,
-                                         self.mg_geo_scale)                          # (B, 779, K, 3)
-            if self.mg_rigid:
-                arms = lever_arms(verts, pivot, self.mg_geo_scale)                   # (B, 778, 3)
-            if self.mg_root_lever > 0:
-                parts = part_positions(verts, self.mano.weights, pivot, self.mg_geo_scale)  # (B, 16, 3)
         if self.obs_feature_mask is not None:
             obs = obs * self.obs_feature_mask.to(obs).view(1, 1, -1)
         if self.ablate_evidence:
             # "the mesh saw nothing": observations and the observed-vertex mask both go, so the
-            # pool cannot leak *where* events fell through its weights (and the rigid node, fed
-            # by `has`, is exactly zero). The geometry stays: it is the prior, not the evidence.
+            # pool cannot leak *where* events fell through its weights
             obs = torch.zeros_like(obs)
             has = torch.zeros_like(has)
-        h = self.event_encoder(obs, edge_feat)                                       # (B, 779, C)
+        h = self.event_encoder(obs)                                                  # (B, 779, C)
         e, count = lbs_pool_evidence(h[:, :-1], self.mano.weights, vis, has)
         self.route_stats["route_joints_hit"] = (count > 0).sum(1).float().mean()
-        root_extra = [h[:, -1]]
-        if self.mg_rigid:
-            g = self.rigid_node(h[:, :-1], arms, has)                                # (B, C)
-            self.route_stats["mg_rigid_mass"] = has.sum(1).float().mean()
-            root_extra.append(g)
-        if self.mg_root_lever > 0:
-            u = self.part_lever(e, parts)                                            # (B, 16, L)
-            root_extra.append(u.flatten(1))
-        return e, torch.cat(root_extra, dim=-1)
+        return e, h[:, -1]
 
     def _project_verts(self, verts, k_f):
         """Pinhole projection with the render intrinsics: `(uv (B, V, 2), z (B, V))`."""
