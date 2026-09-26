@@ -10,7 +10,7 @@ drift from the artifacts. The first row is the published EventHands-PCA6 baselin
 table starts from.
 
     python tools/report_table.py s36_eventgnn s37_routed s37_fkgraph s37_meshgraph
-    python tools/report_table.py --no-seeds --label s37_routed="S37 路由读出（当前臂）" s37_routed
+    python tools/report_table.py --label s37_routed="S37 路由读出（当前臂）" s37_routed
 """
 from __future__ import annotations
 

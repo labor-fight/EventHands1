@@ -1,0 +1,126 @@
+# S39 covmap (2026-09-21, docs/S39_COVMAP_PREREG.md): the S37 routed readout with one addition --
+# the root head also reads a surface coverage map. Seed 3407; seed 3408 is this file with
+# `--seed 3408`.
+#
+# Protocol note: trains on the nine-subject default split (splits_semkine.json) and validates,
+# selects and reports on the held-out subject zgz only (docs/FAILURE_AND_CLEANUP_LEDGER.md).
+#
+# Why (debug session 2026-09-21 on routed 3407, zgz closed loop, 5180 steps): the root head
+# leaves the loop's rotation error untouched (10.60 -> 10.69 deg per step, cos 0.13 to the needed
+# correction) and replacing the root rotation by ground truth alone takes recursive RA from
+# 19.26 to 13.47. A ridge readout of the routed events' coverage over 64 fixed surface patches
+# (event share vs visible-surface share, silhouette-band share and offsets) removes a third of
+# that rotation error (10.5 -> 6.9 deg, cos 0.82) and two thirds of the x/y translation error
+# (R^2 0.66 / 0.75) on the dense sequence. The per-joint mean / max / coverage pool averages this
+# antisymmetric footprint pattern away; the map hands it to the root unpooled.
+#
+# Against S37 routed (`s37_routed_s3407.yaml`) exactly one thing changes: MODEL.ROOT_COVMAP (+ its
+# three knobs). Graph, routing, per-joint evidence, finger heads, prev_mlp, zero-event gate,
+# loss, curriculum, grid, DDP: S37 routed verbatim
+# (`tests/test_s39_covmap.py::test_s39_config_differs_from_s37_routed_only_in_the_covmap`).
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_gnn
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  # The tracking recipe, unchanged from S34/S36 except the two lines marked S37.
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: false            # S37: the graph is state-free
+  ROUTED_READOUT: true          # S37: prev enters at the readout, as FK-routed joint evidence
+  ROUTE_BAND_PX: 16.0
+  ROUTE_FRONT_K: 8
+  ROOT_COVMAP: true             # S39: root also reads the surface coverage map of the routed events
+  ROOT_COVMAP_PATCHES: 64       # fixed rest-pose FPS partition of the 778 vertices
+  ROOT_COVMAP_HIDDEN: 128       # 64 x 5 + 1 -> 128 -> concatenated into the root head
+  ROOT_COVMAP_EDGE_PX: 2.0      # a routed node farther than this from its vertex is a silhouette-band node
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: event_gnn
+  ENCODER_HIDDEN: 128
+  ENCODER_FEAT: 512
+  ENCODER_LAYERS: 3
+  ENCODER_K: 8
+  ENCODER_MAX_NODES: 2048
+  ENCODER_WINDOW: 32
+  ENCODER_T_SCALE: 1.0
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  # 512 x 2 cards = the same effective 1024 S34/S36 trained at, so LR does not move.
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 6000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s39_covmap_s3407
+  RUN_NAME: s39_covmap_s3407
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s39_covmap_s3407/eval

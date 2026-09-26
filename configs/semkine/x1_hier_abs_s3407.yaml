@@ -1,0 +1,138 @@
+# X1 (2026-09-25 goal, SCREENING arm -- not a candidate for adoption by itself): the absolute branch
+# A of candidate C1 trained alone. A sparse spatial-hierarchy event-set encoder
+# (`semkine/event_hier.py`: S37's tokens and node sample -> spatial k-NN over the whole packet ->
+# EdgeConv -> three set-abstraction levels 2048/512/128/32 -> mean+max -> Linear(512 -> 51)) that
+# has no input through which the previous state could enter. The question it screens: can a sparse
+# encoder that sees only the current packet give an absolute 51D pose close to the dense CNN's?
+#
+# Pre-registered gates: research_state/lit/CANDIDATES.md §4 (X1), evaluated once on zgz:
+#   G-a per-frame absolute RA: global <= 13 mm and local <= 17 mm;
+#   G-b fixed alpha = 0.5 closed-loop fusion with S37 3407@2500: <= 11.5 / <= 17.5 (strong < 10.66 / < 15.1).
+#   If X1 fails, do not iterate on zgz; retrain on the ylf development protocol instead.
+# Debug record: research_state/debug/X1_event_hier_debug.md.
+#
+# Every difference against `s37_routed_s3407.yaml` (tests/test_x1_event_hier.py pins this list):
+#   MODEL.BACKBONE / MODEL.ENCODER     event_gnn -> event_hier
+#   MODEL.ENCODER_HIDDEN 128 -> 64     level-0 width; the levels are 64 / 128 / 256 / 512
+#   MODEL.ENCODER_LAYERS 3 -> 2        residual EdgeConv rounds at level 0 (levels 1, 2: one each)
+#   MODEL.ENCODER_K 8 -> 16            k-NN among all live nodes of the packet, not 32 causal predecessors
+#   MODEL.ENCODER_HIER_T_PX 10 (new)   neighbour metric (x_px, y_px, t_norm * 10)
+#   MODEL.ENCODER_WINDOW / ENCODER_T_SCALE removed (event_gnn only; would be silently unread)
+#   MODEL.PREDICT_DELTA, PREVPOS_EMBED, ROUTED_READOUT, ZERO_EVENT_GATE, ACTIVE_HEAD true -> false,
+#     ROUTE_BAND_PX / ROUTE_FRONT_K / ACTIVE_HIDDEN removed: the output is `pose_head(feature)` and
+#     `forward_packet` never reads `prev_state`
+#   LOSS.TYPE mse_51d -> so3_trans_fk with C0's block (1 / 1 / 2, ABS_FK 1.0, TRANS_BETA 0.01);
+#     LAMBDA_* / NORMALIZER only feed the logged legacy_loss_51d
+#   TRAIN.MAX_STEPS 6000 -> 3000 (screening budget); TRAIN.OUTPUT_DIR / RUN_NAME, EVAL.OUTPUT_DIR
+# Unchanged: DATA, AUG including DOMRAND, MANO, the rest of TRAIN (2 x 512, bf16, Adam 4e-3, warmup
+# 500, checkpoint grid every 500) and TRACK. TRACK's prev-noise curriculum is not read by this model;
+# it is kept because `SemKineDataset.__getitem__` draws the prev noise before the polarity flip and
+# pixel swap, so keeping it makes the per-sample augmentation stream bitwise S37's.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_hier
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  # Absolute mode: no delta, no prev embedding, no render, no routed readout, no active heads.
+  PREDICT_DELTA: false
+  PREVPOS_EMBED: false
+  PREV_RENDER: false
+  ROUTED_READOUT: false
+  ZERO_EVENT_GATE: false
+  # Render intrinsics are used by the MANO build only; RENDER_SCALE is also read by the dataset's
+  # domain randomisation, so it stays at S37's value.
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: event_hier
+  ENCODER_HIDDEN: 64
+  ENCODER_FEAT: 512
+  ENCODER_LAYERS: 2
+  ENCODER_K: 16
+  ENCODER_MAX_NODES: 2048
+  ENCODER_HIER_T_PX: 10.0
+  ACTIVE_HEAD: false
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  # C0's SO(3) + FK objective (the CNN line's dr_so3fk recipe, 1 / 1 / 2) with the S4 translation
+  # remedies; an absolute arm has to get translation from the events alone.
+  TYPE: so3_trans_fk
+  ROT_WEIGHT: 1.0
+  TRANS_WEIGHT: 1.0
+  FK_WEIGHT: 2.0
+  ABS_FK_WEIGHT: 1.0
+  TRANS_BETA: 0.01
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  # 512 x 2 cards = the same effective 1024 S34/S36/S37 trained at, so LR does not move.
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 3000
+  VAL_CHECK_INTERVAL: 1000
+  SAVE_EVERY_N_STEPS: 500      # fixed grid: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/x1_hier_abs_s3407
+  RUN_NAME: x1_hier_abs_s3407
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/x1_hier_abs_s3407/eval

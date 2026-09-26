@@ -24,3 +24,5 @@ stay in the arm's pre-registration doc under `docs/` for whoever asks.
 - A one- or two-sentence verdict (pre-registered gate pass / fail, adopt / keep the current arm)
   may follow the table. The *why* goes to `docs/S3x_*_PREREG.md` and `docs/FAILURE_AND_CLEANUP_LEDGER.md`.
 - An arm without a main row is not reported as a result; run `tools/make_s36_row.py --run <arm>` first.
+
+- 当前最优起点与当前臂为 S37 路由读出（`s37_routed`），按 2026-09-24 用户指令恢复；后续实验以它为对照。

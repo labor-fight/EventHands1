@@ -1,7 +1,6 @@
 # EventHands hand_data51 实验报告合集
 
-> **全实验系统总结（含 SemKine / KEG、根因三次修正、当前裁决）见**
-> [EXPERIMENT_SYSTEMATIC_SUMMARY.md](EXPERIMENT_SYSTEMATIC_SUMMARY.md)。
+> **当前裁决与 zgz 协议数字见** [FAILURE_AND_CLEANUP_LEDGER.md](FAILURE_AND_CLEANUP_LEDGER.md)。
 > 本文保留旧协议 §1–14 的逐实验收据，不替代总览。
 
 
@@ -9,7 +8,7 @@
 与图片路径。按实验推进顺序排列。
 
 第 7、8 节所述的 SPA / SPA round 2 代码曾随回退到 **EventHands-AbsRender** 一并删除；
-那条路线的诊断见 [debug_closed_loop_diagnosis.md](debug_closed_loop_diagnosis.md)。
+那条路线的诊断过程已并入本文 §9–11（核心结论在 §10 被推翻）。
 第 9 节是按 §7 的文字重建该头之后的结果：**17.91 mm 未能复现，且推理期消融显示这个头是惰性的**，
 因此 §7 / §8 中依赖"两次独立训练之差"的消融结论都需要重新审视。
 第 10 节用零训练的判别探针**修正了根因**：瓶颈不在输入表示也不在暴露偏差，而在
@@ -1039,7 +1038,7 @@ stride-8 cell 的面积），每个部件平均点亮 3–5 个 cell（腕部 25
 | track_render51 基线 | 0.145 | 99.6% | 1.005 | 39.4% |
 | KSGN step8000 | 0.160 | 99.4% | 0.966 | 40.4% |
 
-与 [debug_closed_loop_diagnosis.md](debug_closed_loop_diagnosis.md) §4 的历史读数（g=0.19、99.4% 正交）
+与早期闭环诊断 §4 的历史读数（g=0.19、99.4% 正交）
 一致，这同时验证了工具本身。**手指增量仍有 99.4% 的能量与真值正交**：解码端换成语义关节结构没有、
 也不可能改变这一点，因为窗口内的运动方向信息在 LNES 输入处就已经被丢掉了（TBIN 待办）。
 
@@ -1128,7 +1127,7 @@ python tools/measure_motion_gain.py --config configs/eventhands_track_render51_s
 | copy-prev 单步基线 | val 4.39mm / train 3.77mm（模型比"什么都不做"差 6 倍） |
 | 分组降噪率（中位） | t 噪声 0.008→0.067（放大 8×）、pose 噪声 0.59→1.40（放大 2.4×） |
 
-### 4. 根因修正（推翻本文 §9 末条与 debug_closed_loop_diagnosis.md 的核心结论）
+### 4. 根因修正（推翻本文 §9 末条与早期闭环诊断的核心结论）
 
 1. **"LNES 丢 72–89% 事件 → 方向信息进网络前就不存在"不成立。** 闭环增量的 99.4% 正交是
    **相关噪声差分的伪影**：闭环里 `pred(t) = GT(t) + e(t)`，逐步增量含 `e(t) − e(t−1)`，

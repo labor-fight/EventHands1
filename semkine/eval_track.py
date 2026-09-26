@@ -128,6 +128,40 @@ def root_align(x: np.ndarray) -> np.ndarray:
     return x - x[..., :1, :]
 
 
+# region agent log
+def _dbg_perstep(regime, seq, ends, preds51, gts51, mano, betas, device):
+    """Debug session ae9d53: one NDJSON line per step (RA, 21-joint errors, Kabsch rotation
+    error, predicted and GT root params), keyed by (regime, seq, end) for joining."""
+    import json as _json, os as _os, time as _time
+    if not _os.environ.get("S37_DBG"):
+        return
+    def fk(params):
+        oj = []
+        for i0 in range(0, len(params), 2048):
+            chunk = torch.from_numpy(np.asarray(params[i0:i0 + 2048], dtype=np.float32)).to(device)
+            dec = decode_to_mano_inputs(chunk, "mano_full_axis_angle", mano.hands_components, mano.hands_mean)
+            _, j = mano(betas.expand(len(chunk), -1), dec["global_orient"], dec["local_full_aa"], dec["transl"])
+            oj.append(j.cpu().numpy())
+        return np.concatenate(oj)
+    pj, gj = root_align(fk(preds51)), root_align(fk(gts51))
+    err = np.linalg.norm(pj - gj, axis=-1) * 1000
+    P, Q = pj - pj.mean(1, keepdims=True), gj - gj.mean(1, keepdims=True)
+    U, _, Vt = np.linalg.svd(np.einsum("tni,tnj->tij", P, Q))
+    d = np.sign(np.linalg.det(np.einsum("tij,tjk->tik", Vt.transpose(0, 2, 1), U.transpose(0, 2, 1))))
+    D = np.stack([np.diag([1.0, 1.0, s]) for s in d])
+    R = np.einsum("tij,tjk,tkl->til", Vt.transpose(0, 2, 1), D, U.transpose(0, 2, 1))
+    ang = np.degrees(np.arccos(np.clip((np.trace(R, axis1=1, axis2=2) - 1) / 2, -1, 1)))
+    with open("/data1/lyq/code/mesh/EventHands1/.cursor/debug-ae9d53.log", "a") as f:
+        for i, e in enumerate(ends):
+            f.write(_json.dumps({"sessionId": "ae9d53", "hypothesisId": "H7,H8", "location": "eval_track.py:_dbg_perstep",
+                                 "message": "step error", "timestamp": int(_time.time() * 1000), "runId": _os.environ.get("S37_DBG_ARM", ""),
+                                 "data": {"regime": regime, "seq": seq, "end": int(e), "ra_mm": float(err[i].mean()),
+                                          "joint_err_mm": [round(float(v), 1) for v in err[i]], "rot_deg": float(ang[i]),
+                                          "pred_root": [round(float(v), 5) for v in preds51[i][:6]],
+                                          "gt_root": [round(float(v), 5) for v in gts51[i][:6]]}}) + "\n")
+# endregion
+
+
 @torch.no_grad()
 def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step_ms: int,
                    device, rng, noise_scale: float, delta_trust: float = 1.0,
@@ -158,6 +192,9 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
             continue
         prev = pos51[a].copy() + sample_init_noise(cfg, rng, noise_scale)
         prev_t = torch.from_numpy(prev).view(1, -1).to(device)
+        # Explicit per-run state: vertex identities persist within a valid run,
+        # while gaps and sequence boundaries always cold-start their memory.
+        node_state = None
         if state_hook is not None:
             state_hook("run_start", prev_t, None)
         if active_policy is not None:
@@ -171,8 +208,16 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
                  .unsqueeze(0).to(device)) if need_lnes else None
             if use_raw:
                 ev5 = _window_events(events, offsets, tsub, int(end), win)
-                pred = model.forward_packet(make_eval_packet(ev5, prev_t, betas, camera_K,
-                                                             win, device))
+                # region agent log
+                import os as _os, json as _json
+                if _os.environ.get("S37_DBG"):
+                    _os.environ["S37_DBG_CTX"] = _json.dumps({"regime": "recursive", "seq": seq, "end": int(end)})
+                # endregion
+                packet = make_eval_packet(ev5, prev_t, betas, camera_K, win, device)
+                if bool(getattr(model, "egm_memory", False)):
+                    pred, node_state = model.track_packet(packet, node_state=node_state)
+                else:
+                    pred = model.forward_packet(packet)
             else:
                 pred = model(x, prev_t)
             if delta_trust != 1.0:
@@ -203,6 +248,10 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
     preds, gts = np.stack(preds), np.stack(gts)
     elapsed = np.asarray(elapsed, dtype=np.int64)
     run_ids = np.asarray(run_ids, dtype=np.int64)
+    # region agent log
+    _dbg_perstep("recursive", seq, [int(runs[r][0]) + int(e) for r, e in zip(run_ids, elapsed)],
+                 preds, gts, mano, betas, device)
+    # endregion
 
     def mano_fk(params):
         oj, ov = [], []

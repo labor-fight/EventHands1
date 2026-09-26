@@ -225,6 +225,32 @@ def test_lut_matches_brute_force_on_visible_pixels_and_sends_out_of_frame_to_bac
     assert assign.tolist() == brute.tolist() == [1, 2, 3]
 
 
+def test_lut_rejects_invalid_coordinates_before_rounding_and_clamping():
+    # Every edge pixel has a real nearby vertex: clamping must not turn an invalid event into
+    # hand evidence. In particular, -0.1 rounds to an otherwise valid pixel at zero.
+    uv = torch.tensor([[[0.0, 2.0], [4.0, 2.0], [2.0, 0.0], [2.0, 4.0]]])
+    lut = nearest_node_lut(uv, torch.ones(1, 4, dtype=torch.bool), 5, 5, 2.0)
+    xy = [(-1.0, 2.0), (-0.1, 2.0), (5.0, 2.0), (5.1, 2.0),
+          (2.0, -1.0), (2.0, -0.1), (2.0, 5.0), (2.0, 5.1),
+          (float("nan"), 2.0), (float("inf"), 2.0), (float("-inf"), 2.0),
+          (2.0, float("nan")), (2.0, float("inf")), (2.0, float("-inf"))]
+    ev = _events([(0, x, y, 0.01, 1) for x, y in xy])
+    assigned = assign_events_by_lut(ev, lut, background=4)
+    assert assigned.tolist() == [4] * len(xy)
+
+
+def test_lut_keeps_every_valid_pixel_and_subpixel_lookup_unchanged():
+    # Distinct LUT values make any accidental pixel or packet change observable.
+    lut = torch.arange(2 * 4 * 5).reshape(2, 4, 5)
+    xy = [(float(x), float(y)) for y in range(4) for x in range(5)]
+    xy += [(0.49, 0.51), (1.5, 2.5), (4.9, 2.0), (2.0, 3.9)]
+    ev = _events([(b, x, y, 0.01, 1) for b in range(2) for x, y in xy])
+    original = lut[ev[:, EV_BATCH].long(), ev[:, EV_Y].round().long().clamp(0, 3),
+                   ev[:, EV_X].round().long().clamp(0, 4)]
+    assert torch.equal(assign_events_by_lut(ev, lut, background=40), original)
+    assert assign_events_by_lut(ev[:0], lut, background=40).shape == (0,)
+
+
 def test_model_observation_is_six_channels_without_flow_and_eight_with(model):
     assert model.mg_obs_dim == OBS_DIM - 2
     assert model.event_encoder.obs_embed.in_features == OBS_DIM - 2

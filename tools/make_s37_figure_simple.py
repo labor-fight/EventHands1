@@ -159,7 +159,7 @@ def draw_routed(mc):
     elbow(ax, [(12.5, 27.4), (12.5, 33), (24.6, 33)])
     arrow(ax, (41.4, 33), (43.6, 33))
     arrow(ax, (61.4, 33), (63.6, 33))
-    node(ax, 56, 5, 23, 10, "异步事件流\n(x, y, t, p)", events_icon, BLUE, fs=8.2)
+    node(ax, 56, 17, 23, 10, "异步事件流\n(x, y, t, p)", events_icon, BLUE, fs=8.2)
     hnode(ax, 93, 17, 19, 10, "逐事件\ntoken 7 维", stack_icon, ORANGE, fs=8.2, caption="不再拼渲染通道（S36 为 9 维）")
     node(ax, 115, 17, 19, 10, "因果 k-NN\n建图", graph_icon, BLUE, fs=8.2, caption=f"前 {WIN} 里取 k={K} · ≤{MN} 点")
     node(ax, 137, 17, 16, 10, f"EdgeConv\n× {NL}", cube_icon, BLUE, fs=8.2, caption="边带 (dx, dy, dt)")
@@ -168,15 +168,16 @@ def draw_routed(mc):
     hnode(ax, 181, 17, 23, 10, "15 指头各读 e_k+1\nroot 读池化+16 证据", funnel_icon, ORANGE, fs=7.6,
           caption=f"mean‖max → {FEAT} 只进 root")
     node(ax, 207, 17, 6, 10, "Δ", None, fs=13, caption="空包 Δ=0")
-    elbow(ax, [(79.4, 10), (98, 10), (98, 16.6)])
+    arrow(ax, (79.4, 22), (92.6, 22))
     arrow(ax, (112.4, 22), (114.6, 22))
     arrow(ax, (134.4, 22), (136.6, 22))
     arrow(ax, (153.4, 22), (155.6, 22))
     arrow(ax, (178.4, 22), (180.6, 22))
     arrow(ax, (204.4, 22), (206.6, 22))
     elbow(ax, [(91.4, 33), (167, 33), (167, 27.4)])
-    elbow(ax, [(79.4, 12), (88, 12), (88, 27.4)], lw=1.0)
-    ax.text(84.5, 20.5, "事件像素\n(u, v)", fontsize=6.2, color=CAP, ha="center", va="center", zorder=6)
+    # Only the arrow changes from the previous layout: routing now branches from the retained
+    # graph nodes after EdgeConv, never directly from the raw asynchronous-event box.
+    elbow(ax, [(145, 27.4), (145, 30.5), (91.4, 30.5)], lw=1.0)
     ax.add_patch(Circle((217, 22), 1.7, facecolor="#ffffff", edgecolor=TEAL, lw=1.4, zorder=5))
     ax.text(217, 22, "+", ha="center", va="center", fontsize=11, color=TEAL, zorder=6)
     node(ax, 220, 17, 12, 10, "x_k =\nprev + Δ", None, fs=8.2)
@@ -188,12 +189,23 @@ def draw_routed(mc):
     return fig, "s37_routed_simple.png"
 
 
+def hide_small_text(ax, max_fontsize=7.0):
+    """Hide auxiliary annotations while keeping the main labels inside boxes."""
+    for text in ax.texts:
+        if text.get_fontsize() <= max_fontsize:
+            text.set_visible(False)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--arm", choices=("meshq", "routed"), default="meshq")
+    ap.add_argument("--clean", action="store_true",
+                    help="remove small captions, formulas, and loop annotations")
     a = ap.parse_args()
     cfg = yaml.safe_load((REPO / f"configs/semkine/s37_{a.arm}_s3407.yaml").read_text())
     fig, name = (draw_meshq if a.arm == "meshq" else draw_routed)(cfg["MODEL"])
+    if a.clean:
+        hide_small_text(fig.axes[0])
     out = REPO / "docs/assets" / name
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")

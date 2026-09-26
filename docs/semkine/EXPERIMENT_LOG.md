@@ -21,7 +21,7 @@ measured on this machine. `PASS-KEEP` / `NO-GO-REVERT` apply to optional arms.
 | S14 GN/LM | `S14: PASS (solver)` | 2026-08-23 | `tests/test_s14_gn.py`; active-set lstsq |
 | S15 packetizer | `S15: PASS (policy)` | 2026-08-23 | `tests/test_s15_packetizer.py` |
 | S16 frontends | `S16: PASS (contract)` | 2026-08-23 | `tests/test_s16_frontends.py`; battle pending |
-| S17 final | `S17: FRAMEWORK` | 2026-08-23 | `CLAIM_MATRIX.md`, `FINAL_REPORT.md`, `FAILURE_CASES.md`, `tools/run_s17_final.py` |
+| S17 final | `S17: FRAMEWORK` | 2026-08-23 | `CLAIM_MATRIX.md`, `FAILURE_CASES.md`, `tools/run_s17_final.py` |
 | S18 KEG frontend | `S18: PASS (mechanism & budget)` | 2026-08-24 | `tests/test_s18_keg.py` (20 gates), `semkine/keg.py`; three design decisions changed on measurement |
 | S20 rate claim | `S20: FAIL (G2, all four step sizes)` | 2026-08-25 | `outputs/semkine/s20_grid_step5.json`, `s20_grid_step102050.json`; KEG behind the dense control by +6.1 to +12.0 mm, every CI excludes zero in the wrong direction |
 | S21 halo lift | `S21: G-a PASS, G-b FAIL, G-c FAIL` | 2026-08-25 | `outputs/semkine/closed_loop_sensitivity_halo_50ms.json`; deletion removed, sensitivity slope unchanged |

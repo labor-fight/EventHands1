@@ -1,0 +1,472 @@
+{
+  "scope": "Event mechanism, asynchronous GNN/point recurrence/sparse CNN/Transformer and inference cost; supports six review perspectives, not a complete field review",
+  "cutoff": "2026-09-25",
+  "sources": [
+    {
+      "id": "EV001",
+      "citation": "Schaefer, Gehrig, Scaramuzza. AEGNN: Asynchronous Event-based Graph Neural Networks.",
+      "year": 2022,
+      "publication_status": "CVPR 2022, published; arXiv v3 corrects compute accounting",
+      "url": "https://arxiv.org/pdf/2203.17149",
+      "locator": "§4.1–4.2, pp.4–5; v3 cover and §5 timing",
+      "quality": "primary paper, inspected method; author-reported benchmark not reproduced",
+      "information_state": "reported",
+      "claim": "Immutable local graph features allow affected-subgraph updates; old-event deletion and pooling changes also require propagation.",
+      "official_code_or_project": "https://github.com/uzh-rpg/aegnn",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV002",
+      "citation": "Sekikawa, Hara, Saito. EventNet: Asynchronous Recursive Event Processing.",
+      "year": 2019,
+      "publication_status": "CVPR 2019, published",
+      "url": "https://arxiv.org/pdf/1812.07045",
+      "locator": "§2.4, Eqs.(3)–(5), Fig.2; §3",
+      "quality": "primary paper, inspected equations; official code not located",
+      "information_state": "reported",
+      "claim": "Special time coding commutes with a complex max recurrence; arbitrary changing time features do not inherit this property.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV003",
+      "citation": "Messikommer, Gehrig, Loquercio, Scaramuzza. Event-based Asynchronous Sparse Convolutional Networks.",
+      "year": 2020,
+      "publication_status": "ECCV 2020, published; explicitly requested foundation outside recent CCF-A window",
+      "url": "https://arxiv.org/pdf/2003.09148",
+      "locator": "§3.1–3.2, Eqs.(2),(5)–(9), pp.5–8; supplement equivalence",
+      "quality": "primary paper, inspected method and official repository README",
+      "information_state": "reported",
+      "claim": "Sparse recursive input updates and active-site rulebook updates enable exact inference under the defined operator.",
+      "official_code_or_project": "https://github.com/uzh-rpg/rpg_asynet",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "EV004",
+      "citation": "Peng et al. Scene Adaptive Sparse Transformer for Event-based Object Detection.",
+      "year": 2024,
+      "publication_status": "CVPR 2024, published",
+      "url": "https://arxiv.org/pdf/2404.01882",
+      "locator": "§3; Table 2 and Table 4; Table 1 A-FLOPs footnote",
+      "quality": "primary paper, inspected method/tables and official repository README",
+      "information_state": "reported",
+      "claim": "Adaptive window/token pruning and masked attention; reduced attention operations need not reduce measured runtime.",
+      "official_code_or_project": "https://github.com/Peterande/SAST",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV005",
+      "citation": "Gehrig and Scaramuzza. Recurrent Vision Transformers for Object Detection With Event Cameras.",
+      "year": 2023,
+      "publication_status": "CVPR 2023, published",
+      "url": "https://openaccess.thecvf.com/content/CVPR2023/html/Gehrig_Recurrent_Vision_Transformers_for_Object_Detection_With_Event_Cameras_CVPR_2023_paper.html",
+      "locator": "CVF abstract and proceedings metadata",
+      "quality": "primary proceedings abstract inspected; detailed method not re-audited",
+      "information_state": "reported",
+      "claim": "Convolutional position prior, local/global attention and temporal recurrence provide a strong dense reference; no direct streaming proof.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV006",
+      "citation": "Hamaguchi et al. Hierarchical Neural Memory Network for Low Latency Event Processing.",
+      "year": 2023,
+      "publication_status": "CVPR 2023, published",
+      "url": "https://arxiv.org/pdf/2305.17852",
+      "locator": "§3, Fig.2; §2 paragraph describing dense memory cells",
+      "quality": "primary paper, inspected architecture; code link from authors",
+      "information_state": "reported",
+      "claim": "Different-rate memory levels and sparse event cross-attention already establish multi-rate processing; dense memory differs from strict raw sparse main path.",
+      "official_code_or_project": "https://hamarh.github.io/hmnet/",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV007",
+      "citation": "Zubic, Gehrig, Scaramuzza. State Space Models for Event Cameras.",
+      "year": 2024,
+      "publication_status": "CVPR 2024, published",
+      "url": "https://openaccess.thecvf.com/content/CVPR2024/html/Zubic_State_Space_Models_for_Event_Cameras_CVPR_2024_paper.html",
+      "locator": "CVF abstract; official code README SSM-ViT section",
+      "quality": "primary proceedings + author official code inspected; long paper opened",
+      "information_state": "reported",
+      "claim": "Learned continuous timescales address changing inference frequency; official code still uses a hierarchical ViT backbone.",
+      "official_code_or_project": "https://github.com/uzh-rpg/ssms_event_cameras",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV008",
+      "citation": "Gehrig and Scaramuzza. Low-latency automotive vision with event cameras (DAGr).",
+      "year": 2024,
+      "publication_status": "Nature 629, 1034–1040; published 2024-05-29",
+      "url": "https://www.nature.com/articles/s41586-024-07409-w",
+      "locator": "Methods: Deep asynchronous GNN, Graph construction, Detection adding, Training procedure",
+      "quality": "primary journal full text and official repository README inspected",
+      "information_state": "reported",
+      "claim": "Directed graphs, pooling and image-feature injection make deep asynchronous processing practical; stationary-scene support depends on images.",
+      "official_code_or_project": "https://github.com/uzh-rpg/dagr",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "EV009",
+      "citation": "Dampfhoffer et al. Graph Neural Network Combining Event Stream and Periodic Aggregation for Low-Latency Event-based Vision.",
+      "year": 2025,
+      "publication_status": "CVPR 2025, published",
+      "url": "https://openaccess.thecvf.com/content/CVPR2025/papers/Dampfhoffer_Graph_Neural_Network_Combining_Event_Stream_and_Periodic_Aggregation_for_CVPR_2025_paper.pdf",
+      "locator": "Abstract; §1 contributions and §2 Event Graph Neural Networks",
+      "quality": "primary publisher indexed paper text inspected; direct PDF open returned HTTP 403",
+      "information_state": "reported",
+      "claim": "HUGNet2 plus past-only periodic aggregation closely overlaps local asynchronous processing with slower global context; latency is a prospective asynchronous-hardware claim.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV010",
+      "citation": "Li et al. Asynchronous Collaborative Graph Representation for Frames and Events.",
+      "year": 2025,
+      "publication_status": "CVPR 2025, published",
+      "url": "https://openaccess.thecvf.com/content/CVPR2025/papers/Li_Asynchronous_Collaborative_Graph_Representation_for_Frames_and_Events_CVPR_2025_paper.pdf",
+      "locator": "§4.1, Table 1; supplement A.2 two-class versus eight-class evaluation",
+      "quality": "primary indexed paper and supplement excerpts inspected",
+      "information_state": "reported",
+      "claim": "Graph representations combine frames and events; dataset category universes change comparability. RGB inference disqualifies full transfer.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV011",
+      "citation": "He et al. Towards Persistence: Learning Topological Constraints for Event-based Small Object Detection.",
+      "year": 2026,
+      "publication_status": "CVPR 2026, proceedings listing verified; detailed paper pending",
+      "url": "https://openaccess.thecvf.com/content/CVPR2026/html/He_Towards_Persistence_Learning_Topological_Constraints_for_Event-based_Small_Object_Detection_CVPR_2026_paper.html",
+      "locator": "CVF abstract and bibtex, pp.22291–22300",
+      "quality": "primary publisher search index; direct HTML/PDF HTTP 403; method detail not established",
+      "information_state": "reported",
+      "claim": "Sparse convolution plus event-trajectory topological constraints is a recent adjacent lead; event topology is not MANO topology.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV012",
+      "citation": "Verma et al. Event-based Graph Representation with Spatial and Motion Vectors for Asynchronous Object Detection.",
+      "year": 2026,
+      "publication_status": "WACV 2026, published; adjacent coverage, not labeled CCF-A",
+      "url": "https://openaccess.thecvf.com/content/WACV2026/html/Verma_Event-based_Graph_Representation_with_Spatial_and_Motion_Vectors_for_Asynchronous_WACV_2026_paper.html",
+      "locator": "CVF abstract and bibtex, pp.3781–3791",
+      "quality": "primary proceedings abstract inspected; implementation not audited",
+      "information_state": "reported",
+      "claim": "Decoupled spatial and motion-vector graphs are a direct counter-search against novel spatial/temporal graph claims.",
+      "official_code_or_project": "https://eventbasedvision.github.io/eGSMV",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "EV013",
+      "citation": "Gallego et al. Event-Based Vision: A Survey.",
+      "year": 2022,
+      "publication_status": "IEEE TPAMI 44(1):154–180, published; early foundation",
+      "url": "https://arxiv.org/abs/1904.08405",
+      "locator": "abstract; author project page survey citation",
+      "quality": "author paper record + author page inspected; review source, not a new empirical result",
+      "information_state": "reported",
+      "claim": "Events measure per-pixel brightness change, not surface identity or depth.",
+      "official_code_or_project": "https://sites.google.com/view/guillermogallego/research/event-based-vision",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "EV014",
+      "citation": "AEGNN official asynchronous BatchNorm implementation.",
+      "year": 2026,
+      "publication_status": "software snapshot at commit d96e13b2f80f3c7515a65baf966544e0914d068d",
+      "url": "https://github.com/uzh-rpg/aegnn/blob/d96e13b2f80f3c7515a65baf966544e0914d068d/aegnn/asyncronous/batch_norm.py",
+      "locator": "__graph_initialization and __graph_processing",
+      "quality": "official raw source downloaded and inspected; SHA-256 0534fd0c68119bb8071e06392adaea1b8f4201cf1560a75fe6c8cd8da9b423ef",
+      "information_state": "observed",
+      "claim": "Implementation explicitly freezes initial distribution as an approximation when new events are few; not a universal exact-equivalence implementation.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "EV015",
+      "citation": "CCF recommendation: Artificial Intelligence international conferences.",
+      "year": 2026,
+      "publication_status": "live official classification accessed 2026-09-25",
+      "url": "https://www.ccf.org.cn/Academic_Evaluation/AI/",
+      "locator": "A类国际会议 table: CVPR, ICCV, NeurIPS",
+      "quality": "official classification primary source; edition date not explicit in fetched excerpt",
+      "information_state": "observed",
+      "claim": "CVPR/ICCV/NeurIPS main conferences can be tagged CCF-A in this ledger; workshops inherit no such tag.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    }
+  ],
+  "search_log": [
+    {
+      "id": "Q01",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "AEGNN Asynchronous Event-based Graph Neural Networks CVPR 2022 official code"
+    },
+    {
+      "id": "Q02",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "EventNet Asynchronous Recursive Event Processing CVPR 2019 official paper code"
+    },
+    {
+      "id": "Q03",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "Scene Adaptive Sparse Transformer Event-based Object Detection CVPR 2024"
+    },
+    {
+      "id": "Q04",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "Event-based Asynchronous Sparse Convolutional Networks ECCV 2020 official"
+    },
+    {
+      "id": "Q05",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:openaccess.thecvf.com 2023 asynchronous graph event detection DAGr"
+    },
+    {
+      "id": "Q06",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:openaccess.thecvf.com 2024 asynchronous graph event networks EV-SGNN"
+    },
+    {
+      "id": "Q07",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:openaccess.thecvf.com 2025 event graph asynchronous object detection"
+    },
+    {
+      "id": "Q08",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:openaccess.thecvf.com 2026 event sparse graph neural network"
+    },
+    {
+      "id": "Q09",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "AEGNN uzh rpg github"
+    },
+    {
+      "id": "Q10",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "DAGr deep asynchronous graph neural networks 2023 2024 Gehrig official"
+    },
+    {
+      "id": "Q11",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "EvS Event GNN evolving graph networks recursive event representation 2023 CVPR paper"
+    },
+    {
+      "id": "Q12",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "EV-SGNN CVPR 2024 event graph official"
+    },
+    {
+      "id": "Q13",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"Pushing the Limits of Asynchronous Graph-based Object Detection\" official"
+    },
+    {
+      "id": "Q14",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"DAGr\" event camera Gehrig Nature 2024"
+    },
+    {
+      "id": "Q15",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"EV-SGNN\" event graph"
+    },
+    {
+      "id": "Q16",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"event\" \"graph\" \"2026\" \"asynchronous\" CVPR"
+    },
+    {
+      "id": "Q17",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:openaccess.thecvf.com \"Recurrent Vision Transformers\" \"2023\""
+    },
+    {
+      "id": "Q18",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:openaccess.thecvf.com \"State Space\" \"Event\" \"2024\" Zubic"
+    },
+    {
+      "id": "Q19",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:openaccess.thecvf.com \"Asynchronous\" \"Optical Flow\" \"2025\""
+    },
+    {
+      "id": "Q20",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:ccf.org.cn 人工智能 A CVPR ICCV NeurIPS 国际学术会议"
+    },
+    {
+      "id": "Q21",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "EventNet Sekikawa Suzuki official github"
+    },
+    {
+      "id": "Q22",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:openaccess.thecvf.com \"Hierarchical Neural Memory\" \"2023\""
+    },
+    {
+      "id": "Q23",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"EventNet\" \"Sekikawa\" github code"
+    },
+    {
+      "id": "Q24",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"Graph Neural Network Combining Event Stream\" github"
+    },
+    {
+      "id": "Q25",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:openaccess.thecvf.com \"GG-SSMs\" 2025"
+    },
+    {
+      "id": "Q26",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"Event-based Vision: A Survey\" Gallego 2022 TPAMI official"
+    },
+    {
+      "id": "Q27",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"Graph Neural Network Combining Event Stream\" arxiv"
+    },
+    {
+      "id": "Q28",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"Towards Persistence\" \"Topological\" event arxiv"
+    },
+    {
+      "id": "Q29",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"Hierarchical Neural Memory Network\" arxiv"
+    },
+    {
+      "id": "Q30",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"State Space Models for Event Cameras\" github"
+    },
+    {
+      "id": "Q31",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:ccf.org.cn \"ECCV\" \"B类\""
+    },
+    {
+      "id": "Q32",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "site:ccf.org.cn \"TPAMI\" \"A类\""
+    },
+    {
+      "id": "Q33",
+      "date": "2026-09-25",
+      "engine": "web search",
+      "exact_query": "\"Towards Persistence: Learning Topological Constraints\" \"CVPR2026\" github"
+    }
+  ],
+  "local_code_snapshots": [
+    {
+      "path": "semkine/event_gnn.py",
+      "sha256": "bf4cf521186c31c44c145587881bfb25afcc826e525391285dbccb03fef62feb",
+      "access_date": "2026-09-25"
+    },
+    {
+      "path": "semkine/encoder.py",
+      "sha256": "0b6ea7cfc0b2a9dc018659c4b18e90a48cf0a076f57d16096f41bb93633d297a",
+      "access_date": "2026-09-25"
+    },
+    {
+      "path": "semkine/routed_readout.py",
+      "sha256": "d053d1c397cad16403fc08f0fedc256adcb0e6434b24c9404d151ced5f77b92e",
+      "access_date": "2026-09-25"
+    },
+    {
+      "path": "model/model.py",
+      "sha256": "b39b94ee0424573d255bb7fe97850913af05d7319f3f7b186d300afedb640fe6",
+      "access_date": "2026-09-25"
+    },
+    {
+      "path": "configs/semkine/s37_routed_s3407.yaml",
+      "sha256": "fb025f4c00c37ec992833ac59f1088d4da64f7a65944be8990cf8c13a9d42bf0",
+      "access_date": "2026-09-25"
+    }
+  ],
+  "access_limits": [
+    "CVF PDFs frequently returned 403 on direct open; arXiv full text used for EV001–004 and EV006; EV009–012 carry their actual weaker read depth.",
+    "Official EventNet implementation not found: zhangchushu/EventNet explicitly says unofficial and was not used as mechanism evidence.",
+    "No licensed JCR/CAS edition consulted; no Q1/Top claim assigned.",
+    "2026 sources only included after official proceedings metadata appeared; no assumption that all accepted or unindexed 2026 papers were covered.",
+    "Hardware numbers in papers are not calibrated to EventHands server.",
+    "Search query Q21 mistakenly included Suzuki; corrected query Q23 used verified author Sekikawa."
+  ],
+  "epistemic_states": [
+    "observed",
+    "reported",
+    "inferred",
+    "proposed"
+  ]
+}

@@ -54,6 +54,25 @@ EDGE_DIM = 3
 T_COL = TOKEN_NAMES.index("t_norm")
 
 
+def gather_node_features(h: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
+    """Gather whole feature rows without expanding node indices over channels.
+
+    In deterministic CUDA backward, expanded ``gather`` indices can materialize
+    coordinates for every channel. ``index_select`` keeps channels as a slice,
+    while selecting exactly the same rows (including repeated neighbours).
+    """
+    B, N, C = h.shape
+    offset = torch.arange(B, device=idx.device).reshape(B, *([1] * (idx.ndim - 1))) * N
+    rows = (idx + offset).reshape(-1)
+    values = h.reshape(B * N, C)
+    # CUDA's deterministic index-select backward otherwise rounds each repeated
+    # addition in BF16/FP16. Accumulate in FP32 and cast once, as the original
+    # expanded gather's scalar reduction does. Forward selected values are exact.
+    if values.dtype in (torch.float16, torch.bfloat16):
+        values = values.float()
+    return values.index_select(0, rows).to(h.dtype).reshape(*idx.shape, C)
+
+
 class EdgeConv(nn.Module):
     r"""One round of message passing with the edge geometry in the message.
 
@@ -69,15 +88,19 @@ class EdgeConv(nn.Module):
     ran out of 44 GiB.
     """
 
-    def __init__(self, dim: int):
+    def __init__(self, dim: int, compact_gather: bool = False):
         super().__init__()
         self.lin = nn.Linear(dim + EDGE_DIM, dim)
+        self.compact_gather = bool(compact_gather)
 
     def forward(self, h: torch.Tensor, idx: torch.Tensor, dp: torch.Tensor,
                 emask: torch.Tensor) -> torch.Tensor:
         B, N, C = h.shape
         k = idx.shape[-1]
-        hj = h.gather(1, idx.reshape(B, N * k, 1).expand(B, N * k, C)).reshape(B, N, k, C)
+        if self.compact_gather:
+            hj = gather_node_features(h, idx)
+        else:
+            hj = h.gather(1, idx.reshape(B, N * k, 1).expand(B, N * k, C)).reshape(B, N, k, C)
         m = torch.relu(self.lin(torch.cat([hj - h.unsqueeze(2), dp], dim=-1)))
         m = m * emask.unsqueeze(-1)
         return m.sum(2) / emask.sum(2, keepdim=True).clamp_min(1.0)

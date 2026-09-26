@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import dataclasses
 import json
 import sys
 import time
@@ -128,7 +129,8 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
     """Mean forward_packet time over real 50 ms packets of one sequence, staged on GPU.
     Always `lyq_local` (the sequence every recorded latency was measured on; a training sequence
     under the current protocol, which is irrelevant for a timing), so the column stays comparable
-    across arms."""
+    across arms. EGM_MEMORY replays the complete tracking recurrence (pose and
+    vertex memory), resetting at valid-run boundaries and before each pass."""
     model = MNISTModel.load_from_checkpoint(ckpt, cfg=cfg, map_location=device).to(device).eval()
     seq, d = next((s, d) for split in ("val_core", "train")
                   for s, d in sequences_for_split(root, split, splits_manifest(cfg)) if s == "lyq_local")
@@ -138,25 +140,40 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
     betas = torch.tensor(aux["betas"], dtype=torch.float32, device=device).view(1, -1)
     K = torch.tensor(aux["camera_K"], dtype=torch.float32, device=device).view(1, 3, 3)
     model.set_hand_context(betas, K)
-    packets, counts = [], []
+    packets, counts, run_starts = [], [], []
     for a, b in np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2):
         prev = torch.from_numpy(pos51[a].copy()).view(1, -1).to(device)
         for end in np.arange(a + STEP_MS - 1, b, STEP_MS, dtype=np.int64):
             ev5 = ET._window_events(events, offsets, tsub, int(end), STEP_MS)
             packets.append(ET.make_eval_packet(ev5, prev, betas, K, STEP_MS, device))
             counts.append(len(ev5))
+            run_starts.append(end == a + STEP_MS - 1)
             if len(packets) >= max_packets:
                 break
         if len(packets) >= max_packets:
             break
-    for b_ in packets[:100]:
-        model.forward_packet(b_)
+    if not packets:
+        raise ValueError(f"no valid timing packets in {seq}")
+
+    def replay(limit):
+        # Local variables ensure warmup and every timed pass start independently.
+        # Packet construction and transfers remain outside timing, as in other arms.
+        prev, node_state = None, None
+        for i, b_ in enumerate(packets[:limit]):
+            if bool(getattr(model, "egm_memory", False)):
+                if run_starts[i]:
+                    prev, node_state = b_.prev_state, None
+                prev, node_state = model.track_packet(
+                    dataclasses.replace(b_, prev_state=prev), node_state=node_state)
+            else:
+                model.forward_packet(b_)
+
+    replay(100)
     torch.cuda.synchronize()
     means = []
     for _ in range(passes):
         t0 = time.perf_counter()
-        for b_ in packets:
-            model.forward_packet(b_)
+        replay(len(packets))
         torch.cuda.synchronize()
         means.append((time.perf_counter() - t0) / len(packets) * 1e3)
     del model
@@ -167,6 +184,22 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
 def macs_s36(cfg):
     from thop import profile
     mc = cfg.get("MODEL", {})
+    if str(mc.get("ENCODER", "")).lower() == "event_guided_mesh":
+        # This arm has no prev MLP or previous-angle/background decoder inputs. Profile
+        # its actual encoder and head modules instead of using the S36 head formula.
+        m = MNISTModel(cfg).eval()
+        enc = copy.deepcopy(m.event_encoder)
+        obs = torch.zeros(1, enc.n_nodes, 6)
+        obs[..., 0] = 1.0
+        vertices = m.mano.v_template.detach().float().unsqueeze(0)
+        macs, _ = profile(enc, inputs=(obs, vertices), verbose=False)
+        e = torch.zeros(1, enc.n_joints, enc.hidden)
+        heads, _ = profile(copy.deepcopy(m.root_head), inputs=(e.flatten(1),), verbose=False)
+        for j, head in enumerate(m.joint_heads):
+            cost, _ = profile(copy.deepcopy(head), inputs=(e[:, j + 1],), verbose=False)
+            heads += cost
+        return macs, heads, sum(p.numel() for p in m.parameters()), \
+            sum(p.numel() for p in m.event_encoder.parameters())
     assert bool(mc.get("ACTIVE_HEAD")) and bool(mc.get("PREVPOS_EMBED")), \
         "head-MACs formula below is for the S36 head layout only"
     m = MNISTModel(cfg).eval()
@@ -201,8 +234,11 @@ def macs_s36(cfg):
     feat = int(mc.get("ENCODER_FEAT", 512))
     if bool(mc.get("ROUTED_READOUT", False)):
         # S37 routed readout: fingers read their joint's evidence, the root reads all sixteen
+        # (+ the S39 coverage map through its MLP, counted from the modules)
         ev_dim = 2 * int(mc.get("ENCODER_HIDDEN", 128)) + 1
-        heads = (feat + 16 * ev_dim) * 6 + 15 * ((ev_dim + 3) * hid + hid * 3) + 2 * 51 * 64
+        heads = m.root_head.in_features * 6 + 15 * ((ev_dim + 3) * hid + hid * 3) + 2 * 51 * 64
+        if getattr(m, "covmap_mlp", None) is not None:
+            heads += m.covmap_mlp[0].in_features * m.covmap_mlp[0].out_features
     else:
         heads = feat * 6 + 15 * ((feat + 3) * hid + hid * 3) + 2 * 51 * 64
     n_params = sum(p.numel() for p in m.parameters())
@@ -215,7 +251,7 @@ def macs_forward_packet(cfg):
     saturated packet (4096 events, prev at 0.45 m so the projected hand lands in the frame).
 
     Complements `macs_s36`, which counts the frontend alone. thop only counts standard layers
-    (Linear / Conv / BN): knn, scatter, cdist / topk, MANO FK and the S36 render are not counted
+    (Linear / Conv / BN / GRUCell): knn, scatter, cdist / topk, MANO FK and the S36 render are not counted
     in any arm, so the column is comparable across arms but is a lower bound for all of them.
     """
     from thop import profile
@@ -225,8 +261,11 @@ def macs_forward_packet(cfg):
         def __init__(self, m):
             super().__init__()
             self.m = m
+            self.node_state = None
 
         def forward(self, batch):
+            if bool(getattr(self.m, "egm_memory", False)):
+                return self.m.track_packet(batch, node_state=self.node_state)[0]
             return self.m.forward_packet(batch)
 
     m = copy.deepcopy(MNISTModel(cfg).eval())
@@ -246,8 +285,17 @@ def macs_forward_packet(cfg):
                              is_sequence_end=torch.zeros(1, dtype=torch.bool), target=prev.clone(),
                              prev_state=prev, betas=torch.zeros(1, 10), camera_K=K, lnes=None)
     try:
-        macs, _ = profile(_Wrap(m), inputs=(batch,), verbose=False)
-        return float(macs), "forward_packet"
+        wrapper = _Wrap(m)
+        if bool(getattr(m, "egm_memory", False)):
+            # Carry a real predecessor state into the measured tracking step.
+            # All 778 GRU cells execute regardless of observation availability.
+            with torch.no_grad():
+                pose, wrapper.node_state = m.track_packet(batch, node_state=None)
+            batch = dataclasses.replace(batch, prev_state=pose)
+        macs, _ = profile(wrapper, inputs=(batch,), verbose=False)
+        note = ("track_packet with carried pose and vertex memory; THOP includes GRUCell"
+                if bool(getattr(m, "egm_memory", False)) else "forward_packet")
+        return float(macs), note
     except Exception as e:                   # e.g. a CUDA-only conditioning path on CPU
         return float("nan"), f"forward_packet not profilable on CPU: {type(e).__name__}"
 
@@ -290,6 +338,19 @@ def main() -> None:
            "latency_ms_scaled_full1p75": lat, "latency_ms_raw": raw_lat,
            "anchor_full_raw_ms": anchor, "latency_packets": n_pk,
            "latency_mean_events_per_packet": mean_events,
+           "latency_protocol": {
+               "sequence": "lyq_local", "step_ms": STEP_MS,
+               "max_packets": 600, "passes": 3, "warmup_packets": min(100, n_pk),
+               "aggregation": "minimum of per-pass mean ms/packet",
+               "packet_staging": "GPU-resident before timing",
+               "operation": ("track_packet carrying pose and vertex memory"
+                             if bool(cfg.get("MODEL", {}).get("EGM_MEMORY", False))
+                             else "forward_packet with each valid run's initial pose"),
+               "state_reset": ("each valid run, warmup, and timing pass"
+                               if bool(cfg.get("MODEL", {}).get("EGM_MEMORY", False))
+                               else "not applicable"),
+               "initial_pose": "valid-run first ground-truth pose, without noise",
+               "anchor": "EventHands-Full, min over 8 rounds of 300 calls, scaled to 1.75 ms"},
            "macs_frontend": macs, "macs_heads": head_macs,
            "macs_forward_packet": macs_full, "macs_forward_packet_note": macs_full_note,
            "params_total": n_params, "params_frontend": n_enc,

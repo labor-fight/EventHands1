@@ -1,0 +1,15 @@
+id,type,label,status,confidence,evidence
+N01,method,State-independent S37 event graph and geometric joint readout,observed,high,L01@§2
+N02,limitation,Existing tokens and sample identities are not prefix-stable,observed,high,L03@prefix_cache_counterexample
+N03,limitation,"Historical initialization, shape and time support exceed causal input contract",observed,high,L02@§1–3
+N04,limitation,Historical scaled forward latency does not bound complete response delay,observed,high,L02@§4
+N05,mechanism,Immutable causal DAG features admit exact incremental evaluation,inferred,high,L01@§6; EV001@§4
+N06,finding,Local async event processing plus periodic aggregation has prior art,reported,high,EV009@method
+N07,finding,MANO visible-surface mesh-flow constraints have prior art,reported,high,G02@§IV-A1
+N08,finding,Geometry-only root correction failed its retained stage-zero gate,observed,high,L01@latest georoot addendum
+N09,gap,Benefit of causal cross-packet evidence under matched hand tracking inputs,proposed,low,L04@H1 and negative controls
+N10,limitation,Association errors are real but not yet established as dominant accuracy cause,inferred,medium,L01@historical visibility intervention
+N11,measure,Unrounded same-checkpoint local/global root-aligned joint errors,observed,high,L02@§1
+N12,outcome,Simultaneous accuracy thresholds and complete response deadline,proposed,unknown,L04@§6; L02@§4
+N13,finding,"Bounded CPU exactness, gradient, state and mesh contracts passed after reviewed repairs",observed,high,"L05@D002, D003 and R5; v3 log"
+N14,limitation,Burst append overflow and substantial direct-readout truncation in original training streams,observed,high,L06@1 ms envelope and 2/4 ms query census

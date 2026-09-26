@@ -6,8 +6,7 @@
 > (s23,已实现未训练)是该家族最后一个值得测的成员。本文记录全部测量、根因链与踩坑。
 
 对应文档:门与最终数字见 `docs/semkine/EXPERIMENT_LOG.md`(S22 节 real-attempt verdict);
-失败裁决入账 `docs/FAILURE_AND_CLEANUP_LEDGER.md`;押注序更新见
-`docs/EVENT_KINEGRAPH_MASTER_PLAN.md` §0.2。本文是 debug 过程复盘,自包含。
+失败裁决入账 `docs/FAILURE_AND_CLEANUP_LEDGER.md`。本文是 debug 过程复盘,自包含。
 
 ---
 

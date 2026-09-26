@@ -223,10 +223,10 @@ the fact that `zgz_local` supplies 1204 of 2590 val frames and carries 27.97 mm 
 overall, **the historical overall metric is dominated by one low-event-rate sequence**. This is the
 direct justification for the S1 protocol reform.
 
-Caveat carried forward from `docs/debug_closed_loop_diagnosis.md` (as corrected in
-`experiment_history.md` §10): the saturation statistic is real, but the inference that "direction
-information is destroyed before the network" was falsified by the teacher-forced probe. S2's
-expected gain from raw events is therefore rated *moderate*, not *decisive*.
+Caveat carried forward from `experiment_history.md` §10: the saturation statistic is real, but the
+inference that "direction information is destroyed before the network" was falsified by the
+teacher-forced probe. S2's expected gain from raw events is therefore rated *moderate*, not
+*decisive*.
 
 ## 8. Verdict
 

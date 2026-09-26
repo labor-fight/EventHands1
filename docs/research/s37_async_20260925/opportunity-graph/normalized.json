@@ -1,0 +1,1298 @@
+{
+  "project": {
+    "title": "S37 causal monocular event MANO opportunities",
+    "question": "Which minimal verifiable change enables causal sparse tracking without false geometry evidence?",
+    "as_of": "2026-09-25",
+    "scope": "Scoped primary-source search; independent test data and journal Top classification unresolved."
+  },
+  "sources": [
+    {
+      "id": "EV001",
+      "citation": "Schaefer, Gehrig, Scaramuzza. AEGNN: Asynchronous Event-based Graph Neural Networks.",
+      "year": 2022,
+      "publication_status": "CVPR 2022, published; arXiv v3 corrects compute accounting",
+      "url": "https://arxiv.org/pdf/2203.17149",
+      "locator": "§4.1–4.2, pp.4–5; v3 cover and §5 timing",
+      "quality": "primary paper, inspected method; author-reported benchmark not reproduced",
+      "information_state": "reported",
+      "claim": "Immutable local graph features allow affected-subgraph updates; old-event deletion and pooling changes also require propagation.",
+      "official_code_or_project": "https://github.com/uzh-rpg/aegnn",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV002",
+      "citation": "Sekikawa, Hara, Saito. EventNet: Asynchronous Recursive Event Processing.",
+      "year": 2019,
+      "publication_status": "CVPR 2019, published",
+      "url": "https://arxiv.org/pdf/1812.07045",
+      "locator": "§2.4, Eqs.(3)–(5), Fig.2; §3",
+      "quality": "primary paper, inspected equations; official code not located",
+      "information_state": "reported",
+      "claim": "Special time coding commutes with a complex max recurrence; arbitrary changing time features do not inherit this property.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV003",
+      "citation": "Messikommer, Gehrig, Loquercio, Scaramuzza. Event-based Asynchronous Sparse Convolutional Networks.",
+      "year": 2020,
+      "publication_status": "ECCV 2020, published; explicitly requested foundation outside recent CCF-A window",
+      "url": "https://arxiv.org/pdf/2003.09148",
+      "locator": "§3.1–3.2, Eqs.(2),(5)–(9), pp.5–8; supplement equivalence",
+      "quality": "primary paper, inspected method and official repository README",
+      "information_state": "reported",
+      "claim": "Sparse recursive input updates and active-site rulebook updates enable exact inference under the defined operator.",
+      "official_code_or_project": "https://github.com/uzh-rpg/rpg_asynet",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "EV004",
+      "citation": "Peng et al. Scene Adaptive Sparse Transformer for Event-based Object Detection.",
+      "year": 2024,
+      "publication_status": "CVPR 2024, published",
+      "url": "https://arxiv.org/pdf/2404.01882",
+      "locator": "§3; Table 2 and Table 4; Table 1 A-FLOPs footnote",
+      "quality": "primary paper, inspected method/tables and official repository README",
+      "information_state": "reported",
+      "claim": "Adaptive window/token pruning and masked attention; reduced attention operations need not reduce measured runtime.",
+      "official_code_or_project": "https://github.com/Peterande/SAST",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV005",
+      "citation": "Gehrig and Scaramuzza. Recurrent Vision Transformers for Object Detection With Event Cameras.",
+      "year": 2023,
+      "publication_status": "CVPR 2023, published",
+      "url": "https://openaccess.thecvf.com/content/CVPR2023/html/Gehrig_Recurrent_Vision_Transformers_for_Object_Detection_With_Event_Cameras_CVPR_2023_paper.html",
+      "locator": "CVF abstract and proceedings metadata",
+      "quality": "primary proceedings abstract inspected; detailed method not re-audited",
+      "information_state": "reported",
+      "claim": "Convolutional position prior, local/global attention and temporal recurrence provide a strong dense reference; no direct streaming proof.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV006",
+      "citation": "Hamaguchi et al. Hierarchical Neural Memory Network for Low Latency Event Processing.",
+      "year": 2023,
+      "publication_status": "CVPR 2023, published",
+      "url": "https://arxiv.org/pdf/2305.17852",
+      "locator": "§3, Fig.2; §2 paragraph describing dense memory cells",
+      "quality": "primary paper, inspected architecture; code link from authors",
+      "information_state": "reported",
+      "claim": "Different-rate memory levels and sparse event cross-attention already establish multi-rate processing; dense memory differs from strict raw sparse main path.",
+      "official_code_or_project": "https://hamarh.github.io/hmnet/",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV007",
+      "citation": "Zubic, Gehrig, Scaramuzza. State Space Models for Event Cameras.",
+      "year": 2024,
+      "publication_status": "CVPR 2024, published",
+      "url": "https://openaccess.thecvf.com/content/CVPR2024/html/Zubic_State_Space_Models_for_Event_Cameras_CVPR_2024_paper.html",
+      "locator": "CVF abstract; official code README SSM-ViT section",
+      "quality": "primary proceedings + author official code inspected; long paper opened",
+      "information_state": "reported",
+      "claim": "Learned continuous timescales address changing inference frequency; official code still uses a hierarchical ViT backbone.",
+      "official_code_or_project": "https://github.com/uzh-rpg/ssms_event_cameras",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV008",
+      "citation": "Gehrig and Scaramuzza. Low-latency automotive vision with event cameras (DAGr).",
+      "year": 2024,
+      "publication_status": "Nature 629, 1034–1040; published 2024-05-29",
+      "url": "https://www.nature.com/articles/s41586-024-07409-w",
+      "locator": "Methods: Deep asynchronous GNN, Graph construction, Detection adding, Training procedure",
+      "quality": "primary journal full text and official repository README inspected",
+      "information_state": "reported",
+      "claim": "Directed graphs, pooling and image-feature injection make deep asynchronous processing practical; stationary-scene support depends on images.",
+      "official_code_or_project": "https://github.com/uzh-rpg/dagr",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "EV009",
+      "citation": "Dampfhoffer et al. Graph Neural Network Combining Event Stream and Periodic Aggregation for Low-Latency Event-based Vision.",
+      "year": 2025,
+      "publication_status": "CVPR 2025, published",
+      "url": "https://openaccess.thecvf.com/content/CVPR2025/papers/Dampfhoffer_Graph_Neural_Network_Combining_Event_Stream_and_Periodic_Aggregation_for_CVPR_2025_paper.pdf",
+      "locator": "Abstract; §1 contributions and §2 Event Graph Neural Networks",
+      "quality": "primary publisher indexed paper text inspected; direct PDF open returned HTTP 403",
+      "information_state": "reported",
+      "claim": "HUGNet2 plus past-only periodic aggregation closely overlaps local asynchronous processing with slower global context; latency is a prospective asynchronous-hardware claim.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV010",
+      "citation": "Li et al. Asynchronous Collaborative Graph Representation for Frames and Events.",
+      "year": 2025,
+      "publication_status": "CVPR 2025, published",
+      "url": "https://openaccess.thecvf.com/content/CVPR2025/papers/Li_Asynchronous_Collaborative_Graph_Representation_for_Frames_and_Events_CVPR_2025_paper.pdf",
+      "locator": "§4.1, Table 1; supplement A.2 two-class versus eight-class evaluation",
+      "quality": "primary indexed paper and supplement excerpts inspected",
+      "information_state": "reported",
+      "claim": "Graph representations combine frames and events; dataset category universes change comparability. RGB inference disqualifies full transfer.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV011",
+      "citation": "He et al. Towards Persistence: Learning Topological Constraints for Event-based Small Object Detection.",
+      "year": 2026,
+      "publication_status": "CVPR 2026, proceedings listing verified; detailed paper pending",
+      "url": "https://openaccess.thecvf.com/content/CVPR2026/html/He_Towards_Persistence_Learning_Topological_Constraints_for_Event-based_Small_Object_Detection_CVPR_2026_paper.html",
+      "locator": "CVF abstract and bibtex, pp.22291–22300",
+      "quality": "primary publisher search index; direct HTML/PDF HTTP 403; method detail not established",
+      "information_state": "reported",
+      "claim": "Sparse convolution plus event-trajectory topological constraints is a recent adjacent lead; event topology is not MANO topology.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "CCF-A main conference"
+    },
+    {
+      "id": "EV012",
+      "citation": "Verma et al. Event-based Graph Representation with Spatial and Motion Vectors for Asynchronous Object Detection.",
+      "year": 2026,
+      "publication_status": "WACV 2026, published; adjacent coverage, not labeled CCF-A",
+      "url": "https://openaccess.thecvf.com/content/WACV2026/html/Verma_Event-based_Graph_Representation_with_Spatial_and_Motion_Vectors_for_Asynchronous_WACV_2026_paper.html",
+      "locator": "CVF abstract and bibtex, pp.3781–3791",
+      "quality": "primary proceedings abstract inspected; implementation not audited",
+      "information_state": "reported",
+      "claim": "Decoupled spatial and motion-vector graphs are a direct counter-search against novel spatial/temporal graph claims.",
+      "official_code_or_project": "https://eventbasedvision.github.io/eGSMV",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "EV013",
+      "citation": "Gallego et al. Event-Based Vision: A Survey.",
+      "year": 2022,
+      "publication_status": "IEEE TPAMI 44(1):154–180, published; early foundation",
+      "url": "https://arxiv.org/abs/1904.08405",
+      "locator": "abstract; author project page survey citation",
+      "quality": "author paper record + author page inspected; review source, not a new empirical result",
+      "information_state": "reported",
+      "claim": "Events measure per-pixel brightness change, not surface identity or depth.",
+      "official_code_or_project": "https://sites.google.com/view/guillermogallego/research/event-based-vision",
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "EV014",
+      "citation": "AEGNN official asynchronous BatchNorm implementation.",
+      "year": 2026,
+      "publication_status": "software snapshot at commit d96e13b2f80f3c7515a65baf966544e0914d068d",
+      "url": "https://github.com/uzh-rpg/aegnn/blob/d96e13b2f80f3c7515a65baf966544e0914d068d/aegnn/asyncronous/batch_norm.py",
+      "locator": "__graph_initialization and __graph_processing",
+      "quality": "official raw source downloaded and inspected; SHA-256 0534fd0c68119bb8071e06392adaea1b8f4201cf1560a75fe6c8cd8da9b423ef",
+      "information_state": "observed",
+      "claim": "Implementation explicitly freezes initial distribution as an approximation when new events are few; not a universal exact-equivalence implementation.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "EV015",
+      "citation": "CCF recommendation: Artificial Intelligence international conferences.",
+      "year": 2026,
+      "publication_status": "live official classification accessed 2026-09-25",
+      "url": "https://www.ccf.org.cn/Academic_Evaluation/AI/",
+      "locator": "A类国际会议 table: CVPR, ICCV, NeurIPS",
+      "quality": "official classification primary source; edition date not explicit in fetched excerpt",
+      "information_state": "observed",
+      "claim": "CVPR/ICCV/NeurIPS main conferences can be tagged CCF-A in this ledger; workshops inherit no such tag.",
+      "official_code_or_project": null,
+      "access_date": "2026-09-25",
+      "search_context": "bounded author/publisher primary-source search; see search_log",
+      "classification": "foundation/adjacent; no unverified JCR or CAS quartile assigned"
+    },
+    {
+      "id": "G01",
+      "citation": "E-3DPSM: A State Machine for Event-Based Egocentric 3D Human Pose Estimation",
+      "year": 2026,
+      "publication_status": "CVPR 2026",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://arxiv.org/html/2604.08543v1",
+      "publication_or_project_url": "https://4dqv.mpi-inf.mpg.de/E-3DPSM/",
+      "official_code_url": "https://github.com/MayurDeshmukh10/E-3DPSM",
+      "read_depth": "full method + official selected source",
+      "locator": "Sections 3–4; Figure 2; code base.py 101–105, s5_model.py 324–325, learnable_kf.py 12–13,75,109",
+      "original_assumptions": "LNES; direct/delta fusion; bidirectional training/optional causal inference",
+      "minimal_transfer": "Only transfer distinct roles of state prediction and evidence correction; novelty overlap is strong",
+      "failure_conditions": "Dense input and bidirectional code require causal audit; learned variance is not automatically event-conditioned uncertainty",
+      "additional_computation": "S5 and second head plus filter; no locally measured cost",
+      "nearest_overlap": "HaPTIC; S37",
+      "falsifier": "Change future input after a prefix and require emitted prefix predictions unchanged",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G02",
+      "citation": "EvHandPose: Event-Based 3D Hand Pose Estimation With Sparse Supervision",
+      "year": 2024,
+      "publication_status": "TPAMI 46(9), DOI 10.1109/TPAMI.2024.3380648",
+      "ranking_basis": "CCF-A journal; CAS Top unverified",
+      "url": "https://arxiv.org/html/2303.02862v3",
+      "publication_or_project_url": "https://www.jdl.link/doc/2011/20241219_Jiang_TPAMI24.pdf",
+      "official_code_url": "https://github.com/AlanJiang98/EvHandPose",
+      "read_depth": "full method + official selected source",
+      "locator": "III-B; IV-A1 equations 4–9; supervision.py 167–184",
+      "original_assumptions": "MANO mesh interpolation, first-hit surface and barycentric flow; LNES+ConvGRU",
+      "minimal_transfer": "Use mesh-induced flow as training constraint, not independent depth observation",
+      "failure_conditions": "State bias, occlusion, illumination; main representation is dense",
+      "additional_computation": "Multiple MANO evaluations, rasterization and flow encoder; unmeasured",
+      "nearest_overlap": "S37 routed; VecKM-flow",
+      "falsifier": "Time-destroyed control preserves events and compute; reject temporal claim if gain remains",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G03",
+      "citation": "3D Pose Estimation of Two Interacting Hands from a Monocular Event Camera (Ev2Hands)",
+      "year": 2024,
+      "publication_status": "3DV 2024",
+      "ranking_basis": "direct-neighbor exception; not marked CCF-A",
+      "url": "https://arxiv.org/html/2312.14157v1",
+      "publication_or_project_url": "https://4dqv.mpi-inf.mpg.de/Ev2Hands/",
+      "official_code_url": "https://github.com/Chris10M/Ev2Hands",
+      "read_depth": "full method + official selected source",
+      "locator": "3.2–3.4; equations 2–3",
+      "original_assumptions": "Window event clouds; PointNet++; segmentation-conditioned feature attention",
+      "minimal_transfer": "Raw event points can predict MANO without unique event depth",
+      "failure_conditions": "Time coordinate is not metric Z; point-cloud batches are not necessarily asynchronous local updates",
+      "additional_computation": "Sampling and neighbor search; unmeasured",
+      "nearest_overlap": "EventHands; EventEgoHands++",
+      "falsifier": "Count/polarity-preserving timestamp destruction",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G04",
+      "citation": "EventEgoHands++: Event-based Egocentric 3D Hand Mesh Reconstruction with Real Dataset",
+      "year": 2026,
+      "publication_status": "2026-09-15 arXiv; author reports accepted IEEE Access",
+      "ranking_basis": "direct-neighbor exception; CAS/JCR not verified",
+      "url": "https://arxiv.org/html/2609.17189v1",
+      "publication_or_project_url": "https://ryhara.github.io/EventEgoHandsV2/",
+      "official_code_url": "https://github.com/ryhara/EventEgoHandsV2",
+      "read_depth": "full method + failure section + selected official source",
+      "locator": "III; VI-E; EventEgoHandsV2.py 588, 893 onward",
+      "original_assumptions": "Dense event frame; YOLO hand detector; detection-conditioned attention",
+      "minimal_transfer": "Valid observed entities should control direct evidence exchange",
+      "failure_conditions": "Whole-hand detection is not front/back surface visibility; static/sparse events cause missed detection",
+      "additional_computation": "Detector + encoder + attention; unmeasured",
+      "nearest_overlap": "EventEgoHands ICIP 2025; Ev2Hands",
+      "falsifier": "Cross-finger/self-occlusion control holding count and compute fixed",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G05",
+      "citation": "Learning Normal Flow Directly From Events",
+      "year": 2025,
+      "publication_status": "ICCV 2025; arXiv v1 title uses Event Neighborhoods",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://arxiv.org/html/2412.11284v1",
+      "publication_or_project_url": "https://openaccess.thecvf.com/content/ICCV2025/html/Yuan_Learning_Normal_Flow_Directly_From_Events_ICCV_2025_paper.html",
+      "official_code_url": "https://github.com/dhyuan99/VecKM_flow",
+      "read_depth": "full method + official selected source",
+      "locator": "2.3 equation 2; 3.1 equation 3; 3.5; 3.6; estimator.py 26–61,154–174",
+      "original_assumptions": "Local point neighborhood normal flow and ensemble uncertainty; IMU for egomotion solver",
+      "minimal_transfer": "Only observed normal component should constrain articulated motion",
+      "failure_conditions": "Centered neighborhood can use future; code slice adjacency has no past-only mask; IMU backend disallowed",
+      "additional_computation": "cdist, ensemble and CPU transfers in public API; unmeasured",
+      "nearest_overlap": "EvHandPose; TMA",
+      "falsifier": "Train past-only version and compare with matched time destruction",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G06",
+      "citation": "Reconstructing Hands in 3D with Transformers (HaMeR)",
+      "year": 2024,
+      "publication_status": "CVPR 2024",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://openaccess.thecvf.com/content/CVPR2024/html/Pavlakos_Reconstructing_Hands_in_3D_with_Transformers_CVPR_2024_paper.html",
+      "publication_or_project_url": "https://geopavlakos.github.io/hamer/",
+      "official_code_url": "https://github.com/geopavlakos/hamer",
+      "read_depth": "primary abstract + author project; full PDF blocked; source not inspected",
+      "locator": "Abstract; project input/output paragraph",
+      "original_assumptions": "Large ViT and diverse hand data",
+      "minimal_transfer": "Separate data scale from architecture gain",
+      "failure_conditions": "RGB required at inference; not main-path compliant",
+      "additional_computation": "Large ViT; unmeasured",
+      "nearest_overlap": "HaPTIC",
+      "falsifier": "Hold data and supervision budget fixed",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G07",
+      "citation": "Complementing Event Streams and RGB Frames for Hand Mesh Reconstruction (EvRGBHand)",
+      "year": 2024,
+      "publication_status": "CVPR 2024",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://openaccess.thecvf.com/content/CVPR2024/html/Jiang_Complementing_Event_Streams_and_RGB_Frames_for_Hand_Mesh_Reconstruction_CVPR_2024_paper.html",
+      "publication_or_project_url": "https://arxiv.org/abs/2403.07346",
+      "official_code_url": "https://github.com/AlanJiang98/EvRGBHand",
+      "read_depth": "primary abstract + official README; full PDF blocked",
+      "locator": "Abstract; README",
+      "original_assumptions": "Complement event and RGB modalities; domain degradation",
+      "minimal_transfer": "Reliability and training augmentation principles only",
+      "failure_conditions": "RGB resolves static ambiguity not available in final system",
+      "additional_computation": "Two modality branches; unmeasured",
+      "nearest_overlap": "EvHandPose",
+      "falsifier": "Event-only training/inference before any comparison",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G08",
+      "citation": "MonoDETR: Depth-guided Transformer for Monocular 3D Object Detection",
+      "year": 2023,
+      "publication_status": "ICCV 2023",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://openaccess.thecvf.com/content/ICCV2023/html/Zhang_MonoDETR_Depth-guided_Transformer_for_Monocular_3D_Object_Detection_ICCV_2023_paper.html",
+      "publication_or_project_url": "https://arxiv.org/abs/2203.13310",
+      "official_code_url": "https://github.com/ZrrSkywalker/MonoDETR",
+      "read_depth": "primary abstract/intro excerpts + official README; PDF open blocked",
+      "locator": "Abstract; introduction on foreground depth map and depth cross-attention",
+      "original_assumptions": "Foreground depth guidance of object queries",
+      "minimal_transfer": "Conditioned query evidence separate from state prior",
+      "failure_conditions": "Object size/scene priors do not provide independent per-event depth",
+      "additional_computation": "Depth head and attention; unmeasured",
+      "nearest_overlap": "S37 joint readout",
+      "falsifier": "Projection-preserving scale/depth perturbation",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G09",
+      "citation": "DynamicStereo: Consistent Dynamic Depth from Stereo Videos",
+      "year": 2023,
+      "publication_status": "CVPR 2023",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://arxiv.org/html/2305.02296v1",
+      "publication_or_project_url": "https://dynamic-stereo.github.io/",
+      "official_code_url": "https://github.com/facebookresearch/dynamic_stereo",
+      "read_depth": "original HTML + official README",
+      "locator": "Method sections; temporal consistency; README inference",
+      "original_assumptions": "Stereo videos and temporal/spatial matching",
+      "minimal_transfer": "Align valid history before reuse",
+      "failure_conditions": "Second camera and future clip context unavailable",
+      "additional_computation": "Cost volume/temporal attention; unmeasured",
+      "nearest_overlap": "TESNet",
+      "falsifier": "Destroy association while retaining features/count/compute",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G10",
+      "citation": "Selective-Stereo: Adaptive Frequency Information Selection for Stereo Matching",
+      "year": 2024,
+      "publication_status": "CVPR 2024",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://openaccess.thecvf.com/content/CVPR2024/papers/Wang_Selective-Stereo_Adaptive_Frequency_Information_Selection_for_Stereo_Matching_CVPR_2024_paper.pdf",
+      "publication_or_project_url": "https://openaccess.thecvf.com/content/CVPR2024/html/Wang_Selective-Stereo_Adaptive_Frequency_Information_Selection_for_Stereo_Matching_CVPR_2024_paper.html",
+      "official_code_url": "https://github.com/Windsrain/Selective-Stereo",
+      "read_depth": "primary abstract and introduction; source not inspected",
+      "locator": "Abstract; introduction",
+      "original_assumptions": "Frequency-selective recurrent disparity update",
+      "minimal_transfer": "Evidence-dependent local support versus smoothing",
+      "failure_conditions": "Stereo disparity not available monocularly",
+      "additional_computation": "Multi-frequency recurrent branches; unmeasured",
+      "nearest_overlap": "DynamicStereo",
+      "falsifier": "Equal-parameter fixed-support control",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G11",
+      "citation": "Temporal Event Stereo via Joint Learning with Stereoscopic Flow (TESNet)",
+      "year": 2024,
+      "publication_status": "ECCV 2024",
+      "ranking_basis": "mechanism-neighbor exception; not marked CCF-A",
+      "url": "https://arxiv.org/html/2407.10831v1",
+      "publication_or_project_url": "https://www.ecva.net/papers/eccv_2024/papers_ECCV/papers/05185.pdf",
+      "official_code_url": "https://github.com/mickeykang16/TemporalEventStereo",
+      "read_depth": "full method + official README",
+      "locator": "3.2–3.4; repository training marked Coming Soon",
+      "original_assumptions": "Warped historical cost volume via stereoscopic flow",
+      "minimal_transfer": "Explicit cache alignment and stale invalidation",
+      "failure_conditions": "Needs stereo for disparity; dense 3D cost volume violates final path",
+      "additional_computation": "Flow + warped cost volume; unmeasured",
+      "nearest_overlap": "DynamicStereo; EMatch",
+      "falsifier": "Unwarped and permuted-history controls",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G12",
+      "citation": "EMatch: A Unified Framework for Event-based Optical Flow and Stereo Matching",
+      "year": 2025,
+      "publication_status": "ICCV 2025",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://arxiv.org/html/2407.21735v2",
+      "publication_or_project_url": "https://openaccess.thecvf.com/content/ICCV2025/html/Zhang_EMatch_A_Unified_Framework_for_Event-based_Optical_Flow_and_Stereo_ICCV_2025_paper.html",
+      "official_code_url": "https://github.com/BIT-Vision/EMatch",
+      "read_depth": "original HTML + accepted-page abstract + official README",
+      "locator": "Method overview; official README checkpoint/code dates",
+      "original_assumptions": "Shared correspondence representations for temporal and stereo matching",
+      "minimal_transfer": "Reuse temporal correspondence feature rather than stacking independent networks",
+      "failure_conditions": "Spatial matching branch assumes other view; dense pixelwise representation",
+      "additional_computation": "Recurrent correspondence and correlation; unmeasured",
+      "nearest_overlap": "TESNet; TMA",
+      "falsifier": "Retain temporal-only branch and test occlusion association changes",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G13",
+      "citation": "Active Event-based Stereo Vision",
+      "year": 2025,
+      "publication_status": "CVPR 2025",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://openaccess.thecvf.com/content/CVPR2025/html/Li_Active_Event-based_Stereo_Vision_CVPR_2025_paper.html",
+      "publication_or_project_url": null,
+      "official_code_url": "https://github.com/jianing-li/active_event_based_stereo",
+      "read_depth": "primary abstract; source not inspected",
+      "locator": "Abstract",
+      "original_assumptions": "Binocular events plus infrared projector",
+      "minimal_transfer": "Boundary evidence: missing texture limits passive observations",
+      "failure_conditions": "Extra view and projector disallowed",
+      "additional_computation": "Stereo/projection hardware; rejected for final system",
+      "nearest_overlap": "TESNet",
+      "falsifier": "Remove extra sensor information before making monocular claim",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G14",
+      "citation": "On-Device Self-Supervised Learning of Low-Latency Monocular Depth from Only Events",
+      "year": 2025,
+      "publication_status": "CVPR 2025",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://arxiv.org/html/2412.06359v1",
+      "publication_or_project_url": "https://openaccess.thecvf.com/content/CVPR2025/html/Hagenaars_On-Device_Self-Supervised_Learning_of_Low-Latency_Monocular_Depth_from_Only_Events_CVPR_2025_paper.html",
+      "official_code_url": "https://github.com/tudelft/depth_from_events",
+      "read_depth": "original method + official README",
+      "locator": "3.2 static scene/no occlusion; 3.3 computation",
+      "original_assumptions": "Joint depth and ego-motion used to warp events",
+      "minimal_transfer": "Audit motion-model assumptions before interpreting depth",
+      "failure_conditions": "Articulated hand violates rigid static-scene constraint",
+      "additional_computation": "Dense ConvGRU and CMax loss; unmeasured locally",
+      "nearest_overlap": "DEVO; Dynamo-Depth",
+      "falsifier": "Same-flow different-depth/motion pair",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G15",
+      "citation": "SpatialTracker: Tracking Any 2D Pixels in 3D Space",
+      "year": 2024,
+      "publication_status": "CVPR 2024",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://arxiv.org/html/2404.04319v1",
+      "publication_or_project_url": "https://openaccess.thecvf.com/content/CVPR2024/html/Xiao_SpatialTracker_Tracking_Any_2D_Pixels_in_3D_Space_CVPR_2024_paper.html",
+      "official_code_url": "https://github.com/henry123-boy/SpaTracker",
+      "read_depth": "original HTML + primary abstract; source not inspected",
+      "locator": "Method; abstract ARAP and monocular depth lift",
+      "original_assumptions": "Monocular predicted depth lifts pixels to triplanes; ARAP tracking",
+      "minimal_transfer": "Part-level correspondence and motion constraints",
+      "failure_conditions": "Predicted depth is prior; full hand is not rigid",
+      "additional_computation": "Depth network + triplanes + iterations; unmeasured",
+      "nearest_overlap": "HaPTIC",
+      "falsifier": "Inject depth bias without changing projected observations",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G16",
+      "citation": "3D Feature Tracking via Event Camera",
+      "year": 2024,
+      "publication_status": "CVPR 2024",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://openaccess.thecvf.com/content/CVPR2024/html/Li_3D_Feature_Tracking_via_Event_Camera_CVPR_2024_paper.html",
+      "publication_or_project_url": null,
+      "official_code_url": null,
+      "read_depth": "primary abstract; full PDF blocked; code unverified",
+      "locator": "Abstract input definition",
+      "original_assumptions": "Stereo events for 3D feature trajectories",
+      "minimal_transfer": "Temporal feature correspondence",
+      "failure_conditions": "Monocular stream lacks stereo baseline",
+      "additional_computation": "Stereo matching/tracking; unmeasured",
+      "nearest_overlap": "TESNet",
+      "falsifier": "Left-only ablation cannot inherit stereo metric-depth observability",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G17",
+      "citation": "RPEFlow: Multimodal Fusion of RGB-PointCloud-Event for Joint Optical Flow and Scene Flow Estimation",
+      "year": 2023,
+      "publication_status": "ICCV 2023",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://openaccess.thecvf.com/content/ICCV2023/html/Wan_RPEFlow_Multimodal_Fusion_of_RGB-PointCloud-Event_for_Joint_Optical_Flow_and_ICCV_2023_paper.html",
+      "publication_or_project_url": "https://npucvr.github.io/RPEFlow",
+      "official_code_url": null,
+      "read_depth": "primary abstract; code linked through project not inspected",
+      "locator": "Abstract",
+      "original_assumptions": "RGB+LiDAR point cloud+event modalities",
+      "minimal_transfer": "Explicit relation between image motion and 3D motion",
+      "failure_conditions": "LiDAR provides depth missing in final system",
+      "additional_computation": "Three encoders/fusion; unmeasured",
+      "nearest_overlap": "EvHandPose; VecKM-flow",
+      "falsifier": "Retrain without external modalities before claiming event-only effect",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G18",
+      "citation": "TMA: Temporal Motion Aggregation for Event-based Optical Flow",
+      "year": 2023,
+      "publication_status": "ICCV 2023",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://openaccess.thecvf.com/content/ICCV2023/html/Liu_TMA_Temporal_Motion_Aggregation_for_Event-based_Optical_Flow_ICCV_2023_paper.html",
+      "publication_or_project_url": null,
+      "official_code_url": null,
+      "read_depth": "primary abstract; code not verified",
+      "locator": "Abstract three components",
+      "original_assumptions": "Event splitting, temporal lookup and motion aggregation",
+      "minimal_transfer": "Test usable temporal information without changing event universe",
+      "failure_conditions": "Aperture and dense representation",
+      "additional_computation": "Time-sliced features/lookup; unmeasured",
+      "nearest_overlap": "EMatch",
+      "falsifier": "Timestamp-order destruction preserving marginal event statistics",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G19",
+      "citation": "EV-LayerSegNet: Self-supervised Motion Segmentation using Event Cameras",
+      "year": 2025,
+      "publication_status": "CVPR EventVision Workshop 2025",
+      "ranking_basis": "workshop exception; not CCF-A main",
+      "url": "https://openaccess.thecvf.com/content/CVPR2025W/EventVision/html/Farah_EV-LayerSegNet_Self-supervised_Motion_Segmentation_using_Event_Cameras_CVPRW_2025_paper.html",
+      "publication_or_project_url": null,
+      "official_code_url": null,
+      "read_depth": "primary abstract/PDF introduction; code unverified",
+      "locator": "Abstract: affine-motion simulated dataset",
+      "original_assumptions": "Layered affine flow and segmentation masks with deblurring objective",
+      "minimal_transfer": "Separate inconsistent motions rather than fit all events as one rigid body",
+      "failure_conditions": "Articulated deformation and mask degeneracy",
+      "additional_computation": "Mask and affine-flow network; unmeasured",
+      "nearest_overlap": "Dynamo-Depth",
+      "falsifier": "Opposing adjacent-finger motions at fixed event count",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G20",
+      "citation": "Deep Event Visual Odometry (DEVO)",
+      "year": 2024,
+      "publication_status": "3DV 2024",
+      "ranking_basis": "direct-neighbor exception; not marked CCF-A",
+      "url": "https://arxiv.org/html/2312.09800v1",
+      "publication_or_project_url": "https://www.vision.in.tum.de/publications?key=klenk2024deep",
+      "official_code_url": "https://github.com/tum-vision/DEVO",
+      "read_depth": "full method + official README",
+      "locator": "3.1 voxel; 3.2 patches/DBA; 4.1 scale alignment",
+      "original_assumptions": "Sparse patches from event voxels and differentiable bundle adjustment",
+      "minimal_transfer": "Use only trackable observation support",
+      "failure_conditions": "Static-scene model and monocular scale; hand motion is not camera motion",
+      "additional_computation": "Voxel encoder + recurrent updates + BA; unmeasured",
+      "nearest_overlap": "CMax-SLAM",
+      "falsifier": "Hand-only full-FOV independent deformation test",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G21",
+      "citation": "CMax-SLAM: Event-based Rotational-Motion Bundle Adjustment and SLAM System using Contrast Maximization",
+      "year": 2024,
+      "publication_status": "TRO 40:2442–2461; DOI 10.1109/TRO.2024.3378443",
+      "ranking_basis": "journal; CAS/JCR/CCF rank not asserted",
+      "url": "https://arxiv.org/html/2403.08119v1",
+      "publication_or_project_url": null,
+      "official_code_url": "https://github.com/tub-rip/cmax_slam",
+      "read_depth": "original HTML + official README",
+      "locator": "Rotation-only problem definition; B-spline trajectory; frontend/backend",
+      "original_assumptions": "Rotation-only event bundle adjustment",
+      "minimal_transfer": "Evaluate a trajectory at event timestamps",
+      "failure_conditions": "Not translation/articulation model",
+      "additional_computation": "Window optimization and splines; unmeasured",
+      "nearest_overlap": "DEVO",
+      "falsifier": "Independent local articulation cannot be absorbed as camera rotation",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G22",
+      "citation": "Dynamo-Depth: Fixing Unsupervised Depth Estimation for Dynamical Scenes",
+      "year": 2023,
+      "publication_status": "NeurIPS 2023",
+      "ranking_basis": "CCF-A conference",
+      "url": "https://proceedings.neurips.cc/paper_files/paper/2023/file/ac5c594dedf66affb098c39a3bcfdb3d-Paper-Conference.pdf",
+      "publication_or_project_url": "https://proceedings.neurips.cc/paper_files/paper/2023/hash/ac5c594dedf66affb098c39a3bcfdb3d-Abstract-Conference.html",
+      "official_code_url": "https://github.com/YihongSun/Dynamo-Depth",
+      "read_depth": "primary abstract/intro text + official README",
+      "locator": "Abstract and page 1 motion-depth ambiguity",
+      "original_assumptions": "Depth/independent motion ambiguity; motion-segmentation initialization",
+      "minimal_transfer": "Design projection-preserving identifiability controls",
+      "failure_conditions": "Segmentation adds prior not independent depth",
+      "additional_computation": "Depth + flow + segmentation; unmeasured",
+      "nearest_overlap": "On-device depth; DEVO",
+      "falsifier": "Same projected flow under paired depth/3D-motion hypotheses",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G23",
+      "citation": "Predicting 4D Hand Trajectory from Monocular Videos (HaPTIC)",
+      "year": 2025,
+      "publication_status": "arXiv:2501.08329; final publication status not checked",
+      "ranking_basis": "preprint/venue unknown in this audit",
+      "url": "https://arxiv.org/html/2501.08329v1",
+      "publication_or_project_url": "https://judyye.github.io/haptic-www/",
+      "official_code_url": null,
+      "read_depth": "full method; official project; code not inspected",
+      "locator": "3.1–3.4; metric depth change relative first frame",
+      "original_assumptions": "RGB multi-frame attention; first-frame anchor and trajectory changes",
+      "minimal_transfer": "Separate articulation from root trajectory",
+      "failure_conditions": "RGB, possibly future clip context, initial depth prior",
+      "additional_computation": "Multi-frame ViT + attention; unmeasured",
+      "nearest_overlap": "E-3DPSM; HaMeR",
+      "falsifier": "Past-only same-input comparison with equal-capacity smoothing",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G24",
+      "citation": "Leveraging RGB Images for Pre-Training of Event-Based Hand Pose Estimation (RPEP)",
+      "year": 2026,
+      "publication_status": "ICPR 2026 per author lab; first arXiv 2025-09-21",
+      "ranking_basis": "direct-neighbor exception; not marked CCF-A",
+      "url": "https://arxiv.org/html/2509.16949v1",
+      "publication_or_project_url": "https://ut-vision.org/publication/2026-liu-leveraging/",
+      "official_code_url": null,
+      "read_depth": "original short paper + official author publication page; code unknown",
+      "locator": "Method; author page publication field",
+      "original_assumptions": "Labeled RGB training, unlabeled events, motion-densified pseudo-events",
+      "minimal_transfer": "Legal training supervision can differ from event-only inference",
+      "failure_conditions": "Synthetic gap and additional training budget confounds",
+      "additional_computation": "Pretraining generation cost; no inference modality added",
+      "nearest_overlap": "EvHandPose; EvRGBHand",
+      "falsifier": "Hold supervision/data/steps constant",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G25",
+      "citation": "Embodied Hands: Modeling and Capturing Hands and Bodies Together (MANO)",
+      "year": 2017,
+      "publication_status": "TOG / SIGGRAPH Asia 2017",
+      "ranking_basis": "foundation; TOG CCF-A from graphics directory",
+      "url": "https://mano.is.tue.mpg.de/",
+      "publication_or_project_url": null,
+      "official_code_url": null,
+      "read_depth": "official model page and local S37 definitions; paper not reopened",
+      "locator": "Abstract; Model/Code Versions",
+      "original_assumptions": "Articulated model with pose-dependent nonrigid corrections",
+      "minimal_transfer": "Distinguish FK joints, mesh vertices and LBS",
+      "failure_conditions": "Model prior is not observation; shape/scale errors",
+      "additional_computation": "MANO decode; local performance must be measured",
+      "nearest_overlap": "S37",
+      "falsifier": "Same-projection different-shape/depth fixture",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "G26",
+      "citation": "EventHands: Real-Time Neural 3D Hand Pose Estimation from an Event Stream",
+      "year": 2021,
+      "publication_status": "ICCV 2021",
+      "ranking_basis": "foundation CCF-A conference",
+      "url": "https://github.com/r00tman/EventHands",
+      "publication_or_project_url": "https://4dqv.mpi-inf.mpg.de/EventHands/",
+      "official_code_url": "https://github.com/r00tman/EventHands",
+      "read_depth": "official repo; CVF open blocked; local baseline inherited code",
+      "locator": "README TRAIN/EVAL references",
+      "original_assumptions": "LNES neural hand reconstruction",
+      "minimal_transfer": "Keep dense reference and output protocol",
+      "failure_conditions": "Different real-data protocol cannot be compared by paper headline",
+      "additional_computation": "Dense encoder; local benchmark required",
+      "nearest_overlap": "S37; Ev2Hands",
+      "falsifier": "Same-checkpoint same-observation evaluator parity",
+      "claim_status": "reported unless explicit pinned-code observation",
+      "transfer_status": "inferred/proposed; not run",
+      "retrieved_on": "2026-09-25"
+    },
+    {
+      "id": "L01",
+      "citation": "Current S37 audit and immutable source identity",
+      "url": "/data1/lyq/code/mesh/EventHands1/docs/research/s37_async_20260925/AUDIT_AGENT.md",
+      "quality": "current source + original JSON + bounded CPU witnesses"
+    },
+    {
+      "id": "L02",
+      "citation": "Protocol audit: metrics, history, causal support and latency",
+      "url": "/data1/lyq/code/mesh/EventHands1/docs/research/s37_async_20260925/PROTOCOL_AUDIT.md",
+      "quality": "inspected code/artifacts; no new accuracy claims"
+    },
+    {
+      "id": "L03",
+      "citation": "CPU prefix counterexample, 2026-09-25",
+      "url": "/data1/lyq/code/mesh/EventHands1/.research/s37_async_20260925/audit_contracts.json",
+      "quality": "executed deterministic synthetic counterexample"
+    },
+    {
+      "id": "L04",
+      "citation": "Research decision before implementation",
+      "url": "/data1/lyq/code/mesh/EventHands1/docs/research/s37_async_20260925/DECISION.md",
+      "quality": "proposed; accuracy and novelty unverified"
+    },
+    {
+      "id": "L05",
+      "citation": "Executed CPU contracts and independent review resolution",
+      "url": "/data1/lyq/code/mesh/EventHands1/docs/research/s37_async_20260925/DEBUG.md",
+      "quality": "actual bounded CPU tests; GPU/accuracy gates remain open"
+    },
+    {
+      "id": "L06",
+      "citation": "All 72 original train trials: offsets and readout load census",
+      "url": "/data1/lyq/code/mesh/EventHands1/docs/research/s37_async_20260925/LOAD_ENVELOPE.md",
+      "quality": "complete offsets/header census; not accuracy or latency"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "N01",
+      "type": "method",
+      "label": "State-independent S37 event graph and geometric joint readout",
+      "status": "observed",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "L01",
+          "locator": "§2"
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "type": "limitation",
+      "label": "Existing tokens and sample identities are not prefix-stable",
+      "status": "observed",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "L03",
+          "locator": "prefix_cache_counterexample"
+        }
+      ]
+    },
+    {
+      "id": "N03",
+      "type": "limitation",
+      "label": "Historical initialization, shape and time support exceed causal input contract",
+      "status": "observed",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "L02",
+          "locator": "§1–3"
+        }
+      ]
+    },
+    {
+      "id": "N04",
+      "type": "limitation",
+      "label": "Historical scaled forward latency does not bound complete response delay",
+      "status": "observed",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "L02",
+          "locator": "§4"
+        }
+      ]
+    },
+    {
+      "id": "N05",
+      "type": "mechanism",
+      "label": "Immutable causal DAG features admit exact incremental evaluation",
+      "status": "inferred",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "L01",
+          "locator": "§6"
+        },
+        {
+          "source_id": "EV001",
+          "locator": "§4"
+        }
+      ]
+    },
+    {
+      "id": "N06",
+      "type": "finding",
+      "label": "Local async event processing plus periodic aggregation has prior art",
+      "status": "reported",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "EV009",
+          "locator": "method"
+        }
+      ]
+    },
+    {
+      "id": "N07",
+      "type": "finding",
+      "label": "MANO visible-surface mesh-flow constraints have prior art",
+      "status": "reported",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "G02",
+          "locator": "§IV-A1"
+        }
+      ]
+    },
+    {
+      "id": "N08",
+      "type": "finding",
+      "label": "Geometry-only root correction failed its retained stage-zero gate",
+      "status": "observed",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "L01",
+          "locator": "latest georoot addendum"
+        }
+      ]
+    },
+    {
+      "id": "N09",
+      "type": "gap",
+      "label": "Benefit of causal cross-packet evidence under matched hand tracking inputs",
+      "status": "proposed",
+      "confidence": "low",
+      "evidence": [
+        {
+          "source_id": "L04",
+          "locator": "H1 and negative controls"
+        }
+      ]
+    },
+    {
+      "id": "N10",
+      "type": "limitation",
+      "label": "Association errors are real but not yet established as dominant accuracy cause",
+      "status": "inferred",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "source_id": "L01",
+          "locator": "historical visibility intervention"
+        }
+      ]
+    },
+    {
+      "id": "N11",
+      "type": "measure",
+      "label": "Unrounded same-checkpoint local/global root-aligned joint errors",
+      "status": "observed",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "L02",
+          "locator": "§1"
+        }
+      ]
+    },
+    {
+      "id": "N12",
+      "type": "outcome",
+      "label": "Simultaneous accuracy thresholds and complete response deadline",
+      "status": "proposed",
+      "confidence": "unknown",
+      "evidence": [
+        {
+          "source_id": "L04",
+          "locator": "§6"
+        },
+        {
+          "source_id": "L02",
+          "locator": "§4"
+        }
+      ]
+    },
+    {
+      "id": "N13",
+      "type": "finding",
+      "label": "Bounded CPU exactness, gradient, state and mesh contracts passed after reviewed repairs",
+      "status": "observed",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "L05",
+          "locator": "D002, D003 and R5; v3 log"
+        }
+      ]
+    },
+    {
+      "id": "N14",
+      "type": "limitation",
+      "label": "Burst append overflow and substantial direct-readout truncation in original training streams",
+      "status": "observed",
+      "confidence": "high",
+      "evidence": [
+        {
+          "source_id": "L06",
+          "locator": "1 ms envelope and 2/4 ms query census"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "N01",
+      "relation": "limited-by",
+      "target": "N02",
+      "evidence": [
+        {
+          "source_id": "L01",
+          "locator": "§1"
+        }
+      ]
+    },
+    {
+      "source": "N02",
+      "relation": "motivates",
+      "target": "N05",
+      "evidence": [
+        {
+          "source_id": "L03",
+          "locator": "counterexample"
+        }
+      ]
+    },
+    {
+      "source": "N05",
+      "relation": "leaves-open",
+      "target": "N09",
+      "evidence": [],
+      "note": "Exact evaluation alone cannot improve predictions of the same model."
+    },
+    {
+      "source": "N06",
+      "relation": "moderates",
+      "target": "N09",
+      "evidence": [
+        {
+          "source_id": "EV009",
+          "locator": "method"
+        }
+      ]
+    },
+    {
+      "source": "N07",
+      "relation": "moderates",
+      "target": "N10",
+      "evidence": [
+        {
+          "source_id": "G02",
+          "locator": "§IV-A1"
+        }
+      ]
+    },
+    {
+      "source": "N08",
+      "relation": "moderates",
+      "target": "N10",
+      "evidence": [
+        {
+          "source_id": "L01",
+          "locator": "georoot addendum"
+        }
+      ]
+    },
+    {
+      "source": "N12",
+      "relation": "depends-on",
+      "target": "N03",
+      "evidence": [],
+      "note": "Must eliminate prohibited test-time inputs before complete-system acceptance."
+    },
+    {
+      "source": "N12",
+      "relation": "depends-on",
+      "target": "N04",
+      "evidence": [],
+      "note": "Full delay instrumentation is necessary; old scaled timing cannot certify it."
+    },
+    {
+      "source": "N11",
+      "relation": "measures",
+      "target": "N12",
+      "evidence": [
+        {
+          "source_id": "L02",
+          "locator": "§1"
+        }
+      ]
+    },
+    {
+      "source": "N13",
+      "relation": "supports",
+      "target": "N05",
+      "evidence": [
+        {
+          "source_id": "L05",
+          "locator": "v3 CPU tests"
+        }
+      ]
+    },
+    {
+      "source": "N14",
+      "relation": "moderates",
+      "target": "N09",
+      "evidence": [
+        {
+          "source_id": "L06",
+          "locator": "readout counts"
+        }
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "id": "O00",
+      "label": "C0 minimal protocol and precision control",
+      "question": "C0 minimal protocol and precision control improves which verified limitation?",
+      "rationale": "Known defects require controls; no novelty claim.",
+      "derived_from": [
+        "N01",
+        "N03",
+        "N04"
+      ],
+      "scores": {
+        "importance": 5,
+        "gap_confidence": 5,
+        "feasibility": 4,
+        "novelty": 0,
+        "information_gain": 5,
+        "leverage": 4
+      },
+      "score_justifications": {
+        "importance": "All target the explicit input/latency/accuracy constraints.",
+        "gap_confidence": "See known contract violations versus unverified scientific mechanism in cited nodes.",
+        "feasibility": "CPU minimal Debug is feasible; GPU budget and independent data pending.",
+        "novelty": "Prior art covers main components; low score is deliberate.",
+        "information_gain": "Parity and nuisance-preserving controls can kill a mechanism cheaply.",
+        "leverage": "Causal contracts and latency instrumentation are reusable."
+      },
+      "assumptions": [
+        "Independent validation data availability is unresolved.",
+        "No final metric may be substituted by a diagnostic subset."
+      ],
+      "falsifier": "Same-observation parity fails, or matched temporal/association destruction retains claimed gain.",
+      "next_step": "Close burst handling; obtain GPU budget and test complete load/long-stream contracts; no training until mandatory gates pass.",
+      "gate_status": "hold",
+      "evidence_ids": [
+        "N01",
+        "N03",
+        "N04"
+      ],
+      "validation_contract": {
+        "official_view": "Frozen causal input, same checkpoint, unchanged local/global MPJPE formulas and full delay.",
+        "diagnostic_views": [
+          "Synthetic cache equivalence",
+          "Training-only geometry and load census"
+        ],
+        "same_prediction_parity": {
+          "artifact": "tests/test_streaming.py + tests/test_streaming_tracker.py; streaming_tests_v3.log",
+          "tolerance": "FP32 per-layer atol=rtol=1e-5",
+          "status": "hold",
+          "note": "C1 bounded CPU contract passed; GPU/long-stream not run; not a C0/C2 effectiveness result"
+        },
+        "negative_controls": [
+          "Timestamp structure destroyed while preserving observations/counts",
+          "Association identity shuffled at fixed event and compute budget"
+        ],
+        "decision_rule": "Debug all pass before screening; final acceptance requires all original thresholds."
+      },
+      "priority_score": 80.0
+    },
+    {
+      "id": "O01",
+      "label": "C1 exact causal evidence cache with S37 routed readout",
+      "question": "C1 exact causal evidence cache with S37 routed readout improves which verified limitation?",
+      "rationale": "Necessary streaming repair; accuracy effect and novelty remain unverified.",
+      "derived_from": [
+        "N02",
+        "N05",
+        "N06",
+        "N09"
+      ],
+      "scores": {
+        "importance": 5,
+        "gap_confidence": 3,
+        "feasibility": 3,
+        "novelty": 1,
+        "information_gain": 5,
+        "leverage": 4
+      },
+      "score_justifications": {
+        "importance": "All target the explicit input/latency/accuracy constraints.",
+        "gap_confidence": "See known contract violations versus unverified scientific mechanism in cited nodes.",
+        "feasibility": "CPU minimal Debug is feasible; GPU budget and independent data pending.",
+        "novelty": "Prior art covers main components; low score is deliberate.",
+        "information_gain": "Parity and nuisance-preserving controls can kill a mechanism cheaply.",
+        "leverage": "Causal contracts and latency instrumentation are reusable."
+      },
+      "assumptions": [
+        "Independent validation data availability is unresolved.",
+        "No final metric may be substituted by a diagnostic subset."
+      ],
+      "falsifier": "Same-observation parity fails, or matched temporal/association destruction retains claimed gain.",
+      "next_step": "Close burst handling; obtain GPU budget and test complete load/long-stream contracts; no training until mandatory gates pass.",
+      "gate_status": "hold",
+      "evidence_ids": [
+        "N02",
+        "N05",
+        "N06",
+        "N09"
+      ],
+      "validation_contract": {
+        "official_view": "Frozen causal input, same checkpoint, unchanged local/global MPJPE formulas and full delay.",
+        "diagnostic_views": [
+          "Synthetic cache equivalence",
+          "Training-only geometry and load census"
+        ],
+        "same_prediction_parity": {
+          "artifact": "tests/test_streaming.py + tests/test_streaming_tracker.py; streaming_tests_v3.log",
+          "tolerance": "FP32 per-layer atol=rtol=1e-5",
+          "status": "hold",
+          "note": "C1 bounded CPU contract passed; GPU/long-stream not run; not a C0/C2 effectiveness result"
+        },
+        "negative_controls": [
+          "Timestamp structure destroyed while preserving observations/counts",
+          "Association identity shuffled at fixed event and compute budget"
+        ],
+        "decision_rule": "Debug all pass before screening; final acceptance requires all original thresholds."
+      },
+      "priority_score": 71.0
+    },
+    {
+      "id": "O02",
+      "label": "C2 conditional visibility association correction",
+      "question": "C2 conditional visibility association correction improves which verified limitation?",
+      "rationale": "Prior mixed-sign interventions and geometry failure keep necessity unresolved.",
+      "derived_from": [
+        "N07",
+        "N08",
+        "N10"
+      ],
+      "scores": {
+        "importance": 4,
+        "gap_confidence": 2,
+        "feasibility": 2,
+        "novelty": 1,
+        "information_gain": 4,
+        "leverage": 2
+      },
+      "score_justifications": {
+        "importance": "All target the explicit input/latency/accuracy constraints.",
+        "gap_confidence": "See known contract violations versus unverified scientific mechanism in cited nodes.",
+        "feasibility": "CPU minimal Debug is feasible; GPU budget and independent data pending.",
+        "novelty": "Prior art covers main components; low score is deliberate.",
+        "information_gain": "Parity and nuisance-preserving controls can kill a mechanism cheaply.",
+        "leverage": "Causal contracts and latency instrumentation are reusable."
+      },
+      "assumptions": [
+        "Independent validation data availability is unresolved.",
+        "No final metric may be substituted by a diagnostic subset."
+      ],
+      "falsifier": "Same-observation parity fails, or matched temporal/association destruction retains claimed gain.",
+      "next_step": "Close burst handling; obtain GPU budget and test complete load/long-stream contracts; no training until mandatory gates pass.",
+      "gate_status": "hold",
+      "evidence_ids": [
+        "N07",
+        "N08",
+        "N10"
+      ],
+      "validation_contract": {
+        "official_view": "Frozen causal input, same checkpoint, unchanged local/global MPJPE formulas and full delay.",
+        "diagnostic_views": [
+          "Synthetic cache equivalence",
+          "Training-only geometry and load census"
+        ],
+        "same_prediction_parity": {
+          "artifact": "tests/test_streaming.py + tests/test_streaming_tracker.py; streaming_tests_v3.log",
+          "tolerance": "FP32 per-layer atol=rtol=1e-5",
+          "status": "hold",
+          "note": "C1 bounded CPU contract passed; GPU/long-stream not run; not a C0/C2 effectiveness result"
+        },
+        "negative_controls": [
+          "Timestamp structure destroyed while preserving observations/counts",
+          "Association identity shuffled at fixed event and compute budget"
+        ],
+        "decision_rule": "Debug all pass before screening; final acceptance requires all original thresholds."
+      },
+      "priority_score": 53.0
+    }
+  ]
+}

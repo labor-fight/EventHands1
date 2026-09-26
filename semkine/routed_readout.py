@@ -90,6 +90,93 @@ def route_front_vertex_lbs(px: torch.Tensor, py: torch.Tensor, mask: torch.Tenso
     return a, d_out, v_out
 
 
+def surface_patches(v_template: torch.Tensor, n_patches: int = 64) -> torch.Tensor:
+    """`(V,)` long: a fixed partition of the MANO vertices into `n_patches` surface patches --
+    deterministic farthest-point sampling on the rest-pose template (start at vertex 0), every
+    vertex assigned to its nearest centre. A property of the asset, independent of the state."""
+    P = v_template.detach().float().cpu()
+    centres = [0]
+    dmin = (P - P[0]).norm(dim=1)
+    for _ in range(int(n_patches) - 1):
+        nxt = int(dmin.argmax())
+        centres.append(nxt)
+        dmin = torch.minimum(dmin, (P - P[nxt]).norm(dim=1))
+    return torch.cdist(P, P[centres]).argmin(1)
+
+
+#: channels per patch of the coverage map: routed-node share, visible-vertex share, band-node
+#: share, mean band offset (du, dv) in bands; plus one global channel (visible fraction)
+COVMAP_CHANNELS = 5
+
+
+def coverage_map(px: torch.Tensor, py: torch.Tensor, mask: torch.Tensor, dist: torch.Tensor,
+                 vid: torch.Tensor, uv: torch.Tensor, vis: torch.Tensor, patch: torch.Tensor,
+                 band_px: float, n_patches: int, edge_px: float = 2.0
+                 ) -> Tuple[torch.Tensor, torch.Tensor]:
+    r"""S39. The footprint comparison the root needs, on the surface: per patch, where the routed
+    events are against where the visible prev surface is.
+
+    For patch `k` (a fixed set of vertices, `surface_patches`):
+
+        share_k  = #routed live nodes whose vertex is in k / #routed live nodes
+        vis_k    = #visible vertices in k / #visible vertices
+        band_k   = #routed nodes in k farther than `edge_px` from their vertex / #routed nodes
+        (du, dv)_k = mean pixel offset (node - vertex) of those band nodes / band_px
+
+    plus one global scalar, #visible vertices / V. `share_k - vis_k` is the discrepancy between
+    the event footprint and the prev footprint on that patch: a rotation or translation error of
+    prev shows up as an antisymmetric pattern over the patches (events pile up on one side, the
+    surface is bare on the other), which the per-joint mean/max/coverage pool averages away.
+    Every channel is evidence x visibility: a packet that routes nothing gives exactly zero
+    (`any_routed` = 0), and no geometric quantity enters additively.
+
+    Measured before it was built (debug session 2026-09-21, routed 3407, zgz closed loop): a ridge
+    readout of these 257 numbers removes a third of the root rotation error the loop carries
+    (10.5 -> 6.9 deg, cos 0.82) and two thirds of the x/y translation error (R^2 0.66 / 0.75) on
+    the dense sequence; the root head of the routed arm removes none (10.6 -> 10.7 deg).
+
+    px, py: `(B, N)` node pixels; mask: `(B, N)` live; dist, vid: `(B, N)` from
+    `route_front_vertex_lbs`; uv: `(B, V, 2)`; vis: `(B, V)` bool visible vertices;
+    patch: `(V,)` long. Returns `(feat (B, n_patches * COVMAP_CHANNELS + 1) float32,
+    any_routed (B, 1) float32)`.
+    """
+    B, N = mask.shape
+    V = vis.shape[1]
+    K = int(n_patches)
+    dev = px.device
+    routed = (dist <= float(band_px)) & mask.bool()                                   # (B, N)
+    routed_f = routed.to(torch.float32)
+    pk = patch.to(dev)[vid.clamp(0, V - 1)]                                            # (B, N)
+    boff = torch.arange(B, device=dev).unsqueeze(1) * K
+    key = (pk + boff).reshape(-1)
+    n_routed = routed_f.sum(1)                                                          # (B,)
+    share = torch.zeros(B * K, device=dev, dtype=torch.float32)
+    share.index_add_(0, key, routed_f.reshape(-1))
+    share = share.view(B, K) / n_routed.clamp_min(1.0).unsqueeze(1)
+    vk = torch.zeros(B * K, device=dev, dtype=torch.float32)
+    vkey = (patch.to(dev).unsqueeze(0).expand(B, V) + boff).reshape(-1)
+    vk.index_add_(0, vkey, vis.to(torch.float32).reshape(-1))
+    n_vis = vis.to(torch.float32).sum(1)
+    vis_share = vk.view(B, K) / n_vis.clamp_min(1.0).unsqueeze(1)
+    band = routed & (dist >= float(edge_px))
+    band_f = band.to(torch.float32)
+    du = (px.float() - uv[..., 0].gather(1, vid.clamp(0, V - 1))) * band_f
+    dv = (py.float() - uv[..., 1].gather(1, vid.clamp(0, V - 1))) * band_f
+    bn = torch.zeros(B * K, device=dev, dtype=torch.float32)
+    bn.index_add_(0, key, band_f.reshape(-1))
+    bdu = torch.zeros(B * K, device=dev, dtype=torch.float32)
+    bdu.index_add_(0, key, du.reshape(-1))
+    bdv = torch.zeros(B * K, device=dev, dtype=torch.float32)
+    bdv.index_add_(0, key, dv.reshape(-1))
+    bn, bdu, bdv = bn.view(B, K), bdu.view(B, K), bdv.view(B, K)
+    band_share = bn / n_routed.clamp_min(1.0).unsqueeze(1)
+    mdu = bdu / bn.clamp_min(1.0) / float(band_px)
+    mdv = bdv / bn.clamp_min(1.0) / float(band_px)
+    any_routed = (n_routed > 0).to(torch.float32).unsqueeze(1)
+    feat = torch.cat([share, vis_share, band_share, mdu, mdv, (n_vis / V).unsqueeze(1)], dim=1)
+    return feat * any_routed, any_routed
+
+
 def pool_joint_evidence(h: torch.Tensor, a: torch.Tensor, mask: torch.Tensor
                         ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Per-joint evidence `(B, J, 2C+1)` = [weighted mean, hard-assignment max, coverage].

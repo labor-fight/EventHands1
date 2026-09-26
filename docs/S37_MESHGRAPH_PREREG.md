@@ -71,8 +71,7 @@ flowchart LR
 python -m pytest tests/test_s37_mesh_graph.py tests/test_s37_fk_graph.py -q                 # 12 + 9 项契约
 nohup tools/run_zgz_protocol.sh s37_meshgraph > logs/run_s37_meshgraph_outer.log 2>&1 &
 python tools/make_s36_row.py --run s37_meshgraph                                             # 主行
-python tools/make_s37_meshgraph_figure_simple.py                                             # 结构图 docs/assets/s37_meshgraph_simple.png
-python tools/make_s37_meshgraph_figure.py                                                    # 详细版 docs/assets/s37_meshgraph.png
+python tools/draw_s37_meshgraph_current.py                                                   # 结构图 docs/assets/s37_meshgraph_current_20260923.png
 CUDA_VISIBLE_DEVICES=6 python tools/run_closed_loop_probe.py --split val_core --prev-noise 0.5,1,2,4 \
     --out outputs/semkine/closed_loop_s37meshgraph_vs_fkgraph.json \
     --arm mg_3407=outputs/semkine/s37_meshgraph_s3407/s37_meshgraph_s3407-step=3000.ckpt:configs/semkine/s37_meshgraph_s3407.yaml \
@@ -107,9 +106,7 @@ CUDA_VISIBLE_DEVICES=4 python tools/probe_s37_meshgraph.py --grid --seq zgz_loca
 产物：`outputs/semkine/s37_meshgraph_s340{7,8}/selection_val_core_step50.json`、`s37_meshgraph_main_row.json`、`closed_loop_s37meshgraph_vs_fkgraph.json`、
 `probe_s37_meshgraph_rotdecomp.json`（`probe_s37_meshgraph_{sensitivity,local_trajectory,rot_decomp,grid_decomp}.json` 为同批临时探针的原始读数）；
 日志 `logs/s37_meshgraph_*`、`row_s37_meshgraph_zgzproto.log`、`closed_loop_s37meshgraph.log`、`probe_s37_meshgraph.log`。
-结构图 `docs/assets/s37_meshgraph_simple.png`（流程条模板，与 `s37_fkgraph_simple.png` 同款，橙框 = 相对 FK 图的改动；
-`tools/make_s37_meshgraph_figure_simple.py`）与 `docs/assets/s37_meshgraph.png`（详细版，`tools/make_s37_meshgraph_figure.py`）；
-画布上的数字全部从 config、模型与 JSON 读取。
+结构图 `docs/assets/s37_meshgraph_current_20260923.png`（`tools/draw_s37_meshgraph_current.py`）。
 
 | | fk_graph 3407 / 3408（均） | **meshgraph 3407 / 3408（均）** | 门槛 | 判定 |
 |---|---|---|---|---|
