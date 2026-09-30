@@ -342,7 +342,7 @@ class BaseModel(pl.LightningModule):
         under `no_grad` because it does not depend on the parameters.
         """
         if not (self.prev_render or self.routed or self.mesh_query or self.fk_graph
-                or getattr(self, "mesh_graph", False) or getattr(self, "event_guided_mesh", False)):
+                or getattr(self, "mesh_graph", False)):
             # `self.mano` only exists on the conditioning paths, and silently falling back to a
             # parameter-space ratio is the exact failure this docstring documents.
             raise ValueError("TRACK.GAIN_REG_W needs MODEL.PREV_RENDER, ROUTED_READOUT or "
@@ -383,24 +383,6 @@ class BaseModel(pl.LightningModule):
         state this one saw: `_maybe_unroll` and the dataset's noise are both random, and
         re-unpacking would silently compare two different conditioning states.
         """
-        if getattr(self, "egm_memory", False):
-            paired = (isinstance(batch, (tuple, list)) and len(batch) == 2
-                      and all(hasattr(part, "events") for part in batch))
-            if paired:
-                lead, main = batch
-                if (lead.prev_state.shape != main.prev_state.shape
-                        or not torch.equal(lead.sequence_id, main.sequence_id)
-                        or not torch.equal(lead.t_end_us, main.t_start_us)):
-                    raise ValueError("mesh-memory training requires consecutive packets from the same streams")
-                # A sample pair is an independent short rollout. Both pose and memory
-                # come from its lead prediction; main's teacher-forced prev is unused.
-                # Keep autograd through both packets, including the persistent memory.
-                lead_pred, state = self.track_packet(lead, node_state=None)
-                packed = dataclasses.replace(main, prev_state=lead_pred)
-                pred, _ = self.track_packet(packed, node_state=state)
-                return pred, packed.target, packed.betas, packed
-            if self.training:
-                raise ValueError("EGM_MEMORY training needs TRACK.UNROLL_PAIR=true and paired packets")
         packed = self._unpack_batch(self._maybe_unroll(batch))
         if hasattr(packed, "events"):
             pred = self.forward_packet(packed)
@@ -465,6 +447,11 @@ class BaseModel(pl.LightningModule):
             self.log("train_gain_rand", g2.detach().clamp_min(0).sqrt(), prog_bar=True,
                      sync_dist=True)
         self.log("train_loss", loss, prog_bar=True, sync_dist=True)
+        # region agent log
+        if getattr(self, "xyz_mesh", False) and int(self.global_step) % 100 == 0:
+            self._agent_last_loss = {"loss": float(loss.detach()), "mano": float(parts["mano_loss"].detach()),
+                                     "rot": float(parts["rot_loss"].detach()), "pos": float(parts["pos_loss"].detach())}
+        # endregion
         self.log("train_mano_loss", parts["mano_loss"], sync_dist=True)
         self.log("train_pos_loss", parts["pos_loss"], sync_dist=True)
         self.log("train_rot_loss", parts["rot_loss"], sync_dist=True)
@@ -498,7 +485,7 @@ class BaseModel(pl.LightningModule):
         first is expected to collapse; that collapse is hypothesis H1 of the pre-registration."""
         if not (getattr(self, "routed", False) or getattr(self, "mesh_query", False)
                 or getattr(self, "fk_graph", False) or getattr(self, "mesh_graph", False)
-                or getattr(self, "event_guided_mesh", False)):
+                or getattr(self, "xyz_mesh", False)):
             return
         for key, v in self.route_stats.items():
             self.log(f"{stage}_{key}", v, sync_dist=True, on_epoch=on_epoch)
@@ -520,10 +507,57 @@ class BaseModel(pl.LightningModule):
     #: `TRAIN.LR_SCHEDULE` values. `constant` is the historical warmup-then-flat path.
     LR_SCHEDULES = ("constant", "cosine")
 
+    # region agent log
+    def on_before_optimizer_step(self, optimizer, *args):
+        """Debug session 52fff1 (H6): per-module gradient norms every 100 optimizer steps, rank 0,
+        only when `EH_AGENT_LOG_52FFF1` names the log file (set by that session's launches only)."""
+        import os
+        path = os.environ.get("EH_AGENT_LOG_52FFF1")
+        trainer = getattr(self, "_trainer", None)
+        if not path or trainer is None or int(trainer.global_rank) != 0 or int(self.global_step) % 100:
+            return
+        import json
+        import time
+
+        def gn(params):
+            sq = [float(p.grad.detach().float().pow(2).sum()) for p in params if p.grad is not None]
+            return math.sqrt(sum(sq)) if sq else None
+
+        data = {"step": int(self.global_step)}
+        rf = getattr(self, "root_fusion_head", None)
+        if rf is not None and rf.w1.grad is not None:
+            data["root_part"] = [math.sqrt(sum(float(p.grad[j].float().pow(2).sum())
+                                               for p in (rf.w1, rf.b1, rf.w2, rf.b2)))
+                                 for j in range(rf.n_joints)]
+        if hasattr(self, "root_head"):
+            data["root_head"] = gn(self.root_head.parameters())
+        enc = getattr(self, "event_encoder", None)
+        if enc is not None and hasattr(enc, "layers"):
+            data["edgeconv"] = [gn(layer.parameters()) for layer in enc.layers]
+            data["embed"] = gn(enc.embed.parameters())
+            if getattr(enc, "readout", False):
+                data["proj"] = gn(enc.proj.parameters())
+        if hasattr(self, "joint_heads"):
+            data["joint_heads"] = gn(self.joint_heads.parameters())
+        if hasattr(self, "prev_mlp"):
+            data["prev_mlp"] = gn(self.prev_mlp.parameters())
+        m = trainer.callback_metrics
+        data["train_loss"] = float(m["train_loss"]) if "train_loss" in m else None
+        ts = int(time.time() * 1000)
+        with open(path, "a") as f:
+            f.write(json.dumps({"sessionId": "52fff1", "id": f"log_{ts}_H6", "timestamp": ts,
+                                "location": "model.py:on_before_optimizer_step",
+                                "message": "per-module grad norms (rank 0)", "data": data,
+                                "runId": os.environ.get("EH_AGENT_RUN_52FFF1", "train"),
+                                "hypothesisId": "H6"}) + "\n")
+    # endregion
+
     def configure_optimizers(self):
         tcfg = self.cfg.get("TRAIN", {})
         lr = float(tcfg.get("LR", 1e-3))
-        opt = optim.Adam(self.parameters(), lr=lr)
+        # Frozen parameters (TRAIN.TRAINABLE_PREFIXES) stay out of the optimiser; with nothing
+        # frozen this is every parameter in the same order as before.
+        opt = optim.Adam([p for p in self.parameters() if p.requires_grad], lr=lr)
         warmup = int(tcfg.get("WARMUP_STEPS", 0))
         schedule = str(tcfg.get("LR_SCHEDULE", "constant"))
         if schedule not in self.LR_SCHEDULES:
@@ -593,24 +627,25 @@ class MNISTModel(BaseModel):
     MODEL_KEYS = frozenset(
         {
             "BACKBONE", "POSE_REPR", "OUTPUT_DIM", "MANO_NCOMPS", "PREDICT_BETA",
-            "PREDICT_DELTA", "PREVPOS_EMBED", "PREV_RENDER", "ZERO_EVENT_GATE", "STATE_ACCUM_FP32",
+            "PREDICT_DELTA", "PREVPOS_EMBED", "PREV_RENDER", "ZERO_EVENT_GATE",
             "ROUTED_READOUT", "ROUTE_BAND_PX", "ROUTE_FRONT_K",
-            # S39: surface coverage map read by the root (docs/S39_COVMAP_PREREG.md)
-            "ROOT_COVMAP", "ROOT_COVMAP_PATCHES", "ROOT_COVMAP_HIDDEN", "ROOT_COVMAP_EDGE_PX",
+            # S37 root input fusion (docs/S37_EDGE6_ROOTFUSE_PREREG_20260929.md)
+            "ROOT_FUSION",
+            # S37 root innovation (docs/S37_ROOT_INNOVATION_PREREG.md)
+            "ROOT_INNOVATION", "ROOT_INNOV_HIDDEN", "ROOT_INNOV_WIDTH", "PREV_MLP_ROOT",
             "MESH_QUERY", "MESH_QUERY_TOKENS", "MESH_QUERY_BAND_PX", "MESH_QUERY_SIGMA_PX",
             "ENCODER_NODE_ATTRS",
             "FK_GRAPH_VERTS", "FK_GRAPH_BAND_PX", "FK_GRAPH_K", "FK_GRAPH_NODE_ID",
             "MESH_GRAPH_BAND_PX", "MESH_GRAPH_FRONT_PX", "MESH_GRAPH_Z_TOL",
             "MESH_GRAPH_OBS_FLOW", "MESH_GRAPH_NODE_ID",
-            "EGM_CANDIDATES", "EGM_EVENT_WEIGHT", "EGM_GEOMETRY_SCALE",
-            "EGM_MEMORY", "EGM_GEOMETRY_NEIGHBORS",
+            # S37-XYZ (docs/S37_XYZ_SCREEN_PREREG_20260929.md)
+            "XYZ_BAND_PX", "XYZ_FRONT_PX", "XYZ_Z_TOL", "XYZ_K", "XYZ_GEOM", "XYZ_REL_HIDDEN",
+            "XYZ_SLOT_DIM", "XYZ_READOUT_HIDDEN",
             "RENDER_CHANNELS", "RENDER_H", "RENDER_W", "RENDER_SCALE",
             "RENDER_CHUNK", "RENDER_DEPTH_TOL", "INIT_FROM",
             "ACTIVE_HEAD", "ACTIVE_FEAT_DIM", "ACTIVE_HIDDEN",
             "ENCODER", "ENCODER_HIDDEN", "ENCODER_FEAT", "ENCODER_CELL", "ENCODER_LAYERS",
             "ENCODER_K", "ENCODER_MAX_NODES", "ENCODER_WINDOW", "ENCODER_T_SCALE",
-            # X1: time weight of the `event_hier` neighbour metric (research_state/lit/CANDIDATES.md)
-            "ENCODER_HIER_T_PX",
             "DISTILL_WEIGHT", "DISTILL_CKPT",
         }
     )
@@ -669,8 +704,6 @@ class MNISTModel(BaseModel):
         self.gain_reg_w = float(track_cfg.get("GAIN_REG_W", 0.0))
         self.gain_reg_scale = float(track_cfg.get("GAIN_REG_SCALE", 1.0))
         self.predict_delta = bool(model_cfg.get("PREDICT_DELTA", False))
-        # Opt-in AMP update boundary; keep historical S37 arithmetic by default.
-        self.state_accum_fp32 = bool(model_cfg.get("STATE_ACCUM_FP32", False))
         self.prevpos_embed = bool(model_cfg.get("PREVPOS_EMBED", False))
         self.prev_render = bool(model_cfg.get("PREV_RENDER", False))
         # S37 (routed readout, 2026-09-07). The graph stays state-free; the previous state enters
@@ -682,18 +715,15 @@ class MNISTModel(BaseModel):
         self.routed = bool(model_cfg.get("ROUTED_READOUT", False))
         self.route_band_px = float(model_cfg.get("ROUTE_BAND_PX", 16.0))
         self.route_front_k = int(model_cfg.get("ROUTE_FRONT_K", 8))
-        # S39 (2026-09-21, from the debug session on the routed arm). The root additionally reads
-        # a surface coverage map: over a fixed partition of the MANO vertices into patches, where
-        # the routed events are against where the visible prev surface is
-        # (`semkine.routed_readout.coverage_map`). The per-joint pool keeps only mean / max /
-        # coverage per part, which averages away the antisymmetric footprint pattern a wrong root
-        # rotation or translation leaves; the map keeps it. Fingers do not read it.
-        self.root_covmap = bool(model_cfg.get("ROOT_COVMAP", False))
-        if self.root_covmap and not self.routed:
-            raise ValueError("ROOT_COVMAP is a readout of the routed arm; it needs ROUTED_READOUT")
-        self.covmap_patches = int(model_cfg.get("ROOT_COVMAP_PATCHES", 64))
-        self.covmap_hidden = int(model_cfg.get("ROOT_COVMAP_HIDDEN", 128))
-        self.covmap_edge_px = float(model_cfg.get("ROOT_COVMAP_EDGE_PX", 2.0))
+        # How the root reads the routed evidence. `concat` is S37: one linear map of
+        # [f; e_0 .. e_15]. `per_joint` (2026-09-29, the user's variant): joint j's evidence is fused
+        # with the pooled vector by its own MLP, [f; e_j] -> ACTIVE_HIDDEN -> 6, and the sixteen
+        # outputs are summed into the root update.
+        self.root_fusion = str(model_cfg.get("ROOT_FUSION", "concat")).lower()
+        if self.root_fusion not in ("concat", "per_joint"):
+            raise ValueError(f"MODEL.ROOT_FUSION must be concat or per_joint, got {self.root_fusion!r}")
+        if self.root_fusion == "per_joint" and not self.routed:
+            raise ValueError("ROOT_FUSION: per_joint fuses the routed joint evidence; it needs ROUTED_READOUT")
         # S37 mesh query (2026-09-07, the user's design). The previous state enters in one form
         # only -- its FK mesh -- and the mesh reads the graph: fixed query vertices gather node
         # features, the graph's edge (local motion) summary and event offsets inside a fixed
@@ -755,27 +785,16 @@ class MNISTModel(BaseModel):
         if self.mesh_graph and not self.active_head:
             raise ValueError("ENCODER=mesh_graph decodes joints from pooled vertex evidence; "
                              "it needs ACTIVE_HEAD")
-        # The confirmed hand-drawn architecture: all 778 vertices remain nodes, while the
-        # incoming packet reorders their 3D neighbour candidates. Only LBS-pooled joint
-        # features reach the delta heads; previous angles and background have no bypass.
-        self.event_guided_mesh = self.encoder_name == "event_guided_mesh"
-        self.egm_memory = bool(model_cfg.get("EGM_MEMORY", False))
-        if self.egm_memory and not self.event_guided_mesh:
-            raise ValueError("EGM_MEMORY requires ENCODER=event_guided_mesh")
-        if self.egm_memory and (self.unroll_p != 0 or self.unroll_residual
-                                or self.gain_reg_w != 0):
-            raise ValueError("EGM_MEMORY uses an explicit two-packet rollout; legacy UNROLL_P, "
-                             "UNROLL_RESIDUAL and GAIN_REG_W must be disabled")
-        if self.event_guided_mesh:
-            if self.prev_render or self.routed or self.mesh_query or self.prevpos_embed:
-                raise ValueError("ENCODER=event_guided_mesh uses the previous state through "
-                                 "MANO geometry only; PREVPOS_EMBED, PREV_RENDER, "
-                                 "ROUTED_READOUT and MESH_QUERY must be false")
-            if not (self.active_head and self.predict_delta and self.zero_event_gate):
-                raise ValueError("ENCODER=event_guided_mesh requires ACTIVE_HEAD, "
-                                 "PREDICT_DELTA and ZERO_EVENT_GATE")
-            if self.output_dim != 51 or model_cfg.get("POSE_REPR") != "mano_full_axis_angle":
-                raise ValueError("ENCODER=event_guided_mesh requires the 51D MANO axis-angle state")
+        # S37-XYZ (2026-09-29, the user's drawing). prev's full mesh in camera XYZ, events associated
+        # along their rays, a shared relation encoder, one MeshGNN on the face 1-ring gated by the 3D
+        # edges, 16 LBS slots + the residual slot, one common readout that also reads prev[3:51] and
+        # writes the only 51D delta (`semkine.xyz_mesh`). No EventGNN, no prev_mlp, no per-joint heads.
+        self.xyz_mesh = self.encoder_name == "xyz_mesh"
+        if self.xyz_mesh and (self.prev_render or self.routed or self.mesh_query):
+            raise ValueError("ENCODER=xyz_mesh is the only conditioning path of its arm")
+        if self.xyz_mesh and (self.prevpos_embed or bool(model_cfg.get("ACTIVE_HEAD", False))):
+            raise ValueError("ENCODER=xyz_mesh has one common readout: set PREVPOS_EMBED and "
+                             "ACTIVE_HEAD false")
         self.distill_weight = float(model_cfg.get("DISTILL_WEIGHT", 0.0))
         self.teacher = None
         hid = int(model_cfg.get("ACTIVE_HIDDEN", 64))
@@ -802,41 +821,6 @@ class MNISTModel(BaseModel):
                               nn.Linear(hid, 3))
                 for _ in range(15)
             ])
-        elif self.event_guided_mesh:
-            from semkine.event_guided_mesh import EventGuidedMeshEncoder
-            self._build_mano(model_cfg)
-            hidden = int(model_cfg.get("ENCODER_HIDDEN", 128))
-            self.mg_band_px = float(model_cfg.get("MESH_GRAPH_BAND_PX", 16.0))
-            self.mg_front_px = float(model_cfg.get("MESH_GRAPH_FRONT_PX", 1.0))
-            self.mg_z_tol = float(model_cfg.get("MESH_GRAPH_Z_TOL", 0.01))
-            if self.mg_band_px <= 0 or self.mg_front_px < 0 or self.mg_z_tol < 0:
-                raise ValueError("event_guided_mesh needs a positive association band and "
-                                 "non-negative visibility tolerances")
-            self.event_encoder = EventGuidedMeshEncoder(
-                self.mano.weights, hidden=hidden,
-                n_layers=int(model_cfg.get("ENCODER_LAYERS", 3)),
-                k=int(model_cfg.get("ENCODER_K", 8)),
-                candidates=int(model_cfg.get("EGM_CANDIDATES", 32)),
-                event_weight=float(model_cfg.get("EGM_EVENT_WEIGHT", 1.0)),
-                geometry_scale=float(model_cfg.get("EGM_GEOMETRY_SCALE", 0.02)),
-                memory=self.egm_memory,
-                geometry_neighbors=int(model_cfg.get("EGM_GEOMETRY_NEIGHBORS", 0)))
-            self.conv1 = None
-            self.rn = None
-            self.root_head = nn.Sequential(
-                nn.Linear(16 * hidden, hid), nn.ReLU(inplace=True), nn.Linear(hid, 6))
-            self.joint_heads = nn.ModuleList([
-                nn.Sequential(nn.Linear(hidden, hid), nn.ReLU(inplace=True), nn.Linear(hid, 3))
-                for _ in range(15)
-            ])
-            if self.egm_memory:
-                # A random metre-scale first prediction could move the lead mesh out
-                # of view before the main packet can teach the recurrent encoder.
-                # Begin near the identity while retaining a nonzero gradient path.
-                with torch.no_grad():
-                    for head in [self.root_head, *self.joint_heads]:
-                        head[-1].weight.mul_(1e-3)
-                        head[-1].bias.zero_()
         elif self.mesh_graph:
             from semkine.fk_graph import OBS_DIM, FKGraphEncoder
             from semkine.mesh_graph import MeshGraphSpec
@@ -865,6 +849,25 @@ class MNISTModel(BaseModel):
                               nn.Linear(hid, 3))
                 for _ in range(15)
             ])
+        elif self.xyz_mesh:
+            from semkine.xyz_mesh import XYZMeshNet
+            self._build_mano(model_cfg)
+            assert self.output_dim == 51 and self.predict_delta, "xyz_mesh writes a 51D delta"
+            self.xyz_band_px = float(model_cfg.get("XYZ_BAND_PX", 16.0))
+            self.xyz_front_px = float(model_cfg.get("XYZ_FRONT_PX", 3.0))
+            self.xyz_z_tol = float(model_cfg.get("XYZ_Z_TOL", 0.01))
+            self.xyz_k = int(model_cfg.get("XYZ_K", 16))
+            self.xyz_max_nodes = int(model_cfg.get("ENCODER_MAX_NODES", 2048))
+            self.xyz = XYZMeshNet(
+                self.mano.weights, self.mano.f,
+                hidden=int(model_cfg.get("ENCODER_HIDDEN", 128)),
+                n_layers=int(model_cfg.get("ENCODER_LAYERS", 3)),
+                rel_hidden=int(model_cfg.get("XYZ_REL_HIDDEN", 64)),
+                slot_dim=int(model_cfg.get("XYZ_SLOT_DIM", 32)),
+                readout_hidden=int(model_cfg.get("XYZ_READOUT_HIDDEN", 256)),
+                geom=bool(model_cfg.get("XYZ_GEOM", True)))
+            self.conv1 = None
+            self.rn = None
         elif self.encoder_name:
             # S2 / S16. The dense conv trunk is not built: a raw-event encoder that still
             # allocated a resnet would be LNES with extra copies, and INIT_FROM would silently
@@ -894,9 +897,6 @@ class MNISTModel(BaseModel):
                 t_scale=float(model_cfg.get("ENCODER_T_SCALE", 1.0)),
                 node_attrs=str(model_cfg.get("ENCODER_NODE_ATTRS", "token7")),
                 readout=not self.mesh_query,
-                # X1 `event_hier`: pixels one packet-length of time is worth in its spatial k-NN
-                # metric `(x_px, y_px, t_norm * T_PX)`. Picked by that frontend only.
-                t_px=float(model_cfg.get("ENCODER_HIER_T_PX", 10.0)),
             )
             self.conv1 = None
             self.rn = None
@@ -916,14 +916,11 @@ class MNISTModel(BaseModel):
                     if self.routed:
                         # evidence per joint = [weighted mean, max, coverage] over node features
                         ev_dim = 2 * hidden + 1
-                        root_in = feat + 16 * ev_dim
-                        if self.root_covmap:
-                            from semkine.routed_readout import COVMAP_CHANNELS
-                            cov_in = self.covmap_patches * COVMAP_CHANNELS + 1
-                            self.covmap_mlp = nn.Sequential(
-                                nn.Linear(cov_in, self.covmap_hidden), nn.ReLU(inplace=True))
-                            root_in += self.covmap_hidden
-                        self.root_head = nn.Linear(root_in, 6)
+                        if self.root_fusion == "per_joint":
+                            from semkine.routed_readout import PerJointRootFusion
+                            self.root_fusion_head = PerJointRootFusion(feat, ev_dim, hid)
+                        else:
+                            self.root_head = nn.Linear(feat + 16 * ev_dim, 6)
                         head_in = ev_dim
                     else:
                         self.root_head = nn.Linear(feat, 6)
@@ -964,27 +961,12 @@ class MNISTModel(BaseModel):
                                                      and self.active_head):
             raise ValueError("ROUTED_READOUT / MESH_QUERY read event_gnn node features into the "
                              "active joint heads; they need MODEL.ENCODER=event_gnn and ACTIVE_HEAD")
-        if self.state_accum_fp32 and not (self.encoder_name == "event_gnn"
-                                          and self.routed and self.predict_delta):
-            raise ValueError("STATE_ACCUM_FP32 requires routed event_gnn delta prediction")
         self._ctx_betas = None
         self._ctx_K = None
         if self.prev_render or self.routed or self.mesh_query:
             self._build_mano(model_cfg)
-        if self.loss_type == "so3_trans_fk":
-            # X1: an absolute arm has no conditioning path, but its SO(3)+FK loss still decodes
-            # through MANO. `_build_mano` returns early when a path above already built it, so every
-            # existing arm keeps its module tree and state_dict keys.
-            self._build_mano(model_cfg)
         if self.prev_render:
             self._register_vertex_codes()
-        if self.root_covmap:
-            from semkine.routed_readout import surface_patches
-            self.register_buffer("covmap_patch",
-                                 surface_patches(self.mano.v_template, self.covmap_patches),
-                                 persistent=False)
-            #: set at inference to zero the coverage map alone (the S39 mechanism gate)
-            self.ablate_covmap = False
         if self.mesh_query:
             from semkine.mesh_query import MeshQuery
             self.mesh_query_mod = MeshQuery(
@@ -995,7 +977,7 @@ class MNISTModel(BaseModel):
                 node_dim=int(model_cfg.get("ENCODER_HIDDEN", 128)),
                 edge_dim=self.event_encoder.EDGE_SUMMARY_DIM,
             )
-        if self.routed or self.mesh_query or self.fk_graph or self.mesh_graph or self.event_guided_mesh:
+        if self.routed or self.mesh_query or self.fk_graph or self.mesh_graph or self.xyz_mesh:
             #: diagnostics of the last `forward_packet`, for the training loop and the probes
             self.route_stats = {}
             #: set at inference to zero every evidence vector (fk_graph: every observation), for
@@ -1006,9 +988,36 @@ class MNISTModel(BaseModel):
             #: else still sees the packet's prev. This is the "oracle routing" arm of the
             #: closed-loop shortcut test.
             self.route_prev_override = None
-        if self.fk_graph or self.mesh_graph or self.event_guided_mesh:
+        if self.fk_graph or self.mesh_graph:
             #: probe-only: `(obs_dim,)` 0/1 mask over the observation channels (H6 sufficiency)
             self.obs_feature_mask = None
+        # S37 root innovation (2026-09-29, docs/S37_ROOT_INNOVATION_PREREG.md). A second root path
+        # that reads where the events sit relative to prev's projected silhouette, with prev's part
+        # lever arms multiplying that residual (`semkine.root_innovation`); and the option to drop
+        # the event-blind `prev_mlp` pull on the six root dimensions.
+        self.root_innovation = bool(model_cfg.get("ROOT_INNOVATION", False))
+        self.prev_mlp_root = bool(model_cfg.get("PREV_MLP_ROOT", True))
+        if self.root_innovation:
+            if not (self.routed and self.active_head):
+                raise ValueError("ROOT_INNOVATION reads the S37 routing; it needs ROUTED_READOUT")
+            if self.root_fusion != "concat":
+                raise ValueError("ROOT_INNOVATION adds to the S37 concat root head; set ROOT_FUSION: concat")
+            from semkine.root_innovation import RootInnovationHead
+            self.root_innov_head = RootInnovationHead(
+                hidden=int(model_cfg.get("ROOT_INNOV_HIDDEN", 32)),
+                width=int(model_cfg.get("ROOT_INNOV_WIDTH", 16)))
+            #: set at inference to zero the innovation features (the arm's mechanism ablation)
+            self.ablate_innovation = False
+        if not self.prev_mlp_root and not self.prevpos_embed:
+            raise ValueError("PREV_MLP_ROOT: false only means something with PREVPOS_EMBED")
+        # Stage-1 training of an arm on a frozen trunk: only parameters under these prefixes train.
+        prefixes = (self.cfg.get("TRAIN", {}) or {}).get("TRAINABLE_PREFIXES")
+        if prefixes:
+            prefixes = tuple(str(p) for p in prefixes)
+            for name, p in self.named_parameters():
+                p.requires_grad_(name.startswith(prefixes))
+            if not any(p.requires_grad for p in self.parameters()):
+                raise ValueError(f"TRAIN.TRAINABLE_PREFIXES {list(prefixes)} match no parameter")
 
     def _build_mano(self, model_cfg):
         """The MANO layer plus the render-frame intrinsics every conditioning path projects with."""
@@ -1205,7 +1214,7 @@ class MNISTModel(BaseModel):
         ]
         return torch.cat(out, dim=0)
 
-    def _decode_active(self, feat, prevpos, evidence=None, root_extra=None):
+    def _decode_active(self, feat, prevpos, evidence=None, root_extra=None, root_add=None):
         """Assemble the 51D output from the root head and the fifteen joint decoders.
 
         Without `evidence`, every decoder reads the shared pooled vector and its own joint's
@@ -1213,7 +1222,10 @@ class MNISTModel(BaseModel):
         decoder `k` reads evidence row `k + 1` -- its own joint's routed nodes, and nothing else
         from the events -- while the root reads the pooled vector (when there is one), all sixteen
         rows in joint order (a permutation-invariant pool over parts would cancel a rotational
-        offset field) and, for the FK graph, the background node (`root_extra`).
+        offset field) and, for the FK graph, the background node (`root_extra`). With
+        `ROOT_FUSION: per_joint` the root is instead the sum of sixteen per-joint MLPs, head j
+        reading `[f; e_j]` (`semkine.routed_readout.PerJointRootFusion`); the heads keep their own
+        weights, so the sum stays joint-ordered.
 
         The fifteen decoders are executed as a Python loop on purpose. Batching them into one
         `baddbmm` computes the same math ~0.7 ms faster per recursive step, but the different
@@ -1224,12 +1236,16 @@ class MNISTModel(BaseModel):
         ref = feat if feat is not None else evidence
         if evidence is None:
             root = self.root_head(feat)
+        elif self.root_fusion == "per_joint":
+            root = self.root_fusion_head(feat, evidence.to(ref.dtype))
         else:
             evidence = evidence.to(ref.dtype)
             parts = ([feat] if feat is not None else []) + [evidence.flatten(1)]
             if root_extra is not None:
                 parts.append(root_extra.to(ref.dtype))
             root = self.root_head(torch.cat(parts, dim=-1))
+        if root_add is not None:
+            root = root + root_add.to(root.dtype)
         prev = prevpos.to(ref.dtype)
         cols = [root]
         for k, head in enumerate(self.joint_heads):
@@ -1279,70 +1295,6 @@ class MNISTModel(BaseModel):
         h = self.event_encoder(obs)                                                  # (B, N, hidden)
         return h[:, :16], h[:, -1]
 
-    def _event_guided_mesh_forward(self, batch, prev, node_state=None, return_state=False):
-        """Use packet E_k to update the graph on all vertices of MANO(prev_{k-1}).
-
-        k is a recurrence step; physical window/pose indexing follows the dataset.
-        `target` never enters this path. Visibility controls the 2D-to-3D observation
-        association, not the set of graph nodes. Off-hand events do not have a decoder
-        bypass. The encoder retains all 778 vertices, rebuilds the edges per packet and
-        pools their convolved features to sixteen joints using the MANO LBS weights.
-        """
-        from semkine.fk_graph import assign_and_observe
-        from semkine.mesh_graph import (assign_events_by_lut, nearest_node_lut,
-                                        visible_vertices)
-        prev_geo = prev if self.route_prev_override is None else \
-            self.route_prev_override.to(prev.device, prev.dtype)
-        betas_f, k_f = self._resolve_betas_K(prev_geo, batch.betas, batch.camera_K)
-        with torch.no_grad(), torch.autocast(device_type=prev.device.type, enabled=False):
-            verts, _ = self._fk(prev_geo.float(), betas_f.float())
-            uv, z = self._project_verts(verts, k_f)
-            vis = visible_vertices(verts, uv, z, self.mano.f, self.render_h, self.render_w,
-                                   self.mg_front_px, self.mg_z_tol)
-            lut = nearest_node_lut(uv, vis, self.render_h, self.render_w, self.mg_band_px)
-            assign = assign_events_by_lut(batch.events, lut, background=verts.shape[1])
-            observations, _ = assign_and_observe(
-                batch.events, batch.ptr, uv, batch.delta_t_s, self.mg_band_px, assign_pre=assign)
-            observations = observations[:, :verts.shape[1], :6]
-        if self.obs_feature_mask is not None:
-            if self.egm_memory and bool(self.obs_feature_mask.reshape(-1)[0] <= 0):
-                raise ValueError("EGM_MEMORY count-feature masking would erase observation availability; "
-                                 "use ablate_evidence for an explicit no-observation check")
-            observations = observations * self.obs_feature_mask.to(observations).view(1, 1, -1)
-        if self.ablate_evidence:
-            observations = torch.zeros_like(observations)
-        if return_state:
-            if not self.egm_memory:
-                raise RuntimeError("node-state output requires EGM_MEMORY")
-            evidence, joint_support, next_state = self.event_encoder.forward_step(
-                observations, verts, state=node_state)
-        else:
-            if node_state is not None:
-                raise ValueError("use track_packet to carry vertex memory")
-            evidence, joint_support = self.event_encoder(observations, verts)
-        self.route_stats = {
-            "route_frac_routed": (assign < verts.shape[1]).float().mean()
-                if assign.numel() else observations.new_zeros(()),
-            "route_joints_hit": joint_support.sum(1).float().mean(),
-            "egm_frac_observed": (observations[..., 0] > 0).float().mean(),
-        }
-        if return_state:
-            return evidence, joint_support, next_state
-        return evidence, joint_support
-
-    def _decode_event_guided_mesh(self, evidence, joint_support):
-        """The sixteen pooled features are the only inputs to the 51D delta predictor."""
-        root = self.root_head(evidence.flatten(1))
-        root = root * joint_support.any(1, keepdim=True).to(root.dtype)
-        cols = [root]
-        for k, head in enumerate(self.joint_heads):
-            finger = head(evidence[:, k + 1])
-            gate = joint_support[:, k + 1:k + 2].to(finger.dtype)
-            if self.ablate_joint_heads:
-                gate = torch.zeros_like(gate)
-            cols.append(finger * gate)
-        return torch.cat(cols, dim=-1)
-
     def _mesh_graph_forward(self, batch, prev):
         """S37 mesh graph: FK of `prev` -> 778 projected vertices and their visibility -> events
         handed to the nearest visible vertex and summarised per node -> EdgeConv on the mesh ->
@@ -1383,6 +1335,104 @@ class MNISTModel(BaseModel):
         self.route_stats["route_joints_hit"] = (count > 0).sum(1).float().mean()
         return e, h[:, -1]
 
+    def _xyz_mesh_forward(self, batch, prev):
+        """S37-XYZ: FK of `prev` in camera XYZ, event rays through the render-frame intrinsics
+        (`_intrinsics`, the same `s K` the events live in, per sample under domrand), the ray/mesh
+        association, then the three learned modules of `semkine.xyz_mesh`. Returns the 51D delta."""
+        from semkine.encoder import event_tokens
+        from semkine.events import EV_X, EV_Y
+        from semkine.xyz_mesh import associate_rays, stride_sample
+        events, ptr = batch.events, batch.ptr
+        B = int(ptr.numel() - 1)
+        if events.shape[0] == 0:
+            self.route_stats = {}
+            return prev.new_zeros(B, 51)
+        prev_geo = prev if self.route_prev_override is None else \
+            self.route_prev_override.to(prev.device, prev.dtype)
+        betas_f, k_f = self._resolve_betas_K(prev_geo, batch.betas, batch.camera_K)
+        src, mask = stride_sample(ptr, self.xyz_max_nodes)
+        tok = event_tokens(events, ptr, batch.delta_t_s, self.render_h, self.render_w)
+        tok = tok[src.reshape(-1)].view(B, -1, tok.shape[-1]) * mask.unsqueeze(-1)
+        with torch.no_grad():
+            verts, _ = self._fk(prev_geo.float(), betas_f)                           # (B, 778, 3)
+            fx, fy, cx, cy = self._intrinsics(k_f)
+            ev = events[src.reshape(-1)].view(B, -1, events.shape[1])
+            px, py = ev[..., EV_X].float(), ev[..., EV_Y].float()
+            d = torch.stack([(px - cx[:, None]) / fx[:, None], (py - cy[:, None]) / fy[:, None],
+                             torch.ones_like(px)], dim=-1)
+            f_px = (fx * fy).sqrt()
+            assoc = associate_rays(d, mask, verts, self.mano.f, self.xyz.vert_faces,
+                                   band=self.xyz_band_px / f_px, front_tol=self.xyz_front_px / f_px,
+                                   z_tol=self.xyz_z_tol, k=self.xyz_k)
+        delta, stats, aux = self.xyz(tok, d, mask, verts, assoc, prev[:, 3:51],
+                                     ablate=self.ablate_evidence)
+        self.route_stats = stats
+        if getattr(self, "xyz_keep_aux", False):
+            #: probe-only: the association and the pooled slots of the last packet batch
+            self.xyz_last = {"assoc": assoc, "d": d, "mask": mask, "verts": verts, "tok": tok,
+                             "delta": delta.detach(), **{k: v.detach() for k, v in aux.items()}}
+        # region agent log
+        if self.training and self._agent_should_log():
+            from semkine.xyz_mesh import agent_log
+            with torch.no_grad():
+                rot_gap = (prev[:, 3:6] - batch.target[:, 3:6]).norm(dim=-1)            # rad, prev vs GT
+                big = rot_gap >= 0.25
+                live = mask.float()
+
+                def frac(x, sel):
+                    den = (live * sel[:, None]).sum()
+                    return float((x.float() * live * sel[:, None]).sum() / den.clamp_min(1)) if den > 0 else None
+                agent_log("H2", "model.py:_xyz_mesh_forward", "association stats (train batch)", {
+                    "step": int(self.global_step), "B": B, "geom": bool(self.xyz.geom),
+                    "valid_all": frac(assoc["valid"], torch.ones_like(big)),
+                    "hit_all": frac(assoc["hit"], torch.ones_like(big)),
+                    "valid_small_gap": frac(assoc["valid"], ~big), "hit_small_gap": frac(assoc["hit"], ~big),
+                    "valid_big_gap": frac(assoc["valid"], big), "hit_big_gap": frac(assoc["hit"], big),
+                    "share_big_gap": float(big.float().mean()),
+                    "resid_mass": float(stats["xyz_resid_mass"]),
+                    "verts_direct": float(stats["xyz_verts_direct"]), "verts_prop": float(stats["xyz_verts_prop"]),
+                    "delta_abs_mean": {"t": float(delta[:, :3].float().abs().mean()),
+                                       "rot": float(delta[:, 3:6].float().abs().mean()),
+                                       "pose": float(delta[:, 6:].float().abs().mean())},
+                })
+        # endregion
+        return delta
+
+    # region agent log
+    def _agent_should_log(self) -> bool:
+        trainer = getattr(self, "_trainer", None)
+        if trainer is None or int(getattr(trainer, "global_rank", 0)) != 0:
+            return False
+        step = int(self.global_step)
+        if step % 100 != 0 or getattr(self, "_agent_last_step", -1) == step:
+            return False
+        self._agent_last_step = step
+        return True
+
+    def on_after_backward(self):
+        if not getattr(self, "xyz_mesh", False):
+            return
+        trainer = getattr(self, "_trainer", None)
+        step = int(self.global_step)
+        if trainer is None or int(trainer.global_rank) != 0 or step % 100 != 0:
+            return
+        from semkine.xyz_mesh import agent_log
+        groups = {"relation": ["xyz.rel."], "vertex_in": ["xyz.vin."], "edge_gate": ["xyz.edge.", ".gate."],
+                  "mesh_msg": [".msg.", ".slf."], "readout": ["xyz.slot_proj.", "xyz.fc1.", "xyz.fc2."]}
+        out = {}
+        for gname, keys in groups.items():
+            sq, n = 0.0, 0
+            for name, p in self.named_parameters():
+                if p.grad is not None and any(k in name for k in keys):
+                    sq += float(p.grad.detach().float().square().sum())
+                    n += 1
+            out[gname] = {"grad_norm": sq ** 0.5, "n_tensors": n}
+        out["weight_norm_fc2"] = float(self.xyz.fc2.weight.detach().float().norm())
+        agent_log("H3", "model.py:on_after_backward", "grad norms per learned module", {
+            "step": step, "geom": bool(self.xyz.geom), "loss": getattr(self, "_agent_last_loss", None),
+            "groups": out})
+    # endregion
+
     def _project_verts(self, verts, k_f):
         """Pinhole projection with the render intrinsics: `(uv (B, V, 2), z (B, V))`."""
         fx, fy, cx, cy = self._intrinsics(k_f)
@@ -1402,19 +1452,6 @@ class MNISTModel(BaseModel):
             verts, _ = self._fk(prev.float(), betas_f)
             return self._project_verts(verts, k_f)
 
-    def _coverage_map(self, px, py, mask, dist, vid, prev, betas_f, k_f):
-        """S39: the `(B, 64 * 5 + 1)` surface coverage map of the routed nodes against the visible
-        prev surface (`semkine.routed_readout.coverage_map`), and its `(B, 1)` any-routed gate.
-        `no_grad`: a fixed function of the packet's events and of prev's FK, like the routing."""
-        from semkine.mesh_graph import visible_vertices
-        from semkine.routed_readout import coverage_map
-        with torch.no_grad():
-            verts, _ = self._fk(prev.float(), betas_f)
-            uv, z = self._project_verts(verts, k_f)
-            vis = visible_vertices(verts, uv, z, self.mano.f, self.render_h, self.render_w)
-            return coverage_map(px, py, mask, dist, vid, uv, vis, self.covmap_patch,
-                                self.route_band_px, self.covmap_patches, self.covmap_edge_px)
-
     def _route_nodes(self, px, py, mask, prev, betas_f, k_f):
         """S37-routed responsibilities `(B, N, 16)` of the sampled nodes over the joints of `prev`:
         the front-most nearest-vertex LBS lookup of `semkine.routed_readout`. Also returns the
@@ -1422,51 +1459,8 @@ class MNISTModel(BaseModel):
         from semkine.routed_readout import route_front_vertex_lbs
         with torch.no_grad():
             uv, z = self._project_prev(prev, betas_f, k_f)
-            res = route_front_vertex_lbs(px, py, mask, uv, z, self.mano.weights,
-                                         self.route_band_px, self.route_front_k)
-            # region agent log
-            import os as _os, json as _json, time as _time
-            if _os.environ.get("S37_DBG") and mask.shape[0] == 1:
-                # H7: surface coverage pattern of the routed events (per vertex / per 64 rest-pose
-                # patches); H8: rigid fit on silhouette-band events only (dist >= 2 px)
-                from semkine.mesh_graph import visible_vertices
-                a_, dist_, vid_ = res
-                V_ = self.mano.weights.shape[0]
-                if not hasattr(self, "_dbg_patch"):
-                    P_ = self.mano.v_template.float().cpu()
-                    idx_ = [0]; dmin_ = (P_ - P_[0]).norm(dim=1)
-                    for _ in range(63):
-                        i_ = int(dmin_.argmax()); idx_.append(i_); dmin_ = torch.minimum(dmin_, (P_ - P_[i_]).norm(dim=1))
-                    self._dbg_patch = torch.cdist(P_, P_[idx_]).argmin(1).to(px.device)
-                verts_, joints_ = self._fk(prev.float(), betas_f)
-                vis_ = visible_vertices(verts_, uv, z, self.mano.f, self.render_h, self.render_w, 1.0, 0.01)[0]
-                routed_ = ((dist_ <= self.route_band_px) & mask.bool())[0]
-                v_r = vid_[0][routed_]
-                cov_ = torch.bincount(v_r, minlength=V_)
-                band_ = routed_ & (dist_[0] >= 2.0)
-                du_ = px[0] - uv[0][vid_[0], 0]; dv_ = py[0] - uv[0][vid_[0], 1]
-                out_n = torch.bincount(vid_[0][band_], minlength=V_)
-                out_du = torch.bincount(vid_[0][band_], weights=du_[band_], minlength=V_)
-                out_dv = torch.bincount(vid_[0][band_], weights=dv_[band_], minlength=V_)
-                pt_ = self._dbg_patch
-                p_vis = torch.bincount(pt_[vis_], minlength=64).float()
-                p_cov = torch.bincount(pt_[v_r], minlength=64).float()
-                p_out = torch.bincount(pt_[vid_[0][band_]], minlength=64).float()
-                p_du = torch.bincount(pt_[vid_[0][band_]], weights=du_[band_], minlength=64) / p_out.clamp_min(1)
-                p_dv = torch.bincount(pt_[vid_[0][band_]], weights=dv_[band_], minlength=64) / p_out.clamp_min(1)
-                fit_ = {}
-                nz_ = cov_.nonzero().squeeze(1); no_ = out_n.nonzero().squeeze(1)
-                _ctx = _json.loads(_os.environ.get("S37_DBG_CTX", "{}"))
-                _pl = {"sessionId": "ae9d53", "hypothesisId": "H7", "location": "model.py:_route_nodes", "message": "surface coverage",
-                       "timestamp": int(_time.time() * 1000), "runId": _os.environ.get("S37_DBG_ARM", ""),
-                       "data": dict(_ctx, prev_root=[round(float(v), 5) for v in prev[0, :6]], n_live=int(mask.sum()), n_routed=int(routed_.sum()),
-                                    n_vis=int(vis_.sum()), vis_v=vis_.nonzero().squeeze(1).tolist(), cov_v=nz_.tolist(), cov_n=cov_[nz_].tolist(),
-                                    out_v=no_.tolist(), out_n=out_n[no_].tolist(), out_du=[round(float(v), 2) for v in out_du[no_]], out_dv=[round(float(v), 2) for v in out_dv[no_]],
-                                    p_vis=p_vis.tolist(), p_cov=p_cov.tolist(), p_out=p_out.tolist(), p_du=[round(float(v), 2) for v in p_du], p_dv=[round(float(v), 2) for v in p_dv], **fit_)}
-                with open("/data1/lyq/code/mesh/EventHands1/.cursor/debug-ae9d53.log", "a") as _f:
-                    _f.write(_json.dumps(_pl) + "\n")
-            # endregion
-            return res
+            return route_front_vertex_lbs(px, py, mask, uv, z, self.mano.weights,
+                                          self.route_band_px, self.route_front_k)
 
     def _node_responsibility(self, px, py, mask, prev, betas_f, k_f):
         """Probe interface shared by both S37 arms: `(B, N, 16)` share of each node's evidence
@@ -1492,37 +1486,8 @@ class MNISTModel(BaseModel):
             cols.append(head(e[:, k + 1]) * seen[:, k + 1: k + 2].to(e.dtype))
         return torch.cat(cols, dim=-1)
 
-    def track_packet(self, batch, node_state=None):
-        """One explicit mesh-memory step, returning ``(pose51, vertex_state)``.
-
-        The caller supplies the previous pose via ``batch.prev_state`` and owns
-        the returned memory. Start a new sequence with ``node_state=None``.
-        Missing vertex observations preserve their local memory; the resulting
-        MANO mesh may still move through shared root and joint transformations.
-        Targets never enter this path. No state is cached between calls.
-        """
-        if not self.egm_memory:
-            raise RuntimeError("track_packet requires EGM_MEMORY=true")
-        evidence, support, next_state = self._event_guided_mesh_forward(
-            batch, batch.prev_state, node_state=node_state, return_state=True)
-        delta = self._decode_event_guided_mesh(evidence, support)
-        delta = torch.where((batch.counts <= 0).unsqueeze(-1), torch.zeros_like(delta), delta)
-        return batch.prev_state + delta.to(batch.prev_state.dtype), next_state
-
-    def reconstruct_mesh(self, pose, betas=None):
-        """Decode a tracked pose into the complete mesh and 21 OpenPose joints."""
-        if not self.event_guided_mesh:
-            raise RuntimeError("reconstruct_mesh is provided for the event-guided MANO tracker")
-        betas_f, _ = self._resolve_betas_K(pose, betas, None)
-        with torch.autocast(device_type=pose.device.type, enabled=False):
-            return self._fk(pose.float(), betas_f.float())
-
     def forward_packet(self, batch):
         """Raw-event forward for an `EventPacketBatch`. Empty packets return bitwise `prev`."""
-        if self.egm_memory:
-            # Stateless callers intentionally start a fresh sequence. Tracking and
-            # paired training use track_packet to carry explicit vertex memory.
-            return self.track_packet(batch, node_state=None)[0]
         if not self.encoder_name:
             raise RuntimeError("forward_packet requires MODEL.ENCODER")
         events = batch.events
@@ -1537,15 +1502,15 @@ class MNISTModel(BaseModel):
             from semkine.encoder import query_render
             extra = query_render(rend, events)
         evidence = None
+        root_add = None
         if self.fk_graph:
             joints_h, background = self._fk_graph_forward(batch, prev)
             out = self._decode_active(None, prev, joints_h, root_extra=background)
-        elif self.event_guided_mesh:
-            evidence, joint_support = self._event_guided_mesh_forward(batch, prev)
-            out = self._decode_event_guided_mesh(evidence, joint_support)
         elif self.mesh_graph:
             evidence, background = self._mesh_graph_forward(batch, prev)
             out = self._decode_active(None, prev, evidence, root_extra=background)
+        elif self.xyz_mesh:
+            out = self._xyz_mesh_forward(batch, prev)
         elif self.mesh_query:
             _, h, g, px, py, mask = self.event_encoder(events, ptr, batch.delta_t_s, None,
                                                        return_nodes=True)
@@ -1572,66 +1537,64 @@ class MNISTModel(BaseModel):
                 from semkine.routed_readout import pool_joint_evidence
                 feat, h, _, px, py, mask = self.event_encoder(events, ptr, batch.delta_t_s, extra,
                                                               return_nodes=True)
-                root_extra = None
                 if h.shape[1] == 0:
                     evidence = torch.zeros(feat.shape[0], 16, 2 * h.shape[-1] + 1,
                                            device=feat.device, dtype=feat.dtype)
                     self.route_stats = {}
-                    if self.root_covmap:
-                        root_extra = torch.zeros(feat.shape[0], self.covmap_hidden,
-                                                 device=feat.device, dtype=feat.dtype)
                 else:
                     prev_route = prev if self.route_prev_override is None else \
                         self.route_prev_override.to(prev.device, prev.dtype)
                     betas_f, k_f = self._resolve_betas_K(prev_route, batch.betas, batch.camera_K)
-                    a, dist, vid = self._route_nodes(px, py, mask, prev_route, betas_f, k_f)
+                    if self.root_innovation:
+                        # the same FK / projection / routing `_route_nodes` computes, kept so the
+                        # innovation features reuse them
+                        from semkine.routed_readout import route_front_vertex_lbs
+                        from semkine.root_innovation import innovation_features, lever_arms
+                        with torch.no_grad():
+                            verts, joints = self._fk(prev_route.float(), betas_f)
+                            uv, zv = self._project_verts(verts, k_f)
+                            a, dist, vid = route_front_vertex_lbs(
+                                px, py, mask, uv, zv, self.mano.weights,
+                                self.route_band_px, self.route_front_k)
+                            # fp32 in training and evaluation alike: under bf16 autocast the SDF
+                            # blur and the pooling einsum would otherwise drop to bf16 in training only
+                            with torch.autocast(device_type=px.device.type, enabled=False):
+                                q = innovation_features(px.float(), py.float(), mask, a.float(), vid,
+                                                        uv.float(), self.render_h, self.render_w)
+                                g = lever_arms(verts.float(), joints[:, self.FK_ROOT_JOINT].float(),
+                                               self.mano.weights.float(), *self._intrinsics(k_f))
+                            if self.ablate_innovation:
+                                q = torch.zeros_like(q)
+                        root_add = self.root_innov_head(q, g)
+                    else:
+                        a, dist, _ = self._route_nodes(px, py, mask, prev_route, betas_f, k_f)
                     evidence, count = pool_joint_evidence(h, a, mask)
                     live = mask.sum(1).clamp_min(1).to(torch.float32)
                     self.route_stats = {
                         "route_frac_routed": ((a.sum(-1) > 0).sum(1).to(torch.float32) / live).mean(),
                         "route_joints_hit": (count > 0).sum(1).to(torch.float32).mean(),
                     }
-                    if self.root_covmap:
-                        # S39: the surface coverage map, root-only. Zero for a packet that routes
-                        # nothing (gate), zero under either ablation (the map is evidence too).
-                        cov, any_routed = self._coverage_map(px, py, mask, dist, vid, prev_route,
-                                                             betas_f, k_f)
-                        if self.ablate_evidence or self.ablate_covmap:
-                            cov = torch.zeros_like(cov)
-                            any_routed = torch.zeros_like(any_routed)
-                        root_extra = self.covmap_mlp(cov.to(feat.dtype)) * any_routed.to(feat.dtype)
-                        self.route_stats["covmap_any"] = any_routed.mean()
                 if self.ablate_evidence:
                     evidence = torch.zeros_like(evidence)
             else:
                 feat = self.event_encoder(events, ptr, batch.delta_t_s, extra)
-                root_extra = None
             if self.active_head:
-                out = self._decode_active(feat, prev, evidence, root_extra=root_extra)
+                out = self._decode_active(feat, prev, evidence, root_add=root_add)
             else:
                 out = self.pose_head(feat)
         if self.prevpos_embed:
-            out = out + self.prev_mlp(prev.to(out.dtype))
+            pm = self.prev_mlp(prev.to(out.dtype))
+            if not self.prev_mlp_root:
+                # the event-blind pull on translation and global rotation is removed; the finger
+                # rows are the trained S37 ones
+                pm = torch.cat([torch.zeros_like(pm[:, :6]), pm[:, 6:]], dim=-1)
+            out = out + pm
         if self.predict_delta:
             delta = out
             if self.zero_event_gate:
                 empty = (batch.counts <= 0).unsqueeze(-1)
                 delta = torch.where(empty, torch.zeros_like(delta), delta)
-            if self.state_accum_fp32:
-                accum_dtype = torch.promote_types(prev.dtype, torch.float32)
-                out = delta.to(accum_dtype) + prev.to(accum_dtype)
-            elif self.event_guided_mesh:
-                # A bf16 head must not round the recurrent fp32 state, particularly when
-                # the packet/evidence gate chose delta=0. Keep legacy arms bit-compatible.
-                out = prev + delta.to(prev.dtype)
-            else:
-                out = delta + prev.to(out.dtype)
-            if self.zero_event_gate:
-                # Mask after the legacy addition as well: AMP may have rounded
-                # prev even though the empty row's delta was zero. Preserve the
-                # original state there; the default keeps legacy nonempty arithmetic.
-                # torch.where promotes the return dtype when prev is wider.
-                out = torch.where(empty, prev, out)
+            out = delta + prev.to(out.dtype)
         return out
 
     def forward(self, x, prevpos, betas=None, camera_K=None):

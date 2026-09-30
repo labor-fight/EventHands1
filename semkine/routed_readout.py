@@ -22,9 +22,11 @@ contracts in `tests/test_s37_routed_readout.py` can pin them without a model.
 """
 from __future__ import annotations
 
+import math
 from typing import Tuple
 
 import torch
+from torch import nn
 
 #: rows of the (nodes x 778) distance block per chunk; bounds the transient at ~100 MB
 ROUTE_CHUNK = 32768
@@ -90,93 +92,6 @@ def route_front_vertex_lbs(px: torch.Tensor, py: torch.Tensor, mask: torch.Tenso
     return a, d_out, v_out
 
 
-def surface_patches(v_template: torch.Tensor, n_patches: int = 64) -> torch.Tensor:
-    """`(V,)` long: a fixed partition of the MANO vertices into `n_patches` surface patches --
-    deterministic farthest-point sampling on the rest-pose template (start at vertex 0), every
-    vertex assigned to its nearest centre. A property of the asset, independent of the state."""
-    P = v_template.detach().float().cpu()
-    centres = [0]
-    dmin = (P - P[0]).norm(dim=1)
-    for _ in range(int(n_patches) - 1):
-        nxt = int(dmin.argmax())
-        centres.append(nxt)
-        dmin = torch.minimum(dmin, (P - P[nxt]).norm(dim=1))
-    return torch.cdist(P, P[centres]).argmin(1)
-
-
-#: channels per patch of the coverage map: routed-node share, visible-vertex share, band-node
-#: share, mean band offset (du, dv) in bands; plus one global channel (visible fraction)
-COVMAP_CHANNELS = 5
-
-
-def coverage_map(px: torch.Tensor, py: torch.Tensor, mask: torch.Tensor, dist: torch.Tensor,
-                 vid: torch.Tensor, uv: torch.Tensor, vis: torch.Tensor, patch: torch.Tensor,
-                 band_px: float, n_patches: int, edge_px: float = 2.0
-                 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    r"""S39. The footprint comparison the root needs, on the surface: per patch, where the routed
-    events are against where the visible prev surface is.
-
-    For patch `k` (a fixed set of vertices, `surface_patches`):
-
-        share_k  = #routed live nodes whose vertex is in k / #routed live nodes
-        vis_k    = #visible vertices in k / #visible vertices
-        band_k   = #routed nodes in k farther than `edge_px` from their vertex / #routed nodes
-        (du, dv)_k = mean pixel offset (node - vertex) of those band nodes / band_px
-
-    plus one global scalar, #visible vertices / V. `share_k - vis_k` is the discrepancy between
-    the event footprint and the prev footprint on that patch: a rotation or translation error of
-    prev shows up as an antisymmetric pattern over the patches (events pile up on one side, the
-    surface is bare on the other), which the per-joint mean/max/coverage pool averages away.
-    Every channel is evidence x visibility: a packet that routes nothing gives exactly zero
-    (`any_routed` = 0), and no geometric quantity enters additively.
-
-    Measured before it was built (debug session 2026-09-21, routed 3407, zgz closed loop): a ridge
-    readout of these 257 numbers removes a third of the root rotation error the loop carries
-    (10.5 -> 6.9 deg, cos 0.82) and two thirds of the x/y translation error (R^2 0.66 / 0.75) on
-    the dense sequence; the root head of the routed arm removes none (10.6 -> 10.7 deg).
-
-    px, py: `(B, N)` node pixels; mask: `(B, N)` live; dist, vid: `(B, N)` from
-    `route_front_vertex_lbs`; uv: `(B, V, 2)`; vis: `(B, V)` bool visible vertices;
-    patch: `(V,)` long. Returns `(feat (B, n_patches * COVMAP_CHANNELS + 1) float32,
-    any_routed (B, 1) float32)`.
-    """
-    B, N = mask.shape
-    V = vis.shape[1]
-    K = int(n_patches)
-    dev = px.device
-    routed = (dist <= float(band_px)) & mask.bool()                                   # (B, N)
-    routed_f = routed.to(torch.float32)
-    pk = patch.to(dev)[vid.clamp(0, V - 1)]                                            # (B, N)
-    boff = torch.arange(B, device=dev).unsqueeze(1) * K
-    key = (pk + boff).reshape(-1)
-    n_routed = routed_f.sum(1)                                                          # (B,)
-    share = torch.zeros(B * K, device=dev, dtype=torch.float32)
-    share.index_add_(0, key, routed_f.reshape(-1))
-    share = share.view(B, K) / n_routed.clamp_min(1.0).unsqueeze(1)
-    vk = torch.zeros(B * K, device=dev, dtype=torch.float32)
-    vkey = (patch.to(dev).unsqueeze(0).expand(B, V) + boff).reshape(-1)
-    vk.index_add_(0, vkey, vis.to(torch.float32).reshape(-1))
-    n_vis = vis.to(torch.float32).sum(1)
-    vis_share = vk.view(B, K) / n_vis.clamp_min(1.0).unsqueeze(1)
-    band = routed & (dist >= float(edge_px))
-    band_f = band.to(torch.float32)
-    du = (px.float() - uv[..., 0].gather(1, vid.clamp(0, V - 1))) * band_f
-    dv = (py.float() - uv[..., 1].gather(1, vid.clamp(0, V - 1))) * band_f
-    bn = torch.zeros(B * K, device=dev, dtype=torch.float32)
-    bn.index_add_(0, key, band_f.reshape(-1))
-    bdu = torch.zeros(B * K, device=dev, dtype=torch.float32)
-    bdu.index_add_(0, key, du.reshape(-1))
-    bdv = torch.zeros(B * K, device=dev, dtype=torch.float32)
-    bdv.index_add_(0, key, dv.reshape(-1))
-    bn, bdu, bdv = bn.view(B, K), bdu.view(B, K), bdv.view(B, K)
-    band_share = bn / n_routed.clamp_min(1.0).unsqueeze(1)
-    mdu = bdu / bn.clamp_min(1.0) / float(band_px)
-    mdv = bdv / bn.clamp_min(1.0) / float(band_px)
-    any_routed = (n_routed > 0).to(torch.float32).unsqueeze(1)
-    feat = torch.cat([share, vis_share, band_share, mdu, mdv, (n_vis / V).unsqueeze(1)], dim=1)
-    return feat * any_routed, any_routed
-
-
 def pool_joint_evidence(h: torch.Tensor, a: torch.Tensor, mask: torch.Tensor
                         ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Per-joint evidence `(B, J, 2C+1)` = [weighted mean, hard-assignment max, coverage].
@@ -203,3 +118,38 @@ def pool_joint_evidence(h: torch.Tensor, a: torch.Tensor, mask: torch.Tensor
     live = mask.sum(1, keepdim=True).clamp_min(1).to(h.dtype)
     coverage = (wsum / live).unsqueeze(-1)
     return torch.cat([mean, peak, coverage], dim=-1), count
+
+
+class PerJointRootFusion(nn.Module):
+    """Root update `sum_j MLP_j([f; e_j])`: one MLP per joint, each with its own weights.
+
+    The sixteen MLPs run as one batched matmul pair rather than a loop of sixteen `nn.Sequential`s:
+    at batch 1 the loop is kernel-launch bound (+1.85 ms per packet measured on real packets).
+    Slice `j` of every parameter is initialised exactly like an `nn.Linear` of that shape.
+    """
+
+    def __init__(self, feat_dim: int, ev_dim: int, hidden: int, out_dim: int = 6, n_joints: int = 16):
+        super().__init__()
+        d = int(feat_dim) + int(ev_dim)
+        self.n_joints, self.in_dim, self.hidden, self.out_dim = int(n_joints), d, int(hidden), int(out_dim)
+        self.w1 = nn.Parameter(torch.empty(self.n_joints, d, self.hidden))
+        self.b1 = nn.Parameter(torch.empty(self.n_joints, self.hidden))
+        self.w2 = nn.Parameter(torch.empty(self.n_joints, self.hidden, self.out_dim))
+        self.b2 = nn.Parameter(torch.empty(self.n_joints, self.out_dim))
+        with torch.no_grad():
+            for j in range(self.n_joints):
+                for w, b, fan_in in ((self.w1, self.b1, d), (self.w2, self.b2, self.hidden)):
+                    bound = 1.0 / math.sqrt(fan_in)
+                    w[j].uniform_(-bound, bound)
+                    b[j].uniform_(-bound, bound)
+
+    def head(self, j: int, f: torch.Tensor, e_j: torch.Tensor) -> torch.Tensor:
+        """Joint `j`'s own contribution `(B, out_dim)`."""
+        h = torch.relu(torch.cat([f, e_j], dim=-1) @ self.w1[j] + self.b1[j])
+        return h @ self.w2[j] + self.b2[j]
+
+    def forward(self, f: torch.Tensor, e: torch.Tensor) -> torch.Tensor:
+        """f: `(B, F)` pooled vector; e: `(B, J, E)` routed evidence -> `(B, out_dim)`."""
+        x = torch.cat([f.unsqueeze(1).expand(-1, e.shape[1], -1), e], dim=-1)          # (B, J, F+E)
+        h = torch.relu(torch.einsum("bjd,jdh->bjh", x, self.w1) + self.b1)
+        return torch.einsum("bjh,jho->bo", h, self.w2) + self.b2.sum(0)

@@ -1,7 +1,7 @@
 """The retention penalty must be measurable, live, and matched to the probe it comes from.
 
 This project has already trained two arms to completion that were silent copies of the arm they were
-meant to differ from, because config keys reached nothing (`docs/debug_e55b_unroll_20260825.md`). A
+meant to differ from, because config keys reached nothing. A
 penalty whose weight is read but whose gradient never arrives is the same failure with a different
 name, so each of these asserts one link in the chain rather than the end-to-end accuracy claim:
 

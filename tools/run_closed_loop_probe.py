@@ -15,7 +15,7 @@ For each arm this runs the frozen evaluator's loop twice at the same step size o
 The ratio is the amplification. An arm whose single-step error matches a control's but whose
 recursive error does not has a feedback problem, not a representation problem -- which matters here
 because KEG conditions its *event routing* on the previous state through KSSF, a path the dense
-control does not have, and `FAILURE_CASES.md` registers self-excitation on that path as a risk.
+control does not have. Self-excitation on that path is a registered risk.
 """
 from __future__ import annotations
 
@@ -142,12 +142,6 @@ def _run(model, mano, cfg, root, legacy_dir, seq, step_ms, device, teacher_force
             with torch.no_grad():
                 if use_raw:
                     ev5 = ET._window_events(events, offsets, tsub, int(end), step_ms)
-                    # region agent log
-                    if os.environ.get("S37_DBG"):
-                        os.environ["S37_DBG_CTX"] = json.dumps(
-                            {"regime": "teacher_forced" if not prev_noise else f"tf_noise_x{prev_noise:g}",
-                             "seq": seq, "end": int(end)})
-                    # endregion
                     pred = model.forward_packet(ET.make_eval_packet(
                         ev5, prev_t, betas, camera_K, step_ms, device))
                 else:
@@ -170,12 +164,6 @@ def _run(model, mano, cfg, root, legacy_dir, seq, step_ms, device, teacher_force
             prev_idx = int(end)
     if not preds:
         return None
-    # region agent log
-    if os.environ.get("S37_DBG") and not prev_noise:
-        ET._dbg_perstep("teacher_forced", seq, [int(e) for a_, b_ in runs
-                                                for e in np.arange(a_ + step_ms - 1, b_, step_ms)],
-                        np.stack(preds), np.stack(gts), mano, betas, device)
-    # endregion
     out = _metrics(np.stack(preds), np.stack(gts), mano, betas, device)
     out["delta"] = {
         "pred_step_pose": float(np.mean(dp_pose)),
@@ -277,9 +265,6 @@ def main() -> None:
             mani = root / mani
         seqs = sequences_for_split(root, a.split, mani)
         os.environ["EVENTHANDS_KEG_ROUTE"] = routes.get(label, "soft")
-        # region agent log
-        os.environ["S37_DBG_ARM"] = label
-        # endregion
         print(f"{label}: {len(seqs)} sequences in {a.split} "
               f"[{mani.name if mani else 'splits_semkine.json'}]", flush=True)
 

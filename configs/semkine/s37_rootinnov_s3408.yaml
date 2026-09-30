@@ -1,0 +1,116 @@
+# S37 root innovation, stage 1 (2026-09-29, docs/S37_ROOT_INNOVATION_PREREG.md): the S37 routed
+# readout of seed 3408, warm-started from its selected checkpoint (step 5000), with a second root
+# path that reads where the events sit relative to prev's projected silhouette, prev's part lever
+# arms multiplying that residual (`semkine.root_innovation`), and the event-blind `prev_mlp` pull
+# removed from the six root dimensions. Only `root_head` and the innovation head train; the event
+# graph, the finger heads and `prev_mlp` are frozen. Curriculum, loss, LR, batch, DDP: S37 verbatim.
+# Differs from `s37_routed_s3407.yaml` only in the keys listed in
+# `tests/test_s37_root_innovation.py::test_config_differs_from_s37_only_in_the_arm_keys`.
+SEED: 3408
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_gnn
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  # The tracking recipe, unchanged from S34/S36 except the two lines marked S37.
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: true
+  PREV_RENDER: false            # S37: the graph is state-free
+  ROUTED_READOUT: true          # S37: prev enters at the readout, as FK-routed joint evidence
+  ROUTE_BAND_PX: 16.0
+  ROUTE_FRONT_K: 8
+  ROOT_INNOVATION: true        # stage 1: innovation path on the root
+  ROOT_INNOV_HIDDEN: 32
+  ROOT_INNOV_WIDTH: 16
+  PREV_MLP_ROOT: false         # stage 1: no event-blind pull on the root
+  INIT_FROM: outputs/semkine/s37_routed_s3408/s37_routed_s3408-step=5000.ckpt
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+  ENCODER: event_gnn
+  ENCODER_HIDDEN: 128
+  ENCODER_FEAT: 512
+  ENCODER_LAYERS: 3
+  ENCODER_K: 8
+  ENCODER_MAX_NODES: 2048
+  ENCODER_WINDOW: 32
+  ENCODER_T_SCALE: 1.0
+  ACTIVE_HEAD: true
+  ACTIVE_HIDDEN: 64
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  # 512 x 2 cards = the same effective 1024 S34/S36 trained at, so LR does not move.
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 1500              # stage 1: head-only
+  VAL_CHECK_INTERVAL: 1500
+  SAVE_EVERY_N_STEPS: 250      # fixed grid (6 points): val_loss must not select checkpoints
+  TRAINABLE_PREFIXES: [root_head., root_innov_head.]
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s37_rootinnov_s3408
+  RUN_NAME: s37_rootinnov_s3408
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s37_rootinnov_s3408/eval

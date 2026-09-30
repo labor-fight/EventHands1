@@ -1,0 +1,350 @@
+{
+  "status": "untrained_design_presentation_revision",
+  "detailed_diagram": "s37_xyz_recommended_20260929.json",
+  "template": "tools/make_s37_figure_simple.py",
+  "arrows": [
+    {
+      "source": "prev",
+      "target": "fk",
+      "path": [
+        [
+          16,
+          31.4
+        ],
+        [
+          16,
+          39.8
+        ],
+        [
+          24.6,
+          39.8
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "fk",
+      "target": "xyz",
+      "path": [
+        [
+          41.4,
+          39.8
+        ],
+        [
+          43.6,
+          39.8
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "xyz",
+      "target": "associate",
+      "path": [
+        [
+          62.4,
+          39.8
+        ],
+        [
+          64.6,
+          39.8
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "events",
+      "target": "associate",
+      "path": [
+        [
+          76,
+          31.4
+        ],
+        [
+          76,
+          34.4
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "events",
+      "target": "relation",
+      "path": [
+        [
+          79.4,
+          26
+        ],
+        [
+          92.6,
+          26
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "associate",
+      "target": "relation",
+      "path": [
+        [
+          89.4,
+          39.8
+        ],
+        [
+          103.5,
+          39.8
+        ],
+        [
+          103.5,
+          31.4
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "relation",
+      "target": "scatter",
+      "path": [
+        [
+          114.4,
+          26
+        ],
+        [
+          116.6,
+          26
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "scatter",
+      "target": "mesh",
+      "path": [
+        [
+          135.4,
+          26
+        ],
+        [
+          137.6,
+          26
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "xyz",
+      "target": "mesh",
+      "path": [
+        [
+          53,
+          45.2
+        ],
+        [
+          53,
+          47.3
+        ],
+        [
+          148,
+          47.3
+        ],
+        [
+          148,
+          31.4
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "mesh",
+      "target": "lbs",
+      "path": [
+        [
+          158.4,
+          26
+        ],
+        [
+          160.6,
+          26
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "lbs",
+      "target": "readout",
+      "path": [
+        [
+          182.4,
+          26
+        ],
+        [
+          184.6,
+          26
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "relation",
+      "target": "unmatched",
+      "path": [
+        [
+          103.5,
+          20.6
+        ],
+        [
+          103.5,
+          12
+        ],
+        [
+          138.6,
+          12
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "unmatched",
+      "target": "readout",
+      "path": [
+        [
+          164.4,
+          12
+        ],
+        [
+          196,
+          12
+        ],
+        [
+          196,
+          20.6
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "prev",
+      "target": "readout",
+      "path": [
+        [
+          9,
+          31.4
+        ],
+        [
+          9,
+          51.3
+        ],
+        [
+          196,
+          51.3
+        ],
+        [
+          196,
+          31.4
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "readout",
+      "target": "delta",
+      "path": [
+        [
+          207.4,
+          26
+        ],
+        [
+          209.6,
+          26
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "delta",
+      "target": "sum",
+      "path": [
+        [
+          216.4,
+          26
+        ],
+        [
+          218.2,
+          26
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "prev",
+      "target": "sum",
+      "path": [
+        [
+          12.5,
+          20.6
+        ],
+        [
+          12.5,
+          5.5
+        ],
+        [
+          220,
+          5.5
+        ],
+        [
+          220,
+          24.2
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "sum",
+      "target": "output",
+      "path": [
+        [
+          221.8,
+          26
+        ],
+        [
+          223.6,
+          26
+        ]
+      ],
+      "delayed": false
+    },
+    {
+      "source": "output",
+      "target": "prev",
+      "path": [
+        [
+          230,
+          20.6
+        ],
+        [
+          230,
+          1.8
+        ],
+        [
+          2.2,
+          1.8
+        ],
+        [
+          2.2,
+          26
+        ],
+        [
+          3.6,
+          26
+        ]
+      ],
+      "delayed": true
+    }
+  ],
+  "verification": {
+    "no_line_crossings": true,
+    "no_lines_through_boxes": true,
+    "matches_accepted_functional_graph": true,
+    "labels_fit_boxes": true
+  }
+}

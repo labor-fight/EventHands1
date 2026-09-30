@@ -11,8 +11,6 @@ citation. Each arm is a *minimum mechanism*, not a framework port:
 * `event_gnn`    S36 AEGNN proper: the events themselves are the nodes, edges are a causal k-NN in
                  a temporal window, and the message carries the relative `(dx, dy, dt)`. See
                  `event_gnn.py`.
-* `event_hier`   X1 absolute branch: S36's nodes, spatial k-NN over the whole packet and three
-                 set-abstraction levels up to hand scale; takes no state. See `event_hier.py`.
 
 Three graph-shaped arms were removed on 2026-08-28 after being measured to a conclusion. Their
 numbers, and the reasoning that retires them, are in `docs/GNN_ARMS_ARCHIVE_20260828.md`; do not
@@ -60,9 +58,6 @@ def build_frontend(kind: str, **kw) -> nn.Module:
         return EventGNN(**shared,
                         **_pick(kw, "k", "n_layers", "max_nodes", "window", "t_scale",
                                 "node_attrs", "readout"))
-    if kind in ("event_hier", "eventhier", "hier"):
-        from .event_hier import EventHierEncoder
-        return EventHierEncoder(**shared, **_pick(kw, "k", "n_layers", "max_nodes", "t_px"))
     raise ValueError(f"unknown frontend {kind!r}")
 
 

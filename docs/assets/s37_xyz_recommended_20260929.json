@@ -1,0 +1,447 @@
+{
+  "status": "unimplemented_untrained_design",
+  "basis": "docs/S37_XYZ_CANDIDATE_20260929.md",
+  "state_contract": "S37 additive 51D state; raw prev[3:51] conditions the common readout",
+  "nodes": [
+    {
+      "key": "prev",
+      "title": "历史状态 prev",
+      "body": "s_prev：51D\n平移 3 + 旋转参数 48",
+      "rect": [
+        65,
+        190,
+        200,
+        120
+      ],
+      "learned": false,
+      "body_size": 11.5
+    },
+    {
+      "key": "events",
+      "title": "当前事件包 + 内参 K",
+      "body": "(u, v, t, p)\n事件没有实测深度 z",
+      "rect": [
+        65,
+        440,
+        200,
+        140
+      ],
+      "learned": false,
+      "body_size": 11
+    },
+    {
+      "key": "prepare",
+      "title": "几何与事件准备",
+      "body": "FK(s_prev; β) → 778×3 XYZ\n(u,v,K) → 相机射线 d\n射线—表面关联 → A、q\nz_prior、valid、ΔXYZ\n无几何记录：valid=0",
+      "rect": [
+        325,
+        335,
+        300,
+        300
+      ],
+      "learned": false,
+      "body_size": 11.5
+    },
+    {
+      "key": "relation",
+      "title": "① 共享关系编码 φ",
+      "body": "时间 t / 极性 p 与三维关系\n先联合编码，再聚合\n匹配 / 未匹配共用权重",
+      "rect": [
+        685,
+        405,
+        285,
+        220
+      ],
+      "learned": true,
+      "body_size": 11.5
+    },
+    {
+      "key": "scatter",
+      "title": "顶点聚合",
+      "body": "按 qA 写入 778 顶点\nmean / max / mass\n无观测顶点仍保留",
+      "rect": [
+        1025,
+        420,
+        205,
+        190
+      ],
+      "learned": false,
+      "body_size": 11
+    },
+    {
+      "key": "mesh",
+      "title": "② 一个 MeshGNN",
+      "body": "固定面 1-ring\nΔXYZ 调制消息传递\n区分直接 / 传播支持",
+      "rect": [
+        1290,
+        405,
+        265,
+        220
+      ],
+      "learned": true,
+      "body_size": 11.5
+    },
+    {
+      "key": "lbs",
+      "title": "LBS 关节池化",
+      "body": "固定 LBS 权重 W\n16 槽保留关节顺序\nmean / max / 支持统计",
+      "rect": [
+        1615,
+        420,
+        240,
+        190
+      ],
+      "learned": false,
+      "body_size": 11
+    },
+    {
+      "key": "readout",
+      "title": "③ 一个共同读出",
+      "body": "16 个关节槽 + 未匹配槽 b\n+ 原始历史旋转参数\n内部可用分组 / 稀疏连接\n只输出一份 Δs：51D",
+      "rect": [
+        1915,
+        405,
+        310,
+        220
+      ],
+      "learned": true,
+      "body_size": 11.5
+    },
+    {
+      "key": "update",
+      "title": "状态更新 → s_k",
+      "body": "s_k = s_prev + Δs\n空事件包原样返回 prev",
+      "rect": [
+        2335,
+        430,
+        230,
+        170
+      ],
+      "learned": false,
+      "body_size": 11
+    },
+    {
+      "key": "unmatched",
+      "title": "未匹配 / 弱匹配的剩余摘要 b",
+      "body": "共享 φ 的 valid=0 记录\n按剩余权重汇总 mean / max / mass",
+      "rect": [
+        1040,
+        705,
+        355,
+        140
+      ],
+      "learned": false,
+      "body_size": 11
+    }
+  ],
+  "edges": [
+    {
+      "source": "prev",
+      "target": "prepare",
+      "payload": "完整 s_prev；用于 MANO FK",
+      "points": [
+        [
+          265,
+          270
+        ],
+        [
+          295,
+          270
+        ],
+        [
+          295,
+          385
+        ],
+        [
+          325,
+          385
+        ]
+      ],
+      "kind": "state",
+      "delayed": false
+    },
+    {
+      "source": "events",
+      "target": "prepare",
+      "payload": "事件 (u,v,t,p)、K、事件掩码与有效数量 N",
+      "points": [
+        [
+          265,
+          515
+        ],
+        [
+          325,
+          515
+        ]
+      ],
+      "kind": "event",
+      "delayed": false
+    },
+    {
+      "source": "prepare",
+      "target": "relation",
+      "payload": "匹配及剩余记录：事件 token、d、ΔXYZ、z_prior、valid；A,q,N 随记录传递",
+      "points": [
+        [
+          625,
+          515
+        ],
+        [
+          685,
+          515
+        ]
+      ],
+      "kind": "feature",
+      "delayed": false
+    },
+    {
+      "source": "relation",
+      "target": "scatter",
+      "payload": "匹配关系特征 φ_ij；直接分配权重 w_ij=q_i*A_ij",
+      "points": [
+        [
+          970,
+          515
+        ],
+        [
+          1025,
+          515
+        ]
+      ],
+      "kind": "feature",
+      "delayed": false
+    },
+    {
+      "source": "scatter",
+      "target": "mesh",
+      "payload": "H0；直接事件质量及支持标记（不删除无观测顶点）",
+      "points": [
+        [
+          1230,
+          515
+        ],
+        [
+          1290,
+          515
+        ]
+      ],
+      "kind": "feature",
+      "delayed": false
+    },
+    {
+      "source": "prepare",
+      "target": "mesh",
+      "payload": "V_prev 的完整 XYZ 与固定 faces；由此构造固定边和随姿态变化的 ΔXYZ",
+      "points": [
+        [
+          565,
+          335
+        ],
+        [
+          565,
+          295
+        ],
+        [
+          1425,
+          295
+        ],
+        [
+          1425,
+          405
+        ]
+      ],
+      "kind": "geometry",
+      "delayed": false
+    },
+    {
+      "source": "mesh",
+      "target": "lbs",
+      "payload": "H_L；传播有效性，以及透传的直接事件质量/支持",
+      "points": [
+        [
+          1555,
+          515
+        ],
+        [
+          1615,
+          515
+        ]
+      ],
+      "kind": "feature",
+      "delayed": false
+    },
+    {
+      "source": "lbs",
+      "target": "readout",
+      "payload": "16 个有序关节槽：mean、max、直接支持统计、有效性",
+      "points": [
+        [
+          1855,
+          515
+        ],
+        [
+          1915,
+          515
+        ]
+      ],
+      "kind": "feature",
+      "delayed": false
+    },
+    {
+      "source": "relation",
+      "target": "unmatched",
+      "payload": "同一 φ 编码的无几何记录；剩余权重 r_i=1-sum_j w_ij；有效事件数量 N",
+      "points": [
+        [
+          830,
+          625
+        ],
+        [
+          830,
+          775
+        ],
+        [
+          1040,
+          775
+        ]
+      ],
+      "kind": "feature",
+      "delayed": false
+    },
+    {
+      "source": "unmatched",
+      "target": "readout",
+      "payload": "剩余事件摘要 b（第 17 槽）；mass/validity；透传包计数 N",
+      "points": [
+        [
+          1395,
+          775
+        ],
+        [
+          2145,
+          775
+        ],
+        [
+          2145,
+          625
+        ]
+      ],
+      "kind": "feature",
+      "delayed": false
+    },
+    {
+      "source": "prev",
+      "target": "readout",
+      "payload": "prev[3:51] 原始旋转参数，直接作为加性轴角残差的坐标条件；没有独立 prev_mlp",
+      "points": [
+        [
+          265,
+          220
+        ],
+        [
+          2060,
+          220
+        ],
+        [
+          2060,
+          405
+        ]
+      ],
+      "kind": "state",
+      "delayed": false
+    },
+    {
+      "source": "readout",
+      "target": "update",
+      "payload": "唯一 51D 增量 Δs；透传有效事件数量 N 给确定性的空包门",
+      "points": [
+        [
+          2225,
+          515
+        ],
+        [
+          2335,
+          515
+        ]
+      ],
+      "kind": "feature",
+      "delayed": false
+    },
+    {
+      "source": "prev",
+      "target": "update",
+      "payload": "完整 s_prev，用于残差加法和空包保持",
+      "points": [
+        [
+          165,
+          190
+        ],
+        [
+          165,
+          145
+        ],
+        [
+          2450,
+          145
+        ],
+        [
+          2450,
+          430
+        ]
+      ],
+      "kind": "state",
+      "delayed": false
+    },
+    {
+      "source": "update",
+      "target": "prev",
+      "payload": "s_k 成为下一事件包的 prev；延迟一步，不反馈到本包",
+      "points": [
+        [
+          2450,
+          600
+        ],
+        [
+          2450,
+          910
+        ],
+        [
+          35,
+          910
+        ],
+        [
+          35,
+          270
+        ],
+        [
+          65,
+          270
+        ]
+      ],
+      "kind": "feedback",
+      "delayed": true
+    }
+  ],
+  "diagram_verification": {
+    "single_packet_topological_order": [
+      "prev",
+      "events",
+      "prepare",
+      "relation",
+      "scatter",
+      "unmatched",
+      "mesh",
+      "lbs",
+      "readout",
+      "update"
+    ],
+    "arrows_attach_to_box_boundaries": true,
+    "no_edges_cross_boxes_or_each_other": true,
+    "learned_modules": [
+      "relation",
+      "mesh",
+      "readout"
+    ],
+    "node_text_inside_boxes": true
+  }
+}

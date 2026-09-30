@@ -1,0 +1,116 @@
+# S37-XYZ budget-capped screen, arm C1 (2026-09-29, docs/S37_XYZ_SCREEN_PREREG_20260929.md).
+# Seed 3407 only; this is a mechanism screen, not an adoption run.
+#
+# Protocol note: trains on the nine-subject default split (splits_semkine.json) and validates,
+# selects and reports on the held-out subject zgz only (docs/FAILURE_AND_CLEANUP_LEDGER.md).
+#
+# The arm (`semkine/xyz_mesh.py`, the user's drawing): prev -> MANO FK -> 778 vertices in camera XYZ;
+# event rays K^-1 [u, v, 1] meet the mesh (surface hit / near-silhouette front layer / residual);
+# (1) a shared relation encoder over (event token7, dXYZ, z_prior, valid, hit) records, (2) one
+# MeshGNN on the face 1-ring gated by the 3D edge vectors, 16 LBS slots + the residual slot b,
+# (3) one common readout that also reads prev[3:51] and writes the only 51D delta. No EventGNN, no
+# prev_mlp, no per-joint heads. C0 (`s37_xyz_c0_s3407.yaml`) differs only in XYZ_GEOM.
+#
+# Data, augmentation, loss, curriculum, batch (2 x 512), LR and warmup: S37 routed verbatim. The
+# LR is constant after the 500-step warmup, so steps 500 / 1000 / 1500 here see the same schedule
+# as the same steps of the S37 routed grid. MAX_STEPS 1500 is the pre-registered budget cap.
+SEED: 3407
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_gnn
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: false          # no prev_mlp: prev[3:51] enters the common readout directly
+  PREV_RENDER: false
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375           # event-frame intrinsics s K, the frame the rays are cast in
+  RENDER_CHUNK: 256
+  ENCODER: xyz_mesh
+  ENCODER_HIDDEN: 128
+  ENCODER_LAYERS: 3
+  ENCODER_MAX_NODES: 2048       # the S37 event sampling, unchanged
+  ACTIVE_HEAD: false
+  XYZ_BAND_PX: 16.0
+  XYZ_FRONT_PX: 3.0
+  XYZ_Z_TOL: 0.01
+  XYZ_K: 16
+  XYZ_GEOM: true
+  XYZ_REL_HIDDEN: 64
+  XYZ_SLOT_DIM: 32
+  XYZ_READOUT_HIDDEN: 256
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 1500               # budget cap (pre-registered)
+  VAL_CHECK_INTERVAL: 500
+  SAVE_EVERY_N_STEPS: 500       # fixed grid 500 / 1000 / 1500: val_loss must not select checkpoints
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s37_xyz_c1_s3407
+  RUN_NAME: s37_xyz_c1_s3407
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s37_xyz_c1_s3407/eval

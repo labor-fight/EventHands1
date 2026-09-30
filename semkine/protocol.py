@@ -2,7 +2,7 @@
 """S1 protocol reform: subject-disjoint splits and the statistics that motivate them.
 
 The legacy split puts all 9 of one group of subjects in train and the single subject `zgz` in
-val. That has two consequences measured in `docs/semkine/ARCHITECTURE_AUDIT.md`:
+val. That has two measured consequences:
 
 * `val/zgz_local` fires 1490 events per 50 ms against 29 255 for `val/zgz_global` on the same
   subject and camera, yet supplies 1204 of 2590 val frames. The overall metric is a weighted

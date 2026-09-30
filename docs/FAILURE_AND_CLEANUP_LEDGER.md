@@ -13,7 +13,7 @@
 4. 单次独立训练之间的差值；
 5. 早期定性判断或后来已被修正的文档。
 
-早期“LNES 使运动方向在网络前完全消失”的判断已被后续 probe 与 LOSO 修正（`experiment_history.md` §10–11）。它不能作为新论文的当前结论。
+早期“LNES 使运动方向在网络前完全消失”的判断已被后续 probe 与 LOSO 修正。它不能作为新论文的当前结论。
 
 > **协议声明（2026-09-05 起）。** 训练一律用默认划分 `splits_semkine.json`（9 受试者 72 条序列），
 > 验证、选点、上报**统一只用留出受试者 zgz 的两条序列**（`zgz_global` + `zgz_local`；`val` = `val_core` = `test`）。
@@ -24,9 +24,7 @@
 > 同日用户定义的 **S37 FK 图**（`S37_FKGRAPH_PREREG.md`）−1.07 mm 打平，成本 1/10，作对照与成本参照保留。
 > 2026-09-18 用户手绘的 **S37 网格图**（`S37_MESHGRAPH_PREREG.md`，整张 FK mesh 作图 + LBS pooling）两种子分裂
 > （20.48 / 29.30），不采纳；不稳定全在 root 旋转读出，手指读出稳定，保留作对照。
-> 2026-09-20 的 **S38 三维网格图**两臂（`S38_MESH3D_PREREG.md`）：prev 几何进顶点特征 / 边（S38a）26.90 **不过**，闭环回灌（放大率 4.26）；
-> 只给 root 部件杠杆臂（S38b）21.76 过对 fk_graph 的精度门、消除了网格图的种子分裂，但对 routed 仍 +1.02，TF 旋转未改善，**不换臂**。
-> EventGNN 线上仍有效的文档：`EVENT_GNN_SURVEY_20260829.md`（文献与机制判定）与上述 prereg。
+> EventGNN 线上仍有效的文档是上述 prereg；文献以 `docs/research/dir12_20260928/` 为准。
 
 ## 1. 当前可信事实
 
@@ -74,8 +72,6 @@
 | 原 S37 FK 直连（`PREV_FK_DIRECT`，已不存在） | 5 受试者线上一次实验（08-30）：精度门槛过（RA −1.95）、**延迟门槛否**（6.01 → 6.37 ms）、abs +2.69，却只凭精度采纳为基座；09-04 以三条理由撤回。09-06 在 zgz 协议下重跑过一次，**已按用户指令作废并清除，不保留数字** | 撤回理由（09-04）：GT prev 的逐事件到关节/顶点解析距离+逆深度可能是把目标几何标注到事件上的闭环捷径；每包 MANO FK + 逐节点 top-k 近邻比光栅化更慢；方法退化为 MANO 先验驱动跟踪。流程错误：预注册门槛被当读数 | 09-06：`PREV_FK_DIRECT` / `_fk_extra` 路径、config、测试、工具、产物、日志、文档全部删除（文末条目）；叠在它上面的 S38–S42（读出 ×2、loss ×2、FK 方向 ×1）连同 S43–S46 同日清除 |
 | **S37 FK 图**（`ENCODER: fk_graph`，`PREV_RENDER: false`，09-07，用户定义的形态） | **打平**（精度门未过 0.03 mm，两种子反向）。zgz 递推 RA 22.10（22.64 / 21.56）对 S36 23.17；abs 67.4（−11.6）；观测置零 +79 mm；延迟 5.38 ms（−22% 同会话）、0.084 G、0.23 M。H1–H6 见 `docs/S37_FKGRAPH_PREREG.md` §6–§7 | 渲染比较的稀疏对偶：在 prev 表面点上读"事件落在我周围哪里"，与 S36 信息量相当（TF 9.05 对 9.17）。赢在 root 平移（200 个节点的偏移场按序进 root 头，S36 的池化把它平均掉了）；输在手指（稀疏事件下 8 维汇总丢局部形状）。流速项在 50 ms 内无信息；旋转分量在训练分布里仍不可读。后半网格退化（27–31），最佳点都在前 2000 步 | 保留 checkpoint 与全部 JSON 作对照与成本参照；流速项可删；手指精度与 root 旋转为后续变量。**当前臂仍为 S37 路由读出** |
 | **S37 路由读出**（`ROUTED_READOUT`，`PREV_RENDER: false`，09-07） | **PASS**。zgz 递推 RA 20.74（19.23 / 22.26）对 S36 23.17，两种子都更好，网格整体更好；abs 75.8；证据置零闭环 +7.6 mm；延迟 7.72 ms（+10%）。H1–H5 探针见 `docs/S37_ROUTED_READOUT_PREREG.md` §6–§7 | 增益是闭环性质：TF 单步差 0.6，放大率 2.58 → 2.12；每个关节只从自己附近的事件取证据，一处状态误差不再经共享池化向量污染全部关节。路由是固定几何（LBS 行），课程噪声无法把它摊平——这是与 KEG（学习路由进图结构，回路增益 0.91）和 S38（学习 σ 被摊到 365 px）的本质区别；oracle 路由反而更差，路由误差不是瓶颈。大噪声课程下路由纯度 0.14，但没有让头忽略证据 | **采纳，当前臂 S37**。保留 checkpoint、选点 JSON、主行与探针 JSON。剩余短板与 S36 共有：root 旋转盲（增益 ≤ 0.13）、更新方向余弦 0.26、TF 单步 9–10 mm > 真实步进 5.8 mm |
-| **S38a 三维网格图**（`ENCODER: mesh_graph` + `MESH_GRAPH_EDGE_GEO` + `MESH_GRAPH_RIGID_NODE`，09-20） | **FAIL**。zgz 递推 RA 26.90（30.45 / 23.34）对 meshgraph 24.89、fk_graph 22.10；3407 整张网格 ≥ 41，选在 step 500；TF 7.07 全线最低、放大率 4.26 全线最高；单步 RA@26 mm 18.68（门 16.9）；观测置零 +65 / +18，abs 11 m。`docs/S38_MESH3D_PREREG.md` §8–§9 | prev 的 FK 几何以 `relu(W_h h_i + W_r r_i + b)`、`X_j − X_i` 进顶点特征与边——`W_r r` 项只依赖 prev、不管事件说什么都在，网络把它当先验：TF 里 prev = GT + 噪声，先验有信息；闭环里回灌。"只以相对量进入"不够：16 个部件相对根关节的相机系位置就是姿态，1-ring 边向量就是局部表面朝向 | **不采纳**。checkpoint 与 JSON 保留作负对照。教训写进契约：证据为零的节点对输出的贡献必须恰为零，不论几何；几何只允许乘证据（力矩 `r × δ`、骨局部系观测），不允许加性项 |
-| **S38b 部件杠杆臂**（`ENCODER: mesh_graph` + `MESH_GRAPH_ROOT_LEVER: 64`，09-20） | **过对 fk_graph 的预注册精度门，不换臂**。RA 21.76（22.05 / 21.48）< 22.10 且逐种子不劣；对 routed +1.02；网格图的种子分裂消失，闭环旋转 p50 19.7° / 17.0°、网格 sd 5.2 / 4.7（meshgraph 7.4 / 8.9，门 ≤ 4 未过）；手指 19.6 ± 1.3 / 18.8 ± 1.9 全线最稳；abs 77（meshgraph 59）；网格中位 30–32（fk_graph 26.8）；TF 旋转 9.3° / 6.0° 未改善；观测置零 +109 / +28 | 杠杆臂只进 root、64 维瓶颈、`seen_j` 门住，回路没炸（放大率 2.47 / 3.13 与 meshgraph 同）；收益是 root 读出的一致性 / 正则，不是"旋转变得可读"——四个 S38 run 与 meshgraph 的 TF `val_rot_loss` 都平在 0.002–0.004、2k 后不降（H5）。瓶颈在训练信号 / 课程（0.3 rad 旋转噪声总与 50 mm 平移、大幅手指噪声同时出现），不在表示 | **不换臂，当前臂仍为 S37 路由读出**。保留作对照。下一个单变量按预注册 H5 应是课程，不是再改图 |
 
 ## 3. 源码/产物分类
 
@@ -203,35 +199,31 @@ python -m pytest tests -q
 - symlink 指向的外部目录；
 - `main/master` 上的 `--apply`，除非显式 `--allow-protected-branch`。
 
-## 5. 文档地图（2026-09-24 收敛后）
+## 5. 文档地图（2026-09-29 再收敛）
 
 活跃入口：
 
 ```text
 docs/FAILURE_AND_CLEANUP_LEDGER.md          # 失败证据、协议、清理；本文
 docs/S37_ROUTED_READOUT_PREREG.md           # 当前臂
-docs/S38_GEOROOT_PREREG.md                  # 进行中的下一臂
+docs/S37_FKGRAPH_PREREG.md / S37_MESHGRAPH_PREREG.md / S37_MESHQ_PREREG.md
+docs/S37_ROOT_INNOVATION_PREREG.md / S37_ROTW_CNNROOT_PREREG.md
+docs/S37_XYZ_CANDIDATE_20260929.md        # XYZ 候选：结构、信息检查、训练准入
+docs/网络结构分析.md                        # S37 结构问题、文献对照、下一轮实验（两轮）
+docs/research/dir12_20260928/               # 当前文献
 ```
 
-仍有唯一数字、不得再拆的收据：
+仍有唯一数字、不并入本文：
 
 ```text
-docs/S37_FKGRAPH_PREREG.md / S37_MESHGRAPH_PREREG.md / S37_MESHQ_PREREG.md
-docs/S38_MESH3D_PREREG.md                   # 09-20 退役 S38
-docs/EVENT_GUIDED_MESH_MEMORY_PREREG.md     # 778 顶点记忆臂（含初版+debug）
-docs/S37_XYZ_EVENT_DEPTH_ANALYSIS_20260924.md
-docs/GNN_ARMS_ARCHIVE_20260828.md           # 已删 KEG/CellGNN 臂的数字
-docs/EVENT_GNN_SURVEY_20260829.md
-docs/experiment_history.md                  # 旧协议 §1–14
-docs/semkine/{EXPERIMENT_LOG,CLAIM_MATRIX,FAILURE_CASES,ARCHITECTURE_AUDIT}.md
-docs/PLAN_SELECTION_VERDICT_20260825.md
-docs/ASYNC_SPARSE_SOTA_MASTER_VERDICT_20260826.md
-docs/POSITIONING_VS_E3DPSM.md
-docs/S27_RETENTION_IS_NOT_A_CONTROL_VARIABLE.md
-docs/debug_e55b_unroll_20260825.md
+docs/GNN_ARMS_ARCHIVE_20260828.md           # 已删 KEG/CellGNN 臂的网格，无法从别处重建
+docs/POSITIONING_VS_E3DPSM.md               # 常数增益融合不能当创新点
+docs/S27_RETENTION_IS_NOT_A_CONTROL_VARIABLE.md  # 保持率惩罚干预失败
 ```
 
-2026-09-24 已删（内容已进本文或记忆臂预注册，无独立数字）：`EVENT_KINEGRAPH_MASTER_PLAN.md`、`EVENT_KINEGRAPH_EXECUTION_LOG.md`、`EXPERIMENT_SYSTEMATIC_SUMMARY.md`、`debug_closed_loop_diagnosis.md`、`semkine/FINAL_REPORT.md`、以及事件引导网格拆开的三份（`EVENT_GUIDED_MESH_PREREG.md` / `_DEBUG_` / `_TRACKING_DESIGN_`）。
+2026-09-29 删除（结论已在本文，或被 `docs/research/dir12_20260928/` 重读覆盖）：`experiment_history.md`、`PLAN_SELECTION_VERDICT_20260825.md`、`ASYNC_SPARSE_SOTA_MASTER_VERDICT_20260826.md`、`debug_e55b_unroll_20260825.md`、`EVENT_GNN_SURVEY_20260829.md`、`semkine/{EXPERIMENT_LOG,CLAIM_MATRIX,FAILURE_CASES,ARCHITECTURE_AUDIT}.md`。
+
+2026-09-24 已删（内容已进本文，无独立数字）：`EVENT_KINEGRAPH_MASTER_PLAN.md`、`EVENT_KINEGRAPH_EXECUTION_LOG.md`、`EXPERIMENT_SYSTEMATIC_SUMMARY.md`、`debug_closed_loop_diagnosis.md`、`semkine/FINAL_REPORT.md`。
 
 ## 6. 新路线的 kill rules
 
@@ -414,8 +406,6 @@ train_samples = 2491120
 | **S37 路由读出**（状态无关图 + FK 路由逐关节证据，09-07，`docs/S37_ROUTED_READOUT_PREREG.md`） | 26.41 | 15.82 | 21.40 | 12.39 | **20.74**（19.23 / 22.26） | 76 | 7.72 ms | 0.827 G | 0.73 M |
 | **S37 FK 图**（用户设计：FK 是图、事件是观测、无 token 无几何支路，09-07，`docs/S37_FKGRAPH_PREREG.md`） | 30.92 | **14.43** | 26.47 | **11.59** | **22.10**（22.64 / 21.56） | **67** | **5.38 ms** | **0.084 G** | **0.23 M** |
 | S37 网格图（用户手绘：整张 FK mesh 作图、面 1-ring 边、LBS pooling 到 16 关节，09-18，`docs/S37_MESHGRAPH_PREREG.md`） | 36.32（3407 **25.80** / 3408 46.85） | 14.96 | 27.63 | 11.69 | 24.89（**20.48** / 29.30） | 59 | 11.99 ms | 0.314 G | 0.44 M |
-| S38a 三维网格图（网格图 + 1-ring 边带 3D 相对向量 + 带杠杆臂的刚体节点，09-20，`docs/S38_MESH3D_PREREG.md`） | 37.39（41.25 / 33.53） | 17.78 | 30.06 | 13.48 | 26.90（30.45 / 23.34） | 80 | 13.07 ms | 0.327 G | 0.47 M |
-| S38b 部件杠杆臂（网格图 + root 读 `relu(W[e_j ; r_j])`，图不动，09-20，`docs/S38_MESH3D_PREREG.md`） | 30.15（29.39 / 30.90） | 14.48 | 23.96 | 11.01 | 21.76（22.05 / 21.48） | 77 | 12.83 ms | 0.315 G | 0.46 M |
 | 参照：`track_render51_dr_*`（CNN + 渲染 + 域随机化，同协议，主表已有） | 13.3–17.8 | 9.3–12.6 | 11–15 | 7–10 | **11.9–13.3** | 58–97 | ≈1.75–2.5 ms | 1.65 G | 11.2 M |
 
 读法：
@@ -436,13 +426,6 @@ train_samples = 2491120
   **root 旋转**：闭环全局旋转中位数 15.6° 对 28.2°，整张网格 RA 与旋转误差相关 0.96 / 0.89、与手指误差相关 ≈ 0，网格 spread 14 / 26 mm（fk_graph 9 / 6）。
   原因是图里只有面 1-ring 边（3 跳 ≈ 1–2 cm），root 头从 16 个各自局部的 LBS 均值里线性拼全局旋转，没有 fk_graph 的关节节点 + 运动学树那条长程通路。
   观测置零 +22.6 / +27.4（承重）。延迟 11.99 ms（B = 1 时跳跃泛洪与 z-buffer 的小核启动），FLOPs 0.314 G，参数 0.44 M。
-- S38a 三维网格图（网格图 + 1-ring 边带 3D 相对向量 + 带杠杆臂的刚体节点）对 fk_graph **+4.80 mm，不过**（30.45 / 23.34；3407 整张网格 ≥ 41，
-  选在几乎没训的 step 500）。TF 单步 7.07 全线最低而放大率 4.26 全线最高：prev 的几何以 `W_r r` 加性项进了顶点特征，被当先验用，闭环回灌
-  （与"原 S37 FK 直连"撤回理由、KEG 回路增益 0.91 同一机制）。观测置零 +65 / +18，abs 飞到 11 m。
-- S38b 部件杠杆臂（图不动，root 额外读 `relu(W[e_j ; r_j])`）对 fk_graph **−0.34 mm，过预注册精度门**（22.05 / 21.48，逐种子不劣），
-  网格图的种子分裂消失，闭环旋转 p50 19.7° / 17.0°、网格 sd 5.2 / 4.7（meshgraph 7.4 / 8.9），手指 19.6 ± 1.3 / 18.8 ± 1.9 全线最稳；
-  但对当前臂 routed **+1.02**，网格中位 30–32（fk_graph 26.8），abs 77（meshgraph 59），**TF 旋转不改善**（`val_rot_loss` 四个 run 都平在 0.002–0.004、
-  2k 后不降——H5：瓶颈在课程不在表示）。观测置零 +109 / +28。**不换臂**。两臂 checkpoint 与 JSON 保留作对照。
 
 结论：**这条线的下一个问题仍是为什么整条事件 GNN 线在 zgz 上落后 CNN+渲染基线 8–10 mm**。任何后续臂的采纳门槛都应改为
 对 `track_render51_dr_*` 的 12–13 mm 负责。S37 的探针指出三个共有短板：root 对旋转近乎全盲（响应增益 ≤ 0.13）、
@@ -538,419 +521,90 @@ root 头没有长程通路；fk_graph 的关节节点 + 运动学树边正是这
 - 探针脚本里一处自己的错误值得记：`Tensor.norm(-1)` 是 p = −1 的范数（标量），不是 `dim=-1`；中间一版探针因此全零，靠"TF 比闭环还差"的反常读数发现。
   另一处：短于一步的 `valid_runs_ms` 段没有窗口，构造 prev 索引时必须跳过，否则 prev 与窗口错位。`tools/probe_s37_meshgraph.py` 已含两处修正。
 
-## S38 三维网格图：prev 几何进证据通路的两种放法，一种回灌、一种只稠一致性；都不换臂（2026-09-20 17:45 → 21:06）
+## 2026-09-28：按用户指令清除 S37 之后的全部实验与记录，回到 S37 起点
 
-起点是用户的问题"778 个顶点是 3D 的，2D 的网络改成 3D 的可不可以"。对话里把"2D → 3D"拆成五个单变量，只做直接对应网格图失败点（root 旋转两种子分裂）的两个，
-不做动态 kNN 建边。预注册、门槛、预测在训练前写定（`docs/S38_MESH3D_PREREG.md` §4–§5），两臂对 S37 网格图各只改一处（`tests/test_s38_mesh3d.py` 17 项契约锁定 diff），
-全关 = S37 网格图逐位相同（S37 checkpoint `strict` 加载无缺失、无多余键）。训练在另一项目让出 GPU 4–7 后由 `tools/run_s38.sh` 自动起，`tools/finish_s38.sh` 训完自动跑主行、
-旋转 / 手指分解、机制门（新工具 `tools/probe_s38_gate.py`）、闭环 + prev 噪声扫描，并对照门槛汇总（`logs/finish_s38_summary.log`）。复现漂移四个 run 都是 0.0000 mm。
+用户指令"S37 之后的实验以及记录全部删除，重新分析"。保留 S37 家族四臂（`2649ea0`：routed / fkgraph / meshq / meshgraph），**不留快照直接删**；
+已提交内容仍可从 `85d76a1` 取回，未提交部分（下列 `.experiments/` 等目录、8 份 terminal prereg、本文 09-26 之后的追加段）不可恢复。
 
-- **S38a**（1-ring 边特征 = 3D 相对向量 + 带杠杆臂的刚体节点）：RA 26.90（30.45 / 23.34），**不过**。TF 单步 7.07 全线最低、闭环放大率 4.26 全线最高，
-  3407 整张网格 ≥ 41 mm、选在 step 500；观测置零后 abs 飞到 11 m。几何以 `W_r r` 加性项进了顶点特征，被当先验用——TF 下有信息、闭环下回灌。
-- **S38b**（图不动，root 额外读 `relu(W[e_j ; r_j])`，16 部件共享 W）：RA 21.76（22.05 / 21.48），**过对 fk_graph 的预注册精度门**（−0.34，逐种子不劣），
-  网格图的种子分裂消失，闭环旋转 p50 19.7° / 17.0°、网格 sd 5.2 / 4.7，手指 19.6 ± 1.3 / 18.8 ± 1.9 全线最稳；但对当前臂 routed +1.02、网格中位 30–32、abs 77，
-  **TF 旋转没有改善**（`val_rot_loss` 0.002–0.004，2k 后不降）。**不换臂。**
-
-判读（详见 prereg §9）：预注册 H1 的前半——"旋转读不出是因为证据通路里没有相机系杠杆臂（双线性）"——**不成立**：杠杆臂进来了，TF 旋转不动。
-成立的是 H5：四个 run 的 TF 旋转损失与 meshgraph 同一水平且随训练不降，表示层的两种改法都没碰到它，瓶颈在训练信号 / 课程。
-放开"几何不进特征"这条法则的条件，"只以相对量进入"**不够**——相对量仍是状态；正确的条件是几何只能**乘**证据（证据为零则贡献恰为零）。
-这条写进后续任何几何臂的契约。
-
-下一个单变量按 H5：课程（把 root 旋转噪声与平移 / 手指噪声解耦，或降大噪声比例），其余不动。
-
-**清理（09-21 16:10，用户指令："踩坑和实验内容留在 docs 里，其余的记录删除"）**：保留 `docs/S38_MESH3D_PREREG.md`（设计、门槛、结果、判读、产物登记含选中 checkpoint sha256）
-与本文条目；代码回退到 S37 提交 `2649ea0`（`semkine/mesh_graph.py`、`semkine/fk_graph.py`、`model/model.py`、`tools/make_s36_row.py`），
-`configs/semkine/s38_*`、`tests/test_s38_mesh3d.py`、`tools/{run_s38.sh,finish_s38.sh,probe_s38_gate.py}` 删除，`outputs/semkine/s38_*`（≈ 360 MB）与 `logs/*s38*` 删除。
-**快照提交 `bf4f0ca`** 含删除前的全部代码、config、测试、工具与文档，任何一件 `git checkout bf4f0ca -- <path>` 可取回；checkpoint 按 prereg §6 重训可复现。
-与 S38 无关而同期加入的 `tools/report_table.py` 与 `AGENTS.md`（统一结果表）保留。
-
-## 2026-09-23：按用户澄清实现完整 778 顶点的事件引导图（待训练）
-
-用户指出原手绘要求事件参与三维构图，进一步明确保留全部 778 个顶点，用上一状态之后到来的事件包驱动修改。
-原 `s37_meshgraph` 是固定面片 1-ring 加节点观测，不能直接等同于这次明确的结构，也不能把旧主行当成本次实现的结果。
-
-新增 `ENCODER: event_guided_mesh` 与独立配置 `configs/semkine/event_guided_mesh_s3407.yaml`：
-每节点的三维近邻候选由事件观测距离重排，三层有证据支持的三维消息卷积，固定 LBS 均值汇到 16 个关节，再仅由这些特征预测 Δ。
-全部节点保持原 MANO 编号；未观察节点可接收传播，几何在无任何证据时不能生成特征。
-该分支去掉 prev MLP、头部 prev 角及背景直达 root；旧臂实现和已有权重接口保留。
-
-实现、具体构图公式、时序和验证记录见 `docs/EVENT_GUIDED_MESH_MEMORY_PREREG.md` §1。新契约与旧臂回归通过，默认配置 CUDA bf16 前反向、优化一步和权重保存加载通过；
-审查修复了 bf16 零更新舍入 prev 及几何预处理受 autocast 影响两处问题。尚未启动完整训练，没有新的精度/成本主表行或采纳结论。
-
-## 2026-09-23：完整顶点事件图 debug——缺观测相似性阻隔传播，暂不作精度结论
-
-按用户“先 debug 分析”检查了代码、实际训练包、MANO 模板边界反例及默认单卡批量；完整记录在
-`docs/EVENT_GUIDED_MESH_MEMORY_PREREG.md` §2，原始读数与复现脚本在 `.experiments/egm_debug_20260923/`。
+- 删：S38 三维网格图 / georoot、S39、778 顶点事件引导图与记忆臂、09-24 深度 / xyz 探针、09-25–26 异步研究线（约 60 份 `S37_*` 后续 prereg、
+  `docs/research/s37_async_20260925/`）及 x1 / x1c / k0–k2 / c0 / sc0 / cc0 / mp1 各臂的代码、配置、测试、工具、run 目录（≈ 3.1 GB）与日志；
+  `.experiments/`、`.research/`、`research_state/`、`scratch/`（≈ 6.6 GB）；本文 S38 起的全部条目与表行。
+- 恢复到 `2649ea0`：`model/model.py`、`semkine/{event_gnn,frontends,mesh_graph,fk_graph,routed_readout,train,eval_track}.py`、`tests/test_s37_mesh_graph.py`、
+  `tools/{make_s36_row,make_s37_figure_simple,run_closed_loop_probe}.py`、四臂 prereg 与结构图。
+- 保留：`AGENTS.md` 与 `tools/report_table.py`（统一结果表）；09-24 的 docs 收敛与旧 evsim / live_demo 代码的删除（不是实验）。
 
-- 事件确实改变邻居集合，但 `mean((o_i-o_j)^2)` 将无观测当真实零观测。空节点之间分数更低，可能排除有证据发送者；
-  后续仅允许支持节点发消息，于是产生传播阻隔。合成单源与实际 MANO 单源都复现；真实训练包相对几何对照的支持范围也收缩。
-  这是新公式的设计风险，不能解释成旧 S37 的已知失败原因。下一次最小修改优先处理缺观测比较，不同时换 LBS、头或课程。
-- LBS 固定全顶点分母会减弱稀疏支持；极小正权重能打开个别完整关节头门。未支持“一个点打开全部 16 门”的过强猜想。
-  三维近邻跨指与连续几何被 no_grad 截断均确认存在；准确率影响尚未评估。
-- 修复了继承的 `assign_events_by_lut` 边界错误：越界/非有限原始坐标原来会 clamp 到手边缘，现在送背景，合法输入逐位不变。
-  非有限背景行不会污染 EGM 丢弃背景后的前景或其他包。未改 jump-flood 的种子碰撞近似和非默认大 band 局限。
-- 数据准备的姿态标签时刻与事件窗口右端、独立训练与后续递推条件之间有 1 ms 差异。沿用旧协议，纠正文档与图中的严格时间表述，
-  用 k 表示递推步号；目标张量仍不参与构图/前向。
-- 本次增加两项输入边界回归；EGM 与旧 mesh/FK/routed/S39 共 54 项通过。CUDA bf16 默认单卡批量的前向、损失、反向及一步 Adam 通过；
-  Linear 使用 bf16，归约提升 fp32 符合实际 autocast 行为。未运行多卡完整训练，不报新主表行，不据此换臂。
+清除后 `pytest tests` 346 通过、2 跳过。当前臂与后续对照：S37 路由读出（`s37_routed`）。
 
-## 2026-09-23：无观测保持的跨包顶点记忆底层（待明确 mesh 输出契约）
+## 2026-09-28：S37 路由读出重新分析（无训练）
 
-用户要求无观测顶点保持原状态并结合论文实现 tracking。核对 Mesh Graphormer/METRO 的空间重建、EvRGBHand 的历史特征融合和 E-3DPSM 的事件驱动状态后，
-明确这些论文不提供“每个未观测 MANO 顶点绝对坐标冻结”的保证。局部潜状态保持与相机系坐标冻结对应不同输出路径，已询问用户区分；
-具体文献、公式和接口见 `docs/EVENT_GUIDED_MESH_MEMORY_PREREG.md` §3。
+同包迭代 + 原地不动 / 保持段首两条参照线（`docs/S37_ROUTED_READOUT_PREREG.md` §8）：闭环误差等于逐包信念的收敛点（global 13–17 mm，69 s 无漂移），
+不是递推累积；local 上信念对手指基本无信息，闭环 23.33 / 29.49 对"保持段首"28.2。瓶颈在逐包绝对估计，不在递推。当前臂不变。
 
-完成公共模块 `semkine/mesh_memory.py`：caller-owned GRU 顶点记忆，只更新当前实际有观测的节点，未观测节点逐位保持历史，单独返回当前创新量；
-不缓存训练批次，不把历史本身当新运动。`tests/test_mesh_memory.py` 的 7 项测试通过。此模块尚未接入模型、连续包训练或递推评估，
-现有 encoder 的行为未变；不能将底层通过称为完整 tracking 已实现或已具备训练后性能。
+## 2026-09-28（下午）：S37 误差归因——最大单因是根旋转（无训练）
 
-## 2026-09-23：局部记忆 tracking 已接入并启动双种子训练
+`docs/S37_ROUTED_READOUT_PREREG.md` §9，探针 `.experiments/s37_debug_20260928/`。闭环每步把根旋转换成 GT：global 15.8 → 7.9（低于基线 10.99），
+local 26.4 → 17.6；换手指：13.4 / 17.1。根旋转在 GT 初始化后 250 ms 内就到 ~10°；TF 单步注入 6–8°（真实 1.6–3.0°），方向与所需几乎无关。
+机制：根头是不读 prev 根旋转的单层线性层，prev 只经不看事件的 `prev_mlp` 进入（根斜率 −0.24…−0.64，往均值拉），两项各 15–25° 相互抵消；
+大噪声课程与 51 维 MSE 的分配（根旋转 15.5%、平移 45%，相对 RA 低配 ~170×）是成因。local 另有一项手指误差（仅手指 16.8–17.2 mm，事件最稀的序列）。当前臂不变。
 
-用户确认保留局部顶点记忆、允许随整手和关节运动，并要求开始训练。新增 `event_guided_mesh_memory` 独立配置，
-保留全部 778 节点、图卷积、固定 LBS 到 16 关节与 51D Δ 主干；缺观测点的 GRU 持久状态逐位保持。
-构图采用 4 个最近几何来源与 4 个当前观测引导来源，不足补几何。姿态和顶点记忆都在连续两包训练中显式传递，
-main 不使用 GT prev；推理在每个 valid run 重置并在段内持续传递，不把状态偷偷缓存到随机训练 batch 之间。
+## 2026-09-28（晚）：根旋转新息的信息探针；用户方向 A / B 的判断（无训练）
 
-启动前两项修订：
+`docs/S37_ROUTED_READOUT_PREREG.md` §9.1–9.2，`.experiments/s37_debug_20260928/probe_info.py`。`prev_mlp` 的根斜率与课程噪声下的 Wiener 收缩系数吻合（预测 −0.34 / −0.30 / −0.24，
+global 实测 −0.30 / −0.24 / −0.25、−0.33 / −0.32 / −0.31）：可加可分的根只能取常数增益；K0 / K1 / K2 课程臂落在同一条权衡线上。
+单包解码所需根旋转（zgz，°）：保持 9.21，S37 自身 7.93–8.21，z 8.02–8.04，z + r_prev 7.53–7.60（只加先验回拉），完美路由 = 保持（R² 0），
+119 维 2D 剪影残差 7.08–7.69，× 3D 杠杆臂 6.96–7.09，+ oracle 事件深度 4.51–5.30。判断：A 作为"约束路由"无效（路由是根证据感知 prev 误差的唯一通道，
+历史上 S38a 26.90、778 顶点记忆臂 78.78）；prev 3D 几何只值得作残差的雅可比（+0.3–0.5°）。B 只有每部位深度误差达到约 1 cm 才有用，这与估计旋转同难；
+prev 给的深度是循环量。深度噪声扫描（`probe_dz_sweep.py`）：每部位深度误差 σ = 0 / 1 / 2 / 3 / 5 cm 时比无深度好 1.8–2.5 / 1.2–1.6 / 0.8–0.9 / 0.6 / 0.3–0.4°，
+大 σ 端含未加噪的剪影覆盖通道，偏乐观。当前臂不变。
 
-- 当前 Torch 2.1 的 CUDA fused GRUCell 不支持 bf16，真实双包 smoke 暴露该错误；仅循环单元关闭 autocast、保持 fp32，图卷积和头继续混合精度。
-- 只池化 `H_next-H_prev` 在 GRU 的不同非零固定点处都会变成零，可能丢失持续运动信息。最终改为池化当前观测门控的 `H_next`，
-  差值只作诊断；没有当前观测的历史不能直接产生 Δ。新增固定点测试锁定此语义，不将这项推理当作训练后精度改善。
+## 2026-09-29：S37 根新息第一步（冻结骨干、只训根）不过
 
-最终 96 项契约与旧分支回归通过，真实双卡每卡 512 连续包对的两步训练通过；无观测 hold、空包恒等、两包梯度与完整 MANO 重建均覆盖。
-2026-09-23 15:15:59 启动种子 3407（GPU0、1）与 3408（GPU2、3），各 6000 步，后续自动按固定 checkpoint 网格递推选点。
-启动器 PID 1359394，日志和源码/配置快照登记于 `docs/EVENT_GUIDED_MESH_MEMORY_PREREG.md`。
-训练刚启动，无新主表行，不报告性能门通过或采纳。
+`docs/S37_ROOT_INNOVATION_PREREG.md`。根加一条读"事件相对 prev 投影剪影的残差、prev 杠杆臂只乘残差"的新息头（1.4 K 参数），`prev_mlp` 根 6 行置零，
+冻结事件图 / 手指头 / `prev_mlp`，从 S37 同种子选中点热启动训 1500 步。递推 RA 22.94（23.01 / 22.86）对 S37 20.74，global 18.74 对 15.82；
+G1 TF 旋转 5.72 / 5.28°（门 ≤ 3），G2 纠正增益 0.26 / 0.36（门 ≥ 0.5），G3 过（新息置零 +86 mm），G4 不过；延迟 20.66 ms（SDF 未优化）。
+新息承重但单包噪声大，去掉先验回拉后纠正不足，global 变差。不进入全量训练；当前臂仍为 S37 路由读出。
 
-## 2026-09-23：778 顶点局部记忆臂训练完成，精度门失败
+## 2026-09-29：证据窗口 50→300 ms 不改变 S37 根旋转（零训练）
 
-`event_guided_mesh_memory` 双种子均完成 6000 步；12 点固定网格递推选点于 19:12:07 全部结束，均选 step=500。
-主表复评与选点数值完全复现，双种子递推 RA 均值 78.7832559328 mm，高于冻结 S37 routed 对照，且两种子均未通过各自门槛。
-本次配置不采纳，保留 S37 routed；全部训练产物保留，没有追加训练。
+`docs/S37_ROUTED_READOUT_PREREG.md` §9.3。窗口与步长解耦、输出仍在 50 ms 网格：两种子均值 RA 20.34–20.90（W = 50 为 20.74），根旋转 10.5–12.4° 不变，
+global 手指随窗口变好 1–1.8 mm。根旋转是逐包绝对估计的上限，不是证据量、递推或增益结构单独能改的。磁盘上无绝对 CNN checkpoint，"CNN 根接入 S37"的零训练测试做不了。
 
-末期 checkpoint 的递推误差比早期选中点更高，不能把较低训练/验证损失等同于跟踪改善。
-当前结果不足以在事件构图、固定分母 LBS、局部记忆、两包训练与长序列状态分布之间归因，需独立控制变量诊断。
-详细选点、权重哈希、成本口径和自动生成的正式表见 `docs/EVENT_GUIDED_MESH_MEMORY_PREREG.md`。
+## 2026-09-29（中午）：绝对 CNN 的根接入 S37（诊断 B，零训练融合）
 
-报告前修正 `tools/make_s36_row.py`：仅对 memory 臂用 `track_packet` 连续传递预测姿态和顶点记忆，
-valid run / warmup / 计时 pass 各自重置；完整 MACs 路径计入 GRUCell，写明 latency_protocol。
-旧臂保留原计时行为，故新旧耗时的状态条件不同，不能声称严格相同状态下的速度消融。
+`docs/S37_ROTW_CNNROOT_PREREG.md` §5B。S26 配方的逐帧绝对 CNN（51 维、域随机化，两种子重训）在同一 zgz 协议、同一批帧上 RA 13.31 / 13.80（均值 13.56，
+global 9.89 / 10.45，local 17.25 / 17.66），比 S37 20.74 低 7.2 mm。把 S37 的全局旋转每步换成 CNN 的：16.93（−3.81，过预先定的 1.1 mm 规则）；
+根整体换：16.79。剩下的差距在手指：仅手指 RA local CNN 10.9–11.6 对 S37 16.8–17.2。S37 的逐包估计在根和手指上都落后于逐帧 CNN。臂 A（旋转权重）训练中。
 
-## 2026-09-24：讨论探针——"MANO 不经投影直接建图、给 2D 事件加深度维"能否提升 S37 的 global（无训练、无代码改动）
+## 2026-09-29：旋转损失权重打平；逐帧绝对 CNN 的根接入 S37 有效，CNN 本身好 7 mm
 
-用户问：S37 路由读出若让 MANO 不经投影直接在 3D 建图、给 2D 事件加深度维度，能否不损失深度信息、提升 global。只做分析，不做设计。
-探针 `.experiments/depth_lift_20260924/probe_depth_axes.py`，产物同目录 `s37_s340{7,8}.json`、`baseline.json`、`geom.json`。
-zgz 协议，`default_rng(0)` 按序列顺序共用，与 `make_s36_row.py` 相同；无 oracle 的闭环逐位复现主行（3407：15.664 / 23.334；3408：15.972 / 29.491），
-基线 `abs_pca12` step 11000 复现 10.986 / 30.003。
+`docs/S37_ROTW_CNNROOT_PREREG.md`。A：S37 只把 `LAMBDA_R` 60 → 600 从零重训，递推 RA 20.74（21.10 / 20.38）与 S37 打平，根旋转不降；×1800 单种子 19.10 打平
+（global 旋转 11.3° → 7.6°，local 不动）。B：S26 配方的 51 维绝对 CNN 重训两种子（13.31 / 13.80，global 9.9–10.5、local 17.3–17.7），
+把它的全局旋转接进 S37 闭环 20.74 → 16.93（两种子都改善），换整个根 16.79；CNN 自身 13.56，手指也全面好于 S37。当前臂不变；下一步待用户在
+"轻量绝对根分支"与"把逐帧绝对估计做轻、递推只作平滑"之间选择。
 
-| 读数（zgz_global；S37 为闭环，3407 / 3408） | S37 routed | 逐帧基线 EventHands-PCA6（对完整 GT） |
-|---|---|---|
-| RA | 15.66 / 15.97 | 11.91 |
-| 去掉相机 z 分量后的 RA（只剩像面内 x/y） | 11.59 / 12.35 | 7.08 |
-| 每关节平均 abs(e_z)（深度分量） | 9.03 / 8.25 | 8.75 |
-| 误差平方中 z 的占比 | 0.38 / 0.33 | 0.63 |
-| 根旋转误差 p50：像面内（绕光轴）/ 像面外（改变深度的倾斜） | 5.3° / 8.1°；3.8° / 8.9° | 2.4° / 7.0° |
-| 同上，TF 单步 | 1.8° / 5.4°；1.6° / 5.3° | — |
 
-闭环 oracle（每步把该部分换成 GT；RA global / local，3407；3408）：无 15.66 / 23.33；15.97 / 29.49。根深度 z：15.52 / 26.89；18.21 / 29.77。
-x/y 平移：14.10 / 23.42；14.70 / 28.35。整个根旋转：9.58 / 17.45；6.15 / 17.71。只去像面外误差：16.02 / 19.84；11.96 / 24.07。
-只去像面内误差：12.84 / 22.56；12.05 / 26.56。根深度 oracle 下 abs 大降（3408 global 75.4 → 21.1，local 89.1 → 40.3）。
+## 2026-09-29：XYZ 支路信息 DEBUG（恒等式与反例，无训练/精度评估）
 
-"给事件补深度"的实测：用 prev 前表面给每个事件补深度（即 S37 路由已选出的那个顶点的 z），对同一像素下 GT 前表面的深度误差 p50
-global 27 / 76 mm、local 99 / 81 mm；逐步中位误差与 prev 根深度误差的相关 global 0.96 / 0.98、local 0.88 / 0.74。
-图像一阶可观测性（GT 网格，扣掉其余五个根自由度后的独有 RMS 像素位移，zgz_global 0.56 m）：像面外旋转 0.10–0.12 px/°、像面内 0.36 px/°；
-深度平移 0.042 px/mm、横向 0.12–0.14 px/mm。GT 每 50 ms 步运动 p50：像面外 1.1°、像面内 0.5°、横向 5.3 mm、深度 1.3 mm（每步深度信号约 0.06 px）。
+按用户要求对支路冗余作可执行检查，详 `docs/S37_XYZ_CANDIDATE_20260929.md` §3；脚本、JSON、固定输入、两个 S37 已选 checkpoint 的等价读出重写与 SHA256 保存在 `.experiments/xyz_branch_debug_20260929/`。CPU 执行，来源运行期间不变，未修改模型或训练。
 
-判读：
-- 事件是 (x, y, t, p)，没有可"保留"的深度；S37 投影的是 prev 网格，z 已用于前表面测试。
-  补上的深度维只能来自 prev——实测它就是状态自身的深度误差（相关 0.74–0.98）——或来自单目学习。
-- 完美绝对深度不改善 RA：根深度 oracle global −0.15 / +2.24、local +3.56 / +0.28 mm。深度是 abs 的主要来源，不是 RA 的。
-- global 上 S37 比逐帧基线多出的误差全在像面内：深度分量与基线相同（8.3–9.0 对 8.75），像面内分量 12.0 对 7.1；像面外旋转与基线同量级（7–9°），
-  多出的是像面内旋转（3.6–5.3° 对 2.4°）。TF → 闭环，像面内旋转涨 2–3 倍（1.7° → 3.6–5.3°），像面外涨 1.5 倍：闭环漂在 2D 看得见的方向上。
-- 深度相关的像面外旋转在 zgz_local 更重（只去它 −3.5 / −5.4，只去像面内 −0.8 / −2.9）；在 global 上两种子不一致（+0.35 / −4.0）。
-- 同族历史：S38a（3D 边 + 刚体节点）26.90 不过；778 顶点 3D KNN 记忆臂 78.78 不过；原 FK 直连（逐事件 prev 逆深度）撤回。几何以 prev 先验进入、闭环回灌。
-- 口径附注：主表基线行 10.99 / 30 是对 PCA6 投影后的 GT 算的；对与 S37 相同的完整 GT 为 11.91 / 31.94（帧也不同：标注帧 + 100 ms 窗口，S37 为 50 ms 递推网格）。
+区分了信息冗余与计算/归纳偏置：已知 K 与完整网格时，射线、深度假设和相对 XYZ 为确定性变换；同一批事件特征上的关节 mean/max/mass 加未匹配统计可重建全局统计。两个真实 checkpoint 的 root/手指/prev_mlp 可代数合并，但保留原输入且块稀疏，不能据此证明任意小头等价或删历史支路不影响精度。
 
-结论：该方向对 global 没有运行时证据支持；不开臂、不改代码。这条线在 global 上的缺口是闭环中像面内旋转 / 平移的漂移，不是深度丢失。
+反例显示未匹配信息、时空联合关系、最大值与关节槽位不能被简单均值替代；FK 局部状态自由度与轴角全局等价表示也必须区分。修订前稿“单小头/均值足够/历史角可直接删”的过强建议；XYZ 候选仍待实现训练，当前臂保持 `s37_routed`，不生成伪造候选主行。
 
-## 2026-09-24：按用户指令删除 S39 实验记录，恢复 S37 起点
+## 2026-09-29：XYZ 候选算力投入判断（仅评估，未开训练）
 
-用户要求删除 S39 记录，最优仍从 S37 开始。删除覆盖图臂的预注册与结果文档、账本结果条目、专属训练产物（含 checkpoint）、主行、探针产物及日志；报告规则与示例同步恢复为 S37 路由读出（`s37_routed`）。当前臂及后续实验对照均为 S37 路由读出。此次仅清理记录与产物，覆盖图实现、配置及测试保留，不进行训练。
+用户询问刚 DEBUG 的网络是否值得训练。复核本次信息检查、09-24 历史 XYZ 文档、已训练 `s37_meshgraph` 和近期 S37 归因后，建议**暂不投入完整双种子训练，最多先做有预算上限的小规模机制验证**。详见 `docs/S37_XYZ_CANDIDATE_20260929.md` §4。
 
-## 2026-09-24：完整 FK 三维点构图的 DEBUG 静态分析
+依据：信息通路成立不代表新网络已经可训练或能改善闭环；相近的旧网格臂未通过采纳门；`z_prior` 不增加独立深度观测；候选的逐事件关系编码、三维边和共同非线性读出仍有未验证的学习价值。建议先量真实完整包成本，再以候选及同构去显式三维通道的匹配训练作有限预算筛选，出现一致信号后另行登记完整比较。短训失败只能说明本轮不追加资源，不能直接判架构无效。本轮无模型改动、无 GPU 作业、无新精度结果；当前臂仍为 `s37_routed`。
 
-按用户要求只作 DEBUG 分析，不启动正式训练。代码核对与数学边界写入 `docs/S37_ROUTED_READOUT_PREREG.md` §8：完整 XYZ 可保留并参与网格图计算；S37 routed 当前实际是事件图加 FK 路由，改用顶点图会改变节点载体。三维 kNN 邻接本身对刚体运动不变；应区分建边、坐标特征与二维事件关联。不投影顶点可以改用事件射线关联，但仍需相机几何与遮挡处理，不新增深度观测。本次没有新增性能结果、运行探针或修改模型实现，当前臂保持 S37 路由读出。
+## 2026-09-30：EdgeConv 6 层与根头逐关节融合均打平，不采纳
 
-## 2026-09-24（晚）：完整 FK 三维点构图 / 事件深度通道的运行时 DEBUG（无训练，不改仓库代码）
+两臂双种子均完成 6000 步训练及 12 点 zgz 固定网格选点。09-30 上午在空闲 GPU 2 依次补齐主表，四次复测 RA 与选点记录的漂移均为 0.0000 mm（日志显示精度）。
+结果与判读见 `docs/S37_EDGE6_ROOTFUSE_PREREG_20260929.md` §7–§8；主行产物为 `outputs/semkine/s37_{edge6,rootfuse}_main_row.json`。
 
-用户以 S37 为起点再问两点：MANO FK 保留完整 3D 点、不投影、直接 xyz 建图；异步事件流保留深度通道引导 prev 的 3D 建图。上一条静态分析的 DEBUG 清单在两个种子的选中 checkpoint 上执行，
-探针 `.experiments/xyz_graph_depth_20260924/probe_xyz_graph_depth.py`，产物同目录 `s37_s340{7,8}.json`、运行输出 `s37_s340{7,8}.log`；闭环逐位复现主行（15.664 / 23.334；15.972 / 29.491）。
-逐条判定与数字见 `docs/S37_XYZ_EVENT_DEPTH_ANALYSIS_20260924.md` "运行时 DEBUG"，§8 附结论摘要。
+edge6：递推 RA 21.38（22.61 / 20.16），相对 S37 +0.64 mm；rootfuse：20.29（20.52 / 20.06），相对 S37 −0.45 mm。
+两臂均在预注册 ±1.1 mm 打平区间，均值未到 ≤19.64，且 3407 均退化、3408 均改善，故两种子不退化条件也不满足。
+edge6 改善 local、退化 global；rootfuse 改善 global、退化 local；新增计算或参数尚无满足采纳门的收益。
 
-- 投影没有丢深度：S37 在 32–46% 的路由事件上用 z 选前后层；不投影的点到射线关联在网格外事件上与 S37 一致 97–99%。偏差来自顶点散点加 3 px 前表面测试（local 上 26–30% 的网格上事件关节与精确射线交点不同），推理期换成精确射线关联后闭环 RA 变化在 ±0.34 mm 内、符号不一。
-- 当前姿态 xyz-kNN 图：global 上 60% 就是网格边；zgz_local 最差 10% 的帧 29% 的边短路，闭环 prev 建的图与同刻 GT 图最差只重合 53–55%。应保留固定拓扑或规范空间邻接。
-- 事件深度：按 3 px 容差只有 10–25% 的事件在有确定深度的表面内部；prev 给的深度即 prev 的深度误差（闭环 p50 25–100 mm，相关 0.75–0.98，斜率约 1），异步只占 1–1.5 mm；一个 50 ms 包内的逼近和视差信号只有 0.02–0.11 px。
-  用 prev 的 z 改建事件图会动 20–31% 的手上边，而闭环下判跨层边的精确率约 0.5、召回约 0.4。
-- 误差与手的距离：只有 3408 在 zgz_global 上正相关（ρ 0.44），3407 无，序列之间无关，判不确定。
-
-结论：两个方向都不开臂，当前臂保持 S37 路由读出。文献核实（Pixel2Mesh、PyMAF、DynamicFusion、CMR、RootNet、I2L-MeshNet、BEVDepth、EMVS、Ev2Hands、EvHandPose）同文。
-
-## 2026-09-24：docs 收敛
-
-用户要求删除可删、合并重合。未动预注册收据或账本里的唯一数字。
-
-删：`EVENT_KINEGRAPH_MASTER_PLAN.md`（08-23 合同，已被 S37 线取代）、`EVENT_KINEGRAPH_EXECUTION_LOG.md`（从本账本抄回）、`EXPERIMENT_SYSTEMATIC_SUMMARY.md`（08-25 总览，职责归本账本）、`debug_closed_loop_diagnosis.md`（核心结论已被 `experiment_history.md` §10 推翻）、`semkine/FINAL_REPORT.md`（`EXPERIMENT_LOG` + `CLAIM_MATRIX` 已覆盖）。
-
-合：事件引导网格四份并入 `EVENT_GUIDED_MESH_MEMORY_PREREG.md`（初版公式、debug 读数、记忆臂契约、训练主行）。
-
-资产：只留当前臂 / S36 / 网格图 / 记忆臂用到的图；未引用的 CellGNN、模板草稿、重复 PNG/SVG 删除。`.experiments/` 快照未动。
-
-## 2026-09-25：原始因果事件目标的审计与最小CPU实现，未开正式训练
-
-按用户新goal先审计、再研究决策、再有限Debug。完整续接入口：[STATE](research/s37_async_20260925/STATE.md)；协议/历史身份：[PROTOCOL_AUDIT](research/s37_async_20260925/PROTOCOL_AUDIT.md)；二十视角与最多三个候选：[DECISION](research/s37_async_20260925/DECISION.md)；实际命令、门和未过项：[DEBUG](research/s37_async_20260925/DEBUG.md)；预算/公平验收：[EXPERIMENT_PLAN](research/s37_async_20260925/EXPERIMENT_PLAN.md)。两份原文/官方代码文献矩阵与source ledger同目录，未证明新颖性或SOTA。
-
-本次证实旧SAE fallback/均匀采样不具prefix稳定性；加入独立流式runner，复用S37学习算子与路由，显式无GT状态、FP32累加和完整MANO输出。旧源码/基线权重/结果未覆盖。独立审阅发现并修复输入buffer别名、时间静默取整、head变权未使旧状态失效；基础CPU回归61项、最新合同41项通过。64步CPU小样本拟合通过其预注册门，无新checkpoint，不能视为模型有效性实验。
-
-CPU回放真实保留积压并明确不满足7ms；不外推为L20结论。原train全量负载检查与2048读出截断另留证据，不能用低负载fixture支持全包络。GPU数值/完整性能、长期漂移、恢复、严格协议精度及独立新数据尚有未过项；未启动GPU或正式训练，当前臂保持S37，不生成虚构C1主表行。既有georoot/xyz图/mesh记忆失败记录继续约束后续，不重启已失败路线。
-
-所有一次性脚本、JSON和日志仅在`.research/s37_async_20260925/`；保留反例和修复前后证据，没有删除旧产物或恢复用户已删除文档。后续额度/数据答复到达后按STATE继续，不把阶段交付当目标达成。
-
-后续自动续接补充：C0 scratch控制通过独立原forward_packet数值对照，公共无新事件路径不再计算未使用证据，避免人为夸大缓存效率；受影响合同与C0共51项CPU测试通过，首次Python3.9注解收集失败及修复日志保留。D008在1.024s输出范围内、两条各自持有历史的闭环中比较cached/full-prefix并通过，未使用GT历史或标签。详见同目录DEBUG的D007/D008。GPU和训练仍未启动，剩余科学/性能门与原目标不变。
-
-### 2026-09-25 S37严格异步阶段GPU记录
-
-- G001原CUDA Linear跨M舍入差在独立递推放大，pose原1e-5门失败；逐步证实token/邻居/mean相同而Linear不同。row-bmm替代同样失败，已排除、未接入。
-- 新固定算序FP32核仅服务新C1 runner，先隔离数值/梯度/内存后集成，原容差和独立reference历史保留；限定范围复查通过。旧18个审计文件/资产/checkpoint哈希未变化。
-- G002 C0/C1×2/4ms低负载完整回放全部失败；没有降低延迟口径、丢首输出、跳帧、缩节点或开训。G003 profile用于定位执行成本，后续只试有证据的最小调度机制。
-- 所有GPU均经空闲检查，任务wall×卡数保守计入已确认Debug上限。scratch新文件为诊断/控制证据，不是正式训练的隐式依赖；没有新增候选权重、废弃训练分支或修改历史main row。源/命令/设备/耗时和所有失败保留于本轮research目录。
-
-同轮G005/G006收尾：唯一固定解码调度候选保持已测bitwise语义，但完整服务仍FAIL；采纳其瓶颈诊断证据，暂不提升为正式默认、不训练。后续同配置计时/更多暖机/扩大训练不构成新证据，停止重复；事件更新执行器若重设计需新预注册及全部相关Debug。所有16个GPU job已退出，Debug仅用115.18286187993363 GPU秒；其余预算未挪用。无废弃训练权重可清理，scratch源码/失败/trace/预算凭据全部是必要复现证据，保留；没有删除用户文件。handoff_gpu_stage.json汇总本阶段源与终态（由实际文件生成）。
-
-## 2026-09-25T16:08:25.753096+08:00 S37课程短程与方向诊断续接（不新增采用臂）
-
-K1/K2种子3407固定六点筛查与选点完成，两臂均未过预登记双精度门和标准网格中位改善门；最佳点E2/E3继续其原队列，K0仍运行。`select_checkpoint.py`偶数网格记录的是上中位数，续接已用原grid重算标准median并保留旧JSON，最佳点身份未改，无需重跑。FK/mesh方向探针没有达到原方向改善门，仅否定该受测表示/训练组合，不外推全部几何/流机制。详细未舍入读数、注册时间与证据身份在 `S37_CURRICULUM_PREREG.md`。全部训练产物保留，当前采用臂仍S37，单种子诊断没有生成正式main row。
-
-## 2026-09-25T17:02:46.910896+08:00 K0与R0固定判别完成，保留S37
-
-K0原配置完整网格出现非有限闭环，best/terminal的tf0仍未优于保持，H3′未支持；原选择finite-only统计不代表完整稳定性。详见S37_CURRICULUM_PREREG.md。R0全部5臂×3种子固定拟合完成，Bres未过相对B0/Bctx门；有效支持的控制因没有正收益可消除而INCONCLUSIVE，不能据此否定所有方向几何。详见S37_READOUT_PREREG.md与启动前research_state/debug/R0_readout_probe_prereg.md。两者均不采纳，无新正式主行；不改标准、筛样本或无限续训。所有必要反例/日志/权重保留，无用户文件清理。
-
-### 2026-09-25T17:50:09.228638+08:00 R1固定手指旁路移除：STOP，无清理/重跑
-
-仅使用R0已冻结自身历史2048个fit帧。去prev_mlp手指分量相对原预测和等角度幅度对照均未通过收益门，global退化；实际FK位移幅度未配平，方向解释INCONCLUSIVE。原门要求fit不过不读dev，已遵守，未产生dev干预评分。独立回执/算术父审完成，CPU约2.787秒、GPU0秒。见 docs/S37_BYPASS_PREREG.md 与 research_state/audit/R1_terminal_audit_20260925.json。不重调旁路比例，不复活R0，不裁剪/改原S37权重。失败只限此checkpoint直接移除，不能证明一切历史先验必要。
-
-## 2026-09-25T18:42:40.226037+08:00 M3定义合同完成，科学采用门未执行
-
-M3仅固定模板/深度/匀速族的原始触阈等式与nuisance投影；一次CPU合同通过、低速空支持保留，详S37_EVENT_OBSERVATION_PREREG.md。未知phase/C的退化与错配后仍非零的局部量不能改判成真实纠偏。没有新主行、没有架构/训练通过；R0/R1 REJECT及C0r/C2r HOLD不变。原始事件/receipt/freezes保留，不清理用户文件或重跑参数网格。
-
-## 2026-09-25T19:09:32.847738+08:00 D1输入终态与M4必要性裁决
-
-D1一次COMPLETED/两PARITY_PASS，父核16文件、两序列在线字典计数及源stat均匹配；M4两报告41来源匹配。原生身份可恢复，缩放格合并memory并不证明精度原因。M4数值DEFERRED，继续oracle profile不闭合未知外观必要性；纯推导明确已知phase不等同已知reference。图50节点44关系；三候选/预算不变，无GPU或训练放行。下一真实代理只读审等价增量边界与真实几何竞争合同。
-
-## 2026-09-25T19:26:15.221355+08:00 F1归档与下一真实几何合同
-
-F1一次COMPLETED，原预设8包完整输出bitwise/调用数及48项记录通过，父核已保存数组；限CPU受控纯函数缓存，不代表GPU或完整7ms。G24原H无事件跨窗复用，RG1最终64包被动几何排序设计/反方归档；后者尚在实现，未评分。不重开R0/R1/georoot，不新加候选，不放行训练。
-
-## 2026-09-25T19:51:25.753315+08:00 RG1固定几何排序终态
-
-A→seal→B一次COMPLETED，64/64训练包；主项NOT_LOWER_BOTH_BASELINES。C_time两类均劣于原pred；时间控制有数值支持但无已证正收益可消除，空间控制全饱和退化为tie回pred。只否定固定被动scorer，不是新递推RA/新观测不可能证明；不修改模型、不重试、不放行训练。18定义检查及32项人工算术检查已完成；父核75冻结文件+64输入artifact及独立保存行算术通过。CPU外层5.557777795009315s、GPU0。详docs/S37_GEOMETRY_SCORE_PREREG.md、research_state/audit/RG1_terminal_parent_20260925.json、scratch/goal_20260925/rg1/terminal_science_review.md。
-
-原代码/输入/回执/全部固定包保留；未清理用户文件。仅新scratch诊断与证据文档，无新增主臂、GPU训练或预算改变。
-
-## 2026-09-25T20:18:34.349701+08:00 NF1静态审查与TEGBP补读终态
-
-法向约束消去自由速度后可能保留条件姿态信息，不能以速度块或零一阶秩作普遍否定；物理材料速度和随姿态重关联的ray-hit导数须分开。当前future-event forecast不能独立认证物体法向，照明ramp有合法静止反例，故仅该认证变体DEFERRED；没有运行数值NF1。缺独立flow GT不禁止另行公平检验经验姿态效用，也不准许复活R0加头搜索。TEGBP补齐一个关键近邻方法族，已覆盖aperture不确定性与图传播；作者flow核心时间不能作为本项目完整时延。
-
-详docs/S37_NORMAL_FLOW_PREREG.md及四份引用报告；父归档research_state/audit/NF1_TEGBP_parent_archive_20260925.json核验153条文件身份，不是153项算法测试。无新真实数组、FK、forward、拟合、合成fixture或GPU动作。C0r HOLD、固定C1r/R0 REJECT（广义前提HOLD）、C2r HOLD不变；三候选，没有唯一通过创新门的主方案。原短周期状态更新问题仍未答，未改原H策略；完整目标active。
-
-## 2026-09-25T20:44:47.324645+08:00 F2逐步完整输出FK缓存
-
-GPU精确递推与上下文门过，限定处理P50/P95双门未过，DO_NOT_ADOPT_PROTOTYPE。首次包保留，所有8包/4次重复均纳入，不缩分母或重试。保留scratch原型及证据，不接主模型。非完整7ms结果，非原评估器批解码加速；详S37_GPU_FK_REUSE_PREREG.md。
-
-
-## 2026-09-25T21:08:58.749323+08:00 NF2实际支持门终态
-
-NF2一次实际CPU八锚完整，固定共同支持不足，终态INCONCLUSIVE_SUPPORT_OR_PROFILE；B未启动/标签未读。四个无支持锚未算profile，不能写成数值失败；另四锚数值稳定/控制非恒等，但不能据无标签分数断言姿态效用。按原门停止，不降N门或改窗/方向/数据重试。35项人工定义检查与父45输入/22封印/8锚保存artifact核验完成，CPU外层8.565081570995972秒、GPU0。详docs/S37_NORMAL_FLOW_PROFILE_PREREG.md、audit/NF2_terminal_parent_20260925.json及独立terminal_review。S37与三候选裁决保持，唯一主方案/新训练/完整7ms仍未过。
-
-
-## 2026-09-25T21:30:50.891733+08:00 SU1稀疏更新静态审查终态
-
-三份真实独立审查及父训练合同完成，新增Zhang2016/Huang2010两基础原作、八原作明确复用；父核190条文件身份（不是算法测试）。P1 hard-count=0不等soft支持为零，head ablation后仍加G；旧失败不覆盖全部局部保持，但源码路径也未证明危害。通用投影/退化方向保持已有直接先例；限制速度或选择null-space代表先验，非自动新增测量。局部未知静态外观构造只在明示无回访等条件下成立，不是实际手部零信息证明。
-
-当前不实现投影、不重扫rank、不复活P1/R1/R0/NF2固定形式；经验最小修复仍可凭具体诊断和公平train-only效用准入，不要求普遍可辨定理或flow/外观真值。下一先冻结既有R0 soft-support精确零的train-fit样本合同，再判是否值得分析其更新行为；尚未读新数组或运行。详docs/S37_SPARSE_UPDATE_PREREG.md、research_state/audit/SU1_parent_archive_20260925.json。0GPU/模型/FK/新标签/数值实验；原三候选与S37不变，完整目标active。短周期递推问题仍未答，未擅改策略。
-
-
-## 2026-09-25T21:53:39.035253+08:00 SU2原更新必要性诊断终态
-
-SU2一次固定train-fit缓存诊断完成，COMPLETED_WITH_LABELS / NO_TWO_ACTION_PARAMETER_HARM_SIGNAL。零soft支持时原更新确实存在，但两动作该子组的行加权参数风险均值均降低，仍有相反主体/行；空包0行仅空集通过，不称实证覆盖。没有保持干预、模型/FK或闭环新结果；不据此增加soft-zero门、挑有害行或扫低支持阈值。父核47输入/17封存/32输出数组/624汇总（非算法测试），独立终态审完成；CPU外层0.709282886935398秒，GPU0，PID/cleanup无残留。详docs/S37_ZERO_SOFT_SUPPORT_PREREG.md。
-
-S37与三候选门不变，完整目标active。原短周期递推问题未答，未擅改协议。下一先核旧证据是否已经覆盖路由分支切换的具体状态扰动问题；无新的实验或训练准入。
-
-
-## 2026-09-25T22:09:22.036903+08:00 DR1离散路由静态审查终态
-
-DR1两份真实独立静态审查完成，父核51条来源记录（含复用，不是算法测试）。当前S37固定离散路由分支内e为常量，最终仍有base、finger own-angle与G的直接历史路径；no_grad不等前向独立，分支切换不等任务危害。旧root_inplane已经分离真实root头/历史旁路的有限响应，E3同seed的3/6尺度已经是同方向半幅对；P2/A2/R0/georoot原反证保留。缺少自身q0与显式分支标签的完整组合，不足以改变C0r决策，终态STOP_NO_DISTINCT_DECISION_CHANGING_DIAGNOSTIC。不运行DR1分支普查、幅度扫描或新头；无新数组/GT/权重/模型/FK/数值/GPU动作。详docs/S37_ROUTE_REGULARITY_PREREG.md与audit/DR1_parent_archive_20260925.json。
-
-DR1已静态终态，没有数值作业待启动。下一科学动作须提出相对R0/R1/RG1/NF2/SU2/DR1不重复、能改变候选决策的允许输入经验假说，并先写两种相反结果各自改变什么决定；当前没有预注册的新实验。不因剩余预算或尚缺分支日志重跑旧探针，不要求普遍可辨定理/flow或外观真值作为所有经验方法的前提。
-
-
-## 2026-09-25T22:38:40.854620+08:00 TM0/TM1终态归档
-
-TM0两独立静态审与TM1一次固定CPU经验诊断完成。原S12/G4旧归档及EGM失败已核，TM1不同于其泛泛滤波/记忆提案；但实际终态NO_FIXED_HISTORY_READOUT_GAIN。A四组均15/15有支持，H local相对原预测有改善但相对当前C未达门，global明显退化；联合效用失败、近期性INCONCLUSIVE_NO_UTILITY。不调λ/lag/warmup/主体/动作规则重试，不把固定历史端点诊断作候选自身闭环或新鲜验证。父核62输入/34A+21B+3C封存与保存预测/评分，独立前检/终态审完成；CPU外层4.662058702902868秒、GPU0，PID/cleanup无残留。详docs/S37_TEMPORAL_HISTORY_PREREG.md。
-
-S37与原三候选门不变；无通过创新门的新主方案或待启动训练。下一判别须有与已终止形式不同的具体信息来源或已定位实现缺陷，并预先明确能改变哪个决定；不能把剩余预算、未记日志或单动作局部收益当新实验依据。原短周期递推问题仍未答，未改50ms反馈。
-
-
-## 2026-09-25T22:53:10.031330+08:00 AC0增强坐标与C0历史归档
-
-AC0两份独立静态审查及父源码/旧JSON核查完成，终态STATIC_CLOSE_NO_DECISION_CHANGING_DIAGNOSTIC。事件/K/MANO增强传递及主投影代数一致；独立principal log可产生近2π坐标跳变，但实际训练暴露和危害未证，不为计数重开数值。恢复旧C0 SO3FK真实训练与C0c规范化反馈失败到当前摘要：不是未尝试路线。旧canonical_aa任意finger residual包角不保证完整旋转不变，但保存14记录finger超π比例全0，不能据此撤销旧实测。旧CNN也有raw prev MLP和加法，撤回完整CNN天然包角不变的过强解释，保留经验结果。父核58来源记录含复用及一个归档JSON成员；这些是文件身份，不是算法测试。无新真实数组/GT/模型/FK/数值/GPU；主模型、配置、数据、历史主行不改。详docs/S37_AUGMENTATION_COORDINATE_PREREG.md。
-
-S37与C0r HOLD、固定C1r/R0 REJECT、C2r HOLD保持；没有新主方案或完整目标通过。原短周期更新问题仍未答，未改H反馈。
-
-
-## 2026-09-26T01:51:50.431503+08:00 NG1终态
-NG1已一次完整64包固定权重/自身历史实验。严格邻域遗漏存在，A/R0与A替换逐位通过、路由不变，但政策效用与全历史特异性均未过。STOP_FIXED_POLICY_NO_UTILITY；D支持不等创新。关闭此固定替换，不扫描/重训；S37与原三候选裁决保持。证据docs/S37_NEIGHBORHOOD_PREREG.md及research_state/audit/NG1_terminal_parent_20260926.json。
-
-
-## 2026-09-26T02:23:31.952443+08:00 RC1完整恢复工程终态
-RC1完整训练恢复工程完成，范围限定当前Lightning1.9.5、确定性(seed,index)数据、同执行合同及已完成optimizer step。新增semkine/checkpointing.py，接入semkine/train.py的--complete-checkpoints；新checkpoint自动识别完整恢复，旧checkpoint明确缺RNG/sampler。新模式保存每rank Python/NumPy/Torch CPU/CUDA RNG、原shuffle顺序与实际消费游标，保留Trainer模型/optimizer/scheduler/适用scaler；严格校验源码/配置/数据索引/加载设置。预取不推进保存游标，固定网格保存处理已提交loop状态。仅完整模式启用严格确定性算法，原默认路径保留。
-CPU8项通过，合成2-rank FP32、FP16（含scaler）、BF16连续/恢复逐位通过。实际S37两卡BF16入口从step2恢复至4，两个rank后续输入tensor hash、随机状态、loss及最终完整模型/Adam/scheduler/step/epoch/采样状态全部逐位一致（entrypoint_v3/receipt.json）。checkpoint内验证batch完成数为0，未评测zgz、未形成科学训练或新main row。详docs/S37_RECOVERY_PREREG.md、audit/RC1_terminal_parent_20260926.json。
-失败保留：CPU早期暴露未执行批/早停验证RNG/epoch边界问题，均修复且不降标准；FP16checker旧键错误只核保存artifact，不重跑；实际入口v1传卡参数错误无训练；v2两embed参数/Adam因非确定性数值不同而FAILED，v3严格确定性修复后按同一逐位门通过。所有job终态、cleanup完成，nvidia-smi无计算进程。RC1累计194.38110592600424 GPU秒；全任务Debug6688.5819763777545/12600，剩余5911.4180236222455。screen/train预算不变。
-
-
-## 2026-09-26T02:40:25.291545+08:00 CI0/CI1终态
-CI0独立数学/旧失败审与CI1一次固定权重CPU干预完成。H(e,q)−H(0,q)确实区别于R1仅减G，但实际完整16fit×128帧的中心化未过三项预注册效用门，终态STOP_FIXED_NULL_CENTERING。关闭该固定形式，不扫系数/参考点/支持子组、不进入dev或自身闭环。所有预测先封存后target解码，A/R旧评分及CPU head/MANO重构合同通过；327个自然零证据关节行全部保留，0个真实空包（不称实证空包覆盖）。数值与限制见docs/S37_CENTERED_UPDATE_PREREG.md；审计audit/CI1_terminal_parent_20260926.json。
-CI0还推导了起点噪声、终点监督时的条件/无条件差包含事件解释的运动项；当前混合噪声、log-batch loss、未训练missing-condition及状态依赖路由不支持likelihood-score主张。相减本身已有Classifier-Free Guidance先例，不升级C2r或创新主方案。
-单CPU计算进程4库线程，worker2.5882992499973625秒、launcher2.9623382809804752秒，退出0/cleanup无残留；GPU0秒，Debug累计仍6688.5819763777545/12600。没有改网络/配置、训练、重算encoder/路由、读取dev/zgz或新main row。S37与C0r HOLD、固定C1r/R0 REJECT、C2r HOLD保持；目标active且未达。
-
-
-## 2026-09-26T03:01:38.033354+08:00 X1c Debug与固定新分支启动
-
-旧X1 TIMEOUT/INCOMPLETE保持。新增明确非精确optimizer continuation工程，CPU15项及实际2-rank优化状态/新分支内续接逐位通过；strict旧gather v1首步OOM失败保留，compact索引+FP32累加等价修复后v2原2×512通过（CPU38项）。两个Debug均终态cleanup空，188.13862717803568GPU秒；没有改batch/损失/精度或科学门。现仅预注册500步新分支screen运行中，尚无精度结论。细节docs/S37_X1_CONTINUATION_PREREG.md。
-
-
-## 2026-09-26T03:19:40.809579+08:00 X1c终态：STOP_FIXED_X1C_JOINT_GATES_FAILED
-
-一次固定终点评价已完成，COMPLETED_DIAGNOSTIC_ONLY。原G-a/G-b各自global子门通过，但各自local子门未通过，联合ga/gb/strong门均false。不能写成完全无效或原始事件没有测量信息；也不能以global收益抵销local失败。保留S37，关闭此固定新分支及固定融合，不扫seed/alpha/节点数/训练长度/中间checkpoint，不自动进入动态增益训练。
-
-内部未舍入值（mm，仅本文/原artifact；非两种子正式主行）：
-- G-a absolute：global 12.609850883483887 / local 24.587575912475586；门≤13/≤17，联合失败。
-- G-b alpha=.5：global 11.285038948059082 / local 21.79408073425293；门≤11.5/≤17.5，联合失败；strong<10.66/<15.1也失败。
-- 两策略均global1386帧、local1204帧。初始化/输入/50ms/H评分与旧固定脚本保持。
-
-父核：训练终点3000完整状态、每rank恰500新步/样本游标/Adam步数/原LR、源2500 SHA未变；评价输入hash、终点SHA与训练审计一致；可执行源码冻结一致，重算联合门与原artifact一致。旧评价只存汇总，不声称做了保存逐帧数组的独立再评分。正式主行未生成，不能把本单种子/复用zgz筛查当独立泛化或新SOTA。
-
-原X1 TIMEOUT/INCOMPLETE保持；新X1c是明确非精确optimizer continuation（新runtime/sampler13407、数据3407），不是补回原3000轨迹。新分支内完整恢复及compact gather工程通过不构成科学创新。C0r HOLD、固定C1r/R0 REJECT、广义观测前提HOLD、C2r HOLD保持；用户三项硬目标和唯一创新主方案仍未达。表中历史Latency不是完整端到端证明。
-
-资源终态：本轮Debug188.13862717803568 GPU秒、screen 1843.499812023947 GPU秒。全任务Debug 6876.72060355579/12600、screen 37046.12625307795/50400、train 0.0/201600，所有预留归零。本轮四作业均按实际失败/成功保留且cleanup完整，PID/runner均消失，nvidia-smi此刻无compute进程；GPU0未使用。
-
-后续科学问题：在local稀疏手指事件下，允许历史状态提供静止结构，如何构造可验证的局部修正而不过度覆盖历史；本次绝对估计/固定整手融合不能完成此要求。若提出新机制，须首先说明与已终止X1c固定规则、R0/R1、SU2、CI1等的明确区别和新增允许信息，再在训练/开发材料上预注册判别；不能从当前zgz结果反调此分支或把常见自适应增益称新颖。此处是未解问题，不是已获准新训练。短周期更新澄清仍待答，原H未变。
-
-证据：scratch/goal_20260926/x1c/{eval_v1.json,screen_audit.json,debug_v2/receipt.json}、research_state/audit/X1C_terminal_parent_20260926.json及本轮4个budget_run回执。
-
-
-## 2026-09-26T03:32:59.886746+08:00 NC0历史覆盖复核（非新增数值实验）
-
-标识：`NC0_STOP_CMN_MECHANISM_ALREADY_TESTED_NO_NEW_NECESSITY`。独立审查见 `research_state/debug/NC0_noise_geometry_admission_20260926.md`；父直接复读 `.experiments/s37_s38_fk_20260909/docs/debug_closed_loop_diagnosis.md` §2及现失败账本CMN行。旧CMN用SPA自身训练集闭环51D残差建库，按类别采样并径向拉伸匹配手工噪声幅度，双副本筛查local退化。因此“保持尺度、改真实误差方向/关节相关性”不是此前未测的机制；当前没有不同的必要性证据，不以中心化协方差、精确RMS或换到S37作为自动重开理由。
-
-边界：这是旧SPA/CNN及历史划分的证据，原执行代码和权重已删除；本轮没有复现旧CMN，也不能证明其精确逐块RMS合同或将旧数字与当前zgz主行比较。PCA参与维数不是精确秩，原Gaussian mixed有full support，不能把“覆盖收窄”解释为严格零支持；旧“单轮DAgger注定失败”不作普遍定理。DART已有相应匹配噪声先例，匹配covariance本身不构成新创新。
-
-仅恢复遗漏反证，关闭NC0提案；未读取新真实数组/标签/权重，未执行模型、数值探针或训练，GPU收费0。K0/K1/K2、S22等原终态保持，C0r HOLD、固定C1r/R0 REJECT（广义观测前提HOLD）、C2r HOLD保持，S37仍当前臂。下一动作仍须先有独立定位且区别于已失败形式的具体缺陷；不能用误差谱重算来代替有效判别。
-
-
-## 2026-09-26T03:43:48.733835+08:00 LC0旋转复合提案静态终态
-
-裁决LC0_STOP_NO_INDEPENDENT_NECESSITY；独立审查research_state/debug/LC0_rotation_update_admission_20260926.md。C0端点SO3FK损失、C0c反馈主值化不是复合增量训练，但“不等同”不证明新训练必要。S37输出被训练为端点坐标差，没有声明为角速度或群切空间量，因此prev+delta并不是把物理角速度积错。正确把同一端点转换为相对旋转再复合只保持原旋转；直接把旧delta当左/右群增量改变了语义，不能据效果归因到积分修复。旧S3/S12已有Lie retraction实施，EventHPE已有直接复合先例。
-
-局部MANO必须先加hands_mean，左右扰动要区分父/自身坐标；旧SE(3)root retraction还会改变平移/pivot合同，不能当纯旋转消融。当前无独立故障定位，关闭提案，不开旧头compose、曲率计数或重训练；不宣称所有复合更新无用。0GPU、无新真实数组或数值。EP0空状态精度修复是另一个已定位的实现合同，不由LC0准入，不冒充旋转模型创新。
-
-
-## 2026-09-26T03:49:20.935041+08:00 EP0终态：有限状态空包精度合同已修复
-
-核心最终6行post-mask修复，未增加参数/配置。CPU新精度矩阵20通过、10项CPU不支持的FP16显式skip；既有S37/S2回归8通过。GPU1 L20/Torch2.1/CUDA11.8严格deterministic的FP32/BF16/FP16共30项通过，含混合空包、有限状态身份梯度、空行模型梯度0/None、非空旧算术及梯度逐值相等、5次空包反馈signed-zero位模式。v1 fixture失败保留，只有期望梯度赋值换为等价outer product，v2不降门。
-
-实际旧S37 checkpoint严格加载、既有8包train缓存的FP32输出与修改前代码及旧封存tensor均逐位一致，参数733830/键90保持。真实X1c complete checkpoint仅改变model源码SHA时按原合同拒绝exact resume。没有重训、选点、GT评分或精度新主行；验证范围不是完整AMP训练轨迹相等或所有架构/CUDA负载覆盖。
-
-边界：AMP时整个输出dtype可提升为FP32，非空值保持旧低精度算术，不自动提高非空精度；含空行训练loss及log-loss缩放可能改变。旧FP32普通状态回归保持，signed-zero复制是有意加强。旧complete checkpoint精确恢复须使用原源快照；不改旧权重contract。增加的最终where没有重新测主表Latency或完整event→mesh，不能把历史行冒称改后测量。
-
-执行产物：scratch/goal_20260926/ep0/{cpu_tests.xml,cuda_tests.xml,cuda_receipt.json,real_regression.json,resume_guard.json,core_delta.patch,cuda_v1/}；作业ep0_cuda_precision_20260926_v1/v2分别FAILED/COMPLETED，均cleanup空、leader/runner已退出。本轮实际Debug收费14.499832835048437 GPU秒；全局预算{"debug": {"charged": 6891.220436390839, "reserved": 0.0}, "screen": {"charged": 37046.12625307795, "reserved": 0.0}, "train": {"charged": 0.0, "reserved": 0.0}}。GPU0未使用。
-
-裁决：保留此正确性修复；S37仍当前臂，C0r科学HOLD、固定C1r/R0 REJECT、C2r HOLD保持，三项硬目标与唯一创新主方案未达。LC0旋转复合提案另已静态关闭，不由本工程修复获得训练准入。
-
-## 2026-09-26T04:17:55.360113+08:00 SC0真实配对短训终态
-固定L/F×3407/3408各500步已完成；原S37冻结，原H开发前缀自身闭环。F对A改善但未胜L预注册门：STOP_FIXED_ADAPTER_UTILITY_FAILED。共同适配收益是有限工程现象，不是远程必要性、独立泛化或新方法采纳证据。不自动解冻/延训/采纳L。详docs/S37_SPATIAL_CONTEXT_TERMINAL_PREREG.md、audit/SC0_terminal_parent_20260926.json。SC0总201.59951122815255GPU秒，全部cleanup完成；主行和默认split/core未改。
-
-## 2026-09-26T04:38:39.994739+08:00 CC0真实嵌套校准对照终态
-两bias-only128参数fit各500步完成；A/L/C各自从合法起点递推256，固定后128评分。U(C)与U(L)均过，但C对L的global均值/一个seed容差不通过：CONSTANT_UTILITY_WITHOUT_MATCHING_L。保留局部与全局取舍，不把C local与L global拼接、不放宽门、不说bias无效或邻居机制必要。A/L首128字节回归、配对index/order、旧tensor冻结/完整保存和0 validation实证通过；4job cleanup完。CC0总134.67438118404243GPU秒，无core/旧L/F修改或新mainrow。详docs/S37_CONSTANT_CONTEXT_TERMINAL_PREREG.md、audit/CC0_terminal_parent_20260926.json。C0r有有限工程效用证据仍HOLD，科学/完整验收另列，无自动续训准入。
-
-
-2026-09-26T04:44:53.060337+08:00 CC0终态独立复核已关闭：见research_state/debug/CC0_terminal_review_20260926.md。认可固定CONSTANT_UTILITY_WITHOUT_MATCHING_L；保留两种有限效用，不采纳C/L、不改变原容差或旧F关闭决定。四任务均清理完成，无待恢复任务；本次归档未启动数值作业。
-
-
-## 2026-09-26T05:02:48.649754+08:00 CC1同函数执行与成本终态
-EXACT_EXECUTION_OBSERVED_COST_REDUCTION；CPU30/CUDA30、两seed完整ownH字节回归通过。只交付opt-in同函数执行模块；固定pooled P50/P95门过但P99/max存在退化、完整7ms失败。无新训练/精度或C/L选择。详docs/S37_CONSTANT_EXECUTION_TERMINAL_PREREG.md与audit/CC1_terminal_parent_20260926.json。唯一job已COMPLETED/0并清理，实际144.20186586596537GPU秒；主方案与S37当前臂不变，目标未达。
-
-
-## 2026-09-26T05:14:08.685784+08:00 AS0串行状态发布依赖终态
-REJECT_DIRECT_PREVIEW_ON_CC1_SERIAL_RETURN；单CPU1.8340502460487187秒，GPU0。既有CC1时序下直接挂preview即使零处理也有>7ms依赖反例；只对原同步完整输出返回接口，不把full-ready冒充pose-ready、不否定所有异步调度。保存工件分析非新latency测量。详docs/S37_ASYNC_OUTPUT_CONTRACT_TERMINAL_PREREG.md、audit/AS0_terminal_parent_20260926.json。S37与科学候选保持，完整目标未达。
-
-
-## 2026-09-26T05:34:31.788687+08:00 PR0 return-only交接形式关闭
-实际插桩原C调用的PRE下界已在真实下一窗事件上给出>7ms反例；固定256帧old-history回归通过。仅交接位置前移不足于该保存调度，需返回前计算变化；未测GPU-ready、不否定其他调度、不重测救场或自动准入preview。详docs/S37_POSE_HANDLE_READINESS_TERMINAL_PREREG.md。S37/三候选保持，完整目标未达。
-
-
-## 2026-09-26T06:00:10.605442+08:00 CD0同函数捕获固定负载终态
-EXACT_CAPTURE_COST_REDUCTION_ON_FIXED_WORKLOAD；CPU8/8、14GPU合同记录、5合成包、1024原H字节回归及512成本帧通过，父已复算NPZ。两seed pooled四分位门过，3408 local max仍退化且完整7ms失败。仅保留opt-in原函数捕获，无训练/精度/模型采纳。唯一job 62.146028652903624GPU秒且清理完。详docs/S37_CAPTURED_DECODE_TERMINAL_PREREG.md与audit/CD0_terminal_parent_20260926.json；科学候选及S37保持，目标未达。
-
-
-### 2026-09-26T06:02:35.205819+08:00 CD0独立终态复核与证据图关闭
-父已读取debug/CD0_terminal_review_20260926.md，最终SHA d9b0823383ddb1427d240ed4b7408ba426b0dc9112c74cad99aa1270a7a1b8e2已绑定audit。认可限定pooled四统计量成本门，保留3408 local尾部及两local首请求退化、完整7ms失败。父已单CPU复算保存NPZ；复核是静态/文本审查，非独立数值重算。图新增L122–L126/N95–N96（96节点94关系），C0r HOLD/novelty0及其他候选保持。无运行/待恢复任务，无新训练或精度，完整目标active未达。前版存research_state/snapshots/CD0_review_close_20260926T060235+0800。
-
-
-## 2026-09-26T06:31:22.393706+08:00 HE0固定历史事件特征可读性终态
-唯一CPU诊断完成：NO_FIXED_PAST_EVIDENCE_READOUT_GAIN；15joint四组控制支持有效，但H相对C的local及相对O的global未过联合门，控制解释INCONCLUSIVE_NO_UTILITY。人工13项、58冻结身份、A/B/C封印与父保存NPZ/字节/评分/门复算完成。只淘汰固定被动读出，不证明历史普遍无用或新的闭环结果。GPU0费、worker/launcher已退出且cleanup空；S37/三候选保持。详docs/S37_HISTORY_EVIDENCE_TERMINAL_PREREG.md、audit/HE0_terminal_parent_20260926.json；独立终态交叉核验待关闭。完整目标active未达。
-
-
-### 2026-09-26T06:34:25.633632+08:00 HE0独立终态复核与证据图关闭
-父已读取debug/HE0_terminal_review_20260926.md，最终SHA 4456162dcf96438a0723c51438ea0bc87dbf7dae7c5309536f1eea4bf5599366绑定audit。认可固定线性历史证据的联合效用FAIL与pairing INCONCLUSIVE_NO_UTILITY；保留复用开发数据、固定反馈及非普遍历史无信息的范围。父已复算保存数组；独立审查为文本/源码/标量，不冒称独立数值复跑。补充覆盖核查2304真实帧当前空包0，空包证据仅来自人工合同；180 warmup行与自然历史零支持存在。图新增L127–L132/N97–N99（99节点97关系），候选门/分数不改，无运行或待恢复作业。S37仍当前臂，完整目标active未达。前版存research_state/snapshots/HE0_review_close_20260926T063425+0800。
-
-
-## 2026-09-26T09:56:52.432342+08:00 PA0有界语义审查与人工终态
-五项定义检查完成、14身份核验、worker退出；两份独立报告和父fallback已归档。新增真实来源是固定HASTE源码的reference/availability区别；新增代数界限是配对错置可只加所有候选共同分数。无真实数据/模型/GT/GPU/效用或时延。详docs/S37_PAST_ANCHOR_TERMINAL_PREREG.md；图102节点100关系，S37/三候选保持。下一为PA1具体合同与接口正确性，未准入真实运行。上一turn分类progress，完整目标active未达。
-
-
-## 2026-09-26T10:21:04.553666+08:00 PA1固定事件轨迹诊断终态
-
-唯一run pa1_past_anchor_track_v1 COMPLETED/0，INCONCLUSIVE_FIXED_TRACK_SUPPORT。local固定源命中1，0/16支持，P恒等；global命中14，16/16支持，但联合门未过，B不存在/target未解压。不能把global支持作效用或local支持不足作普遍不可观测。禁止改种子/窗口/锚时刻/候选/门救场。
-
-前端10项+集成6项人工检查最终通过，初始P测试期望错误与空流ID修复均保留。49冻结身份、A0九文件/A1五文件封印、32保存候选/残差/选择/门父核完成，独立前检与终态文字复核已关闭。CPUworker4.173991453950293秒/launcher4.613799230894074秒，GPU0费，PID3066845退出、cleanup无残留。详docs/S37_PAST_ANCHOR_TRACK_TERMINAL_PREREG.md、audit/PA1_terminal_parent_20260926.json。
-
-图新增L139–L145/N103–N104（104节点102关系），不改三个候选门/分数；S37仍当前臂、原H/短反馈待答项保持，完整目标active未达，无可恢复数值任务。下一实质方案须区别于已关闭形式并先冻结可改变的实现决定，现无新训练准入。
-
-
-## 2026-09-26T10:37:01.530900+08:00 MP0原S37非空AMP状态累加终态
-
-新增MODEL.STATE_ACCUM_FP32默认false、限定routed event_gnn+delta、无参数/键变化。CPU38pass/18不支持skip、CUDA56全过；既存8包CPU默认/开启/历史输出逐字节相同。两seed固定8训练样本相对完整FP32的全部参数梯度L2都降低，AMP_GRADIENT_FIDELITY_IMPROVED_ON_FIXED_BATCH；3408 log10损失差和3407最大51D输出差反而增大，不宣称所有数值/精度改善。真实optimizer0，无新自身闭环/开发评分/训练。
-
-唯一job mp0_state_accumulation_20260926_v1 COMPLETED/0、10.243856586981565GPU秒、GPU1 L20，worker/runner均退出且cleanup空；父28身份及保存张量/范数/尾部/测试回执核验完成。详docs/S37_STATE_ACCUMULATION_TERMINAL_PREREG.md与audit/MP0_terminal_parent_20260926.json；独立终态文本复核待最后绑定。
-
-保留opt-in实现，S37/三候选采用门保持。下一MP1为只改这一算术的同预算两seed配对BF16短训与原H各自递推效用，须先固定训练/恢复/评估合同，不拿保真门冒充精度采用。新core使旧complete fingerprint拒绝恢复，旧源快照保留；不重启旧任务。预算{"debug": {"charged": 7143.870747750741, "reserved": 0.0}, "screen": {"charged": 37363.602386470026, "reserved": 0.0}, "train": {"charged": 0.0, "reserved": 0.0}}，无预留/运行，GPU0禁用，完整目标active未达。
-
-## MP0 independent terminal closure 2026-09-26T10:41:49.727646+08:00
-research_state/debug/MP0_TERMINAL_REVIEW_20260926.md SHA256 e364b8b53f0e409723d0150de09ad56599e2867717d49076a67b3cb61fda5962 bound in parent audit, with reviewed pre-binding audit snapshotted. Text/XML/receipt consistency only, no independent numerical rerun. Graph106 nodes/103 relations; C0r/O10 remains HOLD, no accuracy adoption. MP1 paired short-training contract remains next distinct decision.
-
-## MP1 Debug terminal 2026-09-26T10:55:31.502301+08:00
-Both-arm fixed BF16 fitting and complete recovery gates passed. Saved checkpoint parent audit closed. Details docs/S37_STATE_ACCUMULATION_TRAIN_DEBUG_PREREG.md. Four fixed paired short screens admitted, no utility or accuracy adoption. No repeated MP0/MP1 Debug.
-
-## MP1 fixed paired training terminal 2026-09-26T11:11:17.445953+08:00
-MP0 independent terminal review is closed. MP1 strict Debug and four matched BF16500-step new trajectories complete; full ylf own-H joint utility FAIL. Fixed500 all-input matching and six-model full denominators verified. No hyperparameter/seed/endpoint rescue; retain S37 and default-off numerical option, candidate gates unchanged. Details docs/S37_STATE_ACCUMULATION_TRAIN_TERMINAL_PREREG.md; parent audit research_state/audit/MP1_terminal_parent_20260926.json; independent terminal review awaiting final binding. Total MP1 GPU742.674416705966 seconds. Goal active/unachieved. Next admission is bounded relative-increment equivalence definition, no numerical/training admission.
-
-### MP1 independent terminal and graph closure 2026-09-26T11:13:18.162205+08:00
-research_state/debug/MP1_TERMINAL_REVIEW_20260926.md SHA256 b6c7322bdb5630e8184850e0d6ce98b192e936a468f7197b871e3b5217644e59 bound in audit; reviewed prior audit snapshotted. No remaining review discrepancy. Graph108 nodes105 edges, C0r/C1r/C2r gates/scores unchanged. Fixed MP1 utility failure only, no universal precision impossibility or partial-metric adoption; no running/resumable task, whole goal active/unachieved.
-
-
-## RI0 terminal 2026-09-26T11:35:37.661130+08:00
-唯一六项有限定义检查和父保存有理记录审计已通过，三个静态审查实际完成。关闭仅相对重参数化的信息增益论证，保留条件可辨识及分布先验；无新估计器/候选/训练。详docs/S37_RELATIVE_INCREMENT_TERMINAL_PREREG.md、research_state/audit/RI0_terminal_parent_20260926.json。无数值作业待恢复，S37/原H保持，完整目标active未达，本轮progress。
-
-
-### RI0 evidence graph closure 2026-09-26T11:39:11.080282+08:00
-三份独立静态审查、一次CPU定义执行及父保存有理记录审计闭合。图111节点108关系，候选门/分数保持；RI0不准入估计器/训练。快照research_state/snapshots/RI0_closed_20260926T113911。核心/14冻结身份不变，无RUNNING或待恢复任务，GPU费用0。归档辅助误写核心路径已纠正，保留ABORTED记录，不是实验失败或重跑。完整目标active未达，本轮progress；当前无新的已准入实验。
+训练 H6 的采样梯度判据两臂均通过；根旋转、oracle 根旋转及仅手指机制诊断本轮未补跑，不据主表作机制归因。
+保持当前臂 `s37_routed`，本轮未改模型、未重训、未删除产物。

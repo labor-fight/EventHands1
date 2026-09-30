@@ -14,8 +14,8 @@ is therefore:
 * ridge-stabilised (`λ I`), which is LM
 * allowed to fall back to a least-squares solve when the active block is still rank-deficient
 
-The plan's original "Cholesky-only" instruction is amended for the reason recorded in
-`EXPERIMENT_LOG.md` S8. Refinement is optional, off by default, and must not be able to move
+The plan's original "Cholesky-only" instruction is amended for that reason.
+Refinement is optional, off by default, and must not be able to move
 an inactive coordinate: that would undo S9.
 """
 from __future__ import annotations

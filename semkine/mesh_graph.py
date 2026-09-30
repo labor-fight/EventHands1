@@ -239,20 +239,13 @@ def lbs_pool_evidence(h: torch.Tensor, lbs_weights: torch.Tensor, vis: torch.Ten
 @torch.no_grad()
 def assign_events_by_lut(events: torch.Tensor, lut: torch.Tensor, background: int) -> torch.Tensor:
     """`(E,)` long node id per event, read off `nearest_node_lut`'s table at the event's rounded
-    pixel; non-finite or out-of-frame coordinates go to `background` (778 for MANO).
-
-    Frame bounds apply to the original coordinates, before rounding. Valid coordinates keep
-    the historical rounded/clamped lookup, including subpixel locations beside the last pixel.
-    """
+    pixel; events outside the frame go to `background` (the node count, 778 for MANO)."""
     from .events import EV_BATCH, EV_X, EV_Y
     H, W = lut.shape[-2:]
     b = events[:, EV_BATCH].long()
-    xf, yf = events[:, EV_X].float(), events[:, EV_Y].float()
-    inside = (torch.isfinite(xf) & torch.isfinite(yf)
-              & (xf >= 0) & (xf < W) & (yf >= 0) & (yf < H))
-    x = xf.round().long().clamp(0, W - 1)
-    y = yf.round().long().clamp(0, H - 1)
-    return lut[b, y, x].masked_fill(~inside, background)
+    x = events[:, EV_X].float().round().long().clamp(0, W - 1)
+    y = events[:, EV_Y].float().round().long().clamp(0, H - 1)
+    return lut[b, y, x]
 
 
 __all__ = ["ASSIGN_CHUNK", "MeshGraphSpec", "N_JOINTS", "assign_events_by_lut", "facing_camera",

@@ -80,7 +80,7 @@ def claim_matrix(status: dict) -> list:
             "claim": "S0 frozen baseline reproduces 19.2576 mm RA on the legacy val split",
             "gate": "bit-identical recursive RA",
             "verdict": "PASS",
-            "evidence": "docs/semkine/ARCHITECTURE_AUDIT.md",
+            "evidence": "S0 audit: bit-identical 19.2576 mm (write-up retired 2026-09-29)",
         },
         {
             "id": "C1",

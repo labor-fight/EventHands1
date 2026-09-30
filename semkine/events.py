@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """S1 raw-event data contract: ragged packets, no `N_max` padding.
 
-The legacy path hands the network a dense `(180, 240, 2)` surface, which throws away 70-88% of
-the events (`ARCHITECTURE_AUDIT.md` §7) and all sub-millisecond ordering. This module defines
+The legacy path hands the network a dense `(180, 240, 2)` surface, which overwrites 70-88% of
+the events at 50 ms and drops all sub-millisecond ordering. This module defines
 the alternative: a batch is a *concatenation* of variable-length event lists plus a `ptr` index,
 the layout sparse point/graph backends use, so a batch costs `sum(N_b)` rather than
 `B * max(N_b)`. With the observed per-window spread (1.5k to 29k events on the same camera),
@@ -86,9 +86,8 @@ def splat_event_image(xs, ys, ps, ms_rel, window: int, height: int, width: int,
     index; at 23k events per window the difference is 3.4 ms against 0.11 ms per sample, which is
     the whole data-loading budget at batch 1024.
 
-    All three are functions of the events alone. That is the property that matters here: the
-    repository's own architecture law (`docs/ASYNC_SPARSE_SOTA_MASTER_VERDICT_20260826.md` 3.5)
-    is that evidence encoding must be state-independent, because `dPhi/dx != 0` is what made the
+    All three are functions of the events alone. That is the property that matters here:
+    evidence encoding must be state-independent, because `dPhi/dx != 0` is what made the
     pose-conditioned frontend's loop gain uncontrollable. Widening a state-independent encoder adds
     capacity in the one place that cannot feed the loop.
     """

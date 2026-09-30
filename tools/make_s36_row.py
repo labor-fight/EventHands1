@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import argparse
 import copy
-import dataclasses
 import json
 import sys
 import time
@@ -129,8 +128,7 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
     """Mean forward_packet time over real 50 ms packets of one sequence, staged on GPU.
     Always `lyq_local` (the sequence every recorded latency was measured on; a training sequence
     under the current protocol, which is irrelevant for a timing), so the column stays comparable
-    across arms. EGM_MEMORY replays the complete tracking recurrence (pose and
-    vertex memory), resetting at valid-run boundaries and before each pass."""
+    across arms."""
     model = MNISTModel.load_from_checkpoint(ckpt, cfg=cfg, map_location=device).to(device).eval()
     seq, d = next((s, d) for split in ("val_core", "train")
                   for s, d in sequences_for_split(root, split, splits_manifest(cfg)) if s == "lyq_local")
@@ -140,40 +138,25 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
     betas = torch.tensor(aux["betas"], dtype=torch.float32, device=device).view(1, -1)
     K = torch.tensor(aux["camera_K"], dtype=torch.float32, device=device).view(1, 3, 3)
     model.set_hand_context(betas, K)
-    packets, counts, run_starts = [], [], []
+    packets, counts = [], []
     for a, b in np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2):
         prev = torch.from_numpy(pos51[a].copy()).view(1, -1).to(device)
         for end in np.arange(a + STEP_MS - 1, b, STEP_MS, dtype=np.int64):
             ev5 = ET._window_events(events, offsets, tsub, int(end), STEP_MS)
             packets.append(ET.make_eval_packet(ev5, prev, betas, K, STEP_MS, device))
             counts.append(len(ev5))
-            run_starts.append(end == a + STEP_MS - 1)
             if len(packets) >= max_packets:
                 break
         if len(packets) >= max_packets:
             break
-    if not packets:
-        raise ValueError(f"no valid timing packets in {seq}")
-
-    def replay(limit):
-        # Local variables ensure warmup and every timed pass start independently.
-        # Packet construction and transfers remain outside timing, as in other arms.
-        prev, node_state = None, None
-        for i, b_ in enumerate(packets[:limit]):
-            if bool(getattr(model, "egm_memory", False)):
-                if run_starts[i]:
-                    prev, node_state = b_.prev_state, None
-                prev, node_state = model.track_packet(
-                    dataclasses.replace(b_, prev_state=prev), node_state=node_state)
-            else:
-                model.forward_packet(b_)
-
-    replay(100)
+    for b_ in packets[:100]:
+        model.forward_packet(b_)
     torch.cuda.synchronize()
     means = []
     for _ in range(passes):
         t0 = time.perf_counter()
-        replay(len(packets))
+        for b_ in packets:
+            model.forward_packet(b_)
         torch.cuda.synchronize()
         means.append((time.perf_counter() - t0) / len(packets) * 1e3)
     del model
@@ -184,22 +167,19 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
 def macs_s36(cfg):
     from thop import profile
     mc = cfg.get("MODEL", {})
-    if str(mc.get("ENCODER", "")).lower() == "event_guided_mesh":
-        # This arm has no prev MLP or previous-angle/background decoder inputs. Profile
-        # its actual encoder and head modules instead of using the S36 head formula.
+    if str(mc.get("ENCODER", "")).lower() == "xyz_mesh":
+        # S37-XYZ: no S36 heads. "heads" = the common readout (grouped slot projection + two layers);
+        # "frontend" = everything else thop counts in the whole forward_packet (relation encoder on
+        # the association records, vertex projection, mesh layers), which depends on the packet.
         m = MNISTModel(cfg).eval()
-        enc = copy.deepcopy(m.event_encoder)
-        obs = torch.zeros(1, enc.n_nodes, 6)
-        obs[..., 0] = 1.0
-        vertices = m.mano.v_template.detach().float().unsqueeze(0)
-        macs, _ = profile(enc, inputs=(obs, vertices), verbose=False)
-        e = torch.zeros(1, enc.n_joints, enc.hidden)
-        heads, _ = profile(copy.deepcopy(m.root_head), inputs=(e.flatten(1),), verbose=False)
-        for j, head in enumerate(m.joint_heads):
-            cost, _ = profile(copy.deepcopy(head), inputs=(e[:, j + 1],), verbose=False)
-            heads += cost
-        return macs, heads, sum(p.numel() for p in m.parameters()), \
-            sum(p.numel() for p in m.event_encoder.parameters())
+        x = m.xyz
+        heads = (x.slot_proj.in_channels // x.slot_proj.groups * x.slot_proj.out_channels
+                 + x.fc1.in_features * x.fc1.out_features + x.fc2.in_features * x.fc2.out_features)
+        total, _ = macs_forward_packet(cfg)
+        n_params = sum(p.numel() for p in m.parameters())
+        n_head = sum(p.numel() for n, p in m.named_parameters()
+                     if n.startswith(("xyz.slot_proj.", "xyz.fc1.", "xyz.fc2.")))
+        return total - heads, heads, n_params, n_params - n_head
     assert bool(mc.get("ACTIVE_HEAD")) and bool(mc.get("PREVPOS_EMBED")), \
         "head-MACs formula below is for the S36 head layout only"
     m = MNISTModel(cfg).eval()
@@ -234,11 +214,12 @@ def macs_s36(cfg):
     feat = int(mc.get("ENCODER_FEAT", 512))
     if bool(mc.get("ROUTED_READOUT", False)):
         # S37 routed readout: fingers read their joint's evidence, the root reads all sixteen
-        # (+ the S39 coverage map through its MLP, counted from the modules)
         ev_dim = 2 * int(mc.get("ENCODER_HIDDEN", 128)) + 1
-        heads = m.root_head.in_features * 6 + 15 * ((ev_dim + 3) * hid + hid * 3) + 2 * 51 * 64
-        if getattr(m, "covmap_mlp", None) is not None:
-            heads += m.covmap_mlp[0].in_features * m.covmap_mlp[0].out_features
+        if str(mc.get("ROOT_FUSION", "concat")).lower() == "per_joint":
+            root = 16 * ((feat + ev_dim) * hid + hid * 6)       # sixteen [f; e_j] MLPs, summed
+        else:
+            root = (feat + 16 * ev_dim) * 6
+        heads = root + 15 * ((ev_dim + 3) * hid + hid * 3) + 2 * 51 * 64
     else:
         heads = feat * 6 + 15 * ((feat + 3) * hid + hid * 3) + 2 * 51 * 64
     n_params = sum(p.numel() for p in m.parameters())
@@ -251,7 +232,7 @@ def macs_forward_packet(cfg):
     saturated packet (4096 events, prev at 0.45 m so the projected hand lands in the frame).
 
     Complements `macs_s36`, which counts the frontend alone. thop only counts standard layers
-    (Linear / Conv / BN / GRUCell): knn, scatter, cdist / topk, MANO FK and the S36 render are not counted
+    (Linear / Conv / BN): knn, scatter, cdist / topk, MANO FK and the S36 render are not counted
     in any arm, so the column is comparable across arms but is a lower bound for all of them.
     """
     from thop import profile
@@ -261,11 +242,8 @@ def macs_forward_packet(cfg):
         def __init__(self, m):
             super().__init__()
             self.m = m
-            self.node_state = None
 
         def forward(self, batch):
-            if bool(getattr(self.m, "egm_memory", False)):
-                return self.m.track_packet(batch, node_state=self.node_state)[0]
             return self.m.forward_packet(batch)
 
     m = copy.deepcopy(MNISTModel(cfg).eval())
@@ -284,18 +262,17 @@ def macs_forward_packet(cfg):
                              delta_t_s=torch.tensor([0.05]), is_sequence_start=torch.zeros(1, dtype=torch.bool),
                              is_sequence_end=torch.zeros(1, dtype=torch.bool), target=prev.clone(),
                              prev_state=prev, betas=torch.zeros(1, 10), camera_K=K, lnes=None)
+    from semkine.routed_readout import PerJointRootFusion
+
+    def _count_root_fusion(mod, x, y):
+        # sixteen [f; e_j] -> hidden -> 6 MLPs; thop does not see inside the batched matmuls
+        mod.total_ops += torch.DoubleTensor([x[0].shape[0] * mod.n_joints
+                                             * (mod.in_dim * mod.hidden + mod.hidden * mod.out_dim)])
+
     try:
-        wrapper = _Wrap(m)
-        if bool(getattr(m, "egm_memory", False)):
-            # Carry a real predecessor state into the measured tracking step.
-            # All 778 GRU cells execute regardless of observation availability.
-            with torch.no_grad():
-                pose, wrapper.node_state = m.track_packet(batch, node_state=None)
-            batch = dataclasses.replace(batch, prev_state=pose)
-        macs, _ = profile(wrapper, inputs=(batch,), verbose=False)
-        note = ("track_packet with carried pose and vertex memory; THOP includes GRUCell"
-                if bool(getattr(m, "egm_memory", False)) else "forward_packet")
-        return float(macs), note
+        macs, _ = profile(_Wrap(m), inputs=(batch,), verbose=False,
+                          custom_ops={PerJointRootFusion: _count_root_fusion})
+        return float(macs), "forward_packet"
     except Exception as e:                   # e.g. a CUDA-only conditioning path on CPU
         return float("nan"), f"forward_packet not profilable on CPU: {type(e).__name__}"
 
@@ -309,22 +286,25 @@ def main() -> None:
     ap.add_argument("--subject", default=None,
                     help="keep only this subject's sequences, e.g. --split test --subject zgz "
                          "for the main table's held-out pair")
+    ap.add_argument("--seeds", default=",".join(str(s) for s in SEEDS),
+                    help="comma-separated seeds; a single seed is a screen row, not an adoption row")
     args = ap.parse_args()
+    seeds = tuple(int(s) for s in args.seeds.split(","))
     device = torch.device("cuda")
     tag = "" if (args.split == "val_core" and not args.subject) else f"_{args.split}_{args.subject or 'all'}"
     print(f"== {args.run}: accuracy ({args.split}/{args.subject or 'all'}, "
           f"50 ms recursive, selected checkpoints) ==")
     per_seed, cfg, seqs, root = {}, None, None, None
-    for seed in SEEDS:
+    for seed in seeds:
         agg, cfg, seqs, root = eval_seed(args.run, seed, device, args.split, args.subject)
         per_seed[seed] = agg
 
-    mean2 = {blk: {k: float(np.mean([per_seed[s][blk][k] for s in SEEDS]))
+    mean2 = {blk: {k: float(np.mean([per_seed[s][blk][k] for s in seeds]))
                    for k in METRICS} for blk in ("overall", "local", "global")}
 
     print("== cost (same machine, main-table method) ==")
     anchor = latency_anchor(device)
-    raw_lat, mean_events, n_pk = latency_s36(cfg, per_seed[SEEDS[0]]["ckpt"], seqs, root, device)
+    raw_lat, mean_events, n_pk = latency_s36(cfg, per_seed[seeds[0]]["ckpt"], seqs, root, device)
     lat = raw_lat / anchor * FULL_PUBLISHED_MS
     macs, head_macs, n_params, n_enc = macs_s36(cfg)
     macs_full, macs_full_note = macs_forward_packet(cfg)
@@ -338,26 +318,14 @@ def main() -> None:
            "latency_ms_scaled_full1p75": lat, "latency_ms_raw": raw_lat,
            "anchor_full_raw_ms": anchor, "latency_packets": n_pk,
            "latency_mean_events_per_packet": mean_events,
-           "latency_protocol": {
-               "sequence": "lyq_local", "step_ms": STEP_MS,
-               "max_packets": 600, "passes": 3, "warmup_packets": min(100, n_pk),
-               "aggregation": "minimum of per-pass mean ms/packet",
-               "packet_staging": "GPU-resident before timing",
-               "operation": ("track_packet carrying pose and vertex memory"
-                             if bool(cfg.get("MODEL", {}).get("EGM_MEMORY", False))
-                             else "forward_packet with each valid run's initial pose"),
-               "state_reset": ("each valid run, warmup, and timing pass"
-                               if bool(cfg.get("MODEL", {}).get("EGM_MEMORY", False))
-                               else "not applicable"),
-               "initial_pose": "valid-run first ground-truth pose, without noise",
-               "anchor": "EventHands-Full, min over 8 rounds of 300 calls, scaled to 1.75 ms"},
            "macs_frontend": macs, "macs_heads": head_macs,
            "macs_forward_packet": macs_full, "macs_forward_packet_note": macs_full_note,
            "params_total": n_params, "params_frontend": n_enc,
            "protocol": {"split": args.split, "subject": args.subject,
                         "manifest": (splits_manifest(cfg).name if splits_manifest(cfg) else "splits_semkine.json"),
-                        "step_ms": STEP_MS, "sequences": per_seed[SEEDS[0]]["sequences"],
-                        "note": "accuracy = two-seed mean of each seed's selected step"}}
+                        "step_ms": STEP_MS, "sequences": per_seed[seeds[0]]["sequences"],
+                        "note": ("accuracy = two-seed mean of each seed's selected step" if len(seeds) > 1
+                                 else f"accuracy = seed {seeds[0]} only (screen row, not an adoption row)")}}
     out = REPO / f"outputs/semkine/{args.run}_main_row{tag}.json"
     out.write_text(json.dumps(row, indent=2))
 
@@ -369,7 +337,7 @@ def main() -> None:
           f"| {m['global']['mpjpe_ra_mm']:.2f} | {m['local']['mpvpe_ra_mm']:.2f} "
           f"| {m['global']['mpvpe_ra_mm']:.2f} | {m['overall']['mpjpe_ra_mm']:.2f} "
           f"| {lat:.2f} ms | {macs_full/1e9:.3f} G (frontend {macs/1e9:.3f} G) | {n_params/1e6:.2f} M |")
-    for s in SEEDS:
+    for s in seeds:
         p = per_seed[s]
         print(f"|   └ s{s} (step {p['step']}) | {p['local']['mpjpe_ra_mm']:.2f} "
               f"| {p['global']['mpjpe_ra_mm']:.2f} | {p['local']['mpvpe_ra_mm']:.2f} "

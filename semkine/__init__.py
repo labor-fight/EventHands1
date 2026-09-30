@@ -1,6 +1,8 @@
 """SemKine: event-driven kinematic active state estimation.
 
-Stage-by-stage modules for the roadmap in `docs/semkine/`. Everything here is additive: the
+Stage-by-stage modules. The stage logs that used to live in `docs/semkine/` were retired
+on 2026-09-29; the conclusions that still bind are in `docs/FAILURE_AND_CLEANUP_LEDGER.md`.
+Everything here is additive: the
 legacy EventHands modules under `model/` keep working unchanged, and every SemKine feature is
 off unless a config asks for it.
 

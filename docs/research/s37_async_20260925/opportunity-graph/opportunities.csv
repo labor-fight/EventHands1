@@ -1,4 +1,0 @@
-rank,id,label,gate_status,priority_score,question,derived_from,protocol_parity_status,next_step
-1,O00,C0 minimal protocol and precision control,hold,80.0,C0 minimal protocol and precision control improves which verified limitation?,N01;N03;N04,hold,Close burst handling; obtain GPU budget and test complete load/long-stream contracts; no training until mandatory gates pass.
-2,O01,C1 exact causal evidence cache with S37 routed readout,hold,71.0,C1 exact causal evidence cache with S37 routed readout improves which verified limitation?,N02;N05;N06;N09,hold,Close burst handling; obtain GPU budget and test complete load/long-stream contracts; no training until mandatory gates pass.
-3,O02,C2 conditional visibility association correction,hold,53.0,C2 conditional visibility association correction improves which verified limitation?,N07;N08;N10,hold,Close burst handling; obtain GPU budget and test complete load/long-stream contracts; no training until mandatory gates pass.

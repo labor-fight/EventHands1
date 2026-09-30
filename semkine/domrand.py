@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""S1 domain randomisation, re-landed from the deleted `experiment_history.md` §11 recipe.
+"""S1 domain randomisation, re-landed from the §11 recipe after that write-up was retired.
 
 Why this exists at all. Four consecutive network-side changes (EDD, J3D, CMN, KSGN) failed to
 move the closed-loop metric, and the one change that passed its pre-registered gate touched only
 the dataloader: recursive RA-MPJPE 19.26 -> 12.77 mm (worse of two replicates, -34%) with the
-network unchanged to the parameter. The cause it addressed is measured in
-`ARCHITECTURE_AUDIT.md` §7: `zgz_local` fires 1490 events per 50 ms, roughly 1/20 of the same
+network unchanged to the parameter. The cause it addressed is measured: `zgz_local` fires 1490
+events per 50 ms, roughly 1/20 of the same
 subject's global sequence, and the training distribution never contained such sparse evidence.
 That code was lost in a rollback; this module restores it.
 

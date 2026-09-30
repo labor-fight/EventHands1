@@ -1,8 +1,7 @@
 # S27: retention ranks recursive error but cannot be intervened on
 
 **Date:** 2026-08-27
-**Status:** hypothesis falsified by intervention. The `GAIN_REG` line (C2 in
-`ASYNC_SPARSE_SOTA_MASTER_VERDICT_20260826.md`) is closed on both of its two bullets.
+**Status:** hypothesis falsified by intervention. The `GAIN_REG` line is closed on both of its two bullets.
 **Protocol:** `val_core` under `_retired_splits_semkine_5v2v3.json` (8 sequences, 10452 frames,
 subjects `lr`/`lyq` held out), 50 ms, strict recursion with one ground-truth initialisation per
 valid run, checkpoint chosen on the fixed 500-step grid by that same recursive metric.
@@ -142,8 +141,7 @@ The arm was falsified, so its code is gone rather than left switched off: `TRACK
 `TRACK.GAIN_REG_FORM`, the `gain_u` power iterate, the observable-subspace mask and the barrier
 branch have all been removed, and `configs/semkine/s27_*.yaml` deleted. `TRACK.GAIN_REG_W` is back
 to exactly its pre-S27 behaviour. A config key that survives its own refutation is how this project
-previously trained two arms that were silent copies of their control
-(`docs/debug_e55b_unroll_20260825.md`).
+previously trained two arms that were silent copies of their control.
 
 One compatibility shim remains and is load-bearing: `on_load_checkpoint` drops a `gain_u` key if it
 finds one, because the S27 and S28 checkpoint grids were written while the buffer existed and

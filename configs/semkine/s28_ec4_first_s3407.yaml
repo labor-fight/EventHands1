@@ -17,8 +17,8 @@
 #     first   the earliest timestamp in the slot; with `last` this brackets the dwell time of the
 #             moving edge, a velocity cue no single timestamp can carry
 #
-# Why here and not in the readout. The repository's own architecture law
-# (`docs/ASYNC_SPARSE_SOTA_MASTER_VERDICT_20260826.md` 3.5) is that evidence encoding must be
+# Why here and not in the readout. The architecture law that still binds
+# is that evidence encoding must be
 # state-independent, because dPhi/dx != 0 is what made the pose-conditioned frontend's loop gain
 # uncontrollable (KEG: single-step 12.4 mm, recursive 26.6). All three faces are functions of the
 # events alone, so this widens capacity in the one place that cannot feed the loop.

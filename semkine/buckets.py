@@ -7,7 +7,7 @@ about -- "does routing updates to the observable degrees of freedom help when on
 moves" -- so the evaluation is stratified by what the ground truth is doing.
 
 Two design decisions worth stating, both consequences of the `jitter_static` failure recorded in
-`ARCHITECTURE_AUDIT.md` §5 (a gate whose support turned out to be one frame):
+the S0 audit (a gate whose support turned out to be one frame):
 
 1. **Thresholds are quantiles of the training split, not hand-picked constants.** A constant like
    "static means below 0.5 mm per step" produced a bucket with one member. Quantiles produce

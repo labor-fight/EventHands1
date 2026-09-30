@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """S1 statistics: bucketed metrics, paired bootstrap, and the gate arithmetic.
 
-`ARCHITECTURE_AUDIT.md` §5 registers the noise floor this project actually has: 0.4 mm between
+The S0 audit registered the noise floor this project actually has: 0.4 mm between
 same-config replicates, about 1.1 mm across retrainings, and a 2.43 mm observed replicate range.
 A large part of the project's history consists of differences smaller than that being read as
 effects. The functions here exist so a verdict has to be expressed as an interval.
@@ -31,7 +31,7 @@ import numpy as np
 DEFAULT_N_BOOT = 10_000
 DEFAULT_ALPHA = 0.05
 
-#: Registered noise floor, from `ARCHITECTURE_AUDIT.md` §5.
+#: Registered noise floor from the S0 audit.
 NOISE_FLOOR_MM = {
     "same_config_replicate": 0.4,
     "cross_training": 1.1,

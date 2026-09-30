@@ -4,7 +4,7 @@ r"""S2 RawEvent-Track: event-token recurrent encoder and its sparse-cell fallbac
 The paper contribution is not this frontend. Ev2Hands (3DV'24) and EventEgoHands (2025) already
 put a PointNet++ on an event cloud for a hand mesh. The encoder exists so later stages can query
 KSSF and route information at event coordinates rather than on a dense 180x240 surface that
-throws away 70-88% of the events (ARCHITECTURE_AUDIT.md §7). Two attempts are budgeted; if both
+throws away 70-88% of the events at 50 ms. Two attempts are budgeted; if both
 miss the registered parity gate the mainline falls back to LNES and KSSF/RDOR query the dense
 features instead.
 

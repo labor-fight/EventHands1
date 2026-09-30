@@ -1,6 +1,6 @@
 # S1 baseline arm A2: A1 plus domain randomisation. THIS is the paper's main dense baseline.
 #
-# Restored from the `experiment_history.md` §11 recipe after being lost in a rollback. It is the
+# Restored from the §11 domain-randomisation recipe after being lost in a rollback. It is the
 # largest single measured effect in the project's history (recursive RA 19.26 -> 12.77 mm on the
 # legacy split, worse of two replicates, with the network unchanged), so reporting against A1
 # instead would be comparing to a baseline that is known to be beatable by a dataloader change.
