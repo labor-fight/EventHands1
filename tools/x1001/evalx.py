@@ -342,7 +342,7 @@ def cmd_row(a):
     per_seed, ext, cfg = {}, {}, None
     for rd in a.runs:
         run = Path(rd)
-        js = json.loads((run / f"evalx_{a.split}_{a.ckpt.replace('=', '')}.json").read_text())
+        js = json.loads((run / f"evalx_{a.split}_{a.ckpt.replace('=', '')}{'_' + a.variant if a.variant else ''}.json").read_text())
         seed = str(json.loads((run / "training_metadata.json").read_text())["seed"])
         m = js["model"]
         seqs = [k for k in m if k not in ("n_frames", "overall")]
@@ -373,7 +373,8 @@ def cmd_row(a):
            "note": "x1001 protocol; 'two_seed_mean' is the N-seed mean (key kept for tools/report_table.py)"}
     out = REPO / "outputs" / "semkine"
     out.mkdir(parents=True, exist_ok=True)
-    tag = "" if a.split == "val_core" else f"_{a.split}"
+    tag = ("" if a.split == "val_core" else f"_{a.split}") + (f"_{a.variant}" if a.variant else "")
+    row["eval_variant"] = a.variant
     (out / f"{a.arm}{tag}_main_row.json").write_text(json.dumps(row, indent=1))
     (out / f"{a.arm}{tag}_extended.json").write_text(json.dumps(ext, indent=1))
     print(json.dumps({k: v for k, v in row.items() if k != "per_seed"}, indent=1))
@@ -397,6 +398,7 @@ def main():
     r.add_argument("--runs", nargs="+", required=True)
     r.add_argument("--split", default="val_core")
     r.add_argument("--ckpt", default="selected")
+    r.add_argument("--variant", default="", help="evaluation variant tag, e.g. wadaptive50_n2000_x300")
     a = ap.parse_args()
     cmd_eval(a) if a.cmd == "eval" else cmd_row(a)
 
