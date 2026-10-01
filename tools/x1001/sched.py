@@ -296,7 +296,11 @@ def daemon() -> None:
         held = {js["gpu"] for js in st["jobs"].values() if js.get("status") == "running" and js.get("gpu") is not None}
         allow = allowed_gpus()
         cancelled = set(CANCELLED.read_text().split()) if CANCELLED.exists() else set()
-        order = sorted(jobs.items(), key=lambda kv: (-int(kv[1].get("prio", 0)), list(jobs).index(kv[0])))
+        # post-processing (selection / evaluation) gates results and is short: it always goes before
+        # any training launch, whatever the submitted priorities
+        boost = lambda j: 1000 if j.get("kind") in ("select", "eval") else 0              # noqa: E731
+        order = sorted(jobs.items(), key=lambda kv: (-(int(kv[1].get("prio", 0)) + boost(kv[1])),
+                                                     list(jobs).index(kv[0])))
         for jid, job in order:
             if jid in st["jobs"]:
                 continue

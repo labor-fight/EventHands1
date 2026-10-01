@@ -90,8 +90,21 @@ def rot_err_deg(p51, g51):
 
 
 @torch.no_grad()
-def run_sequence(model, cfg, root, d, seq, device, rng, mode="model"):
-    """`track_sequence`'s loop, keeping every step. mode: model | hold | noevents."""
+def window_of(offsets, end, wmode, win, min_events, max_win):
+    """Evidence window (ms) ending at `end`. fixed: `win`; adaptive: the shortest window >= `win`
+    holding >= `min_events` events, capped at `max_win`. Causal either way (only past events)."""
+    if wmode == "fixed":
+        return int(min(win, end + 1))
+    w = int(min(win, end + 1))
+    while w < max_win and w < end + 1 and offsets[end + 1] - offsets[end - w + 1] < min_events:
+        w = min(w + 10, max_win, end + 1)
+    return int(w)
+
+
+def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fixed", win=STEP,
+                 min_events=0, max_win=300):
+    """`track_sequence`'s loop, keeping every step. mode: model | hold | noevents.
+    The evaluated steps never change (ends a+49, a+99, ...); only the evidence window may."""
     events, offsets, aux, pos51 = ET.load_sequence(root, d, seq)
     tsub_path = root / d / f"{seq}_tsub.npy"
     tsub = np.load(tsub_path, mmap_mode="r") if tsub_path.exists() else None
@@ -112,15 +125,16 @@ def run_sequence(model, cfg, root, d, seq, device, rng, mode="model"):
         init_t = prev_t.clone()
         for end in ends:
             n_ev = int(offsets[int(end) + 1] - offsets[int(end) - STEP + 1])
+            w = window_of(offsets, int(end), wmode, win, min_events, max_win)
             if mode == "hold":
                 pred = init_t
             elif use_raw:
-                ev5 = ET._window_events(events, offsets, tsub, int(end), STEP)
+                ev5 = ET._window_events(events, offsets, tsub, int(end), w)
                 if mode == "noevents":
                     ev5 = ev5[:0]
-                pred = model.forward_packet(ET.make_eval_packet(ev5, prev_t, betas, camera_K, STEP, device))
+                pred = model.forward_packet(ET.make_eval_packet(ev5, prev_t, betas, camera_K, w, device))
             else:
-                x = torch.from_numpy(ET.build_lnes(events, offsets, int(end), STEP, ev_ch)).unsqueeze(0).to(device)
+                x = torch.from_numpy(ET.build_lnes(events, offsets, int(end), w, ev_ch)).unsqueeze(0).to(device)
                 if mode == "noevents":
                     x = torch.zeros_like(x)
                 pred = model(x, prev_t)
@@ -204,7 +218,8 @@ def cmd_eval(a):
         rng = np.random.default_rng(0)
         res = {}
         for s, d in seqs:
-            r = run_sequence(model, cfg, root, d, s, device, rng, mode)
+            r = run_sequence(model, cfg, root, d, s, device, rng, mode, a.window_mode, a.window_ms,
+                             a.min_events, a.max_window_ms)
             m = per_step_metrics(mano, r, device)
             res[s] = (r, m)
             for k, v in m.items():
@@ -231,11 +246,14 @@ def cmd_eval(a):
         out[mode] = summ
         print(f"  {run.name} step={step} {mode}: RA={summ['overall']['mpjpe_ra_mm']:.4f} "
               f"rot={summ['overall']['root_rot_deg']:.2f} deg  ({time.time() - t0:.0f} s)", flush=True)
-    if sel_ra is not None and a.split == "val_core":
+    out["window"] = {"mode": a.window_mode, "ms": a.window_ms, "min_events": a.min_events, "max_ms": a.max_window_ms}
+    if sel_ra is not None and a.split == "val_core" and a.window_mode == "fixed" and a.window_ms == STEP:
         drift = abs(out["model"]["overall"]["mpjpe_ra_mm"] - sel_ra)
         out["selection_drift_mm"] = drift
         assert drift < 0.05, f"re-run drift {drift:.4f} mm vs selection"
     tag = f"evalx_{a.split}_{a.ckpt.replace('=', '')}"
+    if a.window_mode != "fixed" or a.window_ms != STEP:
+        tag += f"_w{a.window_mode}{a.window_ms}" + (f"_n{a.min_events}_x{a.max_window_ms}" if a.window_mode == "adaptive" else "")
     np.savez_compressed(run / f"{tag}.npz", **arrays)
     (run / f"{tag}.json").write_text(json.dumps(out, indent=1))
     print("wrote", run / f"{tag}.json", flush=True)
@@ -370,6 +388,10 @@ def main():
     e.add_argument("--split", default="val_core")
     e.add_argument("--manifest", default=None)
     e.add_argument("--controls", action="store_true")
+    e.add_argument("--window-mode", choices=("fixed", "adaptive"), default="fixed")
+    e.add_argument("--window-ms", type=int, default=STEP)
+    e.add_argument("--min-events", type=int, default=0)
+    e.add_argument("--max-window-ms", type=int, default=300)
     r = sub.add_parser("row")
     r.add_argument("--arm", required=True)
     r.add_argument("--runs", nargs="+", required=True)
