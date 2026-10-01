@@ -101,7 +101,7 @@ class EventGNN(nn.Module):
                  max_nodes: int = 768, window: int = 32, t_scale: float = 1.0,
                  extra_channels: int = 0, node_attrs: str = "token7", readout: bool = True,
                  sample_mode: str = "stride", sample_cell: int = 4,
-                 nbr_mode: str = "window", nbr_t_scale: float = 1.0):
+                 nbr_mode: str = "window", nbr_t_scale: float = 1.0, grid_cell: int = 0):
         super().__init__()
         if nbr_mode not in ("window", "causal_all"):
             raise ValueError(f"nbr_mode must be 'window' or 'causal_all', got {nbr_mode!r}")
@@ -129,9 +129,27 @@ class EventGNN(nn.Module):
         # mean + max readout. Not built when the consumer reads the nodes directly (S37 mesh
         # query): DDP runs with find_unused_parameters=False, so an unused head is an error.
         self.readout = bool(readout)
+        #: Root-tracking G3: `grid_cell` > 0 adds a hierarchical spatial readout. The mean / max
+        #: pool is a bag of 3-hop local features (radius ~43 px) and keeps no layout of the hand,
+        #: which is what a global rotation is read from. The node features are scatter-averaged
+        #: into `grid_cell` px cells, with a log-count plane, and three strided 3x3 convolutions
+        #: bring the map to stride 4 cells before a global average. 0 is S36 / S37, bitwise.
+        self.grid_cell = int(grid_cell)
+        grid_dim = 0
+        if self.readout and self.grid_cell > 0:
+            c, grid_dim = self.hidden, 2 * self.hidden
+            self.grid_h = (self.height + self.grid_cell - 1) // self.grid_cell
+            self.grid_w = (self.width + self.grid_cell - 1) // self.grid_cell
+            self.grid_cnn = nn.Sequential(
+                nn.Conv2d(c + 1, c, 3, padding=1, bias=False), nn.BatchNorm2d(c), nn.ReLU(inplace=True),
+                nn.Conv2d(c, 2 * c, 3, stride=2, padding=1, bias=False), nn.BatchNorm2d(2 * c),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(2 * c, grid_dim, 3, stride=2, padding=1, bias=False), nn.BatchNorm2d(grid_dim),
+                nn.ReLU(inplace=True),
+            )
         if self.readout:
             self.proj = nn.Sequential(
-                nn.Linear(2 * self.hidden, self.feat_dim),
+                nn.Linear(2 * self.hidden + grid_dim, self.feat_dim),
                 nn.ReLU(inplace=True),
                 nn.Linear(self.feat_dim, self.feat_dim),
             )
@@ -280,6 +298,27 @@ class EventGNN(nn.Module):
               - p.unsqueeze(2)) * emask.unsqueeze(-1)
         return idx, dp, emask
 
+    # --------------------------------------------------------------- readout
+    def _grid_readout(self, h: torch.Tensor, ev: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """G3: node features averaged into `grid_cell` px cells (plus a log-count plane), three
+        strided convolutions, global average. `(B, 2 * hidden)`; zero for an event-free packet."""
+        B, N, C = h.shape
+        gh, gw = self.grid_h, self.grid_w
+        cx = (ev[..., EV_X].long() // self.grid_cell).clamp(0, gw - 1)
+        cy = (ev[..., EV_Y].long() // self.grid_cell).clamp(0, gh - 1)
+        cell = (torch.arange(B, device=h.device).unsqueeze(1) * (gh * gw) + cy * gw + cx)[mask]
+        grid = torch.zeros(B * gh * gw, C + 1, device=h.device, dtype=torch.float32)
+        if cell.numel():
+            # Sorted segment mean, not index_add_: CUDA atomics make the sum order (and the last bits)
+            # vary run to run, and the closed loop amplifies 1e-6 into a recorded-number drift.
+            order = torch.argsort(cell, stable=True)
+            cells, cnt = torch.unique_consecutive(cell[order], return_counts=True)
+            mean = torch.segment_reduce(h[mask][order].float(), "mean", lengths=cnt, axis=0)
+            grid[cells] = torch.cat([mean, torch.log1p(cnt.float()).unsqueeze(-1)], -1)
+        grid = grid.reshape(B, gh, gw, C + 1).permute(0, 3, 1, 2).to(h.dtype)
+        g = self.grid_cnn(grid).mean(dim=(2, 3))
+        return g * mask.any(1, keepdim=True).to(g.dtype)
+
     # ---------------------------------------------------------------- forward
     def forward(self, events: torch.Tensor, ptr: torch.Tensor, delta_t_s: torch.Tensor,
                 extra: Optional[torch.Tensor] = None, return_nodes: bool = False):
@@ -332,7 +371,10 @@ class EventGNN(nn.Module):
             live = mask.sum(1, keepdim=True).clamp_min(1.0).to(h.dtype)
             mean = h.sum(1) / live
             peak = h.masked_fill(~mask.unsqueeze(-1), -1e4).max(1).values
-            out = self.proj(torch.cat([mean, peak * any_node], dim=-1))
+            pooled = [mean, peak * any_node]
+            if self.grid_cell > 0:
+                pooled.append(self._grid_readout(h, ev, mask))
+            out = self.proj(torch.cat(pooled, dim=-1))
             # An event-free packet must return exactly zero so `MODEL.ZERO_EVENT_GATE` gates an
             # update that was already nothing.
             out = out * any_node

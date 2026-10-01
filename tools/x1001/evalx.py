@@ -103,7 +103,10 @@ def window_of(offsets, end, wmode, win, min_events, max_win):
 @torch.no_grad()
 def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fixed", win=STEP,
                  min_events=0, max_win=300):
-    """`track_sequence`'s loop, keeping every step. mode: model | hold | noevents.
+    """`track_sequence`'s loop, keeping every step. mode: model | hold | noevents | tf.
+    `tf` (teacher forcing) feeds the ground truth of the previous evaluated step back instead of the
+    prediction (the first step of a segment keeps the protocol's noisy initial state), so its error is
+    the single-step error under a clean state. `prev` records the state each step was conditioned on.
     The evaluated steps never change (ends a+49, a+99, ...); only the evidence window may."""
     events, offsets, aux, pos51 = ET.load_sequence(root, d, seq)
     tsub_path = root / d / f"{seq}_tsub.npy"
@@ -115,7 +118,7 @@ def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fix
         model.set_hand_context(betas, camera_K)
     runs = np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2)
     ev_ch = EV.event_channels(cfg)
-    preds, gts, ends_all, runs_all, elapsed, counts = [], [], [], [], [], []
+    preds, gts, ends_all, runs_all, elapsed, counts, prevs = [], [], [], [], [], [], []
     for run_id, (a, b) in enumerate(runs):
         ends = np.arange(a + STEP - 1, b, STEP, dtype=np.int64)
         if not len(ends):
@@ -126,6 +129,7 @@ def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fix
         for end in ends:
             n_ev = int(offsets[int(end) + 1] - offsets[int(end) - STEP + 1])
             w = window_of(offsets, int(end), wmode, win, min_events, max_win)
+            prevs.append(prev_t.cpu().numpy()[0])
             if mode == "hold":
                 pred = init_t
             elif use_raw:
@@ -138,7 +142,7 @@ def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fix
                 if mode == "noevents":
                     x = torch.zeros_like(x)
                 pred = model(x, prev_t)
-            prev_t = pred
+            prev_t = pred if mode != "tf" else torch.from_numpy(pos51[int(end)].copy()).view(1, -1).to(device)
             preds.append(pred.cpu().numpy()[0])
             gts.append(pos51[end])
             ends_all.append(int(end))
@@ -147,7 +151,94 @@ def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fix
             counts.append(n_ev)
     return {"pred": np.stack(preds).astype(np.float32), "gt": np.stack(gts).astype(np.float32),
             "end": np.asarray(ends_all), "run": np.asarray(runs_all), "elapsed": np.asarray(elapsed),
-            "count": np.asarray(counts), "betas": aux["betas"]}
+            "count": np.asarray(counts), "betas": aux["betas"],
+            "prev": np.stack(prevs).astype(np.float32)}
+
+
+def aa_compose(rot_aa, aa):
+    """Axis-angle of `Exp(rot_aa) @ Exp(aa)` (a rotation applied on the left, camera frame)."""
+    from scipy.spatial.transform import Rotation as Rot
+    return (Rot.from_rotvec(rot_aa) * Rot.from_rotvec(aa)).as_rotvec().astype(np.float32)
+
+
+@torch.no_grad()
+def perturb_trials(model, cfg, root, d, seq, device, r, thetas=(10.0, 20.0), horizon=20, every=20,
+                   min_elapsed=1000, seed=0):
+    """Perturbation recovery, branched off the protocol closed loop `r` (a `run_sequence` result).
+
+    Every `every` steps (once the segment is `min_elapsed` ms old and `horizon` steps remain), the state
+    the closed loop fed into that step is rotated by `theta` degrees about a random axis (left, camera
+    frame) and the model is rolled `horizon` steps on the same packets. Returns, per theta, the excess
+    root-rotation error over the unperturbed loop at the same steps, `(trials, horizon)` degrees: k = 0
+    is the first output after the perturbed state. Returned per theta: `div` -- the geodesic angle
+    between the perturbed branch's output and the unperturbed loop's output at the same step, i.e. how
+    much of the injected state error is still there (div / theta is the retention curve); and
+    `excess` -- the branch's root error minus the loop's (what the perturbation costs in accuracy;
+    with a loop error of the same size as theta this understates the retained error).
+    """
+    events, offsets, aux, pos51 = ET.load_sequence(root, d, seq)
+    tsub_path = root / d / f"{seq}_tsub.npy"
+    tsub = np.load(tsub_path, mmap_mode="r") if tsub_path.exists() else None
+    use_raw = bool(getattr(model, "encoder_name", ""))
+    betas = torch.tensor(aux["betas"], dtype=torch.float32, device=device).view(1, -1)
+    camera_K = torch.tensor(aux["camera_K"], dtype=torch.float32, device=device).view(1, 3, 3)
+    if hasattr(model, "set_hand_context"):
+        model.set_hand_context(betas, camera_K)
+    ev_ch = EV.event_channels(cfg)
+    base = rot_err_deg(r["pred"], r["gt"])
+    rng = np.random.default_rng(seed)
+    out = {float(t): {"div": [], "excess": []} for t in thetas}
+    order = np.arange(len(r["end"]))
+    for run_id in np.unique(r["run"]):
+        idx = order[r["run"] == run_id]
+        for i0 in idx[r["elapsed"][idx] >= min_elapsed][::every]:
+            if i0 + horizon > idx[-1] + 1:
+                continue
+            axis = rng.standard_normal(3)
+            axis /= np.linalg.norm(axis)
+            for th in out:
+                prev = r["prev"][i0].copy()
+                prev[3:6] = aa_compose(axis * np.deg2rad(th), prev[3:6])
+                prev_t = torch.from_numpy(prev).view(1, -1).to(device)
+                preds = []
+                for i in range(i0, i0 + horizon):
+                    end = int(r["end"][i])
+                    if use_raw:
+                        ev5 = ET._window_events(events, offsets, tsub, end, STEP)
+                        pred = model.forward_packet(ET.make_eval_packet(ev5, prev_t, betas, camera_K, STEP, device))
+                    else:
+                        x = torch.from_numpy(ET.build_lnes(events, offsets, end, STEP, ev_ch)).unsqueeze(0).to(device)
+                        pred = model(x, prev_t)
+                    prev_t = pred
+                    preds.append(pred.cpu().numpy()[0])
+                br = np.stack(preds).astype(np.float32)
+                out[th]["div"].append(rot_err_deg(br, r["pred"][i0:i0 + horizon]))
+                out[th]["excess"].append(rot_err_deg(br, r["gt"][i0:i0 + horizon]) - base[i0:i0 + horizon])
+    return {th: {k: np.stack(v) if v else np.zeros((0, horizon)) for k, v in d.items()} for th, d in out.items()}
+
+
+def motion_drift(r, m):
+    """Is a low error just a frozen or over-smoothed output? Root angular speed of prediction and
+    ground truth (deg per step, within segments), finger-parameter speed, and the root-error trend
+    over a segment's elapsed time (deg per 10 s, least squares, segments >= 10 s)."""
+    def ang(a, b):
+        return rot_err_deg(a.astype(np.float32), b.astype(np.float32))
+    same = r["run"][1:] == r["run"][:-1]
+    p, g = r["pred"], r["gt"]
+    ps, gs = ang(p[1:], p[:-1])[same], ang(g[1:], g[:-1])[same]
+    pf = np.linalg.norm(p[1:, 6:] - p[:-1, 6:], axis=-1)[same]
+    gf = np.linalg.norm(g[1:, 6:] - g[:-1, 6:], axis=-1)[same]
+    slopes = []
+    for rr in np.unique(r["run"]):
+        sel = r["run"] == rr
+        t = r["elapsed"][sel] / 10_000.0
+        if t.max() - t.min() >= 1.0:
+            slopes.append(float(np.polyfit(t, m["root_rot_deg"][sel], 1)[0]))
+    return {"root_speed_pred_deg": float(ps.mean()), "root_speed_gt_deg": float(gs.mean()),
+            "root_speed_ratio": float(ps.mean() / max(gs.mean(), 1e-9)),
+            "root_speed_abs_err_deg": float(np.abs(ps - gs).mean()),
+            "finger_speed_ratio": float(pf.mean() / max(gf.mean(), 1e-9)),
+            "root_err_slope_deg_per_10s": slopes}
 
 
 def per_step_metrics(mano, r, device):
@@ -198,7 +289,7 @@ def block_ci(vals, end, n_boot=2000, seed=0):
 
 def cmd_eval(a):
     run = Path(a.run_dir)
-    cfg_path = next(iter(sorted(run.glob("*.yaml"))), None) or json.loads(
+    cfg_path = a.config or next(iter(sorted(run.glob("*.yaml"))), None) or json.loads(
         (run / "training_metadata.json").read_text())["config_path"]
     cfg = load_config(cfg_path)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -211,7 +302,7 @@ def cmd_eval(a):
     trained = json.loads((run / "training_metadata.json").read_text()).get("train_sequences", [])
     leak = {s.split("_")[0] for s, _ in seqs} & {s.split("_")[0] for s in trained}
     assert not leak, f"{a.split} subjects {sorted(leak)} are in {run.name}'s training set"
-    modes = ["model"] + (["hold", "noevents"] if a.controls else [])
+    modes = ["model"] + (["hold", "noevents"] if a.controls else []) + (["tf"] if a.tf else [])
     out, t0 = {"run": run.name, "ckpt": str(ckpt), "step": step, "split": a.split, "manifest": str(mani)}, time.time()
     arrays = {}
     for mode in modes:
@@ -227,6 +318,10 @@ def cmd_eval(a):
             if mode == "model":
                 for k in ("pred", "gt", "end", "run", "elapsed", "count"):
                     arrays[f"{mode}|{s}|{k}"] = r[k]
+                if a.perturb:
+                    for th, dd in perturb_trials(model, cfg, root, d, s, device, r).items():
+                        for kind, v in dd.items():
+                            arrays[f"perturb|{s}|{th:g}|{kind}"] = v.astype(np.float32)
         n = sum(len(m["mpjpe_ra_mm"]) for _, m in res.values())
         summ = {"n_frames": n, "overall": {k: float(sum(m[k].sum() for _, m in res.values()) / n)
                                            for k in next(iter(res.values()))[1]}}
@@ -242,16 +337,37 @@ def cmd_eval(a):
                     ent["by_events"][f"[{lo},{hi})"] = {"n": int(sel.sum()),
                                                         "mpjpe_ra_mm": float(m["mpjpe_ra_mm"][sel].mean()),
                                                         "root_rot_deg": float(m["root_rot_deg"][sel].mean())}
+            if mode == "model":
+                ent["motion"] = motion_drift(r, m)
             summ[s] = ent
         out[mode] = summ
         print(f"  {run.name} step={step} {mode}: RA={summ['overall']['mpjpe_ra_mm']:.4f} "
               f"rot={summ['overall']['root_rot_deg']:.2f} deg  ({time.time() - t0:.0f} s)", flush=True)
+    if a.tf:
+        cl, tf = out["model"]["overall"], out["tf"]["overall"]
+        out["amplification"] = {k: cl[k] / max(tf[k], 1e-9) for k in ("mpjpe_ra_mm", "root_rot_deg")}
+    if a.perturb:
+        pert = {}
+        for th in sorted({k.split("|")[2] for k in arrays if k.startswith("perturb|")}, key=float):
+            cat = {kind: np.concatenate([v for k, v in arrays.items() if k.startswith("perturb|")
+                                         and k.endswith(f"|{th}|{kind}")]) for kind in ("div", "excess")}
+            div, exc = cat["div"].mean(0), cat["excess"].mean(0)
+            half = next((k for k, v in enumerate(div) if v < float(th) / 2), None)
+            pert[th] = {"trials": int(len(cat["div"])), "div_deg": [float(v) for v in div],
+                        "excess_deg": [float(v) for v in exc],
+                        "retention_k1_k2_k5_k10_k20": [float(div[k] / float(th)) for k in (0, 1, 4, 9, 19)],
+                        "excess_k1_k2_k5_k10_k20_deg": [float(exc[k]) for k in (0, 1, 4, 9, 19)],
+                        "half_life_steps": half}
+        out["perturb"] = pert
+        print(f"  perturbation retention: { {th: v['retention_k1_k2_k5_k10_k20'] for th, v in pert.items()} }", flush=True)
     out["window"] = {"mode": a.window_mode, "ms": a.window_ms, "min_events": a.min_events, "max_ms": a.max_window_ms}
     if sel_ra is not None and a.split == "val_core" and a.window_mode == "fixed" and a.window_ms == STEP:
         drift = abs(out["model"]["overall"]["mpjpe_ra_mm"] - sel_ra)
         out["selection_drift_mm"] = drift
         assert drift < 0.05, f"re-run drift {drift:.4f} mm vs selection"
     tag = f"evalx_{a.split}_{a.ckpt.replace('=', '')}"
+    tag += "_tf" if a.tf else ""
+    tag += "_pert" if a.perturb else ""
     if a.window_mode != "fixed" or a.window_ms != STEP:
         tag += f"_w{a.window_mode}{a.window_ms}" + (f"_n{a.min_events}_x{a.max_window_ms}" if a.window_mode == "adaptive" else "")
     np.savez_compressed(run / f"{tag}.npz", **arrays)
@@ -389,6 +505,10 @@ def main():
     e.add_argument("--split", default="val_core")
     e.add_argument("--manifest", default=None)
     e.add_argument("--controls", action="store_true")
+    e.add_argument("--config", default=None, help="model config (default: the yaml copied into the run)")
+    e.add_argument("--tf", action="store_true", help="also the teacher-forced loop (GT state each step)")
+    e.add_argument("--perturb", action="store_true",
+                   help="also root-rotation perturbation recovery (10 / 20 deg, 20-step branches)")
     e.add_argument("--window-mode", choices=("fixed", "adaptive"), default="fixed")
     e.add_argument("--window-ms", type=int, default=STEP)
     e.add_argument("--min-events", type=int, default=0)

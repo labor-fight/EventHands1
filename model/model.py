@@ -651,6 +651,8 @@ class MNISTModel(BaseModel):
             "POSE_HEAD_HIDDEN",
             # x1001 E9 / E8: node sampling and neighbour rule of the event graph
             "ENCODER_SAMPLE", "ENCODER_SAMPLE_CELL", "ENCODER_NBR", "ENCODER_NBR_T_SCALE",
+            # root tracking G3: hierarchical grid readout of the event graph (0 = off)
+            "ENCODER_GRID_CELL",
         }
     )
     #: every TRACK key the model or the dataset understands. Whitelisted for the same reason
@@ -907,6 +909,8 @@ class MNISTModel(BaseModel):
                 # x1001 E8: neighbour rule ("window" = S36/S37; "causal_all" = whole-packet causal kNN)
                 nbr_mode=str(model_cfg.get("ENCODER_NBR", "window")),
                 nbr_t_scale=float(model_cfg.get("ENCODER_NBR_T_SCALE", 1.0)),
+                # root tracking G3: grid-pooled spatial readout (0 = S37 mean / max only)
+                grid_cell=int(model_cfg.get("ENCODER_GRID_CELL", 0)),
             )
             self.conv1 = None
             self.rn = None
@@ -972,10 +976,12 @@ class MNISTModel(BaseModel):
             nn.init.zeros_(self.prev_mlp[2].weight)
             nn.init.zeros_(self.prev_mlp[2].bias)
 
-        if (self.routed or self.mesh_query) and not (self.encoder_name == "event_gnn"
+        node_encoders = ("event_gnn", "lnes_cnn") if self.routed else ("event_gnn",)
+        if (self.routed or self.mesh_query) and not (self.encoder_name in node_encoders
                                                      and self.active_head):
-            raise ValueError("ROUTED_READOUT / MESH_QUERY read event_gnn node features into the "
-                             "active joint heads; they need MODEL.ENCODER=event_gnn and ACTIVE_HEAD")
+            raise ValueError("ROUTED_READOUT / MESH_QUERY read node features into the active joint "
+                             "heads; they need MODEL.ENCODER=event_gnn (routed: or lnes_cnn) and "
+                             "ACTIVE_HEAD")
         self._ctx_betas = None
         self._ctx_K = None
         if self.prev_render or self.routed or self.mesh_query:

@@ -4,6 +4,7 @@
 Daemon:   python tools/x1001/sched.py daemon            (run under nohup; stops when sched/STOP exists)
 Submit:   python tools/x1001/sched.py submit job.json   (a job object or a list of them)
 Status:   python tools/x1001/sched.py status
+Program:  SCHED_PROG=<dir> selects another program directory (default EventHands1_x1001).
 
 A job is a JSON object:
   id        unique string (the run_id for training jobs)
@@ -34,7 +35,9 @@ import sys
 import time
 from pathlib import Path
 
-PROG = Path("/data1/lyq/code/mesh/EventHands1_x1001")
+#: program directory (queue, state, manifests, logs); `SCHED_PROG` points a second program, e.g.
+#: the root-tracking round under outputs/rt, at its own queue without touching x1001's.
+PROG = Path(os.environ.get("SCHED_PROG", "/data1/lyq/code/mesh/EventHands1_x1001"))
 SCHED = PROG / "sched"
 QUEUE = SCHED / "queue.jsonl"
 STATE = SCHED / "state.json"
@@ -77,10 +80,20 @@ def load_state() -> dict:
     return json.loads(STATE.read_text()) if STATE.exists() else {"jobs": {}}
 
 
-def allowed_gpus() -> list:
+def _allowed_entries() -> list:
     if not ALLOWED.exists():
         return []
-    return [int(x) for x in ALLOWED.read_text().replace("\n", ",").split(",") if x.strip()]
+    return [x.strip() for x in ALLOWED.read_text().replace("\n", ",").split(",") if x.strip()]
+
+
+def allowed_gpus() -> list:
+    return [int(x.rstrip("s")) for x in _allowed_entries()]
+
+
+def shared_gpus() -> set:
+    """GPUs listed with an `s` suffix (e.g. `2s`): another session's process may be on them, so only a
+    job that pins the GPU is placed there, one scheduler job at a time, whatever the memory in use."""
+    return {int(x[:-1]) for x in _allowed_entries() if x.endswith("s")}
 
 
 def smi() -> tuple:
@@ -319,9 +332,10 @@ def daemon() -> None:
             if job.get("device") == "cpu":
                 launch(job, None, st)
                 continue
-            cands = [job["gpu"]] if job.get("gpu") is not None else allow
-            free = [g for g in cands if g in allow and g not in held and not busy.get(g)
-                    and gpus.get(g, {"mem": 1e9})["mem"] < 1024]
+            shared = shared_gpus()
+            cands = [job["gpu"]] if job.get("gpu") is not None else [g for g in allow if g not in shared]
+            free = [g for g in cands if g in allow and g not in held
+                    and (g in shared or (not busy.get(g) and gpus.get(g, {"mem": 1e9})["mem"] < 1024))]
             if not free:
                 continue
             launch(job, free[0], st)
