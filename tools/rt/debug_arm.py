@@ -62,9 +62,14 @@ def collate(items):
 
 
 def step_loss(model, batch):
+    """The training objective: `MNISTModel.training_step`'s loss before the log10."""
     with torch.autocast("cuda", dtype=torch.bfloat16):
         pred, y, betas, _ = model._predict_batch(batch)
-        loss, parts = model._compute_loss(pred, y, betas)
+        if getattr(model, "abs_track", False):
+            x_abs, x_trk = model._abs_track_parts
+            loss = model._compute_loss(x_abs, y, betas)[0] + model._compute_loss(x_trk, y, betas)[0]
+        else:
+            loss, parts = model._compute_loss(pred, y, betas)
     loss = loss.float()
     return (loss.log10() if model.log10_loss else loss), pred
 

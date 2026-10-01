@@ -47,6 +47,10 @@ ARMS = {
     "rt_e7": (E7, {}, "S37 event graph with an absolute 512-512-51 head, no prev (x1001 E7)"),
     "rt_cnndelta": (CNN, {"MODEL": {"PREDICT_DELTA": True, "PREVPOS_EMBED": True, "ZERO_EVENT_GATE": True}},
                     "ResNet18 / LNES, prev + delta with prev only through prev_mlp (no rendered state)"),
+    # R3: absolute measurement + residual tracking in one dense network, fixed gains set a priori
+    "rt_cnnar": (CNN, {"MODEL": {"PREDICT_DELTA": True, "PREVPOS_EMBED": True, "ZERO_EVENT_GATE": True,
+                                 "ABS_TRACK": True, "ABS_TRACK_ALPHA_ROOT": 0.5, "ABS_TRACK_ALPHA_REST": 0.5}},
+                 "ResNet18 / LNES, absolute head + delta head, output blended 0.5 / 0.5 and fed back"),
     # R2-A: the global rotation read absolutely from the state-free feature, on either encoder
     "rt_s37ra": (S37, {"MODEL": {"ROOT_ABS": True, "ROOT_ABS_HIDDEN": 256}},
                  "S37 with the global rotation read absolutely (ROOT_ABS)"),
