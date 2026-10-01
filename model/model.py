@@ -647,6 +647,8 @@ class MNISTModel(BaseModel):
             "ENCODER", "ENCODER_HIDDEN", "ENCODER_FEAT", "ENCODER_CELL", "ENCODER_LAYERS",
             "ENCODER_K", "ENCODER_MAX_NODES", "ENCODER_WINDOW", "ENCODER_T_SCALE",
             "DISTILL_WEIGHT", "DISTILL_CKPT",
+            # x1001 E7
+            "POSE_HEAD_HIDDEN",
         }
     )
     #: every TRACK key the model or the dataset understands. Whitelisted for the same reason

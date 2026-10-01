@@ -1,14 +1,18 @@
 """x1001 E7: the absolute GNN arm never reads prev and builds the non-linear head."""
 import copy
+import sys
 from pathlib import Path
 
 import torch
 
-from config import load_config
-from model import MNISTModel
-from semkine.events import EventPacketBatch
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "model"))
+from config import load_config  # noqa: E402
+from model import MNISTModel  # noqa: E402
+from semkine.events import EventPacketBatch  # noqa: E402
 
-CFG = Path(__file__).resolve().parents[1] / "configs/x1001/x1001_e7.yaml"
+CFG = ROOT / "configs/x1001/x1001_e7.yaml"
 
 
 def _batch(prev):
