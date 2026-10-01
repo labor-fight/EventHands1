@@ -647,6 +647,8 @@ class MNISTModel(BaseModel):
             "ENCODER", "ENCODER_HIDDEN", "ENCODER_FEAT", "ENCODER_CELL", "ENCODER_LAYERS",
             "ENCODER_K", "ENCODER_MAX_NODES", "ENCODER_WINDOW", "ENCODER_T_SCALE",
             "DISTILL_WEIGHT", "DISTILL_CKPT",
+            # x1001 E7
+            "POSE_HEAD_HIDDEN",
         }
     )
     #: every TRACK key the model or the dataset understands. Whitelisted for the same reason
@@ -931,7 +933,12 @@ class MNISTModel(BaseModel):
                         for _ in range(15)
                     ])
             else:
-                self.pose_head = nn.Linear(feat, self.output_dim)
+                # x1001 E7: an optional hidden layer makes the absolute readout non-linear
+                # (POSE_HEAD_HIDDEN = 0 keeps the single linear layer of every earlier arm).
+                ph = int(model_cfg.get("POSE_HEAD_HIDDEN", 0))
+                self.pose_head = (nn.Linear(feat, self.output_dim) if ph <= 0 else
+                                  nn.Sequential(nn.Linear(feat, ph), nn.ReLU(inplace=True),
+                                                nn.Linear(ph, self.output_dim)))
         elif self.active_head:
             assert self.output_dim == 51, "the active head is defined for the 51D layout"
             feat = int(model_cfg.get("ACTIVE_FEAT_DIM", 256))
