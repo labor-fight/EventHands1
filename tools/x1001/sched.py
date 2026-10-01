@@ -155,14 +155,14 @@ def config_of(cmd: list):
     return cmd[cmd.index("--config") + 1] if "--config" in cmd else None
 
 
-def launch(job: dict, gpu: int, st: dict) -> None:
-    cpus = cpu_slice(gpu)
+def launch(job: dict, gpu, st: dict) -> None:
+    cpus = list(job["cpus"]) if job.get("device") == "cpu" else cpu_slice(gpu)
     log = Path(job.get("log") or PROG / "logs" / f"{job['id']}.log")
     log.parent.mkdir(parents=True, exist_ok=True)
     timef = log.with_suffix(".time")
     env = dict(os.environ)
-    env.update({"CUDA_VISIBLE_DEVICES": str(gpu), "OMP_NUM_THREADS": "2", "MKL_NUM_THREADS": "2",
-                "OPENBLAS_NUM_THREADS": "2", "PYTHONUNBUFFERED": "1"})
+    env.update({"CUDA_VISIBLE_DEVICES": "" if gpu is None else str(gpu), "OMP_NUM_THREADS": "2",
+                "MKL_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2", "PYTHONUNBUFFERED": "1"})
     env.update({k: str(v) for k, v in (job.get("env") or {}).items()})
     argv = ["/usr/bin/time", "-v", "-o", str(timef), "taskset", "-c", ",".join(map(str, cpus))] + job["cmd"]
     cfgp = config_of(job["cmd"])
@@ -172,15 +172,14 @@ def launch(job: dict, gpu: int, st: dict) -> None:
         "id": job["id"], "kind": job.get("kind", "cmd"), "status": "running", "host": socket.gethostname(),
         "cwd": job["cwd"], "cmd": job["cmd"], "git": git_info(job["cwd"]),
         "config": cfgp, "config_sha256": sha256(cfgp) if cfgp else None,
-        "gpu": gpu, "cpus": cpus, "numa_node": 0 if gpu < 4 else 1,
+        "gpu": gpu, "cpus": cpus, "numa_node": (0 if cpus[0] < 36 or 72 <= cpus[0] < 108 else 1),
         "env": {k: env[k] for k in ("CUDA_VISIBLE_DEVICES", "OMP_NUM_THREADS", "MKL_NUM_THREADS",
                                      "OPENBLAS_NUM_THREADS") if k in env} | (job.get("env") or {}),
         "log": str(log), "time_file": str(timef), "submitted": job.get("submitted"), "start": now(),
         "meta": job.get("meta", {}),
     }
     with open(log, "ab") as fo:
-        fo.write(f"\n===== x1001 launch {now()} gpu={gpu} cpus={cpus[0]}-{cpus[8]},{cpus[9]}-{cpus[17]}\n"
-                 .encode())
+        fo.write(f"\n===== x1001 launch {now()} gpu={gpu} cpus={','.join(map(str, cpus))}\n".encode())
         p = subprocess.Popen(argv, cwd=job["cwd"], env=env, stdout=fo, stderr=subprocess.STDOUT,
                              start_new_session=True)
     st["jobs"][job["id"]] = {"status": "running", "pid": p.pid, "gpu": gpu, "start": now(),
@@ -282,7 +281,7 @@ def daemon() -> None:
             last_sample = time.time()
             for jid, pid in [(j, q.pid) for j, q in RUNNING.items()] + list(ATTACHED.items()):
                 js = st["jobs"][jid]
-                g = gpus.get(js["gpu"], {"util": 0.0, "mem": 0.0})
+                g = gpus.get(js["gpu"], {"util": 0.0, "mem": 0.0}) if js["gpu"] is not None else {"util": 0.0, "mem": 0.0}
                 js["samples"] += 1
                 js["util_sum"] += g["util"]
                 js["util_max"] = max(js["util_max"], g["util"])
@@ -294,7 +293,7 @@ def daemon() -> None:
                 for i, g in sorted(gpus.items()):
                     f.write(f"{int(time.time())},{i},{g['util']},{g['mem']},{len(busy.get(i, []))}\n")
         # launch
-        held = {js["gpu"] for js in st["jobs"].values() if js.get("status") == "running"}
+        held = {js["gpu"] for js in st["jobs"].values() if js.get("status") == "running" and js.get("gpu") is not None}
         allow = allowed_gpus()
         cancelled = set(CANCELLED.read_text().split()) if CANCELLED.exists() else set()
         order = sorted(jobs.items(), key=lambda kv: (-int(kv[1].get("prio", 0)), list(jobs).index(kv[0])))
@@ -312,6 +311,9 @@ def daemon() -> None:
                 print(f"[{now()}] skip {jid}: dependency failed", flush=True)
                 continue
             if not all(s == "done" for s in dstat):
+                continue
+            if job.get("device") == "cpu":
+                launch(job, None, st)
                 continue
             cands = [job["gpu"]] if job.get("gpu") is not None else allow
             free = [g for g in cands if g in allow and g not in held and not busy.get(g)
@@ -343,7 +345,7 @@ def status() -> None:
         js = st["jobs"].get(jid, {"status": "queued"})
         extra = ""
         if js.get("status") == "running":
-            extra = f"gpu={js['gpu']} {(time.time() - js['t0']) / 60:.0f} min util~{js['util_sum'] / max(js['samples'], 1):.0f}%"
+            extra = f"gpu={js['gpu']} {(time.time() - js.get('t0', time.time())) / 60:.0f} min util~{js.get('util_sum', 0) / max(js.get('samples', 0), 1):.0f}%"
         elif js.get("status") in ("done", "failed"):
             extra = f"rc={js.get('rc')} end={js.get('end')}"
         print(f"{jid:44s} {js['status']:8s} {extra}")

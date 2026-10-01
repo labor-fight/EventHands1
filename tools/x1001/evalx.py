@@ -187,7 +187,7 @@ def cmd_eval(a):
     cfg_path = next(iter(sorted(run.glob("*.yaml"))), None) or json.loads(
         (run / "training_metadata.json").read_text())["config_path"]
     cfg = load_config(cfg_path)
-    device = torch.device("cuda")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     ckpt, step, sel_ra = find_ckpt(run, a.ckpt)
     model = MNISTModel.load_from_checkpoint(str(ckpt), cfg=cfg, map_location=device).to(device).eval()
     mano = ManoLayer(cfg["MANO"]["NPZ"], add_mean=False).to(device).eval()
