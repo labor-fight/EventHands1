@@ -23,10 +23,13 @@ from torch import nn
 from .lie import so3_exp, so3_log
 
 
-def anchor_blend(x_trk: torch.Tensor, x_abs: torch.Tensor, a_root: float, a_rest: float) -> torch.Tensor:
+def anchor_blend(x_trk: torch.Tensor, x_abs: torch.Tensor, a_root: float, a_rest: float,
+                 a_trans=None) -> torch.Tensor:
     """`(B, 51)` blend of a tracked and an absolute pose: geodesic on the root rotation (columns 3:6),
-    linear on translation and fingers. Computed in fp32."""
+    linear on the fingers (`a_rest`) and the translation (`a_trans`, default `a_rest`). fp32."""
     rest = (1.0 - a_rest) * x_trk + a_rest * x_abs
+    if a_trans is not None:
+        rest = torch.cat([(1.0 - a_trans) * x_trk[:, :3] + a_trans * x_abs[:, :3], rest[:, 3:]], dim=-1)
     with torch.autocast(device_type=x_trk.device.type, enabled=False):
         Rt = so3_exp(x_trk[:, 3:6].float())
         Ra = so3_exp(x_abs[:, 3:6].float())
@@ -43,14 +46,39 @@ class AnchoredTracker(nn.Module):
     #: dense LNES input, as `MNISTModel` without an ENCODER (the evaluators read this)
     encoder_name = ""
 
-    def __init__(self, abs_model: nn.Module, trk_model: nn.Module, a_root: float, a_rest: float):
+    def __init__(self, abs_model: nn.Module, trk_model: nn.Module, a_root: float, a_rest: float,
+                 a_trans=None):
         super().__init__()
         self.abs_model, self.trk_model = abs_model, trk_model
         self.a_root, self.a_rest = float(a_root), float(a_rest)
+        #: translation gain; None ties it to the fingers' (the depth is what tracking measures best)
+        self.a_trans = None if a_trans is None else float(a_trans)
 
     def forward(self, x, prevpos, betas=None, camera_K=None):
         x_abs = self.abs_model(x, prevpos, betas=betas, camera_K=camera_K)
         x_trk = self.trk_model(x, prevpos, betas=betas, camera_K=camera_K)
-        out = anchor_blend(x_trk, x_abs, self.a_root, self.a_rest)
+        out = anchor_blend(x_trk, x_abs, self.a_root, self.a_rest, self.a_trans)
         empty = x.reshape(x.shape[0], -1).abs().sum(dim=1, keepdim=True) <= 0
         return torch.where(empty, prevpos.to(out.dtype), out)
+
+
+class CausalFilter(nn.Module):
+    """A state-free arm with the lightest possible state: the fed-back output is the previous output
+    moved toward this packet's measurement by constant gains (geodesic on the root, linear on fingers
+    and translation, `anchor_blend` with the previous output as the prior). `a = 1` is the arm itself.
+    An event-free packet holds `prev`. This is the zero-parameter form of the anchoring above, with
+    the tracker replaced by "no motion"."""
+
+    encoder_name = ""
+
+    def __init__(self, abs_model: nn.Module, a_root: float, a_rest: float, a_trans: float = 1.0):
+        super().__init__()
+        self.abs_model = abs_model
+        self.a_root, self.a_rest, self.a_trans = float(a_root), float(a_rest), float(a_trans)
+
+    def forward(self, x, prevpos, betas=None, camera_K=None):
+        meas = self.abs_model(x, prevpos, betas=betas, camera_K=camera_K)
+        prev = prevpos.to(meas.dtype)
+        out = anchor_blend(prev, meas, self.a_root, self.a_rest, self.a_trans)
+        empty = x.reshape(x.shape[0], -1).abs().sum(dim=1, keepdim=True) <= 0
+        return torch.where(empty, prev, out)
