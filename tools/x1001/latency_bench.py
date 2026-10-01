@@ -56,6 +56,11 @@ def main():
     ap.add_argument("--arrival-ms", type=float, default=5.0)
     ap.add_argument("--deadline-ms", type=float, default=7.0)
     ap.add_argument("--window-ms", type=int, default=50)
+    ap.add_argument("--window-mode", choices=("fixed", "adaptive"), default="fixed",
+                    help="adaptive: shortest window >= --window-ms holding >= --min-events, <= --max-window-ms "
+                         "(the rule evalx.py evaluates; the window search is inside the timed chain)")
+    ap.add_argument("--min-events", type=int, default=2000)
+    ap.add_argument("--max-window-ms", type=int, default=300)
     ap.add_argument("--seconds", type=float, default=20.0, help="replayed stream length")
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--out", default=None)
@@ -75,19 +80,28 @@ def main():
     if hasattr(model, "set_hand_context"):
         model.set_hand_context(betas, K)
     a0, b0 = np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2)[0]
-    start_ms = int(a0) + a.window_ms
+    start_ms = int(a0) + max(a.window_ms, a.max_window_ms if a.window_mode == "adaptive" else 0)
     n = int(a.seconds * 1000 / a.arrival_ms)
     ends = (start_ms + np.arange(n) * a.arrival_ms).astype(np.int64)
     ends = ends[ends < b0]
     prev = torch.from_numpy(pos51[a0].copy()).view(1, -1).to(device)
 
+    def window(end_ms: int) -> int:
+        w = int(min(a.window_ms, end_ms + 1))
+        if a.window_mode == "adaptive":
+            while (w < a.max_window_ms and w < end_ms + 1
+                   and offsets[end_ms + 1] - offsets[end_ms - w + 1] < a.min_events):
+                w = min(w + 10, a.max_window_ms, end_ms + 1)
+        return w
+
     def process(end_ms: int):
         nonlocal prev
+        w = window(int(end_ms))
         if raw:
-            ev5 = ET._window_events(events, offsets, tsub, int(end_ms), a.window_ms)
-            out = model.forward_packet(ET.make_eval_packet(ev5, prev, betas, K, a.window_ms, device))
+            ev5 = ET._window_events(events, offsets, tsub, int(end_ms), w)
+            out = model.forward_packet(ET.make_eval_packet(ev5, prev, betas, K, w, device))
         else:
-            x = torch.from_numpy(ET.build_lnes(events, offsets, int(end_ms), a.window_ms, ev_ch)).unsqueeze(0).to(device)
+            x = torch.from_numpy(ET.build_lnes(events, offsets, int(end_ms), w, ev_ch)).unsqueeze(0).to(device)
             out = model(x, prev)
         prev = out
         return out.cpu()                                            # D2H synchronises
@@ -128,7 +142,8 @@ def main():
     lo, q_lo, drop = replay(True)
     pct = lambda x: {f"p{p}": float(np.percentile(x, p)) for p in (50, 95, 99)} | {"max": float(x.max()), "mean": float(x.mean())}  # noqa: E731
     res = {"run": run.name, "ckpt": ckpt, "seq": a.seq, "arrival_ms": a.arrival_ms, "deadline_ms": a.deadline_ms,
-           "window_ms": a.window_ms, "packets": int(len(ends)), "threads": a.threads,
+           "window_ms": a.window_ms, "window_mode": a.window_mode, "min_events": a.min_events,
+           "max_window_ms": a.max_window_ms, "packets": int(len(ends)), "threads": a.threads,
            "gpu": torch.cuda.get_device_name(0), "precision": "fp32",
            "median_events_per_window": float(np.median([offsets[e + 1] - offsets[e - a.window_ms + 1] for e in ends])),
            "service_ms": pct(service), "utilisation": float(service.mean() / a.arrival_ms),
@@ -136,7 +151,7 @@ def main():
            "latest_only": {"latency_ms": pct(lo), "deadline_miss": float((lo > a.deadline_ms).mean()),
                            "max_queue": q_lo, "dropped": int(drop), "drop_rate": float(drop / len(ends))}}
     print(json.dumps(res, indent=1))
-    out = Path(a.out) if a.out else run / f"latency_{a.seq}_{a.arrival_ms:g}ms.json"
+    out = Path(a.out) if a.out else run / f"latency_{a.seq}_{a.arrival_ms:g}ms_{a.window_mode}.json"
     out.write_text(json.dumps(res, indent=1))
 
 
