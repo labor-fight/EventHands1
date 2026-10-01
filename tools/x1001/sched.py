@@ -14,6 +14,10 @@ A job is a JSON object:
   env       extra environment (optional)
   manifest  path of the run manifest to write (optional; default <sched>/manifests/<id>.json)
   log       stdout/stderr file (optional; default <prog>/logs/<id>.log)
+  prio      launch priority (optional, default 0; higher first, then submission order)
+
+Cancel:   python tools/x1001/sched.py cancel ID [ID ...]   (queued jobs only; dependents are skipped)
+A restarted daemon re-attaches to jobs still running and reads their exit status from GNU time.
 
 A GPU is free when it is in sched/allowed_gpus, no scheduler job holds it, and nvidia-smi shows no
 compute process and < 1 GiB used on it -- so a GPU taken by another session is never shared.
@@ -37,6 +41,7 @@ STATE = SCHED / "state.json"
 ALLOWED = SCHED / "allowed_gpus"
 STOP = SCHED / "STOP"
 MANIFESTS = SCHED / "manifests"
+CANCELLED = SCHED / "cancelled.txt"
 SAMPLE_S = 30
 PY = "/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python"
 
@@ -150,14 +155,14 @@ def config_of(cmd: list):
     return cmd[cmd.index("--config") + 1] if "--config" in cmd else None
 
 
-def launch(job: dict, gpu: int, st: dict) -> None:
-    cpus = cpu_slice(gpu)
+def launch(job: dict, gpu, st: dict) -> None:
+    cpus = list(job["cpus"]) if job.get("device") == "cpu" else cpu_slice(gpu)
     log = Path(job.get("log") or PROG / "logs" / f"{job['id']}.log")
     log.parent.mkdir(parents=True, exist_ok=True)
     timef = log.with_suffix(".time")
     env = dict(os.environ)
-    env.update({"CUDA_VISIBLE_DEVICES": str(gpu), "OMP_NUM_THREADS": "2", "MKL_NUM_THREADS": "2",
-                "OPENBLAS_NUM_THREADS": "2", "PYTHONUNBUFFERED": "1"})
+    env.update({"CUDA_VISIBLE_DEVICES": "" if gpu is None else str(gpu), "OMP_NUM_THREADS": "2",
+                "MKL_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2", "PYTHONUNBUFFERED": "1"})
     env.update({k: str(v) for k, v in (job.get("env") or {}).items()})
     argv = ["/usr/bin/time", "-v", "-o", str(timef), "taskset", "-c", ",".join(map(str, cpus))] + job["cmd"]
     cfgp = config_of(job["cmd"])
@@ -167,15 +172,14 @@ def launch(job: dict, gpu: int, st: dict) -> None:
         "id": job["id"], "kind": job.get("kind", "cmd"), "status": "running", "host": socket.gethostname(),
         "cwd": job["cwd"], "cmd": job["cmd"], "git": git_info(job["cwd"]),
         "config": cfgp, "config_sha256": sha256(cfgp) if cfgp else None,
-        "gpu": gpu, "cpus": cpus, "numa_node": 0 if gpu < 4 else 1,
+        "gpu": gpu, "cpus": cpus, "numa_node": (0 if cpus[0] < 36 or 72 <= cpus[0] < 108 else 1),
         "env": {k: env[k] for k in ("CUDA_VISIBLE_DEVICES", "OMP_NUM_THREADS", "MKL_NUM_THREADS",
                                      "OPENBLAS_NUM_THREADS") if k in env} | (job.get("env") or {}),
         "log": str(log), "time_file": str(timef), "submitted": job.get("submitted"), "start": now(),
         "meta": job.get("meta", {}),
     }
     with open(log, "ab") as fo:
-        fo.write(f"\n===== x1001 launch {now()} gpu={gpu} cpus={cpus[0]}-{cpus[8]},{cpus[9]}-{cpus[17]}\n"
-                 .encode())
+        fo.write(f"\n===== x1001 launch {now()} gpu={gpu} cpus={','.join(map(str, cpus))}\n".encode())
         p = subprocess.Popen(argv, cwd=job["cwd"], env=env, stdout=fo, stderr=subprocess.STDOUT,
                              start_new_session=True)
     st["jobs"][job["id"]] = {"status": "running", "pid": p.pid, "gpu": gpu, "start": now(),
@@ -206,6 +210,20 @@ def parse_time_file(path: Path) -> dict:
     return out
 
 
+def rc_from_time_file(path: Path) -> int:
+    if path.exists():
+        for line in path.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("Exit status:"):
+                return int(line.split(":", 1)[1])
+            if line.startswith("Command terminated by signal"):
+                return 128 + int(line.rsplit(" ", 1)[1])
+    return -1
+
+
+ATTACHED: dict = {}
+
+
 def finish(jid: str, rc: int, st: dict) -> None:
     js = st["jobs"][jid]
     js.update({"status": "done" if rc == 0 else "failed", "rc": rc, "end": now()})
@@ -221,6 +239,7 @@ def finish(jid: str, rc: int, st: dict) -> None:
                 "gnu_time": tf, "samples": js["samples"]})
     atomic_write(mf, man)
     RUNNING.pop(jid, None)
+    ATTACHED.pop(jid, None)
     print(f"[{now()}] finish {jid} rc={rc} wall={wall/60:.1f} min", flush=True)
 
 
@@ -234,8 +253,13 @@ def daemon() -> None:
     # A restarted daemon cannot wait() on jobs it did not start; mark them lost if dead.
     for jid, js in st["jobs"].items():
         if js.get("status") == "running":
-            if not Path(f"/proc/{js['pid']}").exists():
-                js.update({"status": "lost", "end": now()})
+            if Path(f"/proc/{js['pid']}").exists():
+                ATTACHED[jid] = js["pid"]
+                print(f"[{now()}] re-attached {jid} pid={js['pid']} gpu={js['gpu']}", flush=True)
+            else:
+                mf = Path(js["manifest"])
+                tf = json.loads(mf.read_text()).get("time_file", "") if mf.exists() else ""
+                finish(jid, rc_from_time_file(Path(tf)), st)
     atomic_write(STATE, st)
     last_sample = 0.0
     print(f"[{now()}] daemon up pid={os.getpid()}", flush=True)
@@ -246,36 +270,54 @@ def daemon() -> None:
             rc = p.poll()
             if rc is not None:
                 finish(jid, rc, st)
+        for jid, pid in list(ATTACHED.items()):
+            if not Path(f"/proc/{pid}").exists():
+                mf = Path(st["jobs"][jid]["manifest"])
+                tf = json.loads(mf.read_text()).get("time_file", "") if mf.exists() else ""
+                finish(jid, rc_from_time_file(Path(tf)), st)
         gpus, busy = smi()
         # sample
         if time.time() - last_sample >= SAMPLE_S:
             last_sample = time.time()
-            for jid, p in RUNNING.items():
+            for jid, pid in [(j, q.pid) for j, q in RUNNING.items()] + list(ATTACHED.items()):
                 js = st["jobs"][jid]
-                g = gpus.get(js["gpu"], {"util": 0.0, "mem": 0.0})
+                g = gpus.get(js["gpu"], {"util": 0.0, "mem": 0.0}) if js["gpu"] is not None else {"util": 0.0, "mem": 0.0}
                 js["samples"] += 1
                 js["util_sum"] += g["util"]
                 js["util_max"] = max(js["util_max"], g["util"])
                 js["mem_max"] = max(js["mem_max"], g["mem"])
-                cpu, rd = tree_cpu_io(p.pid)
+                cpu, rd = tree_cpu_io(pid)
                 js["cpu_s"] = max(js["cpu_s"], cpu)
                 js["read_bytes"] = max(js["read_bytes"], rd)
             with open(SCHED / "gpu_samples.csv", "a") as f:
                 for i, g in sorted(gpus.items()):
                     f.write(f"{int(time.time())},{i},{g['util']},{g['mem']},{len(busy.get(i, []))}\n")
         # launch
-        held = {js["gpu"] for js in st["jobs"].values() if js.get("status") == "running"}
+        held = {js["gpu"] for js in st["jobs"].values() if js.get("status") == "running" and js.get("gpu") is not None}
         allow = allowed_gpus()
-        for jid, job in jobs.items():
+        cancelled = set(CANCELLED.read_text().split()) if CANCELLED.exists() else set()
+        # post-processing (selection / evaluation) gates results and is short: it always goes before
+        # any training launch, whatever the submitted priorities
+        boost = lambda j: 1000 if j.get("kind") in ("select", "eval") else 0              # noqa: E731
+        order = sorted(jobs.items(), key=lambda kv: (-(int(kv[1].get("prio", 0)) + boost(kv[1])),
+                                                     list(jobs).index(kv[0])))
+        for jid, job in order:
             if jid in st["jobs"]:
+                continue
+            if jid in cancelled:
+                st["jobs"][jid] = {"status": "cancelled", "end": now()}
+                print(f"[{now()}] cancel {jid}", flush=True)
                 continue
             deps = job.get("after") or []
             dstat = [st["jobs"].get(d, {}).get("status") for d in deps]
-            if any(s in ("failed", "lost", "skipped") for s in dstat):
+            if any(s in ("failed", "lost", "skipped", "cancelled") for s in dstat):
                 st["jobs"][jid] = {"status": "skipped", "reason": f"dependency {deps} failed", "end": now()}
                 print(f"[{now()}] skip {jid}: dependency failed", flush=True)
                 continue
             if not all(s == "done" for s in dstat):
+                continue
+            if job.get("device") == "cpu":
+                launch(job, None, st)
                 continue
             cands = [job["gpu"]] if job.get("gpu") is not None else allow
             free = [g for g in cands if g in allow and g not in held and not busy.get(g)
@@ -307,7 +349,7 @@ def status() -> None:
         js = st["jobs"].get(jid, {"status": "queued"})
         extra = ""
         if js.get("status") == "running":
-            extra = f"gpu={js['gpu']} {(time.time() - js['t0']) / 60:.0f} min util~{js['util_sum'] / max(js['samples'], 1):.0f}%"
+            extra = f"gpu={js['gpu']} {(time.time() - js.get('t0', time.time())) / 60:.0f} min util~{js.get('util_sum', 0) / max(js.get('samples', 0), 1):.0f}%"
         elif js.get("status") in ("done", "failed"):
             extra = f"rc={js.get('rc')} end={js.get('end')}"
         print(f"{jid:44s} {js['status']:8s} {extra}")
@@ -319,5 +361,10 @@ if __name__ == "__main__":
         daemon()
     elif cmd == "submit":
         submit(sys.argv[2])
+    elif cmd == "cancel":
+        with open(CANCELLED, "a") as f:
+            for jid in sys.argv[2:]:
+                f.write(jid + "\n")
+                print("cancel requested", jid)
     else:
         status()
