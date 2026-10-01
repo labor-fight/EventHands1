@@ -1676,14 +1676,8 @@ class MNISTModel(BaseModel):
         return torch.where(empty, prev, self._abs_track_fuse(x_trk, x_abs.detach() if self.training else x_abs))
 
     def _abs_track_fuse(self, x_trk, x_abs):
-        from semkine.lie import so3_exp, so3_log
-        a_r, a_f = self.abs_track_alpha_root, self.abs_track_alpha_rest
-        rest = (1.0 - a_f) * x_trk + a_f * x_abs
-        with torch.autocast(device_type=x_trk.device.type, enabled=False):
-            Rt = so3_exp(x_trk[:, 3:6].float())
-            Ra = so3_exp(x_abs[:, 3:6].float())
-            rot = so3_log(Rt @ so3_exp(a_r * so3_log(Rt.transpose(-1, -2) @ Ra)))
-        return torch.cat([rest[:, :3], rot.to(rest.dtype), rest[:, 6:]], dim=-1)
+        from semkine.anchored import anchor_blend
+        return anchor_blend(x_trk, x_abs, self.abs_track_alpha_root, self.abs_track_alpha_rest)
 
     def forward(self, x, prevpos, betas=None, camera_K=None):
         if self.encoder_name:

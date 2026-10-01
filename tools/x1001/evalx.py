@@ -287,23 +287,12 @@ def block_ci(vals, end, n_boot=2000, seed=0):
     return [float(vals.mean()), float(np.percentile(bs, 2.5)), float(np.percentile(bs, 97.5))]
 
 
-def cmd_eval(a):
-    run = Path(a.run_dir)
-    cfg_path = a.config or next(iter(sorted(run.glob("*.yaml"))), None) or json.loads(
-        (run / "training_metadata.json").read_text())["config_path"]
-    cfg = load_config(cfg_path)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    ckpt, step, sel_ra = find_ckpt(run, a.ckpt)
-    model = MNISTModel.load_from_checkpoint(str(ckpt), cfg=cfg, map_location=device).to(device).eval()
-    mano = ManoLayer(cfg["MANO"]["NPZ"], add_mean=False).to(device).eval()
-    root = Path(cfg["DATA"]["ROOT"])
-    mani = Path(a.manifest) if a.manifest else Path(cfg["DATA"]["SPLITS_MANIFEST"])
-    seqs = sequences_for_split(root, a.split, mani)
-    trained = json.loads((run / "training_metadata.json").read_text()).get("train_sequences", [])
-    leak = {s.split("_")[0] for s, _ in seqs} & {s.split("_")[0] for s in trained}
-    assert not leak, f"{a.split} subjects {sorted(leak)} are in {run.name}'s training set"
+def evaluate(model, cfg, mano, root, seqs, device, a, label=""):
+    """The protocol loop on `seqs` for any model object (a trained arm or a composite such as
+    `semkine.anchored.AnchoredTracker`): the modes `a` asks for (model, controls, tf), perturbation
+    recovery, per-sequence CIs / failures / event-rate buckets / motion. Returns `(summary, arrays)`."""
     modes = ["model"] + (["hold", "noevents"] if a.controls else []) + (["tf"] if a.tf else [])
-    out, t0 = {"run": run.name, "ckpt": str(ckpt), "step": step, "split": a.split, "manifest": str(mani)}, time.time()
+    out, t0 = {}, time.time()
     arrays = {}
     for mode in modes:
         rng = np.random.default_rng(0)
@@ -341,7 +330,7 @@ def cmd_eval(a):
                 ent["motion"] = motion_drift(r, m)
             summ[s] = ent
         out[mode] = summ
-        print(f"  {run.name} step={step} {mode}: RA={summ['overall']['mpjpe_ra_mm']:.4f} "
+        print(f"  {label} {mode}: RA={summ['overall']['mpjpe_ra_mm']:.4f} "
               f"rot={summ['overall']['root_rot_deg']:.2f} deg  ({time.time() - t0:.0f} s)", flush=True)
     if a.tf:
         cl, tf = out["model"]["overall"], out["tf"]["overall"]
@@ -360,6 +349,27 @@ def cmd_eval(a):
                         "half_life_steps": half}
         out["perturb"] = pert
         print(f"  perturbation retention: { {th: v['retention_k1_k2_k5_k10_k20'] for th, v in pert.items()} }", flush=True)
+    return out, arrays
+
+
+def cmd_eval(a):
+    run = Path(a.run_dir)
+    cfg_path = a.config or next(iter(sorted(run.glob("*.yaml"))), None) or json.loads(
+        (run / "training_metadata.json").read_text())["config_path"]
+    cfg = load_config(cfg_path)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ckpt, step, sel_ra = find_ckpt(run, a.ckpt)
+    model = MNISTModel.load_from_checkpoint(str(ckpt), cfg=cfg, map_location=device).to(device).eval()
+    mano = ManoLayer(cfg["MANO"]["NPZ"], add_mean=False).to(device).eval()
+    root = Path(cfg["DATA"]["ROOT"])
+    mani = Path(a.manifest) if a.manifest else Path(cfg["DATA"]["SPLITS_MANIFEST"])
+    seqs = sequences_for_split(root, a.split, mani)
+    trained = json.loads((run / "training_metadata.json").read_text()).get("train_sequences", [])
+    leak = {s.split("_")[0] for s, _ in seqs} & {s.split("_")[0] for s in trained}
+    assert not leak, f"{a.split} subjects {sorted(leak)} are in {run.name}'s training set"
+    out = {"run": run.name, "ckpt": str(ckpt), "step": step, "split": a.split, "manifest": str(mani)}
+    summary, arrays = evaluate(model, cfg, mano, root, seqs, device, a, label=f"{run.name} step={step}")
+    out.update(summary)
     out["window"] = {"mode": a.window_mode, "ms": a.window_ms, "min_events": a.min_events, "max_ms": a.max_window_ms}
     if sel_ra is not None and a.split == "val_core" and a.window_mode == "fixed" and a.window_ms == STEP:
         drift = abs(out["model"]["overall"]["mpjpe_ra_mm"] - sel_ra)
@@ -453,8 +463,10 @@ def macs_of(cfg):
     return MR.macs_forward_packet(cfg)[0]
 
 
-def cmd_row(a):
-    device = torch.device("cuda")
+def aggregate_runs(runs, split, ckpt, variant=""):
+    """Per-seed overall / local / global metrics of evaluated runs and their N-seed mean, from each
+    run's `evalx_<split>_<ckpt>[_<variant>].json`. Returns `(per_seed, ext, mean, cfg)`."""
+    a = argparse.Namespace(runs=runs, split=split, ckpt=ckpt, variant=variant)
     per_seed, ext, cfg = {}, {}, None
     for rd in a.runs:
         run = Path(rd)
@@ -477,6 +489,12 @@ def cmd_row(a):
     keys = per_seed[next(iter(per_seed))]["overall"].keys()
     mean = {part: {k: float(np.mean([per_seed[s][part][k] for s in per_seed])) for k in keys}
             for part in ("overall", "local", "global")}
+    return per_seed, ext, mean, cfg
+
+
+def cmd_row(a):
+    device = torch.device("cuda")
+    per_seed, ext, mean, cfg = aggregate_runs(a.runs, a.split, a.ckpt, a.variant)
     run0 = Path(a.runs[0])
     ck, _, _ = find_ckpt(run0, a.ckpt)
     model = MNISTModel.load_from_checkpoint(str(ck), cfg=cfg, map_location=device).to(device).eval()

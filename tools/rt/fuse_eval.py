@@ -50,6 +50,20 @@ def blend_root(r_trk, r_abs, a):
 @torch.no_grad()
 def run_loop(m_abs, m_trk, cfg, root, d, s, dev, a_r, a_f):
     events, offsets, aux, pos51 = ET.load_sequence(root, d, s)
+    tsub_p = root / d / f"{s}_tsub.npy"
+    tsub = np.load(tsub_p, mmap_mode="r") if tsub_p.exists() else None
+    betas = torch.tensor(aux["betas"], dtype=torch.float32, device=dev).view(1, -1)
+    K = torch.tensor(aux["camera_K"], dtype=torch.float32, device=dev).view(1, 3, 3)
+    for m in (m_abs, m_trk):
+        if hasattr(m, "set_hand_context"):
+            m.set_hand_context(betas, K)
+
+    def call(m, end, prev):
+        """one protocol step of either kind of arm: raw events (event graph / LNES-CNN frontends) or LNES"""
+        if m.encoder_name:
+            ev5 = ET._window_events(events, offsets, tsub, int(end), STEP)
+            return m.forward_packet(ET.make_eval_packet(ev5, prev, betas, K, STEP, dev))
+        return m(torch.from_numpy(ET.build_lnes(events, offsets, int(end), STEP)).unsqueeze(0).to(dev), prev)
     rng = np.random.default_rng(0)
     preds, gts, ends = [], [], []
     for a, b in np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2):
@@ -58,9 +72,13 @@ def run_loop(m_abs, m_trk, cfg, root, d, s, dev, a_r, a_f):
             continue
         prev = torch.from_numpy(pos51[a].copy() + ET.sample_init_noise(cfg, rng, 1.0)).view(1, -1).to(dev)
         for end in es:
-            x = torch.from_numpy(ET.build_lnes(events, offsets, int(end), STEP)).unsqueeze(0).to(dev)
-            xa = m_abs(x, prev).cpu().numpy()[0]
-            xt = m_trk(x, prev).cpu().numpy()[0]
+            if m_abs is m_trk:
+                # --single: both heads of one ABS_TRACK network, blended here instead of in the model
+                call(m_trk, end, prev)
+                xa, xt = (t.cpu().numpy()[0] for t in m_trk._abs_track_parts)
+            else:
+                xa = call(m_abs, end, prev).cpu().numpy()[0]
+                xt = call(m_trk, end, prev).cpu().numpy()[0]
             out = (1 - a_f) * xt + a_f * xa
             out[3:6] = blend_root(xt[3:6], xa[3:6], a_r)
             prev = torch.from_numpy(out.astype(np.float32)).view(1, -1).to(dev)
@@ -73,14 +91,20 @@ def run_loop(m_abs, m_trk, cfg, root, d, s, dev, a_r, a_f):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--abs", required=True)
-    ap.add_argument("--trk", required=True)
+    ap.add_argument("--abs", default=None)
+    ap.add_argument("--trk", default=None)
+    ap.add_argument("--single", default=None, help="an ABS_TRACK run: blend its own two heads")
     ap.add_argument("--ckpt", default="last")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
     dev = torch.device("cuda")
-    cfg_a, m_abs, st_a = load(Path(a.abs), a.ckpt, dev)
-    cfg_t, m_trk, st_t = load(Path(a.trk), a.ckpt, dev)
+    if a.single:
+        cfg_t, m_trk, st_t = load(Path(a.single), a.ckpt, dev)
+        cfg_a, m_abs, st_a = cfg_t, m_trk, st_t
+        a.abs = a.trk = a.single
+    else:
+        cfg_a, m_abs, st_a = load(Path(a.abs), a.ckpt, dev)
+        cfg_t, m_trk, st_t = load(Path(a.trk), a.ckpt, dev)
     mano = ManoLayer(cfg_t["MANO"]["NPZ"], add_mean=False).to(dev).eval()
     root = Path(cfg_t["DATA"]["ROOT"])
     seqs = sequences_for_split(root, "val_core", splits_manifest(cfg_t))
