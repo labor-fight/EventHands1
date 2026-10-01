@@ -89,7 +89,6 @@ def rot_err_deg(p51, g51):
     return torch.rad2deg(((tr - 1) / 2).clamp(-1, 1).acos()).numpy()
 
 
-@torch.no_grad()
 def window_of(offsets, end, wmode, win, min_events, max_win):
     """Evidence window (ms) ending at `end`. fixed: `win`; adaptive: the shortest window >= `win`
     holding >= `min_events` events, capped at `max_win`. Causal either way (only past events)."""
@@ -101,6 +100,7 @@ def window_of(offsets, end, wmode, win, min_events, max_win):
     return int(w)
 
 
+@torch.no_grad()
 def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fixed", win=STEP,
                  min_events=0, max_win=300):
     """`track_sequence`'s loop, keeping every step. mode: model | hold | noevents.
