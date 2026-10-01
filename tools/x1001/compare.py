@@ -7,7 +7,7 @@ per-seed mean difference with a 10 s block-bootstrap CI (evaluation-sample uncer
 mean over seeds, and whether every seed moves the same way (training-randomness evidence; seeds are
 the independent repeats, correlated packets are not).
 
-    python tools/x1001/compare.py --base x1001_s37 --arms x1001_cnn x1001_e7 x1001_e9 [--seeds 3407 3408]
+    python tools/x1001/compare.py --base x1001_s37 --arms x1001_cnn x1001_cnn@wadaptive50_n2000_x300 [--seeds 3407 3408]
                                   [--split val_core] [--ckpt selected] [--out reports/round1]
 """
 from __future__ import annotations
@@ -34,8 +34,10 @@ def block_ci(vals, end, n_boot=2000, seed=0):
 
 
 def load(arm, seed, split, ckpt):
-    run = PROG / "runs" / f"{arm}_s{seed}"
-    tag = f"evalx_{split}_{ckpt.replace('=', '')}"
+    """`arm` may carry an evaluation variant: `x1001_cnn@wadaptive50_n2000_x300` reads that evalx tag."""
+    name, _, variant = arm.partition("@")
+    run = PROG / "runs" / f"{name}_s{seed}"
+    tag = f"evalx_{split}_{ckpt.replace('=', '')}" + (f"_{variant}" if variant else "")
     js = json.loads((run / f"{tag}.json").read_text())
     z = np.load(run / f"{tag}.npz")
     sel = sorted(run.glob("selection_val_core_step50*.json"))
