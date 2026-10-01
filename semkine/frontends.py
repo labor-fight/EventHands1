@@ -57,7 +57,8 @@ def build_frontend(kind: str, **kw) -> nn.Module:
         from .event_gnn import EventGNN
         return EventGNN(**shared,
                         **_pick(kw, "k", "n_layers", "max_nodes", "window", "t_scale",
-                                "node_attrs", "readout"))
+                                "node_attrs", "readout", "sample_mode", "sample_cell",
+                                "nbr_mode", "nbr_t_scale"))
     raise ValueError(f"unknown frontend {kind!r}")
 
 

@@ -649,6 +649,8 @@ class MNISTModel(BaseModel):
             "DISTILL_WEIGHT", "DISTILL_CKPT",
             # x1001 E7
             "POSE_HEAD_HIDDEN",
+            # x1001 E9 / E8: node sampling and neighbour rule of the event graph
+            "ENCODER_SAMPLE", "ENCODER_SAMPLE_CELL", "ENCODER_NBR", "ENCODER_NBR_T_SCALE",
         }
     )
     #: every TRACK key the model or the dataset understands. Whitelisted for the same reason
@@ -899,6 +901,12 @@ class MNISTModel(BaseModel):
                 t_scale=float(model_cfg.get("ENCODER_T_SCALE", 1.0)),
                 node_attrs=str(model_cfg.get("ENCODER_NODE_ATTRS", "token7")),
                 readout=not self.mesh_query,
+                # x1001 E9: node sampling ("stride" = S36/S37; "spatial" = cell round-robin)
+                sample_mode=str(model_cfg.get("ENCODER_SAMPLE", "stride")),
+                sample_cell=int(model_cfg.get("ENCODER_SAMPLE_CELL", 4)),
+                # x1001 E8: neighbour rule ("window" = S36/S37; "causal_all" = whole-packet causal kNN)
+                nbr_mode=str(model_cfg.get("ENCODER_NBR", "window")),
+                nbr_t_scale=float(model_cfg.get("ENCODER_NBR_T_SCALE", 1.0)),
             )
             self.conv1 = None
             self.rn = None
