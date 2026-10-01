@@ -21,6 +21,7 @@ import yaml
 REPO = Path(__file__).resolve().parents[2]
 S37 = REPO / "configs/x1001/x1001_s37.yaml"
 CNN = REPO / "configs/x1001/x1001_cnn.yaml"
+E7 = REPO / "configs/x1001/x1001_e7.yaml"
 OUT = REPO / "configs/rt"
 
 #: the CNN-track model of `configs/semkine/s1_track_domrand.yaml` (x1001_cnntrack, commit 27f9f91)
@@ -41,6 +42,11 @@ ARMS = {
                                "ENCODER_K": None, "ENCODER_MAX_NODES": None, "ENCODER_WINDOW": None,
                                "ENCODER_T_SCALE": None}},
                "S37 routed readout on a ResNet18 / LNES encoder (layer2 cells as nodes)"),
+    # ablations: encoder under the absolute objective (graph vs rt_cnn), and the CNN tracked through the
+    # event-blind prev_mlp only (vs rt_cnntrack: no rendered state, i.e. no explicit comparison)
+    "rt_e7": (E7, {}, "S37 event graph with an absolute 512-512-51 head, no prev (x1001 E7)"),
+    "rt_cnndelta": (CNN, {"MODEL": {"PREDICT_DELTA": True, "PREVPOS_EMBED": True, "ZERO_EVENT_GATE": True}},
+                    "ResNet18 / LNES, prev + delta with prev only through prev_mlp (no rendered state)"),
     # R2-A: the global rotation read absolutely from the state-free feature, on either encoder
     "rt_s37ra": (S37, {"MODEL": {"ROOT_ABS": True, "ROOT_ABS_HIDDEN": 256}},
                  "S37 with the global rotation read absolutely (ROOT_ABS)"),

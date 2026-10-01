@@ -87,6 +87,8 @@ def main() -> None:
     cfg = load_config(a.config)
     model = (MNISTModel.load_from_checkpoint(a.ckpt, cfg=cfg, map_location="cpu") if a.ckpt
              else MNISTModel(cfg)).to(dev)
+    # the weights under test, before any train-mode pass touches the BN running statistics
+    init_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
     n_par = sum(p.numel() for p in model.parameters())
     print(f"{a.config}: {n_par / 1e6:.3f} M parameters; predict_delta={model.predict_delta} "
           f"routed={getattr(model, 'routed', False)} encoder={model.encoder_name or 'resnet18/LNES'}", flush=True)
@@ -121,7 +123,6 @@ def main() -> None:
 
     # 2 learns (overfit one batch). lr 1e-4: training reaches 4e-3 only after a 500-step warmup, and a
     # fresh S37 at 1e-3 from step 0 rises before it falls. The weights are restored afterwards.
-    init_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
     opt = torch.optim.Adam([p for p in model.parameters() if p.requires_grad], lr=1e-4)
     hist = []
     for _ in range(a.steps):
@@ -142,8 +143,14 @@ def main() -> None:
         model.train()
         ot = model._predict_batch(batches[1])[0].float()
         model.eval()
-    report("eval determinism", torch.equal(o1, o2), f"max |diff| {float((o1 - o2).abs().max()):.3g}; "
-           f"train/eval gap max {float((o1 - ot).abs().max()):.3g} (BN statistics)")
+    # a train-mode forward moves the BN running statistics even under no_grad: put them back, so the
+    # closed loop below runs exactly the weights under test (and reproduces evalx for a --ckpt)
+    model.load_state_dict(init_state)
+    with torch.no_grad():
+        o3 = model._predict_batch(batches[1])[0].float()
+    report("eval determinism", torch.equal(o1, o2) and torch.equal(o1, o3),
+           f"max |diff| {float((o1 - o2).abs().max()):.3g}; restored after a train-mode pass: "
+           f"{float((o1 - o3).abs().max()):.3g}; train/eval gap max {float((o1 - ot).abs().max()):.3g} (BN statistics)")
 
     # 4 state contract, 5 geometry: on real zgz packets with the GT state
     root = Path(cfg["DATA"]["ROOT"])

@@ -65,11 +65,13 @@ def main():
     ap.add_argument("--seeds", nargs="+", type=int, default=[3407, 3408])
     ap.add_argument("--ckpt", default="selected")
     ap.add_argument("--tag", default=None, help="evalx tag (default evalx_val_core_<ckpt>)")
+    ap.add_argument("--runs-root", default=str(PROG / "runs"), help="directory holding <arm>_s<seed>")
+    ap.add_argument("--out-dir", default=str(PROG / "reports"))
     a = ap.parse_args()
     mano = ManoLayer(str(REPO / "assets" / "mano_right.npz"), add_mean=False).eval()
     rep = {}
     for seed in a.seeds:
-        run = PROG / "runs" / f"{a.arm}_s{seed}"
+        run = Path(a.runs_root) / f"{a.arm}_s{seed}"
         tag = a.tag or f"evalx_val_core_{a.ckpt}"
         z = np.load(run / f"{tag}.npz")
         seqs = sorted({k.split("|")[1] for k in z.files if k.startswith("model|")})
@@ -104,7 +106,7 @@ def main():
                      "per_seq": {s: {"unfiltered": float(res[s][0][(1.0, 1.0, 1.0)].mean()),
                                      "best_in_grid": float(min(res[s][0][k].mean() for k in keys))} for s in seqs}}
         print(seed, json.dumps(rep[seed], indent=1), flush=True)
-    out = PROG / "reports" / f"filter_screen_{a.arm}{'_' + a.tag if a.tag else ''}.json"
+    out = Path(a.out_dir) / f"filter_screen_{a.arm}{'_' + a.tag if a.tag else ''}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(rep, indent=1))
     print("wrote", out)
