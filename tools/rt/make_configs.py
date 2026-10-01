@@ -29,35 +29,17 @@ CNN_TRACK = {"MODEL": {"PREDICT_DELTA": True, "PREVPOS_EMBED": True, "PREV_RENDE
                        "ZERO_EVENT_GATE": True, "RENDER_H": 180, "RENDER_W": 240,
                        "RENDER_SCALE": 0.375, "RENDER_CHUNK": 256}}
 
-#: name -> (parent, overrides, why)
+#: name -> (parent, overrides, why). The round's other arms (G3, E8, C37, C37 / S37 + ROOT_ABS, one-network
+#: ABS_TRACK) were retired with their code; their configs are in commit a555857.
 ARMS = {
     "rt_s37": (S37, {}, "S37 routed readout, the baseline"),
     "rt_cnn": (CNN, {}, "ResNet18 / LNES absolute pose, no state (per-packet reference)"),
     "rt_cnntrack": (CNN, CNN_TRACK, "ResNet18 / LNES + rendered prev, prev + delta (render-and-compare tracking)"),
-    "rt_g3": (S37, {"MODEL": {"ENCODER_GRID_CELL": 8}}, "S37 + hierarchical grid readout of the event graph"),
-    "rt_e8": (S37, {"MODEL": {"ENCODER_NBR": "causal_all", "ENCODER_NBR_T_SCALE": 0.1}},
-              "S37 + whole-packet causal kNN, time weight 0.1 (temporal receptive field)"),
-    # only the encoder differs from S37; the graph-only keys are dropped (None) so none is left unread
-    "rt_c37": (S37, {"MODEL": {"BACKBONE": "lnes_cnn", "ENCODER": "lnes_cnn", "ENCODER_LAYERS": None,
-                               "ENCODER_K": None, "ENCODER_MAX_NODES": None, "ENCODER_WINDOW": None,
-                               "ENCODER_T_SCALE": None}},
-               "S37 routed readout on a ResNet18 / LNES encoder (layer2 cells as nodes)"),
     # ablations: encoder under the absolute objective (graph vs rt_cnn), and the CNN tracked through the
     # event-blind prev_mlp only (vs rt_cnntrack: no rendered state, i.e. no explicit comparison)
     "rt_e7": (E7, {}, "S37 event graph with an absolute 512-512-51 head, no prev (x1001 E7)"),
     "rt_cnndelta": (CNN, {"MODEL": {"PREDICT_DELTA": True, "PREVPOS_EMBED": True, "ZERO_EVENT_GATE": True}},
                     "ResNet18 / LNES, prev + delta with prev only through prev_mlp (no rendered state)"),
-    # R3: absolute measurement + residual tracking in one dense network, fixed gains set a priori
-    "rt_cnnar": (CNN, {"MODEL": {"PREDICT_DELTA": True, "PREVPOS_EMBED": True, "ZERO_EVENT_GATE": True,
-                                 "ABS_TRACK": True, "ABS_TRACK_ALPHA_ROOT": 0.5, "ABS_TRACK_ALPHA_REST": 0.5}},
-                 "ResNet18 / LNES, absolute head + delta head, output blended 0.5 / 0.5 and fed back"),
-    # R2-A: the global rotation read absolutely from the state-free feature, on either encoder
-    "rt_s37ra": (S37, {"MODEL": {"ROOT_ABS": True, "ROOT_ABS_HIDDEN": 256}},
-                 "S37 with the global rotation read absolutely (ROOT_ABS)"),
-    "rt_c37ra": (S37, {"MODEL": {"BACKBONE": "lnes_cnn", "ENCODER": "lnes_cnn", "ENCODER_LAYERS": None,
-                                 "ENCODER_K": None, "ENCODER_MAX_NODES": None, "ENCODER_WINDOW": None,
-                                 "ENCODER_T_SCALE": None, "ROOT_ABS": True, "ROOT_ABS_HIDDEN": 256}},
-                 "C37 with the global rotation read absolutely (ROOT_ABS)"),
 }
 SCREEN_STEPS = 2000
 

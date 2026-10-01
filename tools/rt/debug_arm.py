@@ -9,8 +9,7 @@ Each check prints PASS / FAIL with the number behind it; the exit status is 1 if
   2 learns            `--steps` Adam steps on one fixed batch bring its loss down (overfit check)
   3 eval              eval-mode forward twice on the same packets is bitwise identical; train/eval gap
   4 state contract    tracking arms: an event-free packet returns exactly `prev`; the output follows a
-                      10 deg root rotation of `prev` (state actually read, in the camera frame). ROOT_ABS
-                      arms: the rotation must not move with `prev`, the fingers must
+                      10 deg root rotation of `prev` (state actually read, in the camera frame)
   5 geometry          routed arms: share of graph nodes routed to the hand under the GT state against the
                       state shifted 15 cm sideways (the projection / camera frame the readout relies on)
   6 closed loop       the protocol loop on zgz (both sequences): finite; RA and root error printed. Without
@@ -65,11 +64,7 @@ def step_loss(model, batch):
     """The training objective: `MNISTModel.training_step`'s loss before the log10."""
     with torch.autocast("cuda", dtype=torch.bfloat16):
         pred, y, betas, _ = model._predict_batch(batch)
-        if getattr(model, "abs_track", False):
-            x_abs, x_trk = model._abs_track_parts
-            loss = model._compute_loss(x_abs, y, betas)[0] + model._compute_loss(x_trk, y, betas)[0]
-        else:
-            loss, parts = model._compute_loss(pred, y, betas)
+        loss, parts = model._compute_loss(pred, y, betas)
     loss = loss.float()
     return (loss.log10() if model.log10_loss else loss), pred
 
@@ -188,22 +183,9 @@ def main() -> None:
                 o_a = fwd(end, prev).cpu().numpy()
                 o_b = fwd(end, torch.from_numpy(p2).view(1, -1).to(dev)).cpu().numpy()
                 moved.append(float(EX.rot_err_deg(o_a, o_b)[0]))
-            if getattr(model, "root_abs", False):
-                # ROOT_ABS: the rotation is state-free by design; the fingers must still read the state
-                fmoved = []
-                for end in ends[:20]:
-                    prev = torch.from_numpy(pos51[end - 50].copy()).view(1, -1).to(dev)
-                    p2 = prev.clone()
-                    p2[0, 9:12] += 0.2
-                    fmoved.append(float((fwd(end, p2) - fwd(end, prev))[0, 6:].abs().max()))
-                report("state contract", all(same) and max(moved) < 1e-3 and min(fmoved) > 1e-3,
-                       f"empty packet == prev on {sum(same)}/{len(same)}; root moves {max(moved):.4f} deg for a "
-                       f"10 deg rotation of prev (state-free by design); fingers move >= {min(fmoved):.3f} rad "
-                       f"for a 0.2 rad change of one prev joint")
-            else:
-                report("state contract", all(same) and min(moved) > 1.0,
-                       f"empty packet == prev on {sum(same)}/{len(same)}; output root moves "
-                       f"{np.mean(moved):.2f} deg (min {min(moved):.2f}) for a 10 deg rotation of prev")
+            report("state contract", all(same) and min(moved) > 1.0,
+                   f"empty packet == prev on {sum(same)}/{len(same)}; output root moves "
+                   f"{np.mean(moved):.2f} deg (min {min(moved):.2f}) for a 10 deg rotation of prev")
         else:
             print("    (absolute arm: no state contract)")
         if getattr(model, "routed", False):

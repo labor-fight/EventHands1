@@ -12,29 +12,56 @@ the same packet every step keeps the first and removes the second:
     translation, fingers   x = (1 - a_f) x_trk + a_f x_abs
 
 `a = 0` is the tracker's own loop, `a = 1` the absolute arm. The two estimates must not share their
-features: one network with both heads (`MODEL.ABS_TRACK`) makes the heads' errors coincide and gains
-nothing, while two separately trained networks do.
+features: one network with both heads (the retired `MODEL.ABS_TRACK`, commit a555857) made the heads'
+errors coincide and gained nothing. Trained to the full budget the delta arm becomes absolute-like and
+two-network anchoring adds no more than a second absolute network would (docs/S37_ROOT_TRACKING_VERDICT.md);
+`CausalFilter` below -- the "no motion" tracker -- is the form the round kept.
 """
 from __future__ import annotations
 
+import numpy as np
 import torch
 from torch import nn
 
-from .lie import so3_exp, so3_log
+def _quat(aa: np.ndarray) -> np.ndarray:
+    """axis-angle (B, 3) -> unit quaternion (B, 4), w first."""
+    th = np.linalg.norm(aa, axis=-1, keepdims=True)
+    return np.concatenate([np.cos(0.5 * th), np.sin(0.5 * th) * (aa / np.maximum(th, 1e-12))], axis=-1)
+
+
+def _qmul(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    aw, ax, ay, az = a.T
+    bw, bx, by, bz = b.T
+    return np.stack([aw * bw - ax * bx - ay * by - az * bz, aw * bx + ax * bw + ay * bz - az * by,
+                     aw * by - ax * bz + ay * bw + az * bx, aw * bz + ax * by - ay * bx + az * bw], axis=-1)
+
+
+def _axis_angle(q: np.ndarray) -> np.ndarray:
+    """unit quaternion -> axis-angle with |phi| <= pi (the w >= 0 hemisphere)."""
+    q = np.where(q[:, :1] < 0, -q, q)
+    v = q[:, 1:]
+    n = np.linalg.norm(v, axis=-1, keepdims=True)
+    return v * (2.0 * np.arctan2(n, q[:, :1]) / np.maximum(n, 1e-12))
 
 
 def anchor_blend(x_trk: torch.Tensor, x_abs: torch.Tensor, a_root: float, a_rest: float,
                  a_trans=None) -> torch.Tensor:
     """`(B, 51)` blend of a tracked and an absolute pose: geodesic on the root rotation (columns 3:6),
-    linear on the fingers (`a_rest`) and the translation (`a_trans`, default `a_rest`). fp32."""
-    rest = (1.0 - a_rest) * x_trk + a_rest * x_abs
-    if a_trans is not None:
-        rest = torch.cat([(1.0 - a_trans) * x_trk[:, :3] + a_trans * x_abs[:, :3], rest[:, 3:]], dim=-1)
-    with torch.autocast(device_type=x_trk.device.type, enabled=False):
-        Rt = so3_exp(x_trk[:, 3:6].float())
-        Ra = so3_exp(x_abs[:, 3:6].float())
-        rot = so3_log(Rt @ so3_exp(a_root * so3_log(Rt.transpose(-1, -2) @ Ra)))
-    return torch.cat([rest[:, :3], rot.to(rest.dtype), rest[:, 6:]], dim=-1)
+    `R_trk Exp(a_root Log(R_trk^T R_abs))` as a quaternion slerp; linear on the fingers (`a_rest`) and
+    the translation (`a_trans`, default `a_rest`).
+
+    Inference only (no gradient): computed in float64 numpy on the host and returned on `x_trk`'s
+    device. A per-packet blend of 51 numbers is a few dozen element-wise ops; on the GPU at batch 1
+    they cost ~1-3 ms of kernel launches, here ~0.1 ms including the two transfers."""
+    t = x_trk.detach().double().cpu().numpy()
+    a = x_abs.detach().double().cpu().numpy()
+    out = (1.0 - a_rest) * t + a_rest * a
+    at = a_rest if a_trans is None else a_trans
+    out[:, :3] = (1.0 - at) * t[:, :3] + at * a[:, :3]
+    qt = _quat(t[:, 3:6])
+    rel = _axis_angle(_qmul(qt * np.array([1.0, -1.0, -1.0, -1.0]), _quat(a[:, 3:6])))
+    out[:, 3:6] = _axis_angle(_qmul(qt, _quat(a_root * rel)))
+    return torch.from_numpy(out).to(device=x_trk.device, dtype=x_trk.dtype)
 
 
 class AnchoredTracker(nn.Module):

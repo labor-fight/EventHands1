@@ -436,15 +436,7 @@ class BaseModel(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         pred, y, betas, packed = self._predict_batch(batch)
-        if getattr(self, "abs_track", False):
-            # R3: each head on its own loss; the blend is an inference-time combination
-            x_abs, x_trk = self._abs_track_parts
-            loss_abs, _ = self._compute_loss(x_abs, y, betas)
-            loss, parts = self._compute_loss(x_trk, y, betas)
-            loss = loss + loss_abs
-            self.log("train_loss_abs_head", loss_abs, sync_dist=True)
-        else:
-            loss, parts = self._compute_loss(pred, y, betas)
+        loss, parts = self._compute_loss(pred, y, betas)
         loss, parts = self._maybe_distill(pred, batch, loss, parts)
         if self.gain_reg_w > 0.0:
             g2 = self._gain_penalty(packed, pred)
@@ -657,14 +649,6 @@ class MNISTModel(BaseModel):
             "DISTILL_WEIGHT", "DISTILL_CKPT",
             # x1001 E7
             "POSE_HEAD_HIDDEN",
-            # x1001 E9 / E8: node sampling and neighbour rule of the event graph
-            "ENCODER_SAMPLE", "ENCODER_SAMPLE_CELL", "ENCODER_NBR", "ENCODER_NBR_T_SCALE",
-            # root tracking G3: hierarchical grid readout of the event graph (0 = off)
-            "ENCODER_GRID_CELL",
-            # root tracking R2-A: global rotation read absolutely from the state-free packet feature
-            "ROOT_ABS", "ROOT_ABS_HIDDEN",
-            # root tracking R3: absolute measurement + residual tracking in one dense network
-            "ABS_TRACK", "ABS_TRACK_ALPHA_ROOT", "ABS_TRACK_ALPHA_REST",
         }
     )
     #: every TRACK key the model or the dataset understands. Whitelisted for the same reason
@@ -813,21 +797,6 @@ class MNISTModel(BaseModel):
         if self.xyz_mesh and (self.prevpos_embed or bool(model_cfg.get("ACTIVE_HEAD", False))):
             raise ValueError("ENCODER=xyz_mesh has one common readout: set PREVPOS_EMBED and "
                              "ACTIVE_HEAD false")
-        # Root tracking R3 (2026-10-02). Absolute measurement + residual tracking in one network: the
-        # dense trunk feeds two linear heads, an absolute pose (state-free) and a delta on prev (plus
-        # prev_mlp, as the CNN-delta arm), and the output that is fed back blends them -- rotation by
-        # geodesic interpolation R_trk Exp(a_r Log(R_trk^T R_abs)), translation and fingers linearly
-        # with a_f. Each head trains on its own loss; the gains are fixed a priori. On its own the
-        # delta head is a constant-gain blend of prev and the evidence whose gain the prev-noise
-        # curriculum sets, and in closed loop that gain trusts prev too much (CNN-delta: teacher-forced
-        # root 5.3 deg, closed loop 10.7); the absolute head re-anchors every step.
-        self.abs_track = bool(model_cfg.get("ABS_TRACK", False))
-        self.abs_track_alpha_root = float(model_cfg.get("ABS_TRACK_ALPHA_ROOT", 0.5))
-        self.abs_track_alpha_rest = float(model_cfg.get("ABS_TRACK_ALPHA_REST", 0.5))
-        if self.abs_track and (self.encoder_name or self.active_head or self.prev_render
-                               or not (self.predict_delta and self.prevpos_embed)):
-            raise ValueError("ABS_TRACK is the dense ResNet18 with PREDICT_DELTA and PREVPOS_EMBED "
-                             "(no ENCODER, ACTIVE_HEAD or PREV_RENDER)")
         self.distill_weight = float(model_cfg.get("DISTILL_WEIGHT", 0.0))
         self.teacher = None
         hid = int(model_cfg.get("ACTIVE_HIDDEN", 64))
@@ -930,14 +899,6 @@ class MNISTModel(BaseModel):
                 t_scale=float(model_cfg.get("ENCODER_T_SCALE", 1.0)),
                 node_attrs=str(model_cfg.get("ENCODER_NODE_ATTRS", "token7")),
                 readout=not self.mesh_query,
-                # x1001 E9: node sampling ("stride" = S36/S37; "spatial" = cell round-robin)
-                sample_mode=str(model_cfg.get("ENCODER_SAMPLE", "stride")),
-                sample_cell=int(model_cfg.get("ENCODER_SAMPLE_CELL", 4)),
-                # x1001 E8: neighbour rule ("window" = S36/S37; "causal_all" = whole-packet causal kNN)
-                nbr_mode=str(model_cfg.get("ENCODER_NBR", "window")),
-                nbr_t_scale=float(model_cfg.get("ENCODER_NBR_T_SCALE", 1.0)),
-                # root tracking G3: grid-pooled spatial readout (0 = S37 mean / max only)
-                grid_cell=int(model_cfg.get("ENCODER_GRID_CELL", 0)),
             )
             self.conv1 = None
             self.rn = None
@@ -992,8 +953,7 @@ class MNISTModel(BaseModel):
                 for _ in range(15)
             ])
         else:
-            # ABS_TRACK: one fc, absolute pose in the first OUTPUT_DIM columns, the delta in the rest
-            self.rn = models.resnet18(num_classes=self.output_dim * (2 if self.abs_track else 1))
+            self.rn = models.resnet18(num_classes=self.output_dim)
         if self.prevpos_embed:
             self.prev_mlp = nn.Sequential(
                 nn.Linear(self.output_dim, 64),
@@ -1004,26 +964,10 @@ class MNISTModel(BaseModel):
             nn.init.zeros_(self.prev_mlp[2].weight)
             nn.init.zeros_(self.prev_mlp[2].bias)
 
-        node_encoders = ("event_gnn", "lnes_cnn") if self.routed else ("event_gnn",)
-        # Root tracking R2-A (2026-10-01). The global rotation is read absolutely from the packet's
-        # state-free feature `f` -- no `prev`, no routing -- by a small MLP, and replaces the tracked
-        # `prev + delta` rotation; translation and fingers keep the tracking path. An event-free
-        # packet keeps `prev`'s rotation. Off: the arm is exactly what it was.
-        self.root_abs = bool(model_cfg.get("ROOT_ABS", False))
-        if self.root_abs:
-            if not (self.encoder_name in ("event_gnn", "lnes_cnn") and self.active_head and self.predict_delta
-                    and not self.mesh_query):
-                raise ValueError("ROOT_ABS replaces the tracked rotation of an event_gnn / lnes_cnn "
-                                 "tracking arm (ENCODER, ACTIVE_HEAD, PREDICT_DELTA)")
-            ra_h = int(model_cfg.get("ROOT_ABS_HIDDEN", 256))
-            feat_dim = int(model_cfg.get("ENCODER_FEAT", model_cfg.get("ACTIVE_FEAT_DIM", 256)))
-            self.root_abs_head = nn.Sequential(nn.Linear(feat_dim, ra_h), nn.ReLU(inplace=True),
-                                               nn.Linear(ra_h, 3))
-        if (self.routed or self.mesh_query) and not (self.encoder_name in node_encoders
+        if (self.routed or self.mesh_query) and not (self.encoder_name == "event_gnn"
                                                      and self.active_head):
-            raise ValueError("ROUTED_READOUT / MESH_QUERY read node features into the active joint "
-                             "heads; they need MODEL.ENCODER=event_gnn (routed: or lnes_cnn) and "
-                             "ACTIVE_HEAD")
+            raise ValueError("ROUTED_READOUT / MESH_QUERY read event_gnn node features into the "
+                             "active joint heads; they need MODEL.ENCODER=event_gnn and ACTIVE_HEAD")
         self._ctx_betas = None
         self._ctx_K = None
         if self.prev_render or self.routed or self.mesh_query:
@@ -1658,26 +1602,7 @@ class MNISTModel(BaseModel):
                 empty = (batch.counts <= 0).unsqueeze(-1)
                 delta = torch.where(empty, torch.zeros_like(delta), delta)
             out = delta + prev.to(out.dtype)
-        if self.root_abs:
-            rot = self.root_abs_head(feat).to(out.dtype)
-            rot = torch.where((batch.counts <= 0).unsqueeze(-1), prev[:, 3:6].to(out.dtype), rot)
-            out = torch.cat([out[:, :3], rot, out[:, 6:]], dim=-1)
         return out
-
-    def _abs_track_out(self, out, prevpos, lnes):
-        """R3: both heads, kept for the loss, and the blended output; an event-free packet holds prev."""
-        D = self.output_dim
-        prev = prevpos.to(out.dtype)
-        x_abs = out[:, :D]
-        delta = out[:, D:] + self.prev_mlp(prev)
-        empty = lnes.reshape(lnes.shape[0], -1).abs().sum(dim=1, keepdim=True) <= 0
-        x_trk = prev + torch.where(empty, torch.zeros_like(delta), delta)
-        self._abs_track_parts = (x_abs, x_trk)
-        return torch.where(empty, prev, self._abs_track_fuse(x_trk, x_abs.detach() if self.training else x_abs))
-
-    def _abs_track_fuse(self, x_trk, x_abs):
-        from semkine.anchored import anchor_blend
-        return anchor_blend(x_trk, x_abs, self.abs_track_alpha_root, self.abs_track_alpha_rest)
 
     def forward(self, x, prevpos, betas=None, camera_K=None):
         if self.encoder_name:
@@ -1692,8 +1617,6 @@ class MNISTModel(BaseModel):
             x = torch.cat([lnes, rend], dim=-1)
         x = x.permute(0, 3, 1, 2).contiguous()
         out = self.rn(self.conv1(x))
-        if self.abs_track:
-            return self._abs_track_out(out, prevpos, lnes)
         if self.active_head:
             out = self._decode_active(out, prevpos)
         if self.prevpos_embed:

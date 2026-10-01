@@ -72,13 +72,8 @@ def run_loop(m_abs, m_trk, cfg, root, d, s, dev, a_r, a_f):
             continue
         prev = torch.from_numpy(pos51[a].copy() + ET.sample_init_noise(cfg, rng, 1.0)).view(1, -1).to(dev)
         for end in es:
-            if m_abs is m_trk:
-                # --single: both heads of one ABS_TRACK network, blended here instead of in the model
-                call(m_trk, end, prev)
-                xa, xt = (t.cpu().numpy()[0] for t in m_trk._abs_track_parts)
-            else:
-                xa = call(m_abs, end, prev).cpu().numpy()[0]
-                xt = call(m_trk, end, prev).cpu().numpy()[0]
+            xa = call(m_abs, end, prev).cpu().numpy()[0]
+            xt = call(m_trk, end, prev).cpu().numpy()[0]
             out = (1 - a_f) * xt + a_f * xa
             out[3:6] = blend_root(xt[3:6], xa[3:6], a_r)
             prev = torch.from_numpy(out.astype(np.float32)).view(1, -1).to(dev)
@@ -91,20 +86,14 @@ def run_loop(m_abs, m_trk, cfg, root, d, s, dev, a_r, a_f):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--abs", default=None)
-    ap.add_argument("--trk", default=None)
-    ap.add_argument("--single", default=None, help="an ABS_TRACK run: blend its own two heads")
+    ap.add_argument("--abs", required=True)
+    ap.add_argument("--trk", required=True)
     ap.add_argument("--ckpt", default="last")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
     dev = torch.device("cuda")
-    if a.single:
-        cfg_t, m_trk, st_t = load(Path(a.single), a.ckpt, dev)
-        cfg_a, m_abs, st_a = cfg_t, m_trk, st_t
-        a.abs = a.trk = a.single
-    else:
-        cfg_a, m_abs, st_a = load(Path(a.abs), a.ckpt, dev)
-        cfg_t, m_trk, st_t = load(Path(a.trk), a.ckpt, dev)
+    cfg_a, m_abs, st_a = load(Path(a.abs), a.ckpt, dev)
+    cfg_t, m_trk, st_t = load(Path(a.trk), a.ckpt, dev)
     mano = ManoLayer(cfg_t["MANO"]["NPZ"], add_mean=False).to(dev).eval()
     root = Path(cfg_t["DATA"]["ROOT"])
     seqs = sequences_for_split(root, "val_core", splits_manifest(cfg_t))

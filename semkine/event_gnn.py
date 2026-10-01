@@ -99,21 +99,8 @@ class EventGNN(nn.Module):
     def __init__(self, height: int = 180, width: int = 240, hidden: int = 96,
                  feat_dim: int = 512, k: int = 8, n_layers: int = 3,
                  max_nodes: int = 768, window: int = 32, t_scale: float = 1.0,
-                 extra_channels: int = 0, node_attrs: str = "token7", readout: bool = True,
-                 sample_mode: str = "stride", sample_cell: int = 4,
-                 nbr_mode: str = "window", nbr_t_scale: float = 1.0, grid_cell: int = 0):
+                 extra_channels: int = 0, node_attrs: str = "token7", readout: bool = True):
         super().__init__()
-        if nbr_mode not in ("window", "causal_all"):
-            raise ValueError(f"nbr_mode must be 'window' or 'causal_all', got {nbr_mode!r}")
-        #: x1001 E8. "window": k nearest among the `window` preceding nodes (S36/S37).
-        #: "causal_all": k nearest among *all* earlier nodes of the packet, distance measured with
-        #: time weighted by `nbr_t_scale`; the edge features (dx, dy, dt) keep the S37 scale.
-        self.nbr_mode, self.nbr_t_scale = nbr_mode, float(nbr_t_scale)
-        if sample_mode not in ("stride", "spatial"):
-            raise ValueError(f"sample_mode must be 'stride' or 'spatial', got {sample_mode!r}")
-        #: x1001 E9. "stride": uniform time stride (S36/S37). "spatial": round-robin over
-        #: `sample_cell` px cells, so every occupied cell holds a node before any holds two.
-        self.sample_mode, self.sample_cell = sample_mode, int(sample_cell)
         self.height, self.width = int(height), int(width)
         self.hidden, self.feat_dim = int(hidden), int(feat_dim)
         self.k, self.window = int(k), int(window)
@@ -129,27 +116,9 @@ class EventGNN(nn.Module):
         # mean + max readout. Not built when the consumer reads the nodes directly (S37 mesh
         # query): DDP runs with find_unused_parameters=False, so an unused head is an error.
         self.readout = bool(readout)
-        #: Root-tracking G3: `grid_cell` > 0 adds a hierarchical spatial readout. The mean / max
-        #: pool is a bag of 3-hop local features (radius ~43 px) and keeps no layout of the hand,
-        #: which is what a global rotation is read from. The node features are scatter-averaged
-        #: into `grid_cell` px cells, with a log-count plane, and three strided 3x3 convolutions
-        #: bring the map to stride 4 cells before a global average. 0 is S36 / S37, bitwise.
-        self.grid_cell = int(grid_cell)
-        grid_dim = 0
-        if self.readout and self.grid_cell > 0:
-            c, grid_dim = self.hidden, 2 * self.hidden
-            self.grid_h = (self.height + self.grid_cell - 1) // self.grid_cell
-            self.grid_w = (self.width + self.grid_cell - 1) // self.grid_cell
-            self.grid_cnn = nn.Sequential(
-                nn.Conv2d(c + 1, c, 3, padding=1, bias=False), nn.BatchNorm2d(c), nn.ReLU(inplace=True),
-                nn.Conv2d(c, 2 * c, 3, stride=2, padding=1, bias=False), nn.BatchNorm2d(2 * c),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(2 * c, grid_dim, 3, stride=2, padding=1, bias=False), nn.BatchNorm2d(grid_dim),
-                nn.ReLU(inplace=True),
-            )
         if self.readout:
             self.proj = nn.Sequential(
-                nn.Linear(2 * self.hidden + grid_dim, self.feat_dim),
+                nn.Linear(2 * self.hidden, self.feat_dim),
                 nn.ReLU(inplace=True),
                 nn.Linear(self.feat_dim, self.feat_dim),
             )
@@ -157,61 +126,6 @@ class EventGNN(nn.Module):
     # ------------------------------------------------------------------ nodes
     def _sample(self, events: torch.Tensor, ptr: torch.Tensor
                 ) -> Tuple[torch.Tensor, torch.Tensor]:
-        if self.sample_mode == "spatial":
-            return self._sample_spatial(events, ptr)
-        return self._sample_stride(events, ptr)
-
-    def _sample_spatial(self, events: torch.Tensor, ptr: torch.Tensor
-                        ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """x1001 E9: spatially stratified subsample to at most `max_nodes` per packet.
-
-        Events are binned into `sample_cell` px cells; within a cell they are ordered by a fixed
-        hash of their in-packet index (a deterministic pseudo-random order, spread over the window);
-        a packet keeps the events of lowest within-cell rank first (round-robin over cells), so a
-        dense packet no longer spends its nodes on the few edges that fire most. The kept events
-        are returned in time order, so the causal graph built on them is unchanged in kind. A packet
-        with at most `max_nodes` events keeps all of them, exactly as the stride sampler does.
-        """
-        dev = events.device
-        N = self.max_nodes
-        B = int(ptr.numel() - 1)
-        counts = (ptr[1:] - ptr[:-1]).clamp(min=0)
-        n = counts.clamp(max=N)
-        pos = torch.arange(N, device=dev)
-        mask = pos.unsqueeze(0) < n.unsqueeze(1)
-        tot = int(events.shape[0])
-        src = torch.zeros(B, N, dtype=torch.long, device=dev)
-        if tot == 0:
-            return src, mask
-        b = torch.repeat_interleave(torch.arange(B, device=dev), counts)
-        c = self.sample_cell
-        ncols = (self.width + c - 1) // c
-        ncell = ncols * ((self.height + c - 1) // c)
-        cell = (events[:, EV_Y].long().clamp(0, self.height - 1) // c) * ncols \
-            + events[:, EV_X].long().clamp(0, self.width - 1) // c
-        gidx = torch.arange(tot, device=dev)
-        local = gidx - ptr[:-1][b]
-        h = (local * 2654435761) % 2147483647                     # fixed in-cell order
-        grp = b * ncell + cell
-        order = torch.argsort(h, stable=True)
-        order = order[torch.argsort(grp[order], stable=True)]      # by (packet, cell), then h
-        gs = grp[order]
-        first = torch.ones_like(gs, dtype=torch.bool)
-        first[1:] = gs[1:] != gs[:-1]
-        start = torch.cummax(torch.where(first, gidx, torch.zeros_like(gidx)), 0).values
-        rank = torch.empty_like(gidx)
-        rank[order] = gidx - start                                  # rank of the event in its cell
-        o2 = torch.argsort(rank * 2147483648 + h, stable=True)
-        o2 = o2[torch.argsort(b[o2], stable=True)]                  # per packet, by (rank, h)
-        take = (gidx - ptr[:-1][b[o2]]) < n[b[o2]]
-        chosen = torch.sort(o2[take]).values                        # back to packet / time order
-        cb = b[chosen]
-        slot = torch.arange(chosen.numel(), device=dev) - torch.repeat_interleave(torch.cumsum(n, 0) - n, n)
-        src[cb, slot] = chosen
-        return src, mask
-
-    def _sample_stride(self, events: torch.Tensor, ptr: torch.Tensor
-                       ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Uniform-stride subsample to at most `max_nodes` per packet.
 
         Stride rather than a random or head-of-packet cut: a packet spans up to 300 ms and the
@@ -234,43 +148,6 @@ class EventGNN(nn.Module):
     # ------------------------------------------------------------------ graph
     def _edges(self, p: torch.Tensor, mask: torch.Tensor
                ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        if self.nbr_mode == "causal_all":
-            return self._edges_causal_all(p, mask)
-        return self._edges_window(p, mask)
-
-    def _edges_causal_all(self, p: torch.Tensor, mask: torch.Tensor, chunk: int = 32
-                          ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """x1001 E8: k nearest among all earlier nodes of the packet (still strictly causal).
-
-        Distance in `(x/W, y/H, nbr_t_scale * t)`; with `nbr_t_scale` < 1 a node may reach an
-        event of the same edge tens of milliseconds back instead of the last ~2 ms of activity.
-        Packets are processed in chunks of `chunk` to bound the (chunk, N, N) distance block.
-        """
-        B, N, _ = p.shape
-        dev = p.device
-        kk = min(self.k, max(N - 1, 1))
-        i = torch.arange(N, device=dev)
-        causal = i.unsqueeze(0) < i.unsqueeze(1)                       # [i, j]: j earlier than i
-        idx = torch.zeros(B, N, kk, dtype=torch.long, device=dev)
-        vals = torch.full((B, N, kk), float("inf"), device=dev)
-        w = torch.tensor([1.0, 1.0, self.nbr_t_scale], device=dev, dtype=p.dtype)
-        for c0 in range(0, B, chunk):
-            q = p[c0:c0 + chunk] * w
-            m = mask[c0:c0 + chunk]
-            d = torch.cdist(q, q).pow(2)
-            valid = causal.unsqueeze(0) & m.unsqueeze(1) & m.unsqueeze(2)
-            d = d.masked_fill(~valid, float("inf"))
-            near = d.topk(kk, dim=-1, largest=False)
-            idx[c0:c0 + chunk] = near.indices
-            vals[c0:c0 + chunk] = near.values
-        emask = torch.isfinite(vals).to(p.dtype)
-        idx = idx * (emask > 0).long()
-        dp = (p.gather(1, idx.reshape(B, N * kk, 1).expand(B, N * kk, 3)).reshape(B, N, kk, 3)
-              - p.unsqueeze(2)) * emask.unsqueeze(-1)
-        return idx, dp, emask
-
-    def _edges_window(self, p: torch.Tensor, mask: torch.Tensor
-                      ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """k nearest earlier neighbours inside a window of `window` preceding events.
 
         Returns `(idx, dp, emask)`. Candidates are positions `i-1 .. i-window` of the *time-sorted*
@@ -297,27 +174,6 @@ class EventGNN(nn.Module):
         dp = (p.gather(1, idx.reshape(B, N * kk, 1).expand(B, N * kk, 3)).reshape(B, N, kk, 3)
               - p.unsqueeze(2)) * emask.unsqueeze(-1)
         return idx, dp, emask
-
-    # --------------------------------------------------------------- readout
-    def _grid_readout(self, h: torch.Tensor, ev: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """G3: node features averaged into `grid_cell` px cells (plus a log-count plane), three
-        strided convolutions, global average. `(B, 2 * hidden)`; zero for an event-free packet."""
-        B, N, C = h.shape
-        gh, gw = self.grid_h, self.grid_w
-        cx = (ev[..., EV_X].long() // self.grid_cell).clamp(0, gw - 1)
-        cy = (ev[..., EV_Y].long() // self.grid_cell).clamp(0, gh - 1)
-        cell = (torch.arange(B, device=h.device).unsqueeze(1) * (gh * gw) + cy * gw + cx)[mask]
-        grid = torch.zeros(B * gh * gw, C + 1, device=h.device, dtype=torch.float32)
-        if cell.numel():
-            # Sorted segment mean, not index_add_: CUDA atomics make the sum order (and the last bits)
-            # vary run to run, and the closed loop amplifies 1e-6 into a recorded-number drift.
-            order = torch.argsort(cell, stable=True)
-            cells, cnt = torch.unique_consecutive(cell[order], return_counts=True)
-            mean = torch.segment_reduce(h[mask][order].float(), "mean", lengths=cnt, axis=0)
-            grid[cells] = torch.cat([mean, torch.log1p(cnt.float()).unsqueeze(-1)], -1)
-        grid = grid.reshape(B, gh, gw, C + 1).permute(0, 3, 1, 2).to(h.dtype)
-        g = self.grid_cnn(grid).mean(dim=(2, 3))
-        return g * mask.any(1, keepdim=True).to(g.dtype)
 
     # ---------------------------------------------------------------- forward
     def forward(self, events: torch.Tensor, ptr: torch.Tensor, delta_t_s: torch.Tensor,
@@ -371,10 +227,7 @@ class EventGNN(nn.Module):
             live = mask.sum(1, keepdim=True).clamp_min(1.0).to(h.dtype)
             mean = h.sum(1) / live
             peak = h.masked_fill(~mask.unsqueeze(-1), -1e4).max(1).values
-            pooled = [mean, peak * any_node]
-            if self.grid_cell > 0:
-                pooled.append(self._grid_readout(h, ev, mask))
-            out = self.proj(torch.cat(pooled, dim=-1))
+            out = self.proj(torch.cat([mean, peak * any_node], dim=-1))
             # An event-free packet must return exactly zero so `MODEL.ZERO_EVENT_GATE` gates an
             # update that was already nothing.
             out = out * any_node
