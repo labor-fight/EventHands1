@@ -1,0 +1,103 @@
+# Full C1 training authorized on 2026-09-30; docs/S37_XYZ_FULL_PREREG_20260930.md.
+# Same architecture and recipe as the C1 screen; from scratch, 6000 optimizer steps.
+# Separate artifacts preserve the earlier single-seed screen.
+SEED: 3408
+
+DATA:
+  ROOT: data/hand_data51
+  WIDTH: 240
+  HEIGHT: 180
+  WINDOW_MIN: 30
+  WINDOW_MAX: 300
+  USE_MEMMAP: true
+  INPUT_MODE: raw_packed
+
+AUG:
+  SPEED_AUG: true
+  POLARITY_FLIP: true
+  PIXEL_POLARITY_SWAP: true
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 15.0
+    SCALE_MIN: 0.8
+    SCALE_MAX: 1.25
+    SHIFT_PX: 14.0
+    KEEP_MIN: 0.25
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 2.0e-4
+
+MODEL:
+  BACKBONE: event_gnn
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: false          # no prev_mlp: prev[3:51] enters the common readout directly
+  PREV_RENDER: false
+  ZERO_EVENT_GATE: true
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375           # event-frame intrinsics s K, the frame the rays are cast in
+  RENDER_CHUNK: 256
+  ENCODER: xyz_mesh
+  ENCODER_HIDDEN: 128
+  ENCODER_LAYERS: 3
+  ENCODER_MAX_NODES: 2048       # the S37 event sampling, unchanged
+  ACTIVE_HEAD: false
+  XYZ_BAND_PX: 16.0
+  XYZ_FRONT_PX: 3.0
+  XYZ_Z_TOL: 0.01
+  XYZ_K: 16
+  XYZ_GEOM: true
+  XYZ_REL_HIDDEN: 64
+  XYZ_SLOT_DIM: 32
+  XYZ_READOUT_HIDDEN: 256
+
+TRACK:
+  PREV_NOISE_T: 0.005
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_CORR: 0.2
+
+MANO:
+  NPZ: assets/mano_right.npz
+  BETA_SOURCE: sequence_gt
+  ADD_MEAN: true
+
+LOSS:
+  LAMBDA_POSE: 450.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 51
+  LOG10: true
+
+TRAIN:
+  DEVICES: 2
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 512
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 12
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 4.0e-3
+  WARMUP_STEPS: 500
+  MAX_STEPS: 6000               # full two-seed training
+  VAL_CHECK_INTERVAL: 500
+  SAVE_EVERY_N_STEPS: 500       # fixed grid 500 ... 6000: select by recursive RA
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: outputs/semkine/s37_xyz_c1_full_s3408
+  RUN_NAME: s37_xyz_c1_full_s3408
+
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: outputs/semkine/s37_xyz_c1_full_s3408/eval
