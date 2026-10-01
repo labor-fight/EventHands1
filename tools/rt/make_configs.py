@@ -41,6 +41,13 @@ ARMS = {
                                "ENCODER_K": None, "ENCODER_MAX_NODES": None, "ENCODER_WINDOW": None,
                                "ENCODER_T_SCALE": None}},
                "S37 routed readout on a ResNet18 / LNES encoder (layer2 cells as nodes)"),
+    # R2-A: the global rotation read absolutely from the state-free feature, on either encoder
+    "rt_s37ra": (S37, {"MODEL": {"ROOT_ABS": True, "ROOT_ABS_HIDDEN": 256}},
+                 "S37 with the global rotation read absolutely (ROOT_ABS)"),
+    "rt_c37ra": (S37, {"MODEL": {"BACKBONE": "lnes_cnn", "ENCODER": "lnes_cnn", "ENCODER_LAYERS": None,
+                                 "ENCODER_K": None, "ENCODER_MAX_NODES": None, "ENCODER_WINDOW": None,
+                                 "ENCODER_T_SCALE": None, "ROOT_ABS": True, "ROOT_ABS_HIDDEN": 256}},
+                 "C37 with the global rotation read absolutely (ROOT_ABS)"),
 }
 SCREEN_STEPS = 2000
 

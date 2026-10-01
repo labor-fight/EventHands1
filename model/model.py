@@ -653,6 +653,8 @@ class MNISTModel(BaseModel):
             "ENCODER_SAMPLE", "ENCODER_SAMPLE_CELL", "ENCODER_NBR", "ENCODER_NBR_T_SCALE",
             # root tracking G3: hierarchical grid readout of the event graph (0 = off)
             "ENCODER_GRID_CELL",
+            # root tracking R2-A: global rotation read absolutely from the state-free packet feature
+            "ROOT_ABS", "ROOT_ABS_HIDDEN",
         }
     )
     #: every TRACK key the model or the dataset understands. Whitelisted for the same reason
@@ -977,6 +979,20 @@ class MNISTModel(BaseModel):
             nn.init.zeros_(self.prev_mlp[2].bias)
 
         node_encoders = ("event_gnn", "lnes_cnn") if self.routed else ("event_gnn",)
+        # Root tracking R2-A (2026-10-01). The global rotation is read absolutely from the packet's
+        # state-free feature `f` -- no `prev`, no routing -- by a small MLP, and replaces the tracked
+        # `prev + delta` rotation; translation and fingers keep the tracking path. An event-free
+        # packet keeps `prev`'s rotation. Off: the arm is exactly what it was.
+        self.root_abs = bool(model_cfg.get("ROOT_ABS", False))
+        if self.root_abs:
+            if not (self.encoder_name in ("event_gnn", "lnes_cnn") and self.active_head and self.predict_delta
+                    and not self.mesh_query):
+                raise ValueError("ROOT_ABS replaces the tracked rotation of an event_gnn / lnes_cnn "
+                                 "tracking arm (ENCODER, ACTIVE_HEAD, PREDICT_DELTA)")
+            ra_h = int(model_cfg.get("ROOT_ABS_HIDDEN", 256))
+            feat_dim = int(model_cfg.get("ENCODER_FEAT", model_cfg.get("ACTIVE_FEAT_DIM", 256)))
+            self.root_abs_head = nn.Sequential(nn.Linear(feat_dim, ra_h), nn.ReLU(inplace=True),
+                                               nn.Linear(ra_h, 3))
         if (self.routed or self.mesh_query) and not (self.encoder_name in node_encoders
                                                      and self.active_head):
             raise ValueError("ROUTED_READOUT / MESH_QUERY read node features into the active joint "
@@ -1616,6 +1632,10 @@ class MNISTModel(BaseModel):
                 empty = (batch.counts <= 0).unsqueeze(-1)
                 delta = torch.where(empty, torch.zeros_like(delta), delta)
             out = delta + prev.to(out.dtype)
+        if self.root_abs:
+            rot = self.root_abs_head(feat).to(out.dtype)
+            rot = torch.where((batch.counts <= 0).unsqueeze(-1), prev[:, 3:6].to(out.dtype), rot)
+            out = torch.cat([out[:, :3], rot, out[:, 6:]], dim=-1)
         return out
 
     def forward(self, x, prevpos, betas=None, camera_K=None):
