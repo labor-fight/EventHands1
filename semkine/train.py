@@ -44,6 +44,25 @@ from semkine.dataset import build_dataset, splits_manifest   # noqa: E402
 from semkine.events import EventPacket, collate_packets  # noqa: E402
 
 
+def _provenance(cfg_path):
+    """Code and config identity of a run (x1001): commit, branch, dirty flag, config sha256."""
+    import hashlib
+    import subprocess
+
+    def git(*args):
+        try:
+            return subprocess.check_output(["git", *args], cwd=REPO, text=True,
+                                           stderr=subprocess.DEVNULL).strip()
+        except Exception:
+            return None
+    dirty = git("status", "--porcelain", "--untracked-files=no")
+    sha = None
+    if cfg_path and Path(cfg_path).exists():
+        sha = hashlib.sha256(Path(cfg_path).read_bytes()).hexdigest()
+    return {"git_commit": git("rev-parse", "HEAD"), "git_branch": git("rev-parse", "--abbrev-ref", "HEAD"),
+            "git_dirty": bool(dirty), "repo": str(REPO), "config_sha256": sha}
+
+
 class ThroughputCallback(pl.Callback):
     def __init__(self):
         self.t0 = None
@@ -185,6 +204,8 @@ def main() -> None:
         callbacks=callbacks,
         enable_progress_bar=True, log_every_n_steps=20, default_root_dir=str(out_dir),
         num_sanity_val_steps=0,
+        # x1001: val_loss never selects a checkpoint; a few batches keep a sanity signal
+        limit_val_batches=tcfg.get("LIMIT_VAL_BATCHES", 1.0),
     )
     try:
         trainer = pl.Trainer(check_val_every_n_epoch=None, **kwargs)
@@ -203,7 +224,17 @@ def main() -> None:
         "selection_policy": "fixed step grid; select by recursive RA on val_core",
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         "resumed_from": args.resume,
+        "accumulate_grad_batches": int(tcfg.get("ACCUMULATE_GRAD_BATCHES", 1)),
+        "effective_batch": bsz * devices * int(tcfg.get("ACCUMULATE_GRAD_BATCHES", 1)),
+        "lr_schedule": str(tcfg.get("LR_SCHEDULE", "constant")),
+        "provenance": _provenance(cfg.get("_config_path")),
+        "argv": sys.argv,
     }, indent=2))
+    # The resolved config (seed and paths applied) next to the checkpoints: select_checkpoint.py
+    # reads the run directory's yaml before the training metadata's config_path.
+    import yaml
+    (out_dir / "config_resolved.yaml").write_text(yaml.safe_dump(
+        {k: v for k, v in cfg.items() if k != "_config_path"}, sort_keys=False))
 
     if args.resume:
         print(f"resuming from {args.resume}", flush=True)
