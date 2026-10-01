@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""x1001 paired comparison of arms on the development set (or the sealed test).
+"""x1001 paired comparison of arms on zgz (the development and test set).
 
 For every arm and seed it reads `evalx_<split>_<ckpt>.{json,npz}` (written by `evalx.py eval`) and
 the selection grid. Arms are compared with the baseline *seed by seed* on identical protocol steps:

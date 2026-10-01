@@ -71,3 +71,8 @@ Adam，峰值 LR 4e-3，warmup 500 步，cosine 衰减到 2%；bf16；每 500 �
   x1001_cnntrack_s3407 / s3408、x1001_cnn_s3409、x1001_e8_s3407（均在训练中）。已存的 500 步网格 checkpoint 全部保留，
   可用 `--resume` 续跑（非精确续训，同 16:18 条）。另：调度器日志显示 19:04 有一条取消 x1001_e8_s3408 的请求，
   不是本会话发出的。
+- 2026-10-01 20:02 按用户指令固定数据协议，取代 §2 与 §6：9 人训练（含 ly，72 条序列），zgz 同时作开发集和测试集，
+  划分文件为数据根下的 `splits_semkine.json`（已设只读）；不再设封存测试，`splits_x1001_sealed_v1.json` 不再使用。
+  `configs/x1001/*.yaml` 的 `DATA.SPLITS_MANIFEST` 与 `tools/x1001/diag_export.py` 已改指该文件。
+  此前按 `splits_x1001_dev_v1.json`（8 人）训练的 run（x1001_cnn / s37 / e7 / e8 / e9 / cnntrack）不在本协议上，
+  其数字（包括 PROGRESS.md 中 CNN 的 14.08）不进主表；`runs/` 下的 checkpoint 保留，但不得用 `--resume` 续训到新协议。

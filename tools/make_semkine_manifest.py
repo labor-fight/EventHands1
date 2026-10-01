@@ -39,6 +39,12 @@ def main() -> None:
         from config import load_config
         root = Path(load_config(REPO / "configs" / "eventhands_track_render51.yaml")["DATA"]["ROOT"])
 
+    # The project split is fixed (nine subjects train, zgz is development and test) and is built by
+    # tools/build_splits_semkine.py. SUBJECT_SPLITS in semkine/protocol.py is the retired 5/2/3
+    # partition; writing it under the canonical name is how runs silently lost four subjects.
+    if (root / "splits_semkine.json").exists():
+        sys.exit(f"refusing to overwrite {root / 'splits_semkine.json'}: it is the fixed protocol split "
+                 "and this script would replace it with the retired 5/2/3 partition")
     print(f"scanning {root} ...", flush=True)
     stats = PR.scan_sequences(root)
     manifest = PR.build_manifest(root, stats)

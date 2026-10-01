@@ -12,7 +12,7 @@ DATA:
   WINDOW_MAX: 300
   USE_MEMMAP: true
   INPUT_MODE: raw_packed
-  SPLITS_MANIFEST: /data1/lyq/code/mesh/EventHands1_x1001/protocol/splits_x1001_dev_v1.json
+  SPLITS_MANIFEST: /data1/lyq/code/mesh/EventHands/data/hand_data51/splits_semkine.json
 AUG:
   SPEED_AUG: true
   POLARITY_FLIP: true

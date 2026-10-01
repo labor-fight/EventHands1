@@ -1,6 +1,6 @@
 # x1001 protocol (x1001_cnn). Generated from configs/semkine/s1_abs_domrand.yaml by changing only the protocol keys:
-#   DATA.ROOT (absolute), DATA.SPLITS_MANIFEST (8 training subjects; zgz = development; sealed
-#   subject absent), TRAIN.* (1 GPU x 512 x accumulate 2 = effective 1024, 6000 optimizer steps,
+#   DATA.ROOT (absolute), DATA.SPLITS_MANIFEST (splits_semkine.json: 9 training subjects; zgz =
+#   development and test), TRAIN.* (1 GPU x 512 x accumulate 2 = effective 1024, 6000 optimizer steps,
 #   warmup 500, cosine to 2% of 4e-3, 12-point grid every 500 steps, 8 val batches for sanity).
 # Model, loss, augmentation, curriculum: verbatim from the source config.
 # Seeds and output paths are set on the command line by the x1001 scheduler.
@@ -13,7 +13,7 @@ DATA:
   WINDOW_MAX: 300
   USE_MEMMAP: true
   INPUT_MODE: legacy_lnes
-  SPLITS_MANIFEST: /data1/lyq/code/mesh/EventHands1_x1001/protocol/splits_x1001_dev_v1.json
+  SPLITS_MANIFEST: /data1/lyq/code/mesh/EventHands/data/hand_data51/splits_semkine.json
 AUG:
   SPEED_AUG: true
   POLARITY_FLIP: true

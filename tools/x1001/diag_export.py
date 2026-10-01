@@ -5,7 +5,7 @@ Frozen historical checkpoints (trained on the 9-subject split; used here for dia
   S37 routed : s37_routed_s3407 / s3408, at the zgz-selected step ("sel") and at step 6000 ("last")
   CNN abs    : s37diag_cnnabs_s3407 / s3408, at the zgz-selected step
 Sets (protocol packets: every 50 ms end a+49, a+99, ... inside each valid run):
-  train  the 64 training sequences of the 8 x1001 training subjects (sealed subject and zgz excluded)
+  train  the 72 training sequences of the 9 training subjects (splits_semkine.json; zgz excluded)
   dev    zgz_global / zgz_local; E4 thinning keeps, one fixed event mask per (sequence, keep),
          shared by every model and representation
   occl   every 4th dev packet at keep 1 with one 5 ms slice of the 50 ms window removed (10 slices)
@@ -49,7 +49,7 @@ MAIN = Path("/data1/lyq/code/mesh/EventHands1")
 PROG = Path("/data1/lyq/code/mesh/EventHands1_x1001")
 OUT = PROG / "diag" / "e1a_e4"
 DATA = Path("/data1/lyq/code/mesh/EventHands/data/hand_data51")
-DEV_MANIFEST = PROG / "protocol" / "splits_x1001_dev_v1.json"
+DEV_MANIFEST = DATA / "splits_semkine.json"
 STEP = 50
 H, W = 180, 240
 KEEPS = {"zgz_global": (1.0, 0.5, 0.2, 0.1, 0.05, 0.03), "zgz_local": (1.0, 0.5, 0.25, 0.13)}

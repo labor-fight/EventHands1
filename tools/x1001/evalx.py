@@ -14,7 +14,7 @@ row    aggregate N seeds of one arm into `<base>/outputs/semkine/<arm>_main_row.
        with per-sequence / per-bucket / failure / control statistics and 10 s block-bootstrap CIs.
 
     python tools/x1001/evalx.py eval --run-dir RUNS/x1001_s37_s3407 [--ckpt selected|last|step=N]
-                                     [--split val_core|sealed_test --manifest M] [--controls]
+                                     [--split val_core --manifest M] [--controls]
     python tools/x1001/evalx.py row --arm x1001_s37 --runs RUNS/x1001_s37_s3407 RUNS/x1001_s37_s3408
 """
 from __future__ import annotations
