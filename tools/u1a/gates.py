@@ -159,6 +159,39 @@ def load_bundle(row_path, extended_path, mode):
         require(mc["ROOT_FILTER_GAIN"] == 0.5 and mc["FINGER_FILTER_GAIN"] == 0.5
                 and mc["ROOT_MEAS"] == "abs" and mc["FINGER_MEAS"] == "abs"
                 and mc["ENCODER"] == "sparse_pyramid", f"{mode}/{seed}: measurement convention changed")
+        require(mc["U1A_HIDDEN"] == 64 and mc["PREV_RENDER"] is False
+                and mc["ROUTED_READOUT"] is True and mc["ACTIVE_HEAD"] is True
+                and mc["PREDICT_DELTA"] is True, f"{mode}/{seed}: preregistered head interface changed")
+        fixed_train = {"DEVICES": 2, "BATCH_SIZE_PER_GPU": 512, "ACCUMULATE_GRAD_BATCHES": 1,
+                       "NUM_WORKERS": 14, "OPTIMIZER": "adam", "LR": 0.004, "WARMUP_STEPS": 500,
+                       "PRECISION": "bf16", "LR_SCHEDULE": "cosine", "TRAINABLE_PREFIXES": ["u1a_readout."]}
+        for key, expected in fixed_train.items():
+            require(cfg["TRAIN"].get(key) == expected, f"{mode}/{seed}: preregistered TRAIN.{key} changed")
+        source = row["provenance"][seed]
+        metadata = read_json(source["training_metadata"]["path"])
+        require("resumed_from" in metadata and metadata["resumed_from"] is None,
+                f"{mode}/{seed}: 2k/6k must restart prepared initialization, not resume")
+        expected_metadata = {"seed": int(seed), "max_steps": budget, "batch_size_per_gpu": 512,
+                             "devices": 2, "accumulate_grad_batches": 1, "effective_batch": 1024,
+                             "data_generator_seed": int(seed), "lr": 0.004, "lr_schedule": "cosine",
+                             "input_mode": "raw_packed", "splits_manifest": "splits_semkine.json",
+                             "val_core_sequences": list(SEQUENCES), "selection_policy": "explicit last only (U1a)"}
+        for key, expected in expected_metadata.items():
+            require(metadata.get(key) == expected, f"{mode}/{seed}: actual training metadata {key} changed")
+        subjects = {"ch", "lfz", "lpc", "lr", "ly", "lyh", "lyq", "ycy", "ylf"}
+        train_sequences = metadata["train_sequences"]
+        require(len(train_sequences) == len(set(train_sequences)) == 72
+                and {sequence.split("_")[0] for sequence in train_sequences} == subjects,
+                f"{mode}/{seed}: actual training split changed")
+        require(resolved(cfg["MODEL"]["INIT_FROM"]) == source_file(source["initialization"], f"{mode}/{seed}/init"),
+                f"{mode}/{seed}: prepared initialization source changed")
+        registry = read_json(source_file(source["initialization_registry"], f"{mode}/{seed}/init_registry"))
+        registered = registry["pairs"][seed]
+        require(registry["split_sha256"] == MANIFEST_SHA
+                and resolved(registered["arms"][mode]["init"]) == resolved(cfg["MODEL"]["INIT_FROM"])
+                and resolved(registered["anchor"]) == resolved(source["frozen_s38_source"]["path"])
+                and registered["anchor_sha256"] == source["frozen_s38_source"]["sha256"],
+                f"{mode}/{seed}: initialization registry/source mismatch")
     return row, baseline, configs
 
 
@@ -185,6 +218,7 @@ def validate_raw_summary(summary, records, label):
 
 
 def load_raw(paths, row, configs, mode):
+    import numpy as np
     raw_by_seed, provenance, fingerprints = {}, {}, {}
     for path in paths:
         js = read_json(path)
@@ -221,6 +255,15 @@ def load_raw(paths, row, configs, mode):
             records[sequence] = [([sequence, int(index["run_id"]), int(index["end_ms"]), int(index["protocol_step_index"])],
                                   int(index["n_events"])) for index in item["indices"]]
             require(all(count >= 0 for _, count in records[sequence]), f"{mode}/{seed}: negative event count")
+            # Same number of windows is insufficient: bind raw indices and live
+            # masks to the actual hash-verified recursive evaluation arrays.
+            with np.load(resolved(source["diagnostic_arrays"]["path"]), allow_pickle=False) as arrays:
+                for raw_key, array_key in (("end_ms", "end"), ("run_id", "run"), ("n_events", "count")):
+                    key = f"model|{sequence}|{array_key}"
+                    require(key in arrays, f"{mode}/{seed}/{sequence}: recursive {array_key} array missing")
+                    expected = np.asarray([index[raw_key] for index in item["indices"]], dtype=np.int64)
+                    require(np.array_equal(arrays[key], expected),
+                            f"{mode}/{seed}/{sequence}: raw {raw_key} differs from recursive {array_key}")
             values[sequence] = validate_raw_summary(item["summary"], records[sequence], f"{mode}/{seed}/{sequence}")
         all_records = records["zgz_global"] + records["zgz_local"]
         parts = {}
