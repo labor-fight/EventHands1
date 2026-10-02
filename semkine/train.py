@@ -19,6 +19,7 @@ The legacy trainer is untouched and remains the way to reproduce the frozen base
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -89,6 +90,26 @@ class ThroughputCallback(pl.Callback):
             pl_module.log("cuda_max_mem_gb", mem, prog_bar=True, rank_zero_only=True)
 
 
+class U1aPairStreamCallback(pl.Callback):
+    """Record initial data-stream hashes on each rank, without exposing raw samples."""
+
+    def __init__(self, output_dir):
+        self.output_dir = Path(output_dir)
+        self.rows = []
+
+    def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
+        if len(self.rows) >= 2:
+            return
+        h = hashlib.sha256()
+        for name in ("sequence_id", "t_start_us", "t_end_us", "target", "prev_state", "events",
+                     "ptr", "delta_t_s", "betas", "camera_K", "is_sequence_start", "is_sequence_end"):
+            h.update(getattr(batch, name).detach().cpu().contiguous().numpy().tobytes())
+        self.rows.append({"step": int(trainer.global_step), "sha256": h.hexdigest(),
+                          "samples": batch.batch_size, "events": int(batch.events.shape[0])})
+        (self.output_dir / f"pair_stream_rank{trainer.global_rank}.json").write_text(
+            json.dumps(self.rows, indent=2))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
@@ -144,12 +165,16 @@ def main() -> None:
         return torch.utils.data.default_collate(items)
 
     raw = train_ds.input_mode != "legacy_lnes"
+    # Keep U1a's paired stream independent of the RNG consumed by 1 vs 17 heads.
+    # Lightning's distributed sampler uses SEED; this generator also pins worker seeds.
+    u1a = str(cfg["MODEL"].get("U1A_MODE", "off")).lower() != "off"
+    data_generator = torch.Generator().manual_seed(int(cfg["SEED"])) if u1a else None
     train_loader = DataLoader(
         train_ds, batch_size=bsz, shuffle=True, num_workers=nw,
         pin_memory=bool(tcfg.get("PIN_MEMORY", True)) and nw > 0,
         persistent_workers=persistent,
         prefetch_factor=int(tcfg.get("PREFETCH_FACTOR", 2)) if nw > 0 else None,
-        drop_last=True, collate_fn=_collate if raw else None,
+        drop_last=True, collate_fn=_collate if raw else None, generator=data_generator,
     )
     val_loader = DataLoader(
         val_ds, batch_size=min(bsz, 512), shuffle=False, num_workers=min(nw, 4),
@@ -189,6 +214,8 @@ def main() -> None:
     logger = False if args.no_logger else TensorBoardLogger(
         save_dir=str(out_dir), name="logs", version=tcfg.get("RUN_NAME", "semkine"))
     callbacks = [ckpt_cb, ThroughputCallback()]
+    if u1a:
+        callbacks.append(U1aPairStreamCallback(out_dir))
     if logger:
         callbacks.insert(1, LearningRateMonitor(logging_interval="step"))
 
@@ -202,7 +229,7 @@ def main() -> None:
         accumulate_grad_batches=int(tcfg.get("ACCUMULATE_GRAD_BATCHES", 1)),
         sync_batchnorm=bool(tcfg.get("SYNC_BATCHNORM", False)), logger=logger,
         callbacks=callbacks,
-        enable_progress_bar=True, log_every_n_steps=20, default_root_dir=str(out_dir),
+        enable_progress_bar=not u1a, log_every_n_steps=20, default_root_dir=str(out_dir),
         num_sanity_val_steps=0,
         # x1001: val_loss never selects a checkpoint; a few batches keep a sanity signal
         limit_val_batches=tcfg.get("LIMIT_VAL_BATCHES", 1.0),
@@ -221,7 +248,8 @@ def main() -> None:
         "train_samples": len(train_ds), "val_samples": len(val_ds),
         "batch_size_per_gpu": bsz, "devices": devices, "max_steps": max_steps,
         "save_every_n_steps": every, "lr": tcfg["LR"],
-        "selection_policy": "fixed step grid; select by recursive RA on val_core",
+        "selection_policy": "explicit last only (U1a)" if u1a else "fixed step grid; select by recursive RA on val_core",
+        "data_generator_seed": int(cfg["SEED"]) if u1a else None,
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         "resumed_from": args.resume,
         "accumulate_grad_batches": int(tcfg.get("ACCUMULATE_GRAD_BATCHES", 1)),

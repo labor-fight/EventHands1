@@ -663,6 +663,7 @@ class MNISTModel(BaseModel):
             # S38 sparse pyramid (`semkine.sparse_pyramid`) and root measurement
             "ENCODER_CHANNELS", "ENCODER_BLOCKS", "ROOT_MEAS", "ROOT_REF", "ROOT_FILTER_GAIN",
             "FINGER_MEAS", "FINGER_FILTER_GAIN",
+            "U1A_MODE", "U1A_HIDDEN", "U1A_FREEZE_ENCODER",
             "DISTILL_WEIGHT", "DISTILL_CKPT",
             # x1001 E7
             "POSE_HEAD_HIDDEN",
@@ -776,6 +777,17 @@ class MNISTModel(BaseModel):
         # stays the routed head's prev + delta. (The 2000-step screen: the sparse pyramid's routed finger
         # decoders lost 7 mm of zgz_local RA to S37's, while its pool read fingers absolutely as well as S37.)
         self.finger_meas = str(model_cfg.get("FINGER_MEAS", "delta")).lower()
+        self.u1a_mode = str(model_cfg.get("U1A_MODE", "off")).lower()
+        if self.u1a_mode not in ("off", "shared", "untied"):
+            raise ValueError("U1A_MODE must be off, shared or untied")
+        self.u1a_freeze_encoder = bool(model_cfg.get("U1A_FREEZE_ENCODER", True))
+        if self.u1a_mode != "off" and not (
+                str(model_cfg.get("ENCODER", "")).lower() == "sparse_pyramid"
+                and self.routed and bool(model_cfg.get("ACTIVE_HEAD", False))
+                and self.root_meas == "abs" and self.finger_meas == "abs"
+                and self.root_fusion == "concat" and self.predict_delta
+                and not self.prev_render and not model_cfg.get("ROOT_INNOVATION", False)):
+            raise ValueError("U1a requires S38 sparse_pyramid, routed abs root/fingers and no rendering/innovation")
         if self.finger_meas not in ("delta", "abs"):
             raise ValueError(f"MODEL.FINGER_MEAS must be delta or abs, got {self.finger_meas!r}")
         self.finger_filter_gain = float(model_cfg.get("FINGER_FILTER_GAIN", 1.0))
@@ -1110,6 +1122,21 @@ class MNISTModel(BaseModel):
             self.ablate_innovation = False
         if not self.prev_mlp_root and not self.prevpos_embed:
             raise ValueError("PREV_MLP_ROOT: false only means something with PREVPOS_EMBED")
+        if self.u1a_mode != "off":
+            from semkine.u1a_readout import U1aReadout
+            self.u1a_readout = U1aReadout(
+                pooled_dim=int(self.event_encoder.pooled_dim), feat_dim=feat,
+                evidence_dim=2 * int(self.event_encoder.hidden) + 1,
+                hidden=int(model_cfg.get("U1A_HIDDEN", 64)), mode=self.u1a_mode)
+            # Translation's unified node consumes the original feat/evidence/full-prev fields.
+            # Its output replaces BOTH the routed delta and the old event-blind prev_mlp delta.
+            for old in ("root_head", "root_abs_head", "finger_abs_head", "joint_heads", "prev_mlp"):
+                if hasattr(self, old):
+                    delattr(self, old)
+            self.prevpos_embed = False
+            if self.u1a_freeze_encoder:
+                self.event_encoder.requires_grad_(False)
+                self.event_encoder.eval()
         # Stage-1 training of an arm on a frozen trunk: only parameters under these prefixes train.
         prefixes = (self.cfg.get("TRAIN", {}) or {}).get("TRAINABLE_PREFIXES")
         if prefixes:
@@ -1118,6 +1145,13 @@ class MNISTModel(BaseModel):
                 p.requires_grad_(name.startswith(prefixes))
             if not any(p.requires_grad for p in self.parameters()):
                 raise ValueError(f"TRAIN.TRAINABLE_PREFIXES {list(prefixes)} match no parameter")
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        if getattr(self, "u1a_mode", "off") != "off" and self.u1a_freeze_encoder:
+            # requires_grad=False alone does not freeze BatchNorm running statistics.
+            self.event_encoder.eval()
+        return self
 
     def _build_mano(self, model_cfg):
         """The MANO layer plus the render-frame intrinsics every conditioning path projects with."""
@@ -1644,17 +1678,17 @@ class MNISTModel(BaseModel):
                 from semkine.routed_readout import pool_joint_evidence
                 feat, h, _, px, py, mask = self.event_encoder(events, ptr, batch.delta_t_s, extra,
                                                               return_nodes=True)
-                if self.root_meas == "abs":
+                if self.root_meas == "abs" and self.u1a_mode == "off":
                     with torch.autocast(device_type=feat.device.type, enabled=False):
                         abs_r = self.root_abs_head(self.event_encoder.pooled.float())
-                if self.finger_meas == "abs":
+                if self.finger_meas == "abs" and self.u1a_mode == "off":
                     with torch.autocast(device_type=feat.device.type, enabled=False):
                         abs_f = self.finger_abs_head(self.event_encoder.pooled.float())
                 if h.shape[1] == 0:
                     evidence = torch.zeros(feat.shape[0], 16, 2 * h.shape[-1] + 1,
                                            device=feat.device, dtype=feat.dtype)
                     self.route_stats = {}
-                    if self.root_meas == "abs":
+                    if self.root_meas == "abs" and self.u1a_mode == "off":
                         abs_rot = self._abs_root(abs_r, prev, batch.counts, events.shape[0])
                 else:
                     prev_route = prev if self.route_prev_override is None else \
@@ -1683,7 +1717,7 @@ class MNISTModel(BaseModel):
                         root_add = self.root_innov_head(q, g)
                     else:
                         a, dist, _ = self._route_nodes(px, py, mask, prev_route, betas_f, k_f)
-                    if self.root_meas == "abs":
+                    if self.root_meas == "abs" and self.u1a_mode == "off":
                         # read back after the routing, whose own host syncs have already drained the GPU
                         abs_rot = self._abs_root(abs_r, prev, batch.counts, events.shape[0])
                     evidence, count = pool_joint_evidence(h, a, mask)
@@ -1697,7 +1731,15 @@ class MNISTModel(BaseModel):
             else:
                 feat = self.event_encoder(events, ptr, batch.delta_t_s, extra)
             if self.active_head:
-                out = self._decode_active(feat, prev, evidence, root_add=root_add)
+                if self.u1a_mode != "off":
+                    with torch.autocast(device_type=feat.device.type, enabled=False):
+                        t_delta, abs_r, abs_f = self.u1a_readout(
+                            self.event_encoder.pooled.float(), feat.float(), evidence.float(), prev.float())
+                    self.u1a_last_raw = torch.cat([t_delta, abs_r, abs_f], dim=-1).detach()
+                    abs_rot = self._abs_root(abs_r, prev, batch.counts, events.shape[0])
+                    out = torch.cat([t_delta, t_delta.new_zeros(t_delta.shape[0], 48)], dim=-1)
+                else:
+                    out = self._decode_active(feat, prev, evidence, root_add=root_add)
             else:
                 out = self.pose_head(feat)
         if self.prevpos_embed:
