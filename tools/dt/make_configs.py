@@ -51,6 +51,14 @@ ARMS = {
     # 2 x 2 factorial of the two zero-code factors (C1 x C2a): the interaction, no gate of its own
     "dt_trnos": ({"LOSS": {"TRANS_BETA": 0.01, "ABS_FK_WEIGHT": 1.0}, "AUG": {"DOMRAND": {"SCALE_MIN": 1.0, "SCALE_MAX": 1.0}}},
                  "C1 + C2a (factorial arm): translation at its error scale, no scale augmentation", ""),
+    # F4 mechanism: the event-blind prev_mlp (51 -> 64 -> 51) reads the raw previous state and may have learned a
+    # pull of the depth toward the training mean (the training prev noise makes the previous depth unreliable).
+    # dt_nopm removes it (zero code: PREVPOS_EMBED is an existing key); dt_pmt keeps it but masks its three
+    # translation outputs.
+    "dt_nopm": ({"MODEL": {"PREVPOS_EMBED": False}},
+                "C9a: no event-blind prev_mlp (the previous state enters through the render only)", ""),
+    "dt_pmt": ({"MODEL": {"PREV_MLP_TRANSL": False}},
+               "C9b: prev_mlp keeps its rotation / finger outputs, its translation outputs are masked to 0", "model.py"),
     "dt_cam": ({"MODEL": {"CAM_PLANES": True}},
                "C2b: two camera-ray planes (u - cx) / fx, (v - cy) / fy of the augmented K as extra input", "model.py"),
     # P4: root update is a sum of axis-angles; the training roots sit at a median |aa| of 132 deg
