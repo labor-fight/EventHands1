@@ -188,6 +188,31 @@ def test_all_events_count_no_node_cap():
     assert bool((f[:, 5:7] >= 0).all() and (f[:, 5:7] < 1).all() and (f[:, 2:4] <= 1).all())
 
 
+def test_level0_launch_lean_form_is_bitwise_the_reference_on_real_packets():
+    """`_level0` (written for few launches) and `_level0_reference` (the literal form the S38 screening
+    arms were trained with) agree bit for bit on real zgz and training packets, at batch 1 and batched."""
+    from semkine import eval_track as ET
+    root = Path(_cfg("configs/s38/s38_spabs_2k.yaml")["DATA"]["ROOT"])
+    enc = _encoder()
+    pk = []
+    for d, s in (("val", "zgz_global"), ("val", "zgz_local"), ("train", "ch_global_v2")):
+        events, offsets, aux, _ = ET.load_sequence(root, d, s)
+        tsub = np.load(root / d / f"{s}_tsub.npy", mmap_mode="r")
+        a = int(np.asarray(aux["valid_runs_ms"]).reshape(-1, 2)[0][0])
+        for end in (a + 1049, a + 5049, a + 20049):
+            pk.append(torch.from_numpy(ET._window_events(events, offsets, tsub, end, 50)))
+    for group in ([p] for p in pk):
+        ev, ptr, dt = _batch([g.clone() for g in group])
+        l1, f1 = enc._level0(ev, dt)
+        l2, f2 = enc._level0_reference(ev, dt)
+        assert torch.equal(l1.key, l2.key) and torch.equal(f1, f2)
+    ev, ptr, dt = _batch([p.clone() for p in pk])
+    dt = dt * torch.linspace(0.6, 1.0, len(pk), device=DEV)                 # per-packet windows
+    l1, f1 = enc._level0(ev, dt)
+    l2, f2 = enc._level0_reference(ev, dt)
+    assert torch.equal(l1.key, l2.key) and torch.equal(f1, f2)
+
+
 # --------------------------------------------------------------------------- root measurement (M1)
 def _cfg(path):
     return yaml.safe_load((REPO / path).read_text())

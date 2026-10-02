@@ -219,13 +219,45 @@ class SparsePyramid(nn.Module):
 
     # ------------------------------------------------------------------ level 0
     def _level0(self, events: torch.Tensor, delta_t_s: torch.Tensor):
+        """Level-0 sites and their `IN_DIM` inputs. Written for few operator launches (at batch 1 they are
+        the cost): pixel coordinates inside the sensor and 0 / 1 polarities are the event contract
+        (`EventPacketBatch.validate`), so no clamp or threshold is applied; `_level0_reference` is the
+        literal form, and the two agree bitwise (tests/test_s38.py)."""
+        B = delta_t_s.shape[0]
+        b = events[:, EV_BATCH].long()
+        pix = events[:, EV_X:EV_Y + 1]                                   # (N, 2) x, y
+        cell_xy = torch.div(pix, float(self.cell), rounding_mode="floor")
+        sub = pix * (1.0 / self.cell) - cell_xy                          # position inside the cell, [0, 1)
+        cxy = cell_xy.long()
+        wq = self.w0 + 2
+        key = b * ((self.h0 + 2) * wq) + cxy[:, 1] * wq + cxy[:, 0] + (wq + 1)
+        dt = delta_t_s.clamp_min(1e-6)
+        tn = (events[:, EV_T] / (dt if B == 1 else dt[b])).clamp(0.0, 1.0)
+        pol = events[:, EV_P]
+        tnp = tn * pol
+        per_event = torch.stack([pol, tn, sub[:, 0], sub[:, 1], tnp, tn - tnp], dim=-1)
+        order = torch.argsort(key, stable=True)
+        uniq, cnt = torch.unique_consecutive(key[order], return_counts=True)
+        per_event = per_event[order]
+        sums = torch.segment_reduce(per_event[:, :4], "sum", lengths=cnt, axis=0, unsafe=True)
+        newest = torch.segment_reduce(per_event[:, 4:], "max", lengths=cnt, axis=0, unsafe=True)
+        n = cnt.unsqueeze(-1).float()
+        lv = _Level(uniq, self.h0, self.w0)
+        _, yq, xq = lv.bxy()
+        # scalar division as in the reference: dividing by a tensor rounds differently in the last bit
+        centre = torch.stack([(xq.float() - 0.5) / self.w0, (yq.float() - 0.5) / self.h0], -1)
+        f = torch.cat([torch.log1p(sums[:, :1]), torch.log1p(n - sums[:, :1]), newest, sums[:, 1:] / n, centre],
+                      dim=-1)
+        return lv, f
+
+    def _level0_reference(self, events: torch.Tensor, delta_t_s: torch.Tensor):
+        """The literal level-0 computation (`_level0` with the clamps and thresholds spelled out)."""
         b = events[:, EV_BATCH].long()
         xs, ys = events[:, EV_X], events[:, EV_Y]
         x = torch.div(xs.long(), self.cell, rounding_mode="floor").clamp(0, self.w0 - 1)
         y = torch.div(ys.long(), self.cell, rounding_mode="floor").clamp(0, self.h0 - 1)
         tn = (events[:, EV_T] / delta_t_s.clamp_min(1e-6)[b]).clamp(0.0, 1.0)
         pol = (events[:, EV_P] > 0.5).float()
-        # sub-cell position in [0, 1): where inside the cell the events fall
         sub = torch.stack([xs - x * self.cell, ys - y * self.cell], -1) * (1.0 / self.cell)
         key = _Level.make_key(b, y, x, self.h0, self.w0)
         order = torch.argsort(key, stable=True)
