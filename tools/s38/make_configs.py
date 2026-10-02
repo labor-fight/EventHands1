@@ -86,11 +86,16 @@ def arms(ref: list) -> dict:
         "s38_spabsaa": (S37, merge(merge(copy.deepcopy(SP), m1(ref)), {"MODEL": {"ROOT_REF": [0.0, 0.0, 0.0]},
                                                                        "LOSS": {"ROOT_LOSS": None}}),
                         "sparse pyramid + absolute root as plain axis-angle (no reference, MSE): convention ablation"),
+        # second candidate (after the 2000-step screen, docs/S38_ROOT_TRACKING_PREREG.md section 7): the sparse
+        # pyramid's pool also measures the fingers, filtered with the same a-priori gain; translation stays routed
+        "s38_spmeas": (S37, merge(merge(copy.deepcopy(SP), m1(ref)), {"MODEL": {"FINGER_MEAS": "abs",
+                                                                                "FINGER_FILTER_GAIN": 0.5}}),
+                       "sparse pyramid + M1 root + absolute fingers (gain 0.5) + routed delta translation"),
     }
 
 
 #: evaluation-only variants: the same checkpoints with the inference filter off (the filter's contribution)
-GAIN1 = ("s38_s37abs", "s38_spabs", "s38_spabsaa")
+GAIN1 = ("s38_s37abs", "s38_spabs", "s38_spabsaa", "s38_spmeas")
 
 
 def write(name: str, parent: Path, over: dict, why: str, steps=None) -> Path:
@@ -118,6 +123,8 @@ def main() -> None:
         print(write(name, parent, over, why, SCREEN_STEPS).relative_to(REPO))
         if name in GAIN1:
             g1 = merge(copy.deepcopy(over), {"MODEL": {"ROOT_FILTER_GAIN": 1.0}})
+            if "FINGER_FILTER_GAIN" in over.get("MODEL", {}):
+                g1["MODEL"]["FINGER_FILTER_GAIN"] = 1.0
             why1 = why + "; EVALUATION ONLY: inference filter off"
             for steps in (None, SCREEN_STEPS):
                 p = write(name, parent, g1, why1, steps)

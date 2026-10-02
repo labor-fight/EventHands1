@@ -366,6 +366,14 @@ def main() -> None:
             e_const = float(EX.rot_err_deg(pad(np.ascontiguousarray(const)), tgt).mean())
             ok = ok and e_meas <= 0.8 * e_const
             msg += f"; absolute root on the batch {e_meas:.2f} deg vs constant R_ref {e_const:.2f} deg"
+        if getattr(model, "finger_meas", "delta") == "abs":
+            with torch.no_grad():
+                enc(hb.events, hb.ptr, hb.delta_t_s)
+                fm = model.finger_abs_head(enc.pooled.float())
+            tf_ = hb.target.float()[:, 6:]
+            e_f, e_0 = float((fm - tf_).square().mean()), float(tf_.square().mean())
+            ok = ok and e_f <= 0.8 * e_0
+            msg += f"; absolute fingers MSE {e_f:.4f} vs the mean hand {e_0:.4f}"
         report("health", ok, msg)
 
     # 7 runtime

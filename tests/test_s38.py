@@ -287,6 +287,26 @@ def test_abs_root_reads_no_state():
     assert torch.equal(m._abs_root(r, p1, counts, 1), m._abs_root(r, p2, counts, 1))
 
 
+def test_abs_fingers_hold_on_empty_packets_and_filter_linearly():
+    cfg = _cfg("configs/s38/s38_spmeas_2k.yaml")
+    m = _model(cfg).to(DEV)
+    assert len(m.joint_heads) == 0 and m.finger_abs_head[-1].out_features == 45
+    B = 6
+    f = torch.randn(B, 45, device=DEV) * 0.3
+    prev = torch.randn(B, 51, device=DEV) * 0.3
+    counts = torch.full((B,), 40, device=DEV)
+    counts[2] = 0
+    m.train()
+    tr = m._abs_fingers(f, prev, counts, 1)
+    assert torch.equal(tr[2], prev[2, 6:]) and torch.equal(tr[0], f[0])
+    m.eval()
+    ev = m._abs_fingers(f, prev, counts, 1)
+    g = cfg["MODEL"]["FINGER_FILTER_GAIN"]
+    assert torch.allclose(ev[0], prev[0, 6:] + g * (f[0] - prev[0, 6:])) and torch.equal(ev[2], prev[2, 6:])
+    # batch 1: emptiness from the host-side event count
+    assert torch.equal(m._abs_fingers(f[:1], prev[:1], counts[:1], 0), prev[:1, 6:])
+
+
 def test_root_ref_is_the_training_split_mean():
     cfg = _cfg("configs/s38/s38_spabs_2k.yaml")
     sys.path.insert(0, str(REPO / "tools" / "s38"))

@@ -662,6 +662,7 @@ class MNISTModel(BaseModel):
             "ENCODER_K", "ENCODER_MAX_NODES", "ENCODER_WINDOW", "ENCODER_T_SCALE",
             # S38 sparse pyramid (`semkine.sparse_pyramid`) and root measurement
             "ENCODER_CHANNELS", "ENCODER_BLOCKS", "ROOT_MEAS", "ROOT_REF", "ROOT_FILTER_GAIN",
+            "FINGER_MEAS", "FINGER_FILTER_GAIN",
             "DISTILL_WEIGHT", "DISTILL_CKPT",
             # x1001 E7
             "POSE_HEAD_HIDDEN",
@@ -768,6 +769,23 @@ class MNISTModel(BaseModel):
                 raise ValueError("ROOT_MEAS: abs needs MODEL.ROOT_REF, the reference root as 3 axis-angle numbers")
         elif self.root_filter_gain != 1.0:
             raise ValueError("ROOT_FILTER_GAIN filters an absolute root measurement; set ROOT_MEAS: abs")
+        # S38 finger measurement. `delta` is S37 (fifteen routed joint decoders write prev + delta). `abs`: the
+        # 45 finger parameters are measured per packet from the encoder's state-free pool, and at inference
+        # `FINGER_FILTER_GAIN` g < 1 moves the fed-back fingers from prev toward the measurement by g (the
+        # linear filter of `semkine.anchored.CausalFilter`); an event-free packet holds prev. Translation
+        # stays the routed head's prev + delta. (The 2000-step screen: the sparse pyramid's routed finger
+        # decoders lost 7 mm of zgz_local RA to S37's, while its pool read fingers absolutely as well as S37.)
+        self.finger_meas = str(model_cfg.get("FINGER_MEAS", "delta")).lower()
+        if self.finger_meas not in ("delta", "abs"):
+            raise ValueError(f"MODEL.FINGER_MEAS must be delta or abs, got {self.finger_meas!r}")
+        self.finger_filter_gain = float(model_cfg.get("FINGER_FILTER_GAIN", 1.0))
+        if not 0.0 < self.finger_filter_gain <= 1.0:
+            raise ValueError("MODEL.FINGER_FILTER_GAIN must be in (0, 1]")
+        if self.finger_meas == "abs" and not (self.routed and self.root_fusion == "concat" and self.predict_delta):
+            raise ValueError("FINGER_MEAS: abs replaces the routed finger decoders; it needs ROUTED_READOUT, "
+                             "ROOT_FUSION concat and PREDICT_DELTA (translation stays routed prev + delta)")
+        if self.finger_meas != "abs" and self.finger_filter_gain != 1.0:
+            raise ValueError("FINGER_FILTER_GAIN filters an absolute finger measurement; set FINGER_MEAS: abs")
         # S37 mesh query (2026-09-07, the user's design). The previous state enters in one form
         # only -- its FK mesh -- and the mesh reads the graph: fixed query vertices gather node
         # features, the graph's edge (local motion) summary and event offsets inside a fixed
@@ -967,8 +985,8 @@ class MNISTModel(BaseModel):
                             from semkine.routed_readout import PerJointRootFusion
                             self.root_fusion_head = PerJointRootFusion(feat, ev_dim, hid)
                         elif self.root_meas == "abs":
-                            # S38: the routed head keeps the translation; the rotation is measured
-                            # from `feat` alone. Zero-initialised: an untrained head says R_ref.
+                            # S38: the routed head keeps the translation; the rotation is measured from
+                            # the encoder's pool alone. Zero-initialised: an untrained head says R_ref.
                             self.root_head = nn.Linear(feat + 16 * ev_dim, 3)
                             # The head reads the encoder's pool (`event_encoder.pooled`), not the projected
                             # `feat`: `feat` also feeds the routed head's translation, whose loss dominates
@@ -992,11 +1010,20 @@ class MNISTModel(BaseModel):
                     else:
                         self.root_head = nn.Linear(feat, 6)
                         head_in = feat
-                    self.joint_heads = nn.ModuleList([
-                        nn.Sequential(nn.Linear(head_in + 3, hid), nn.ReLU(inplace=True),
-                                      nn.Linear(hid, 3))
-                        for _ in range(15)
-                    ])
+                    if self.finger_meas == "abs":
+                        # S38: no routed finger decoder; the pool measures all 45 finger parameters
+                        self.joint_heads = nn.ModuleList()
+                        pdim = int(self.event_encoder.pooled_dim)
+                        self.finger_abs_head = nn.Sequential(nn.LayerNorm(pdim), nn.Linear(pdim, 256), nn.GELU(),
+                                                             nn.Linear(256, 45))
+                        nn.init.zeros_(self.finger_abs_head[-1].weight)
+                        nn.init.zeros_(self.finger_abs_head[-1].bias)
+                    else:
+                        self.joint_heads = nn.ModuleList([
+                            nn.Sequential(nn.Linear(head_in + 3, hid), nn.ReLU(inplace=True),
+                                          nn.Linear(hid, 3))
+                            for _ in range(15)
+                        ])
             else:
                 # x1001 E7: an optional hidden layer makes the absolute readout non-linear
                 # (POSE_HEAD_HIDDEN = 0 keeps the single linear layer of every earlier arm).
@@ -1333,6 +1360,9 @@ class MNISTModel(BaseModel):
                 continue
             src = feat if evidence is None else evidence[:, k + 1]
             cols.append(head(torch.cat([src, prev[:, 6 + 3 * k : 9 + 3 * k]], dim=-1)))
+        if not len(self.joint_heads):
+            # S38 FINGER_MEAS abs: forward_packet writes the measured fingers
+            cols.append(root.new_zeros(root.shape[0], 45))
         return torch.cat(cols, dim=-1)
 
     def _fk_node_uv(self, prev, betas_f, k_f):
@@ -1617,6 +1647,9 @@ class MNISTModel(BaseModel):
                 if self.root_meas == "abs":
                     with torch.autocast(device_type=feat.device.type, enabled=False):
                         abs_r = self.root_abs_head(self.event_encoder.pooled.float())
+                if self.finger_meas == "abs":
+                    with torch.autocast(device_type=feat.device.type, enabled=False):
+                        abs_f = self.finger_abs_head(self.event_encoder.pooled.float())
                 if h.shape[1] == 0:
                     evidence = torch.zeros(feat.shape[0], 16, 2 * h.shape[-1] + 1,
                                            device=feat.device, dtype=feat.dtype)
@@ -1680,9 +1713,24 @@ class MNISTModel(BaseModel):
                 empty = (batch.counts <= 0).unsqueeze(-1)
                 delta = torch.where(empty, torch.zeros_like(delta), delta)
             out = delta + prev.to(out.dtype)
-        if self.root_meas == "abs":
-            out = torch.cat([out[:, :3].float(), abs_rot, out[:, 6:].float()], dim=-1)
+        if self.root_meas == "abs" or self.finger_meas == "abs":
+            out = out.float()
+            fingers = out[:, 6:]
+            if self.finger_meas == "abs":
+                fingers = self._abs_fingers(abs_f, prev, batch.counts, events.shape[0])
+            out = torch.cat([out[:, :3], abs_rot if self.root_meas == "abs" else out[:, 3:6], fingers], dim=-1)
         return out
+
+    def _abs_fingers(self, f, prev, counts, n_events: int):
+        """S38 `FINGER_MEAS: abs`: the 45 finger parameters `(B, 45)`, float32: the packet's measurement `f`
+        (training), at inference moved from prev by `FINGER_FILTER_GAIN`; an event-free packet holds prev's."""
+        prev_f = prev[:, 6:].float()
+        meas = f
+        if not self.training and self.finger_filter_gain < 1.0:
+            meas = prev_f + self.finger_filter_gain * (f - prev_f)
+        if f.shape[0] == 1 and not self.training:          # batch 1: emptiness is known on the host
+            return prev_f if n_events == 0 else meas
+        return torch.where((counts <= 0).unsqueeze(-1), prev_f, meas)
 
     def _abs_root(self, r, prev, counts, n_events: int):
         """S38 `ROOT_MEAS: abs`: the packet's root rotation `(B, 3)`, float32, which `forward_packet` writes
