@@ -161,7 +161,8 @@ def load_bundle(row_path, extended_path, mode):
                 and mc["ENCODER"] == "sparse_pyramid", f"{mode}/{seed}: measurement convention changed")
         require(mc["U1A_HIDDEN"] == 64 and mc["PREV_RENDER"] is False
                 and mc["ROUTED_READOUT"] is True and mc["ACTIVE_HEAD"] is True
-                and mc["PREDICT_DELTA"] is True, f"{mode}/{seed}: preregistered head interface changed")
+                and mc["PREDICT_DELTA"] is True and mc["ZERO_EVENT_GATE"] is True,
+                f"{mode}/{seed}: preregistered head interface changed")
         fixed_train = {"DEVICES": 2, "BATCH_SIZE_PER_GPU": 512, "ACCUMULATE_GRAD_BATCHES": 1,
                        "NUM_WORKERS": 14, "OPTIMIZER": "adam", "LR": 0.004, "WARMUP_STEPS": 500,
                        "PRECISION": "bf16", "LR_SCHEDULE": "cosine", "TRAINABLE_PREFIXES": ["u1a_readout."]}
@@ -287,6 +288,7 @@ def load_raw(paths, row, configs, mode):
 
 def validate_pair_sources(shared, untied, baseline, shared_cfg, untied_cfg):
     import torch
+    torch.set_num_threads(2)  # bounded CPU-only source comparisons; never create a model
     cache = {}
     def checkpoint(source):
         path = str(resolved(source))
@@ -300,8 +302,13 @@ def validate_pair_sources(shared, untied, baseline, shared_cfg, untied_cfg):
         require(normalize_config(shared_cfg[seed]) == normalize_config(untied_cfg[seed]), f"{seed}: paired recipes differ beyond sharing/init paths")
         reference_cfg = yaml.safe_load(resolved(baseline["provenance"][seed]["config"]["path"]).read_text())
         reference_cfgs[seed] = reference_cfg
-        for section in ("TRACK", "LOSS", "MANO"):
+        for section in ("DATA", "AUG", "TRACK", "LOSS", "MANO"):
             require(shared_cfg[seed].get(section) == reference_cfg.get(section), f"{seed}: S38 {section} protocol differs")
+        candidate_model, reference_model = dict(shared_cfg[seed]["MODEL"]), dict(reference_cfg["MODEL"])
+        for key in ("U1A_MODE", "U1A_HIDDEN", "U1A_FREEZE_ENCODER", "INIT_FROM"):
+            candidate_model.pop(key, None)
+            reference_model.pop(key, None)
+        require(candidate_model == reference_model, f"{seed}: frozen S38 encoder/input/routing contract changed")
         for key in ("ROOT_REF", "ROOT_FILTER_GAIN", "FINGER_FILTER_GAIN"):
             require(shared_cfg[seed]["MODEL"][key] == reference_cfg["MODEL"][key], f"{seed}: S38 {key} differs")
         reference_checkpoint = checkpoint(baseline["provenance"][seed]["checkpoint"]["path"])
