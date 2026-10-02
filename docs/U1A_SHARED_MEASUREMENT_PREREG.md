@@ -26,6 +26,8 @@
 
 只评 explicit last，不选点。固定 `evalx.py eval --ckpt last --split val_core --controls --tf --perturb`，GPU batch1、50ms、原初始化与扰动协议。2k 仅定位，不作为最终采用决定。6k 以同 seed paired shared-minus-untied 为主比较；同时对该 seed S38 6k last 检查测量与 tracking 守护。
 
+raw 指标单独通过 `tools/u1a/probe.py` 捕获滤波之前的参考旋转残差，显式计算 Exp(raw) R_ref，不调用带滤波的 `_abs_root`。使用同样的全部 2590 个固定50ms窗口，仅 nonempty 窗口计入有效 measurement_metrics，保存 coverage 与 live mask/hash；空包属于 hold，没有有效测量。S38 与 U1a 必须使用完全相同的 frame/live mask；不能将 gain=0.5 的 teacher forcing 数字当作 raw，抽样或 smoke 输出不进入门判定。
+
 共享不损伤的操作判据：两个种子 RA 差均不超过 +1.1mm，平均 MPJPE-local 差不超过 +1.1mm，绝对平移误差比不超过 1.1；两个种子的递推根 geodesic overall/global 及 raw 根 geodesic overall/global 均不劣于 +1.0°。raw/teacher-forced root/finger 与递推结果并报在诊断中，不能把滤波收益误认为测量收益。两臂相对 S38 的可用守护：平均 RA 和 local 不劣于 +1.1mm，平移比不超过 1.1，两个种子的递推及 raw 根 overall/global 均不劣于 +1.0°；共享门通过但两臂均未过参照守护，只能称“共享未额外损傷，但接口尚不可用”。只有两种子，结论为当前数据的工程筛查，不宣称总体统计显著。
 
 两者失败：先检查目标切片、mean、左右乘、单位、路由 mask、梯度、冻结和配对数据流，再判断接口重参数化或不足训练预算。只有共享失败：先检查每类梯度方向/幅值、量纲和容量；宽度/参数匹配控制在独立 prereg 更新后执行。U0 合并48D可作低成本接口诊断，不作为最终局部结构。本轮不扩展到消息传播。
