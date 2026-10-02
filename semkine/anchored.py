@@ -129,6 +129,36 @@ class AnchoredTracker(nn.Module):
         return torch.where(empty, prevpos.to(out.dtype), out)
 
 
+class FilteredTracker(nn.Module):
+    """A `prev + delta` tracker with a constant-gain causal filter on its own output (DT round,
+    docs/DT_RENDER_TRACK_PREREG.md): the fed-back state is `prev` moved toward the tracker's output by
+    fixed gains, `anchor_blend(prev, out, ...)` -- geodesic on the root rotation, linear on fingers and
+    translation, i.e. `prev + a (out - prev)` with the root on SO(3). `a = 1` is the tracker itself;
+    `a_rest` is the finger gain and `a_trans` the translation gain (default: the finger gain). An
+    event-free packet holds `prev`. This is the retired delta-trust (which applied one gain to all 51
+    numbers) with the root handled on the manifold and the three blocks gained separately."""
+
+    encoder_name = ""
+
+    def __init__(self, trk_model: nn.Module, a_root: float, a_rest: float, a_trans=None):
+        super().__init__()
+        self.trk_model = trk_model
+        self.a_root, self.a_rest = float(a_root), float(a_rest)
+        self.a_trans = None if a_trans is None else float(a_trans)
+
+    def set_hand_context(self, betas, camera_K):
+        """The evaluators hand the sequence's betas / K to the model under test; forward them."""
+        if hasattr(self.trk_model, "set_hand_context"):
+            self.trk_model.set_hand_context(betas, camera_K)
+
+    def forward(self, x, prevpos, betas=None, camera_K=None):
+        out = self.trk_model(x, prevpos, betas=betas, camera_K=camera_K)
+        prev = prevpos.to(out.dtype)
+        res = anchor_blend(prev, out, self.a_root, self.a_rest, self.a_trans)
+        empty = x.reshape(x.shape[0], -1).abs().sum(dim=1, keepdim=True) <= 0
+        return torch.where(empty, prev, res)
+
+
 class CausalFilter(nn.Module):
     """A state-free arm with the lightest possible state: the fed-back output is the previous output
     moved toward this packet's measurement by constant gains (geodesic on the root, linear on fingers
