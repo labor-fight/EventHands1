@@ -51,6 +51,10 @@ ARMS = {
     # 2 x 2 factorial of the two zero-code factors (C1 x C2a): the interaction, no gate of its own
     "dt_trnos": ({"LOSS": {"TRANS_BETA": 0.01, "ABS_FK_WEIGHT": 1.0}, "AUG": {"DOMRAND": {"SCALE_MIN": 1.0, "SCALE_MAX": 1.0}}},
                  "C1 + C2a (factorial arm): translation at its error scale, no scale augmentation", ""),
+    # 2 x 2 factorial of C1 and C2c (with dt_base, dt_tr, dt_dz): the interaction of the two factors the
+    # in-sample depth diagnostic (F14) points at, no gate of its own
+    "dt_trdz": ({"LOSS": {"TRANS_BETA": 0.01, "ABS_FK_WEIGHT": 1.0}, "AUG": {"DOMRAND": {"SCALE_MODE": "depth"}}},
+                "C1 + C2c (factorial arm): translation at its error scale, depth-consistent scale augmentation", "domrand.py, dataset.py"),
     # F4 mechanism: the event-blind prev_mlp (51 -> 64 -> 51) reads the raw previous state and may have learned a
     # pull of the depth toward the training mean (the training prev noise makes the previous depth unreliable).
     # dt_nopm removes it (zero code: PREVPOS_EMBED is an existing key); dt_pmt keeps it but masks its three
