@@ -81,7 +81,16 @@ def arms(ref: list) -> dict:
         "s38_spdelta": (S37, SP, "sparse pyramid encoder + S37 delta root (routed readout unchanged)"),
         "s38_spabs": (S37, merge(copy.deepcopy(SP), m1(ref)), "sparse pyramid encoder + M1 root"),
         "s38_spe7": (E7, SP, "sparse pyramid with E7's absolute 51D head, no prev (encoder control vs rt_e7)"),
+        # rotation-convention ablation of the candidate (registered before any screening result): the absolute
+        # head regresses the axis-angle itself (reference = identity) under the axis-angle MSE
+        "s38_spabsaa": (S37, merge(merge(copy.deepcopy(SP), m1(ref)), {"MODEL": {"ROOT_REF": [0.0, 0.0, 0.0]},
+                                                                       "LOSS": {"ROOT_LOSS": None}}),
+                        "sparse pyramid + absolute root as plain axis-angle (no reference, MSE): convention ablation"),
     }
+
+
+#: evaluation-only variants: the same checkpoints with the inference filter off (the filter's contribution)
+GAIN1 = ("s38_s37abs", "s38_spabs", "s38_spabsaa")
 
 
 def write(name: str, parent: Path, over: dict, why: str, steps=None) -> Path:
@@ -107,6 +116,16 @@ def main() -> None:
     for name, (parent, over, why) in arms(ref).items():
         print(write(name, parent, over, why).relative_to(REPO))
         print(write(name, parent, over, why, SCREEN_STEPS).relative_to(REPO))
+        if name in GAIN1:
+            g1 = merge(copy.deepcopy(over), {"MODEL": {"ROOT_FILTER_GAIN": 1.0}})
+            why1 = why + "; EVALUATION ONLY: inference filter off"
+            for steps in (None, SCREEN_STEPS):
+                p = write(name, parent, g1, why1, steps)
+                q = p.with_name(p.stem + "_gain1.yaml")
+                p.rename(q)
+                print(q.relative_to(REPO))
+            write(name, parent, over, why)                      # restore the training configs
+            write(name, parent, over, why, SCREEN_STEPS)
 
 
 if __name__ == "__main__":
