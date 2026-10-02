@@ -19,6 +19,8 @@ two-network anchoring adds no more than a second absolute network would (docs/S3
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import torch
 from torch import nn
@@ -42,6 +44,44 @@ def _axis_angle(q: np.ndarray) -> np.ndarray:
     v = q[:, 1:]
     n = np.linalg.norm(v, axis=-1, keepdims=True)
     return v * (2.0 * np.arctan2(n, q[:, :1]) / np.maximum(n, 1e-12))
+
+
+def _pq(a):
+    """axis-angle (3 floats) -> unit quaternion [w, x, y, z]; plain Python floats (float64)."""
+    th = math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2])
+    if th < 1e-12:
+        return [1.0, 0.5 * a[0], 0.5 * a[1], 0.5 * a[2]]
+    s = math.sin(0.5 * th) / th
+    return [math.cos(0.5 * th), a[0] * s, a[1] * s, a[2] * s]
+
+
+def _pmul(a, b):
+    aw, ax, ay, az = a
+    bw, bx, by, bz = b
+    return [aw * bw - ax * bx - ay * by - az * bz, aw * bx + ax * bw + ay * bz - az * by,
+            aw * by - ax * bz + ay * bw + az * bx, aw * bz + ax * by - ay * bx + az * bw]
+
+
+def _paa(q):
+    """unit quaternion -> axis-angle with |phi| <= pi (the w >= 0 hemisphere), as `_axis_angle`."""
+    if q[0] < 0:
+        q = [-v for v in q]
+    n = math.sqrt(q[1] * q[1] + q[2] * q[2] + q[3] * q[3])
+    k = 2.0 * math.atan2(n, q[0]) / n if n > 1e-12 else 2.0
+    return [q[1] * k, q[2] * k, q[3] * k]
+
+
+def root_step(r, ref_q, prev, gain: float):
+    """S38 root measurement on one packet, in float64 Python arithmetic: the measured rotation
+    R = Exp(r) R_ref (`ref_q` its quaternion), then for `gain` < 1 the geodesic step of that size from
+    `prev` toward it, `R_prev Exp(gain Log(R_prev^T R))` -- `anchor_blend`'s slerp. Axis-angle in and
+    out. One packet's worth of scalars: at batch 1 numpy's per-call dispatch costs ten times the math."""
+    q = _pmul(_pq(r), ref_q)
+    if gain < 1.0:
+        qp = _pq(prev)
+        rel = _paa(_pmul([qp[0], -qp[1], -qp[2], -qp[3]], q))
+        q = _pmul(qp, _pq([gain * rel[0], gain * rel[1], gain * rel[2]]))
+    return _paa(q)
 
 
 def anchor_blend(x_trk: torch.Tensor, x_abs: torch.Tensor, a_root: float, a_rest: float,

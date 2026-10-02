@@ -11,6 +11,8 @@ citation. Each arm is a *minimum mechanism*, not a framework port:
 * `event_gnn`    S36 AEGNN proper: the events themselves are the nodes, edges are a causal k-NN in
                  a temporal window, and the message carries the relative `(dx, dy, dt)`. See
                  `event_gnn.py`.
+* `sparse_pyramid` S38: submanifold sparse convolutions on the occupied 4 px cells, three levels
+                 (4 / 8 / 16 px), nodes for the routed readout at the 4 px level. See `sparse_pyramid.py`.
 
 Three graph-shaped arms were removed on 2026-08-28 after being measured to a conclusion. Their
 numbers, and the reasoning that retires them, are in `docs/GNN_ARMS_ARCHIVE_20260828.md`; do not
@@ -58,6 +60,11 @@ def build_frontend(kind: str, **kw) -> nn.Module:
         return EventGNN(**shared,
                         **_pick(kw, "k", "n_layers", "max_nodes", "window", "t_scale",
                                 "node_attrs", "readout"))
+    if kind == "sparse_pyramid":
+        # S38: submanifold sparse convolutions on the occupied cells, four levels (`sparse_pyramid.py`)
+        from .sparse_pyramid import SparsePyramid
+        pyr = {k: v for k, v in _pick(kw, "cell", "channels", "blocks").items() if v is not None}
+        return SparsePyramid(**shared, **pyr, **_pick(kw, "readout", "nodes"))
     raise ValueError(f"unknown frontend {kind!r}")
 
 

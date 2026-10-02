@@ -116,6 +116,10 @@ class EventGNN(nn.Module):
         # mean + max readout. Not built when the consumer reads the nodes directly (S37 mesh
         # query): DDP runs with find_unused_parameters=False, so an unused head is an error.
         self.readout = bool(readout)
+        #: S38: the mean / max pool the readout projects, `(B, 2 * hidden)`, kept after each forward for an
+        #: absolute head that must not share the projected feature (`MNISTModel` ROOT_MEAS abs)
+        self.pooled_dim = 2 * self.hidden
+        self.pooled = None
         if self.readout:
             self.proj = nn.Sequential(
                 nn.Linear(2 * self.hidden, self.feat_dim),
@@ -191,6 +195,7 @@ class EventGNN(nn.Module):
         dev = events.device
         wdtype = self.embed.weight.dtype
         if events.shape[0] == 0:
+            self.pooled = torch.zeros(B, self.pooled_dim, device=dev, dtype=wdtype)
             z = torch.zeros(B, self.feat_dim, device=dev, dtype=wdtype) if self.readout else None
             if return_nodes:
                 e = torch.zeros(B, 0, device=dev, dtype=torch.float32)
@@ -227,7 +232,8 @@ class EventGNN(nn.Module):
             live = mask.sum(1, keepdim=True).clamp_min(1.0).to(h.dtype)
             mean = h.sum(1) / live
             peak = h.masked_fill(~mask.unsqueeze(-1), -1e4).max(1).values
-            out = self.proj(torch.cat([mean, peak * any_node], dim=-1))
+            self.pooled = torch.cat([mean, peak * any_node], dim=-1)
+            out = self.proj(self.pooled)
             # An event-free packet must return exactly zero so `MODEL.ZERO_EVENT_GATE` gates an
             # update that was already nothing.
             out = out * any_node

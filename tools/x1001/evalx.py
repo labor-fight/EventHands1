@@ -380,6 +380,7 @@ def cmd_eval(a):
     tag += "_pert" if a.perturb else ""
     if a.window_mode != "fixed" or a.window_ms != STEP:
         tag += f"_w{a.window_mode}{a.window_ms}" + (f"_n{a.min_events}_x{a.max_window_ms}" if a.window_mode == "adaptive" else "")
+    tag += f"_{a.suffix}" if a.suffix else ""
     np.savez_compressed(run / f"{tag}.npz", **arrays)
     (run / f"{tag}.json").write_text(json.dumps(out, indent=1))
     print("wrote", run / f"{tag}.json", flush=True)
@@ -531,6 +532,8 @@ def main():
     e.add_argument("--window-ms", type=int, default=STEP)
     e.add_argument("--min-events", type=int, default=0)
     e.add_argument("--max-window-ms", type=int, default=300)
+    e.add_argument("--suffix", default="", help="appended to the output name, e.g. to re-evaluate a run on another "
+                   "device without overwriting its recorded evaluation (row: pass it inside --variant)")
     r = sub.add_parser("row")
     r.add_argument("--arm", required=True)
     r.add_argument("--runs", nargs="+", required=True)

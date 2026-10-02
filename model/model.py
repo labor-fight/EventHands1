@@ -85,6 +85,14 @@ class BaseModel(pl.LightningModule):
         #                  restores a constant gradient instead of a vanishing one
         self.abs_fk_weight = float(loss_cfg.get("ABS_FK_WEIGHT", 0.0))
         self.trans_beta = float(loss_cfg.get("TRANS_BETA", 1.0))
+        # S38. How `mse_51d` scores the root rotation. `mse_aa` (default, every earlier arm): the MSE of
+        # the three axis-angle numbers. `chordal`: ||R_pred - R_gt||_F^2 / 6, which equals that MSE for a
+        # small error about the rotation axis (theta^2 / 3) but has no seam: the training roots sit at a
+        # median |aa| of 132 deg and 0.7 % of them above 170 deg, where the axis-angle of one rotation
+        # jumps between two far-apart vectors.
+        self.root_loss = str(loss_cfg.get("ROOT_LOSS", "mse_aa"))
+        if self.root_loss not in ("mse_aa", "chordal"):
+            raise ValueError(f"LOSS.ROOT_LOSS must be mse_aa or chordal, got {self.root_loss!r}")
 
     def forward(self, x, prevpos):
         raise NotImplementedError()
@@ -196,6 +204,12 @@ class BaseModel(pl.LightningModule):
             }
 
         l_local, l_root, l_t = split_losses(pred, y, self.pose_repr)
+        if self.root_loss == "chordal":
+            from semkine.lie import so3_exp
+            with torch.autocast(device_type=pred.device.type, enabled=False):
+                Rp = so3_exp(pred[:, self.slices.root].float())
+                Rg = so3_exp(y[:, self.slices.root].float())
+                l_root = (Rp - Rg).square().sum(dim=(-2, -1)).mean() / 6.0
         loss = (
             self.lambda_pose * l_local
             + self.lambda_r * l_root
@@ -646,6 +660,8 @@ class MNISTModel(BaseModel):
             "ACTIVE_HEAD", "ACTIVE_FEAT_DIM", "ACTIVE_HIDDEN",
             "ENCODER", "ENCODER_HIDDEN", "ENCODER_FEAT", "ENCODER_CELL", "ENCODER_LAYERS",
             "ENCODER_K", "ENCODER_MAX_NODES", "ENCODER_WINDOW", "ENCODER_T_SCALE",
+            # S38 sparse pyramid (`semkine.sparse_pyramid`) and root measurement
+            "ENCODER_CHANNELS", "ENCODER_BLOCKS", "ROOT_MEAS", "ROOT_REF", "ROOT_FILTER_GAIN",
             "DISTILL_WEIGHT", "DISTILL_CKPT",
             # x1001 E7
             "POSE_HEAD_HIDDEN",
@@ -726,6 +742,32 @@ class MNISTModel(BaseModel):
             raise ValueError(f"MODEL.ROOT_FUSION must be concat or per_joint, got {self.root_fusion!r}")
         if self.root_fusion == "per_joint" and not self.routed:
             raise ValueError("ROOT_FUSION: per_joint fuses the routed joint evidence; it needs ROUTED_READOUT")
+        # S38 root measurement (docs/S38_ROOT_TRACKING_VERDICT.md). `delta` is S37: the root rotation is
+        # `prev + delta` in axis-angle, the delta read off [f; routed evidence]. `abs`: the root rotation
+        # is measured per packet from the encoder's state-free pool alone, as a rotation about the fixed
+        # reference `ROOT_REF` (axis-angle, camera frame; the training-set mean root),
+        # R = Exp(r) R_ref, so the head regresses a deviation that is small for nearly every sample
+        # (median 15 deg) instead of an axis-angle near its pi seam. Nothing of `prev` reaches it: the
+        # routed evidence depends on prev, and an absolute head that shares the belief's source shares
+        # its error (docs/ARCHITECTURE_DECISION.md B3). Translation and fingers stay S37's.
+        # `ROOT_FILTER_GAIN` a < 1 (inference only) makes the fed-back root the geodesic step of size a
+        # from the previous output toward the measurement, R_t = R_{t-1} Exp(a Log(R_{t-1}^T R_meas)),
+        # the constant-gain filter of `semkine.anchored.CausalFilter`. Training sees the measurement.
+        self.root_meas = str(model_cfg.get("ROOT_MEAS", "delta")).lower()
+        if self.root_meas not in ("delta", "abs"):
+            raise ValueError(f"MODEL.ROOT_MEAS must be delta or abs, got {self.root_meas!r}")
+        self.root_filter_gain = float(model_cfg.get("ROOT_FILTER_GAIN", 1.0))
+        if not 0.0 < self.root_filter_gain <= 1.0:
+            raise ValueError("MODEL.ROOT_FILTER_GAIN must be in (0, 1]")
+        if self.root_meas == "abs":
+            if not (self.routed and self.root_fusion == "concat" and self.predict_delta):
+                raise ValueError("ROOT_MEAS: abs replaces the root rotation of the S37 routed delta readout; "
+                                 "it needs ROUTED_READOUT, ROOT_FUSION concat and PREDICT_DELTA")
+            ref = model_cfg.get("ROOT_REF")
+            if ref is None or len(ref) != 3:
+                raise ValueError("ROOT_MEAS: abs needs MODEL.ROOT_REF, the reference root as 3 axis-angle numbers")
+        elif self.root_filter_gain != 1.0:
+            raise ValueError("ROOT_FILTER_GAIN filters an absolute root measurement; set ROOT_MEAS: abs")
         # S37 mesh query (2026-09-07, the user's design). The previous state enters in one form
         # only -- its FK mesh -- and the mesh reads the graph: fixed query vertices gather node
         # features, the graph's edge (local motion) summary and event offsets inside a fixed
@@ -887,7 +929,9 @@ class MNISTModel(BaseModel):
                 hidden=int(model_cfg.get("ENCODER_HIDDEN", 128)),
                 feat_dim=feat,
                 extra_channels=extra,
-                cell=int(model_cfg.get("ENCODER_CELL", 16)),
+                cell=int(model_cfg.get("ENCODER_CELL", 4 if self.encoder_name == "sparse_pyramid" else 16)),
+                channels=model_cfg.get("ENCODER_CHANNELS"),
+                blocks=model_cfg.get("ENCODER_BLOCKS"),
                 n_layers=int(model_cfg.get("ENCODER_LAYERS", 2)),
                 # S36 `event_gnn`. The events are the nodes, so the cost knobs are how many of them
                 # survive per packet, how far back the causal neighbour search looks, and how many
@@ -899,6 +943,7 @@ class MNISTModel(BaseModel):
                 t_scale=float(model_cfg.get("ENCODER_T_SCALE", 1.0)),
                 node_attrs=str(model_cfg.get("ENCODER_NODE_ATTRS", "token7")),
                 readout=not self.mesh_query,
+                nodes=self.routed or self.mesh_query,
             )
             self.conv1 = None
             self.rn = None
@@ -921,6 +966,26 @@ class MNISTModel(BaseModel):
                         if self.root_fusion == "per_joint":
                             from semkine.routed_readout import PerJointRootFusion
                             self.root_fusion_head = PerJointRootFusion(feat, ev_dim, hid)
+                        elif self.root_meas == "abs":
+                            # S38: the routed head keeps the translation; the rotation is measured
+                            # from `feat` alone. Zero-initialised: an untrained head says R_ref.
+                            self.root_head = nn.Linear(feat + 16 * ev_dim, 3)
+                            # The head reads the encoder's pool (`event_encoder.pooled`), not the projected
+                            # `feat`: `feat` also feeds the routed head's translation, whose loss dominates
+                            # the gradient and shut the projection off in the 500-step gate (0-18 % of its
+                            # units alive, a constant measurement). LayerNorm + GELU: no unit can die whole.
+                            pdim = int(self.event_encoder.pooled_dim)
+                            self.root_abs_head = nn.Sequential(nn.LayerNorm(pdim), nn.Linear(pdim, hid), nn.GELU(),
+                                                               nn.Linear(hid, 3))
+                            nn.init.zeros_(self.root_abs_head[-1].weight)
+                            nn.init.zeros_(self.root_abs_head[-1].bias)
+                            from semkine.anchored import _pq
+                            from semkine.lie import so3_exp
+                            ref = [float(v) for v in model_cfg["ROOT_REF"]]
+                            self.register_buffer("root_ref_R", so3_exp(torch.tensor(ref, dtype=torch.float32)),
+                                                 persistent=False)
+                            #: the same reference as a float64 quaternion, for the host-side inference path
+                            self.root_ref_q = _pq(ref)
                         else:
                             self.root_head = nn.Linear(feat + 16 * ev_dim, 6)
                         head_in = ev_dim
@@ -964,10 +1029,11 @@ class MNISTModel(BaseModel):
             nn.init.zeros_(self.prev_mlp[2].weight)
             nn.init.zeros_(self.prev_mlp[2].bias)
 
-        if (self.routed or self.mesh_query) and not (self.encoder_name == "event_gnn"
+        node_encoders = ("event_gnn", "sparse_pyramid") if self.routed else ("event_gnn",)
+        if (self.routed or self.mesh_query) and not (self.encoder_name in node_encoders
                                                      and self.active_head):
-            raise ValueError("ROUTED_READOUT / MESH_QUERY read event_gnn node features into the "
-                             "active joint heads; they need MODEL.ENCODER=event_gnn and ACTIVE_HEAD")
+            raise ValueError("ROUTED_READOUT / MESH_QUERY read event_gnn (routed: or sparse_pyramid) node "
+                             "features into the active joint heads; they need that ENCODER and ACTIVE_HEAD")
         self._ctx_betas = None
         self._ctx_K = None
         if self.prev_render or self.routed or self.mesh_query:
@@ -1253,6 +1319,10 @@ class MNISTModel(BaseModel):
             root = self.root_head(torch.cat(parts, dim=-1))
         if root_add is not None:
             root = root + root_add.to(root.dtype)
+        if root.shape[-1] == 3:
+            # S38 ROOT_MEAS abs: the routed head writes the translation only; forward_packet sets the
+            # rotation from the absolute measurement
+            root = torch.cat([root, torch.zeros_like(root)], dim=-1)
         prev = prevpos.to(ref.dtype)
         cols = [root]
         for k, head in enumerate(self.joint_heads):
@@ -1544,10 +1614,15 @@ class MNISTModel(BaseModel):
                 from semkine.routed_readout import pool_joint_evidence
                 feat, h, _, px, py, mask = self.event_encoder(events, ptr, batch.delta_t_s, extra,
                                                               return_nodes=True)
+                if self.root_meas == "abs":
+                    with torch.autocast(device_type=feat.device.type, enabled=False):
+                        abs_r = self.root_abs_head(self.event_encoder.pooled.float())
                 if h.shape[1] == 0:
                     evidence = torch.zeros(feat.shape[0], 16, 2 * h.shape[-1] + 1,
                                            device=feat.device, dtype=feat.dtype)
                     self.route_stats = {}
+                    if self.root_meas == "abs":
+                        abs_rot = self._abs_root(abs_r, prev, batch.counts, events.shape[0])
                 else:
                     prev_route = prev if self.route_prev_override is None else \
                         self.route_prev_override.to(prev.device, prev.dtype)
@@ -1575,6 +1650,9 @@ class MNISTModel(BaseModel):
                         root_add = self.root_innov_head(q, g)
                     else:
                         a, dist, _ = self._route_nodes(px, py, mask, prev_route, betas_f, k_f)
+                    if self.root_meas == "abs":
+                        # read back after the routing, whose own host syncs have already drained the GPU
+                        abs_rot = self._abs_root(abs_r, prev, batch.counts, events.shape[0])
                     evidence, count = pool_joint_evidence(h, a, mask)
                     live = mask.sum(1).clamp_min(1).to(torch.float32)
                     self.route_stats = {
@@ -1602,7 +1680,40 @@ class MNISTModel(BaseModel):
                 empty = (batch.counts <= 0).unsqueeze(-1)
                 delta = torch.where(empty, torch.zeros_like(delta), delta)
             out = delta + prev.to(out.dtype)
+        if self.root_meas == "abs":
+            out = torch.cat([out[:, :3].float(), abs_rot, out[:, 6:].float()], dim=-1)
         return out
+
+    def _abs_root(self, r, prev, counts, n_events: int):
+        """S38 `ROOT_MEAS: abs`: the packet's root rotation `(B, 3)`, float32, which `forward_packet` writes
+        into the root-rotation columns: the measurement R = Exp(r) R_ref, `r = root_abs_head(pool)` read off
+        the encoder's state-free pool; an event-free packet holds prev's.
+        At inference, `ROOT_FILTER_GAIN` a < 1 then moves the fed-back root from prev toward the
+        measurement by a geodesic step of size a, R_t = R_{t-1} Exp(a Log(R_{t-1}^T R)) (the slerp of
+        `semkine.anchored.anchor_blend`); every other column is the network's own. Returned in float32:
+        under bf16 the axis-angle near 130 deg would be rounded to ~0.5 deg.
+
+        Training composes on the GPU (differentiable, float32). Inference composes the same rotations
+        in float64 Python arithmetic on the host, one round trip per packet (`anchored.root_step`): at
+        batch 1 the generic SO(3) maps cost ~2 ms of kernel launches (docs/S37_ROOT_TRACKING_VERDICT.md
+        section 5.5) and numpy's per-call dispatch ~0.1 ms. The two paths agree to float32 precision
+        (tests/test_s38.py)."""
+        prev = prev.float()
+        if self.training:
+            from semkine.lie import so3_exp, so3_log
+            with torch.autocast(device_type=r.device.type, enabled=False):
+                rot = so3_log(so3_exp(r) @ self.root_ref_R)
+            return torch.where((counts <= 0).unsqueeze(-1), prev[:, 3:6], rot)
+        from semkine.anchored import root_step
+        if r.shape[0] == 1:                       # batch 1: emptiness is known on the host
+            rows = torch.cat([r, prev[:, 3:6]], dim=-1).tolist()
+            live = [n_events > 0]
+        else:
+            rows = torch.cat([r, prev[:, 3:6], counts.view(-1, 1).float()], dim=-1).tolist()
+            live = [v[6] > 0 for v in rows]
+        vals = [root_step(v[0:3], self.root_ref_q, v[3:6], self.root_filter_gain) if ok else v[3:6]
+                for v, ok in zip(rows, live)]
+        return torch.tensor(vals, dtype=torch.float32).to(r.device, non_blocking=True)
 
     def forward(self, x, prevpos, betas=None, camera_K=None):
         if self.encoder_name:
