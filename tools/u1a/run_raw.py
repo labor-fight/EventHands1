@@ -39,6 +39,11 @@ while queue or active:
         mem = int(subprocess.check_output(['nvidia-smi',f'--id={gpu}','--query-gpu=memory.used',
                    '--format=csv,noheader,nounits'],text=True).strip())
         assert mem < 1024, f'raw GPU {gpu} occupied'
+        uuid = subprocess.check_output(['nvidia-smi',f'--id={gpu}','--query-gpu=uuid',
+                    '--format=csv,noheader'],text=True).strip()
+        apps = subprocess.check_output(['nvidia-smi','--query-compute-apps=gpu_uuid',
+                    '--format=csv,noheader'],text=True).splitlines()
+        assert uuid not in apps, f'raw GPU {gpu} has an active compute process'
         run = queue.pop(0)
         directory = R/'outputs/semkine'/run
         target = directory/'probe_raw_last.json'

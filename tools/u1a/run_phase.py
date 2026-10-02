@@ -19,9 +19,12 @@ lock = open(O/'phase.lock', 'w')
 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
 seeds = [3407] if args.phase == 'debug' else [3407, 3408]
 specs = [(seed, mode) for seed in seeds for mode in ['shared', 'untied']]
-q = subprocess.check_output(['nvidia-smi', '--query-gpu=index,memory.used', '--format=csv,noheader,nounits'], text=True)
-mem = {int(l.split(',')[0]): int(l.split(',')[1]) for l in q.strip().splitlines()}
+q = subprocess.check_output(['nvidia-smi', '--query-gpu=index,uuid,memory.used', '--format=csv,noheader,nounits'], text=True)
+mem = {int(l.split(',')[0]): int(l.split(',')[2]) for l in q.strip().splitlines()}
+uuids = {int(l.split(',')[0]): l.split(',')[1].strip() for l in q.strip().splitlines()}
+apps = subprocess.check_output(['nvidia-smi', '--query-compute-apps=gpu_uuid', '--format=csv,noheader,nounits'], text=True).splitlines()
 assert all(mem[g] < 1024 for g in range(2*len(specs))), 'GPU is occupied; do not share another job'
+assert not any(uuids[g] in apps for g in range(2*len(specs))), 'GPU has an active compute process'
 rows = []
 processes = []
 for i, (seed, mode) in enumerate(specs):
