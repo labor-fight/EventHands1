@@ -46,14 +46,15 @@ def packets(cfg, dev, d, seq, n):
     tsub = np.load(root / d / f"{seq}_tsub.npy", mmap_mode="r")
     betas = torch.tensor(aux["betas"], dtype=torch.float32, device=dev).view(1, -1)
     K = torch.tensor(aux["camera_K"], dtype=torch.float32, device=dev).view(1, 3, 3)
+    # protocol steps of every valid run, `n` of them evenly spread over the sequence (the first seconds of a
+    # recording are a near-still hand with few events, and would understate an event-dependent cost)
+    ends = [int(e) for a, b in np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2)
+            for e in np.arange(a + STEP - 1, b, STEP, dtype=np.int64)]
+    pick = np.linspace(0, len(ends) - 1, min(n, len(ends))).round().astype(int)
     out = []
-    for a, b in np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2):
-        for end in np.arange(a + STEP - 1, b, STEP, dtype=np.int64):
-            prev = torch.from_numpy(pos51[int(end) - STEP + 1].copy()).view(1, -1).to(dev)
-            out.append(ET.make_eval_packet(ET._window_events(events, offsets, tsub, int(end), STEP), prev, betas, K,
-                                           STEP, dev))
-            if len(out) >= n:
-                return out, betas, K
+    for end in (ends[i] for i in pick):
+        prev = torch.from_numpy(pos51[end - STEP + 1].copy()).view(1, -1).to(dev)
+        out.append(ET.make_eval_packet(ET._window_events(events, offsets, tsub, end, STEP), prev, betas, K, STEP, dev))
     return out, betas, K
 
 
@@ -100,7 +101,7 @@ def macs_real(cfg, items, limit):
     m = MNISTModel(cfg).eval()
     w = _W(m)
     out = []
-    for it in items[:limit]:
+    for it in items[:: max(1, len(items) // limit)][:limit]:
         cpu = it.to("cpu")
         if hasattr(m, "set_hand_context"):
             m.set_hand_context(cpu.betas, cpu.camera_K)
