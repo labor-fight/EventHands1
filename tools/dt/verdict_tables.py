@@ -23,6 +23,7 @@ LABEL = [
     ("dt_tr", "C1 平移监督（TRANS_BETA 0.01，ABS_FK 1）"),
     ("dt_nos", "C2a 去掉尺度增强"),
     ("dt_dz", "C2c 深度一致的尺度增强"),
+    ("dt_acc", "C4 加速度损失（三连窗，ACCEL_WEIGHT 1）"),
     ("dt_trnos", "C1 + C2a"),
     ("dt_trdz", "C1 + C2c"),
     ("dt_nopm", "C9a 去掉 prev_mlp"),
