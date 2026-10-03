@@ -24,7 +24,7 @@
 > 同日用户定义的 **S37 FK 图**（`S37_FKGRAPH_PREREG.md`）−1.07 mm 打平，成本 1/10，作对照与成本参照保留。
 > 2026-09-18 用户手绘的 **S37 网格图**（`S37_MESHGRAPH_PREREG.md`，整张 FK mesh 作图 + LBS pooling）两种子分裂
 > （20.48 / 29.30），不采纳；不稳定全在 root 旋转读出，手指读出稳定，保留作对照。
-> EventGNN 线上仍有效的文档是上述 prereg；文献以 `docs/research/dir12_20260928/` 为准。
+> EventGNN 线上仍有效的文档是上述 prereg；文献以 `docs/网络结构分析.md` 的附录 A / B 为准（原 `docs/research/dir12_20260928/` 已于 2026-10-03 并入该文，原文件已删除）。
 
 ## 1. 当前可信事实
 
@@ -209,8 +209,7 @@ docs/S37_ROUTED_READOUT_PREREG.md           # 当前臂
 docs/S37_FKGRAPH_PREREG.md / S37_MESHGRAPH_PREREG.md / S37_MESHQ_PREREG.md
 docs/S37_ROOT_INNOVATION_PREREG.md / S37_ROTW_CNNROOT_PREREG.md
 docs/S37_XYZ_CANDIDATE_20260929.md        # XYZ 候选：结构、信息检查、训练准入
-docs/网络结构分析.md                        # S37 结构问题、文献对照、下一轮实验（两轮）
-docs/research/dir12_20260928/               # 当前文献
+docs/网络结构分析.md                        # S37 结构问题、文献对照、下一轮实验（两轮）；附录 A–D 是全部文献调研的浓缩汇总
 ```
 
 仍有唯一数字、不并入本文：
@@ -221,7 +220,7 @@ docs/POSITIONING_VS_E3DPSM.md               # 常数增益融合不能当创新�
 docs/S27_RETENTION_IS_NOT_A_CONTROL_VARIABLE.md  # 保持率惩罚干预失败
 ```
 
-2026-09-29 删除（结论已在本文，或被 `docs/research/dir12_20260928/` 重读覆盖）：`experiment_history.md`、`PLAN_SELECTION_VERDICT_20260825.md`、`ASYNC_SPARSE_SOTA_MASTER_VERDICT_20260826.md`、`debug_e55b_unroll_20260825.md`、`EVENT_GNN_SURVEY_20260829.md`、`semkine/{EXPERIMENT_LOG,CLAIM_MATRIX,FAILURE_CASES,ARCHITECTURE_AUDIT}.md`。
+2026-09-29 删除（结论已在本文，或被当时的文献调研重读覆盖；该调研现为 `docs/网络结构分析.md` 附录 A）：`experiment_history.md`、`PLAN_SELECTION_VERDICT_20260825.md`、`ASYNC_SPARSE_SOTA_MASTER_VERDICT_20260826.md`、`debug_e55b_unroll_20260825.md`、`EVENT_GNN_SURVEY_20260829.md`、`semkine/{EXPERIMENT_LOG,CLAIM_MATRIX,FAILURE_CASES,ARCHITECTURE_AUDIT}.md`。
 
 2026-09-24 已删（内容已进本文，无独立数字）：`EVENT_KINEGRAPH_MASTER_PLAN.md`、`EVENT_KINEGRAPH_EXECUTION_LOG.md`、`EXPERIMENT_SYSTEMATIC_SUMMARY.md`、`debug_closed_loop_diagnosis.md`、`semkine/FINAL_REPORT.md`。
 
@@ -683,3 +682,10 @@ CPU 测试 70 项通过；迁移后评测/滤波 CLI、调度器导入和默认�
 - `evalx.py` 新加的抖动块曾让 `aggregate_runs`（`evalx.py row`）崩溃，是评审发现的，已修。
 - `tools/make_s36_row.py` 只适用于 S36 头部布局，稠密 CNN 臂的主行要用 `evalx.py row`。
 - 审计（数字、协议各一份）之后发现：结论文档里出现过"确认"过强的措辞、门判定表的机械结论与采纳结论不一致、预注册里有两处数字笔误和一个不存在的文件引用；已在预注册 §11 登记更正，结论文档已改。教训：生成的表和手写结论之间的差别要在表后明说，机制解释不写成"确认"。
+
+## 2026-10-03：文献调研文件并入 `docs/网络结构分析.md`
+
+按用户要求把 `docs/research/` 下的 29 个文献调研文件（`dir12_20260928/` 8 个、`lit_hyp_20260929/` 21 个，合计约 790 KB）汇总进 `docs/网络结构分析.md` 的附录 A–D（A：方向 1/2 调研；B：第二轮调研；C：去重文献总表，415 篇；D：DT 轮补充文献），然后删除原文件。
+- 汇总方式：每个原文件由一个子代理浓缩成约 15–30%（保留文献的会议 / 年份 / arXiv 编号、数字、结论、实验设计与反证条件、原文的局限与证据等级标签），再由另一个独立子代理对照原文逐条核对并就地修正（共修正不被原文支持的内容、过度表述和遗漏数十处）；文献总表另做了 83 行抽查（4 行修正）。浓缩不是逐字复制，需要逐字原文时用 git 取回。
+- 取回：`git show 4b8036e:docs/research/<目录>/<文件名>`（4b8036e 是删除前的最后一个提交，29 个文件都在里面）；整个目录 `git checkout 4b8036e -- docs/research`。
+- 未动：`.experiments/lit_hyp_20260929/` 下的脚本和产物；`docs/POSITIONING_VS_E3DPSM.md`、`docs/ARCHITECTURE_DECISION.md`（带文献对照但不是调研文件）。
