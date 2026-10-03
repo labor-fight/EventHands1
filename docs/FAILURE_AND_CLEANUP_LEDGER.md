@@ -631,3 +631,52 @@ C1 递推 RA 21.0400，C0 22.1533，差 1.1133 mm，三点逐点比较均优于 
 ## 2026-09-30：XYZ C1 完整双种子训练完成
 
 未通过预注册精度采纳门；均值差 -0.7508 mm（打平）。详见 `docs/S37_XYZ_FULL_PREREG_20260930.md` §5；主行为 `outputs/semkine/s37_xyz_c1_full_main_row.json`。保留原短训产物，当前臂配置未自动改动。
+
+## 2026-10-02：纠正目录最优方法汇报遗漏，补回历史 CNN 渲染跟踪参照
+
+用户指出遗漏 EventHands-Track（render + SO3 + FK + DomRand），历史 local 13.49。
+核对 `outputs/hand_data51/main_table.json`、`report_domrand_2x2.json` 和原始逐序列评测：
+13.48794 来自 `track_render51_dr_so3fk` seed 0、step 3000；旧主表选择两个副本中递推 RA 较差的副本，不是双种子均值。
+seed 0 / 1 均值：local 14.24549、global 10.46639、递推 RA 12.22316（12.25402 / 12.19231）。
+历史语义版本 `track_render51_dr_sem` 双副本递推均值 12.13963，与现代 `rt_cnnf` 3407 / 3408 均值 12.14495 几乎一致。
+因此撤回遗漏历史路线后的“全目录精度最好”说法；不能据这些微小差异声称 CNN + 平滑有显著精度优势，后者的主要优势是记录中的延迟。
+
+原始工程的 `model/fastevc.py` 从数据根的 `splits.json` 读取训练/验证列表；保存的配置、训练日志与 4544300 样本对应这个数据根。
+只读核对保留的 `splits.json` 与当前 `splits_semkine.json`，训练集合均为同一 9 人 / 72 序列，验证均为 zgz 两序列；旧划分文件时间早于该次训练。
+旧 `training_metadata.json` 本身没有保存受试者列表，以上属于保存源码、配置、日志与划分的交叉核对，不补写原始元数据，也不修改任何划分。
+
+通过 `tools/make_s36_row.py` 的缓存适配生成
+`outputs/semkine/historical_track_render51_dr_{so3fk,sem}_cached_report_main_row.json`：精度来自原始已完成评测，按历史 seeds 0 / 1 汇总；
+延迟沿用旧 `main_table.json` 标定值，完整标准层 MACs 在旧 CNN 主干记录上补入 51→64→51 的 prev_mlp（6528 MACs）。
+每个产物记录评测来源和 SHA256、缓存汇总说明及划分核对证据；未重训、重评或重测延迟。
+现代行与历史行的种子、选点方式、预训练及训练预算不同，此次只补齐历史参照，不作严格配对显著性结论，也不更改当前登记臂 `s37_routed`。
+
+## 2026-10-03：退役实验内容清理（仅当前项目）
+
+按用户确认的范围，删除当前项目内退役实验的专属工具、配置、诊断文档、六份八人划分日志及旧缓存；清除现有文档和记录中的旧入口及退役结果引用。
+当前实验共用的评测、滤波和调度工具迁到 `tools/tracking/`，有效九人配方迁到 `configs/semkine_recipes/`，同步更新 RT、S38、U1A 的调用及保留测试。
+
+核对清理前快照：84 份现有配置的解析值、30 份主行精度与成本数值均未改变；30 份 RT/S38 配置重新生成后与原配置一致。
+914 份二进制产物大小和时间戳未改变，另外四份 `last.ckpt` 由正在运行的 U1A 训练正常更新。未停止训练，也未改动数据划分或当前登记臂。
+CPU 测试 70 项通过；迁移后评测/滤波 CLI、调度器导入和默认路径、Python 语法及 shell 语法检查通过。
+
+## 2026-10-03：DT 轮（EventHands-Track render + SO3 + FK + DomRand 的抖动 / 误差 / 参数量）
+
+结论见 `docs/DT_RENDER_TRACK_VERDICT.md`，预注册见 `docs/DT_RENDER_TRACK_PREREG.md`（§10 起是看过结果之后的追加）。统一配方、6000 步、zgz（开发集 = 测试集）、两个种子 3407 / 3408 配对 `dt_base`。
+
+**没有帮助主表的臂**（RA 相对 `dt_base` 的两个种子均值差）：
+- `dt_tr`（平移 SmoothL1 beta 0.01 + 绝对 FK）+2.5 mm；绝对 MPJPE 只 −1.6 mm，抖动（绝对口径）−44%。
+- `dt_nos`（去掉尺度增强）+1.0 mm；`dt_nopm`（去掉 `prev_mlp`）+2.5 mm；`dt_cam`（射线平面输入）+1.3 mm。
+- `dt_so3c`（根旋转在 SO(3) 上合成）+0.1 mm，根旋转误差不变，eager 延迟 +45%。
+- `dt_acc`（二阶差分加速度损失）+0.27 mm，绝对 MPJPE +22 mm，根对齐口径的抖动 +4%：它只是平移平滑器。
+- `dt_w05`（半宽 ResNet18）RA 高 3.8%。`dt_pmt` 只剩种子 3408（RA +0.1 mm），没有做配对判定。
+
+**有效的**：`dt_dz`（深度一致的尺度增强）绝对 MPJPE −21.6 mm、RA 持平；`dt_l3`（去掉 layer4）参数 −75%、RA 不变差；二者组合 `dt_dz_l3` RA 10.07 mm（`dt_base` 11.28）、参数 2.80 M。两次护栏偏离（`dt_dz` 的 G6、`dt_l3` 的 G3b / G4b）登记在预注册 §10.2、§10.8。
+
+**中断与撤销**：用户决定缩回原计划规模（§10.5），`dt_dz_w05`、`dt_dz_l3` 第一版、`dt_trdz` 种子 3409、`dt_pmt` 种子 3407 重排队在启动前取消；12:35 为空出 GPU 0、1 停掉 `dt_cam_s3407`、`dt_pmt_s3407`（各约 50 分钟，未跑完的输出在 `outputs/semkine/_killed_*`）。
+
+**过程教训**：
+- 用量限制在 09:10–11:40 把子代理和主循环一起停了，期间任务队列空了，几张 GPU 空转了一个多小时；队列要储备够几小时的活。
+- 给工作流里的子代理发消息会复制出第二个实例，两个实例会互相改文件；不要给运行中的工作流子代理发消息。
+- `evalx.py` 新加的抖动块曾让 `aggregate_runs`（`evalx.py row`）崩溃，是评审发现的，已修。
+- `tools/make_s36_row.py` 只适用于 S36 头部布局，稠密 CNN 臂的主行要用 `evalx.py row`。
