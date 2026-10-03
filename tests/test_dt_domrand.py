@@ -740,7 +740,7 @@ def test_dt_arm_configs_carry_the_new_key():
         pytest.skip("configs/dt not available")
     parsed = {f.stem: DR.DomRandConfig.from_cfg(load_config(f)) for f in files}   # raises on unknown keys
     for name, d in parsed.items():
-        want = "depth" if name.replace("_2k", "") in ("dt_dz", "dt_trdz") else "focal"
+        want = "depth" if name.replace("_2k", "").startswith(("dt_dz", "dt_trdz")) else "focal"
         assert d.scale_mode == want, name
     if "dt_base" in parsed and "dt_dz" in parsed:
         assert dataclasses.replace(parsed["dt_base"], scale_mode="depth") == parsed["dt_dz"]
