@@ -1,4 +1,4 @@
-# S37 root input fusion (2026-09-29, the user's variant; docs/S37_EDGE6_ROOTFUSE_PREREG_20260929.md).
+# S37 root input fusion (2026-09-29, the user's variant; docs/S37_EXPERIMENT_RECORDS.md [EDGE6]).
 # Seed 3407; seed 3408 is this file with `--seed 3408`.
 #
 # Single variable against `s37_routed_s3407.yaml`: MODEL.ROOT_FUSION concat -> per_joint. The S37

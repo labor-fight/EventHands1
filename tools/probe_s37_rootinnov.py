@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S37 root innovation, stage 1: the pre-registered mechanism gates (docs/S37_ROOT_INNOVATION_PREREG.md §3).
+"""S37 root innovation, stage 1: the pre-registered mechanism gates (docs/S37_EXPERIMENT_RECORDS.md [ROOTINNOV] §3).
 
 On each seed's selected checkpoint, zgz protocol (val_core, 50 ms), nothing trains:
 

@@ -15,7 +15,7 @@ citation. Each arm is a *minimum mechanism*, not a framework port:
                  (4 / 8 / 16 px), nodes for the routed readout at the 4 px level. See `sparse_pyramid.py`.
 
 Three graph-shaped arms were removed on 2026-08-28 after being measured to a conclusion. Their
-numbers, and the reasoning that retires them, are in `docs/GNN_ARMS_ARCHIVE_20260828.md`; do not
+numbers, and the reasoning that retires them, are in `docs/ARCHIVED_FAILURE_RECORDS.md` [GNN-ARMS]; do not
 reintroduce any of them without reading it first.
 
 * `aegnn_lite`   a full-packet `torch.cdist` k-NN. Structural NO-GO: `O(N^2)`, and packets reach

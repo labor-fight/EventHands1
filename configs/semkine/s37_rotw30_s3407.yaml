@@ -1,4 +1,4 @@
-# S37 rotation loss weight x30 (2026-09-29, docs/S37_ROTW_CNNROOT_PREREG.md): the S37 routed readout
+# S37 rotation loss weight x30 (2026-09-29, docs/S37_EXPERIMENT_RECORDS.md [ROTW]): the S37 routed readout
 # retrained from scratch with LOSS.LAMBDA_R 1800 instead of 60, nothing else. Measured on the S37 training
 # distribution, global rotation carries 15.5% of the 51-D MSE while dominating RA (per-dim RA sensitivity
 # ~350x a finger dimension's, per-dim weight 2x); x30 moves its loss share to ~85%.

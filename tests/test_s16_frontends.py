@@ -137,7 +137,7 @@ def test_parameter_budget_vs_scan():
 
 #: `cell_gnn` at the settings S34 trained (hidden 256, feat 512, 4 layers, 8 px cells). The class
 #: was deleted with the arm; the count is kept so the budget gate below still has its reference.
-#: See `docs/GNN_ARMS_ARCHIVE_20260828.md`.
+#: See `docs/ARCHIVED_FAILURE_RECORDS.md` [GNN-ARMS].
 RETIRED_CELLGNN_PARAMS = 1_053_952
 
 

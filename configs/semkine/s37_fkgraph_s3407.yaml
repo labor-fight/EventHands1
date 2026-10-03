@@ -4,7 +4,7 @@
 # Protocol note: trains on the nine-subject default split (splits_semkine.json) and validates,
 # selects and reports on the held-out subject zgz only (docs/FAILURE_AND_CLEANUP_LEDGER.md).
 #
-# The arm under test (docs/S37_FKGRAPH_PREREG.md, `semkine/fk_graph.py`):
+# The arm under test (docs/S37_EXPERIMENT_RECORDS.md [FKGRAPH], `semkine/fk_graph.py`):
 #   * graph = FK of prev: 16 joint nodes (skinning-weighted surface centroids) + 192 sampled
 #     surface vertices (12 per joint, farthest-point in the rest pose) + 1 background node; edges
 #     along the rest-pose mesh (k-NN 6), along the skinning weights (top-2 joints of a vertex) and

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S37 rotation-loss-weight arms (docs/S37_ROTW_CNNROOT_PREREG.md): single variable against S37."""
+"""S37 rotation-loss-weight arms (docs/S37_EXPERIMENT_RECORDS.md [ROTW]): single variable against S37."""
 from __future__ import annotations
 
 import subprocess

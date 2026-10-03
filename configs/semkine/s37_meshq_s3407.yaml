@@ -6,7 +6,7 @@
 # Protocol: nine-subject default split (splits_semkine.json), validate / select / report on the
 # held-out subject zgz only (docs/FAILURE_AND_CLEANUP_LEDGER.md).
 #
-# The arm (docs/S37_MESHQ_PREREG.md):
+# The arm (docs/S37_EXPERIMENT_RECORDS.md [MESHQ]):
 #   * graph: nodes are the events themselves, (x, y, p, t) and nothing derived (ENCODER_NODE_ATTRS
 #     raw4), causal k-NN edges with (dx, dy, dt), EdgeConv x3 -- exactly S36's graph minus the
 #     rendered channels and the three derived token features; no pooled readout is built;

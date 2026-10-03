@@ -1,4 +1,4 @@
-# S37 root innovation, stage 1 (2026-09-29, docs/S37_ROOT_INNOVATION_PREREG.md): the S37 routed
+# S37 root innovation, stage 1 (2026-09-29, docs/S37_EXPERIMENT_RECORDS.md [ROOTINNOV]): the S37 routed
 # readout of seed 3407, warm-started from its selected checkpoint (step 2500), with a second root
 # path that reads where the events sit relative to prev's projected silhouette, prev's part lever
 # arms multiplying that residual (`semkine.root_innovation`), and the event-blind `prev_mlp` pull

@@ -5,7 +5,7 @@
 ## 0. 事实与环境
 
 - **代码**：`git` HEAD `3a86459`。
-  - 未提交改动都是本窗之前就有的，没有动：`docs/FAILURE_AND_CLEANUP_LEDGER.md`、`docs/S37_XYZ_*`（M），以及 `configs/semkine/s37_xyz_c1_full_s340{7,8}.yaml`、`docs/S37_XYZ_FULL_PREREG_20260930.md`、`.experiments/`（??）。
+  - 未提交改动都是本窗之前就有的，没有动：`docs/FAILURE_AND_CLEANUP_LEDGER.md`、`docs/S37_XYZ_*`（M），以及 `configs/semkine/s37_xyz_c1_full_s340{7,8}.yaml`、`docs/S37_EXPERIMENT_RECORDS.md` [XYZ-FULL]、`.experiments/`（??）。
   - 本窗只新增了 `.experiments/arch_decision_20260930/**` 和本文件，没有改 `model/`、`semkine/` 下的任何核心文件。
 - **数据划分**：`splits_semkine.json`，9 名受试者、72 条训练序列。
   - `val_core` 是 zgz_global + zgz_local，共 2590 包、50 ms 步长。

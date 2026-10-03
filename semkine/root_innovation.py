@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""S37 root innovation (2026-09-29, `docs/S37_ROOT_INNOVATION_PREREG.md`).
+r"""S37 root innovation (2026-09-29, `docs/S37_EXPERIMENT_RECORDS.md` [ROOTINNOV]).
 
 The S37 root update is additively separable, `Δr = F(events; a(prev)) + G(prev)`: the linear root
 head never sees the previous root, and `prev_mlp` never sees the events, so the blend between the

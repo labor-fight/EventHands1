@@ -184,7 +184,7 @@ def main() -> None:
             "⇒ 瓶颈在 ⑥ 的全局池化：512 个节点池化后携带的信息已与 4096 个相同",
             fontsize=8.2, color=MUTED, va="top", linespacing=1.85, zorder=3)
 
-    ax.text(176, 1.5, "docs/GNN_ARMS_ARCHIVE_20260828.md", fontsize=7.2,
+    ax.text(176, 1.5, "docs/ARCHIVED_FAILURE_RECORDS.md", fontsize=7.2,
             color=GATE, ha="right", va="bottom")
 
     out = REPO / "docs/assets/s36_eventgnn.png"

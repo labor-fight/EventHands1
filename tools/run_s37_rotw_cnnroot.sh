@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# docs/S37_ROTW_CNNROOT_PREREG.md: part A (S37 retrained with LOSS.LAMBDA_R x10, two seeds; x30, seed
+# docs/S37_EXPERIMENT_RECORDS.md [ROTW]: part A (S37 retrained with LOSS.LAMBDA_R x10, two seeds; x30, seed
 # 3407) and part B (absolute CNN, two seeds, then its root fused into S37's closed loop), all eight GPUs.
 set -uo pipefail
 cd "$(dirname "$0")/.."

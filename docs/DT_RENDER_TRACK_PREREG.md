@@ -355,3 +355,7 @@ python tools/rt/debug_arm.py --config configs/dt/<arm>.yaml        # 调试门
 **§11.4 的数字更正**：§11.4 写的"35 个训练任务、65.3 GPU·h"是在 `dt_dz_l3_s3409` 训练结束之前，当时调度器清单里已结束的任务是 34 个、65.3 GPU·h；现在是 35 个、66.5 GPU·h（`dt_dz_l3_s3409` 约 1.2 GPU·h：停掉其他任务后 GPU 空闲，吞吐上升）。14 个 DT 臂的数不变。
 
 另外生成了 `dt_base` 与 `dt_dz_l3` 三个种子的主行（`outputs/semkine/{dt_base,dt_dz_l3}_3seed_tf_pert_main_row.json`），写在结论文档 §8.1。
+
+### 11.7 文件并入说明（2026-10-03）
+
+§1 的 F12 一行引用的 `docs/S27_RETENTION_IS_NOT_A_CONTROL_VARIABLE.md` 已并入 `docs/ARCHIVED_FAILURE_RECORDS.md` 的 [S27] 一节，原文原样保留；原文件可由 `git show 4fbb8e9:docs/S27_RETENTION_IS_NOT_A_CONTROL_VARIABLE.md` 取回。本预注册 §1–§10 的旧文字按追加式规则不改动。

@@ -3,7 +3,7 @@
 
 Nothing here trains; everything is measured on the held-out subject (val_core = zgz) with the
 trained checkpoints, S36 on the same packets as the control. Sections follow
-docs/S37_FKGRAPH_PREREG.md section 5:
+docs/S37_EXPERIMENT_RECORDS.md [FKGRAPH] section 5:
 
   H1  assignment quality (recall = share of events inside the 16 px band, purity = share of in-band
       events whose node's joint agrees with the assignment under the ground-truth prev) with the

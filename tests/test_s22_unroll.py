@@ -84,7 +84,7 @@ def _cfg():
             "POSE_REPR": "mano_full_axis_angle", "OUTPUT_DIM": 51, "PREDICT_DELTA": True,
             "PREV_RENDER": True, "ZERO_EVENT_GATE": True, "ACTIVE_HEAD": True,
             # Any frontend does: these tests pin the unroll pair, not the encoder. `keg` stood
-            # here until it was retired (`docs/GNN_ARMS_ARCHIVE_20260828.md`).
+            # here until it was retired (`docs/ARCHIVED_FAILURE_RECORDS.md` [GNN-ARMS]).
             "ENCODER": "event_gnn", "ENCODER_HIDDEN": 32, "ENCODER_FEAT": 64,
             "ENCODER_MAX_NODES": 64, "ENCODER_WINDOW": 8, "ENCODER_K": 4,
         },

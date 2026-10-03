@@ -21,8 +21,8 @@
 > 本文 §1–§2 中的具体数字都是在那条线上测的，**只作机制记录，不能与 zgz 协议下的数字直接比较**。
 > 2026-09-06 起原 S37 及其后的全部实验（S37–S46）连同代码、配置、文档一起清除（文末条目），编号从 S37 重新开始：
 > 2026-09-07 的 **S37 路由读出**（`S37_ROUTED_READOUT_PREREG.md`）在 zgz 上对 S36 −2.43 mm，已采纳，**当前臂与后续最优起点为 S37 路由读出**；
-> 同日用户定义的 **S37 FK 图**（`S37_FKGRAPH_PREREG.md`）−1.07 mm 打平，成本 1/10，作对照与成本参照保留。
-> 2026-09-18 用户手绘的 **S37 网格图**（`S37_MESHGRAPH_PREREG.md`，整张 FK mesh 作图 + LBS pooling）两种子分裂
+> 同日用户定义的 **S37 FK 图**（`docs/S37_EXPERIMENT_RECORDS.md` [FKGRAPH]）−1.07 mm 打平，成本 1/10，作对照与成本参照保留。
+> 2026-09-18 用户手绘的 **S37 网格图**（`docs/S37_EXPERIMENT_RECORDS.md` [MESHGRAPH]，整张 FK mesh 作图 + LBS pooling）两种子分裂
 > （20.48 / 29.30），不采纳；不稳定全在 root 旋转读出，手指读出稳定，保留作对照。
 > EventGNN 线上仍有效的文档是上述 prereg；文献以 `docs/网络结构分析.md` 的附录 A / B 为准（原 `docs/research/dir12_20260928/` 已于 2026-10-03 并入该文，原文件已删除）。
 
@@ -70,7 +70,7 @@
 | 08-22 起的全部训练：数据划分被静默替换 | 协议错误，非方法失败；08-22 后每次训练只用了 5/10 受试者，43% 数据被闲置在评测集 | `dataset.py` 划分解析是"优先 `splits_semkine.json`，否则回退 `splits.json`"，而前者在 08-22 被写入且切法完全不同；config 不记录划分，日志不打印受试者 | 划分已统一回采集时的 9 训练受试者 / zgz 留出；旧划分退役为 `_retired_splits_semkine_5v2v3.json`；训练元数据强制记录 `train_subjects`；`select_checkpoint.py` 加受试者泄漏断言。**所有 08-22–08-26 的数字必须标注为"5 受试者训练"协议，不可与新数字混用** |
 | E5.5b 恒定 UNROLL_P=0.5(无退火) | FAIL,TF RA 42.5 mm / 递推 144.5 mm(step 3500 探针) | 从 step 0 就有一半样本以近随机的自预测做条件,网络最优解是无视 prev,坍缩回绝对回归(历史绝对回归正是 ~40 mm 档) | 产物留在 `outputs/semkine/s22_keg_halo_unroll_s34xx` 作负对照;修复=UNROLL_RAMP [500,2000] 线性退火(scheduled sampling 原文的 curriculum,Bengio et al. NeurIPS'15),重启臂名 `s22r_keg_halo_unroll` |
 | 原 S37 FK 直连（`PREV_FK_DIRECT`，已不存在） | 5 受试者线上一次实验（08-30）：精度门槛过（RA −1.95）、**延迟门槛否**（6.01 → 6.37 ms）、abs +2.69，却只凭精度采纳为基座；09-04 以三条理由撤回。09-06 在 zgz 协议下重跑过一次，**已按用户指令作废并清除，不保留数字** | 撤回理由（09-04）：GT prev 的逐事件到关节/顶点解析距离+逆深度可能是把目标几何标注到事件上的闭环捷径；每包 MANO FK + 逐节点 top-k 近邻比光栅化更慢；方法退化为 MANO 先验驱动跟踪。流程错误：预注册门槛被当读数 | 09-06：`PREV_FK_DIRECT` / `_fk_extra` 路径、config、测试、工具、产物、日志、文档全部删除（文末条目）；叠在它上面的 S38–S42（读出 ×2、loss ×2、FK 方向 ×1）连同 S43–S46 同日清除 |
-| **S37 FK 图**（`ENCODER: fk_graph`，`PREV_RENDER: false`，09-07，用户定义的形态） | **打平**（精度门未过 0.03 mm，两种子反向）。zgz 递推 RA 22.10（22.64 / 21.56）对 S36 23.17；abs 67.4（−11.6）；观测置零 +79 mm；延迟 5.38 ms（−22% 同会话）、0.084 G、0.23 M。H1–H6 见 `docs/S37_FKGRAPH_PREREG.md` §6–§7 | 渲染比较的稀疏对偶：在 prev 表面点上读"事件落在我周围哪里"，与 S36 信息量相当（TF 9.05 对 9.17）。赢在 root 平移（200 个节点的偏移场按序进 root 头，S36 的池化把它平均掉了）；输在手指（稀疏事件下 8 维汇总丢局部形状）。流速项在 50 ms 内无信息；旋转分量在训练分布里仍不可读。后半网格退化（27–31），最佳点都在前 2000 步 | 保留 checkpoint 与全部 JSON 作对照与成本参照；流速项可删；手指精度与 root 旋转为后续变量。**当前臂仍为 S37 路由读出** |
+| **S37 FK 图**（`ENCODER: fk_graph`，`PREV_RENDER: false`，09-07，用户定义的形态） | **打平**（精度门未过 0.03 mm，两种子反向）。zgz 递推 RA 22.10（22.64 / 21.56）对 S36 23.17；abs 67.4（−11.6）；观测置零 +79 mm；延迟 5.38 ms（−22% 同会话）、0.084 G、0.23 M。H1–H6 见 `docs/S37_EXPERIMENT_RECORDS.md` [FKGRAPH] §6–§7 | 渲染比较的稀疏对偶：在 prev 表面点上读"事件落在我周围哪里"，与 S36 信息量相当（TF 9.05 对 9.17）。赢在 root 平移（200 个节点的偏移场按序进 root 头，S36 的池化把它平均掉了）；输在手指（稀疏事件下 8 维汇总丢局部形状）。流速项在 50 ms 内无信息；旋转分量在训练分布里仍不可读。后半网格退化（27–31），最佳点都在前 2000 步 | 保留 checkpoint 与全部 JSON 作对照与成本参照；流速项可删；手指精度与 root 旋转为后续变量。**当前臂仍为 S37 路由读出** |
 | **S37 路由读出**（`ROUTED_READOUT`，`PREV_RENDER: false`，09-07） | **PASS**。zgz 递推 RA 20.74（19.23 / 22.26）对 S36 23.17，两种子都更好，网格整体更好；abs 75.8；证据置零闭环 +7.6 mm；延迟 7.72 ms（+10%）。H1–H5 探针见 `docs/S37_ROUTED_READOUT_PREREG.md` §6–§7 | 增益是闭环性质：TF 单步差 0.6，放大率 2.58 → 2.12；每个关节只从自己附近的事件取证据，一处状态误差不再经共享池化向量污染全部关节。路由是固定几何（LBS 行），课程噪声无法把它摊平——这是与 KEG（学习路由进图结构，回路增益 0.91）和 S38（学习 σ 被摊到 365 px）的本质区别；oracle 路由反而更差，路由误差不是瓶颈。大噪声课程下路由纯度 0.14，但没有让头忽略证据 | **采纳，当前臂 S37**。保留 checkpoint、选点 JSON、主行与探针 JSON。剩余短板与 S36 共有：root 旋转盲（增益 ≤ 0.13）、更新方向余弦 0.26、TF 单步 9–10 mm > 真实步进 5.8 mm |
 
 ## 3. 源码/产物分类
@@ -199,25 +199,26 @@ python -m pytest tests -q
 - symlink 指向的外部目录；
 - `main/master` 上的 `--apply`，除非显式 `--allow-protected-branch`。
 
-## 5. 文档地图（2026-09-29 再收敛）
+## 5. 文档地图（2026-09-29 再收敛；2026-10-03 合并更新）
 
-活跃入口：
+当前入口：
 
 ```text
 docs/FAILURE_AND_CLEANUP_LEDGER.md          # 失败证据、协议、清理；本文
-docs/S37_ROUTED_READOUT_PREREG.md           # 当前臂
-docs/S37_FKGRAPH_PREREG.md / S37_MESHGRAPH_PREREG.md / S37_MESHQ_PREREG.md
-docs/S37_ROOT_INNOVATION_PREREG.md / S37_ROTW_CNNROOT_PREREG.md
-docs/S37_XYZ_CANDIDATE_20260929.md        # XYZ 候选：结构、信息检查、训练准入
-docs/网络结构分析.md                        # S37 结构问题、文献对照、下一轮实验（两轮）；附录 A–D 是全部文献调研的浓缩汇总
+docs/S37_ROUTED_READOUT_PREREG.md           # S37 路由读出（基线臂）的预注册与结果
+docs/S37_ROOT_TRACKING_VERDICT.md           # 根旋转与闭环跟踪（rt 轮）
+docs/S38_ROOT_TRACKING_PREREG.md / docs/S38_ROOT_TRACKING_VERDICT.md      # S38：稀疏事件编码器 × 根运动测量
+docs/U1A_SHARED_MEASUREMENT_PREREG.md / docs/U1A_SHARED_MEASUREMENT_VERDICT.md   # U1a：共享节点头
+docs/DT_RENDER_TRACK_PREREG.md / docs/DT_RENDER_TRACK_VERDICT.md           # DT 轮：EventHands-Track 的抖动 / 误差 / 参数量
+docs/ARCHITECTURE_DECISION.md               # 2026-09-30 网络结构决策
+docs/网络结构分析.md                          # S37 结构问题、文献对照（两轮）；附录 A–D 是文献调研汇总，附录 E 是与 E-3DPSM 的创新切分
 ```
 
-仍有唯一数字、不并入本文：
+2026-10-03 合并进来的旧文档（原文原样保留；旧文件名与小节编号的对照在各合并文件的开头）：
 
 ```text
-docs/GNN_ARMS_ARCHIVE_20260828.md           # 已删 KEG/CellGNN 臂的网格，无法从别处重建
-docs/POSITIONING_VS_E3DPSM.md               # 常数增益融合不能当创新点
-docs/S27_RETENTION_IS_NOT_A_CONTROL_VARIABLE.md  # 保持率惩罚干预失败
+docs/S37_EXPERIMENT_RECORDS.md              # S37 之后已结束的实验线：FKGRAPH / MESHQ / MESHGRAPH / ROOTINNOV / ROTW / EDGE6 / XYZ（三份）
+docs/ARCHIVED_FAILURE_RECORDS.md            # 无法从别处重建的唯一数字：S27 保持率干预、KEG / CellGNN / EventGNN 各臂
 ```
 
 2026-09-29 删除（结论已在本文，或被当时的文献调研重读覆盖；该调研现为 `docs/网络结构分析.md` 附录 A）：`experiment_history.md`、`PLAN_SELECTION_VERDICT_20260825.md`、`ASYNC_SPARSE_SOTA_MASTER_VERDICT_20260826.md`、`debug_e55b_unroll_20260825.md`、`EVENT_GNN_SURVEY_20260829.md`、`semkine/{EXPERIMENT_LOG,CLAIM_MATRIX,FAILURE_CASES,ARCHITECTURE_AUDIT}.md`。
@@ -403,8 +404,8 @@ train_samples = 2491120
 |---|---|---|---|---|---|---|---|---|---|
 | S36 EventGNN（渲染 prev） | 28.43 | 18.60 | 24.26 | 15.00 | **23.17**（21.42 / 24.92） | 79 | 7.04 ms | 0.827 G | 0.95 M |
 | **S37 路由读出**（状态无关图 + FK 路由逐关节证据，09-07，`docs/S37_ROUTED_READOUT_PREREG.md`） | 26.41 | 15.82 | 21.40 | 12.39 | **20.74**（19.23 / 22.26） | 76 | 7.72 ms | 0.827 G | 0.73 M |
-| **S37 FK 图**（用户设计：FK 是图、事件是观测、无 token 无几何支路，09-07，`docs/S37_FKGRAPH_PREREG.md`） | 30.92 | **14.43** | 26.47 | **11.59** | **22.10**（22.64 / 21.56） | **67** | **5.38 ms** | **0.084 G** | **0.23 M** |
-| S37 网格图（用户手绘：整张 FK mesh 作图、面 1-ring 边、LBS pooling 到 16 关节，09-18，`docs/S37_MESHGRAPH_PREREG.md`） | 36.32（3407 **25.80** / 3408 46.85） | 14.96 | 27.63 | 11.69 | 24.89（**20.48** / 29.30） | 59 | 11.99 ms | 0.314 G | 0.44 M |
+| **S37 FK 图**（用户设计：FK 是图、事件是观测、无 token 无几何支路，09-07，`docs/S37_EXPERIMENT_RECORDS.md` [FKGRAPH]） | 30.92 | **14.43** | 26.47 | **11.59** | **22.10**（22.64 / 21.56） | **67** | **5.38 ms** | **0.084 G** | **0.23 M** |
+| S37 网格图（用户手绘：整张 FK mesh 作图、面 1-ring 边、LBS pooling 到 16 关节，09-18，`docs/S37_EXPERIMENT_RECORDS.md` [MESHGRAPH]） | 36.32（3407 **25.80** / 3408 46.85） | 14.96 | 27.63 | 11.69 | 24.89（**20.48** / 29.30） | 59 | 11.99 ms | 0.314 G | 0.44 M |
 | 参照：`track_render51_dr_*`（CNN + 渲染 + 域随机化，同协议，主表已有） | 13.3–17.8 | 9.3–12.6 | 11–15 | 7–10 | **11.9–13.3** | 58–97 | ≈1.75–2.5 ms | 1.65 G | 11.2 M |
 
 读法：
@@ -486,7 +487,7 @@ train_samples = 2491120
 实现为 `MODEL.ENCODER: fk_graph`（`semkine/fk_graph.py`，9 项契约 `tests/test_s37_fk_graph.py`）：16 关节 + 192 顶点 + 背景共 209 个节点，
 边 = 静止姿态网格 kNN / LBS top-2 / 运动学树（边特征只有边类型）；全部事件按投影就近归属到节点，每节点 8 维观测
 （计数、偏移、离散度、时间、极性、局部流速）；EdgeConv×3；手指头读自己关节节点，root 读 16 关节 + 背景。
-结果与 H1–H6 判读见 `docs/S37_FKGRAPH_PREREG.md` §6–§7；zgz 表与 §2 已更新。
+结果与 H1–H6 判读见 `docs/S37_EXPERIMENT_RECORDS.md` [FKGRAPH] §6–§7；zgz 表与 §2 已更新。
 
 三条工程记录：
 
@@ -505,7 +506,7 @@ train_samples = 2491120
 边 = 网格面 1-ring；背面剔除 + 点溅 z-buffer 决定可见顶点，跳跃泛洪查找表把事件分给最近可见顶点（≤ 16 px）；每顶点 6 维观测（流速项按 fk_graph H6 去掉）；
 EdgeConv×3；固定蒙皮权重把顶点特征池成 16 个关节证据 `[mean ‖ max ‖ cov]`，手指头读自己的证据 + prev 角，root 读 16 个证据平铺 + 背景。
 状态与 Δ 是 51D MANO 参数（图里的"关节点坐标"改读为关节参数：FK 要旋转，关节位置里没有 twist）。对 fk_graph 只差节点 / 边 / pooling 三处。
-结果与 H1–H4 判读见 `docs/S37_MESHGRAPH_PREREG.md` §6–§7；zgz 表与 §2 已更新。
+结果与 H1–H4 判读见 `docs/S37_EXPERIMENT_RECORDS.md` [MESHGRAPH] §6–§7；zgz 表与 §2 已更新。
 
 要点：递推 RA 20.48 / 29.30（均 24.89）对 fk_graph 22.10；**手指读出成立且两种子一致**（TF 手指误差 −14%，闭环网格均值与 fk_graph 打平），
 **root 旋转读出不稳定**（网格 RA 与旋转误差相关 0.96 / 0.89，与手指误差 ≈ 0；旋转 sd 7–9° 对 fk_graph 2–4°）。原因：图里只有 1-ring 边，
@@ -558,7 +559,7 @@ prev 给的深度是循环量。深度噪声扫描（`probe_dz_sweep.py`）：�
 
 ## 2026-09-29：S37 根新息第一步（冻结骨干、只训根）不过
 
-`docs/S37_ROOT_INNOVATION_PREREG.md`。根加一条读"事件相对 prev 投影剪影的残差、prev 杠杆臂只乘残差"的新息头（1.4 K 参数），`prev_mlp` 根 6 行置零，
+`docs/S37_EXPERIMENT_RECORDS.md` [ROOTINNOV]。根加一条读"事件相对 prev 投影剪影的残差、prev 杠杆臂只乘残差"的新息头（1.4 K 参数），`prev_mlp` 根 6 行置零，
 冻结事件图 / 手指头 / `prev_mlp`，从 S37 同种子选中点热启动训 1500 步。递推 RA 22.94（23.01 / 22.86）对 S37 20.74，global 18.74 对 15.82；
 G1 TF 旋转 5.72 / 5.28°（门 ≤ 3），G2 纠正增益 0.26 / 0.36（门 ≥ 0.5），G3 过（新息置零 +86 mm），G4 不过；延迟 20.66 ms（SDF 未优化）。
 新息承重但单包噪声大，去掉先验回拉后纠正不足，global 变差。不进入全量训练；当前臂仍为 S37 路由读出。
@@ -570,13 +571,13 @@ global 手指随窗口变好 1–1.8 mm。根旋转是逐包绝对估计的上�
 
 ## 2026-09-29（中午）：绝对 CNN 的根接入 S37（诊断 B，零训练融合）
 
-`docs/S37_ROTW_CNNROOT_PREREG.md` §5B。S26 配方的逐帧绝对 CNN（51 维、域随机化，两种子重训）在同一 zgz 协议、同一批帧上 RA 13.31 / 13.80（均值 13.56，
+`docs/S37_EXPERIMENT_RECORDS.md` [ROTW] §5B。S26 配方的逐帧绝对 CNN（51 维、域随机化，两种子重训）在同一 zgz 协议、同一批帧上 RA 13.31 / 13.80（均值 13.56，
 global 9.89 / 10.45，local 17.25 / 17.66），比 S37 20.74 低 7.2 mm。把 S37 的全局旋转每步换成 CNN 的：16.93（−3.81，过预先定的 1.1 mm 规则）；
 根整体换：16.79。剩下的差距在手指：仅手指 RA local CNN 10.9–11.6 对 S37 16.8–17.2。S37 的逐包估计在根和手指上都落后于逐帧 CNN。臂 A（旋转权重）训练中。
 
 ## 2026-09-29：旋转损失权重打平；逐帧绝对 CNN 的根接入 S37 有效，CNN 本身好 7 mm
 
-`docs/S37_ROTW_CNNROOT_PREREG.md`。A：S37 只把 `LAMBDA_R` 60 → 600 从零重训，递推 RA 20.74（21.10 / 20.38）与 S37 打平，根旋转不降；×1800 单种子 19.10 打平
+`docs/S37_EXPERIMENT_RECORDS.md` [ROTW]。A：S37 只把 `LAMBDA_R` 60 → 600 从零重训，递推 RA 20.74（21.10 / 20.38）与 S37 打平，根旋转不降；×1800 单种子 19.10 打平
 （global 旋转 11.3° → 7.6°，local 不动）。B：S26 配方的 51 维绝对 CNN 重训两种子（13.31 / 13.80，global 9.9–10.5、local 17.3–17.7），
 把它的全局旋转接进 S37 闭环 20.74 → 16.93（两种子都改善），换整个根 16.79；CNN 自身 13.56，手指也全面好于 S37。当前臂不变；下一步待用户在
 "轻量绝对根分支"与"把逐帧绝对估计做轻、递推只作平滑"之间选择。
@@ -584,7 +585,7 @@ global 9.89 / 10.45，local 17.25 / 17.66），比 S37 20.74 低 7.2 mm。把 S3
 
 ## 2026-09-29：XYZ 支路信息 DEBUG（恒等式与反例，无训练/精度评估）
 
-按用户要求对支路冗余作可执行检查，详 `docs/S37_XYZ_CANDIDATE_20260929.md` §3；脚本、JSON、固定输入、两个 S37 已选 checkpoint 的等价读出重写与 SHA256 保存在 `.experiments/xyz_branch_debug_20260929/`。CPU 执行，来源运行期间不变，未修改模型或训练。
+按用户要求对支路冗余作可执行检查，详 `docs/S37_EXPERIMENT_RECORDS.md` [XYZ-CANDIDATE] §3；脚本、JSON、固定输入、两个 S37 已选 checkpoint 的等价读出重写与 SHA256 保存在 `.experiments/xyz_branch_debug_20260929/`。CPU 执行，来源运行期间不变，未修改模型或训练。
 
 区分了信息冗余与计算/归纳偏置：已知 K 与完整网格时，射线、深度假设和相对 XYZ 为确定性变换；同一批事件特征上的关节 mean/max/mass 加未匹配统计可重建全局统计。两个真实 checkpoint 的 root/手指/prev_mlp 可代数合并，但保留原输入且块稀疏，不能据此证明任意小头等价或删历史支路不影响精度。
 
@@ -592,14 +593,14 @@ global 9.89 / 10.45，local 17.25 / 17.66），比 S37 20.74 低 7.2 mm。把 S3
 
 ## 2026-09-29：XYZ 候选算力投入判断（仅评估，未开训练）
 
-用户询问刚 DEBUG 的网络是否值得训练。复核本次信息检查、09-24 历史 XYZ 文档、已训练 `s37_meshgraph` 和近期 S37 归因后，建议**暂不投入完整双种子训练，最多先做有预算上限的小规模机制验证**。详见 `docs/S37_XYZ_CANDIDATE_20260929.md` §4。
+用户询问刚 DEBUG 的网络是否值得训练。复核本次信息检查、09-24 历史 XYZ 文档、已训练 `s37_meshgraph` 和近期 S37 归因后，建议**暂不投入完整双种子训练，最多先做有预算上限的小规模机制验证**。详见 `docs/S37_EXPERIMENT_RECORDS.md` [XYZ-CANDIDATE] §4。
 
 依据：信息通路成立不代表新网络已经可训练或能改善闭环；相近的旧网格臂未通过采纳门；`z_prior` 不增加独立深度观测；候选的逐事件关系编码、三维边和共同非线性读出仍有未验证的学习价值。建议先量真实完整包成本，再以候选及同构去显式三维通道的匹配训练作有限预算筛选，出现一致信号后另行登记完整比较。短训失败只能说明本轮不追加资源，不能直接判架构无效。本轮无模型改动、无 GPU 作业、无新精度结果；当前臂仍为 `s37_routed`。
 
 ## 2026-09-30：EdgeConv 6 层与根头逐关节融合均打平，不采纳
 
 两臂双种子均完成 6000 步训练及 12 点 zgz 固定网格选点。09-30 上午在空闲 GPU 2 依次补齐主表，四次复测 RA 与选点记录的漂移均为 0.0000 mm（日志显示精度）。
-结果与判读见 `docs/S37_EDGE6_ROOTFUSE_PREREG_20260929.md` §7–§8；主行产物为 `outputs/semkine/s37_{edge6,rootfuse}_main_row.json`。
+结果与判读见 `docs/S37_EXPERIMENT_RECORDS.md` [EDGE6] §7–§8；主行产物为 `outputs/semkine/s37_{edge6,rootfuse}_main_row.json`。
 
 edge6：递推 RA 21.38（22.61 / 20.16），相对 S37 +0.64 mm；rootfuse：20.29（20.52 / 20.06），相对 S37 −0.45 mm。
 两臂均在预注册 ±1.1 mm 打平区间，均值未到 ≤19.64，且 3407 均退化、3408 均改善，故两种子不退化条件也不满足。
@@ -611,7 +612,7 @@ edge6 改善 local、退化 global；rootfuse 改善 global、退化 local；新
 ## 2026-09-30 补记：XYZ 三维关系候选已完成单种子短训，未过追加资源门
 
 实际训练与评估于 09-29 晚完成：C1 / C0 均为 seed 3407、1500 步，固定 500 / 1000 / 1500 网格，选中 1000 / 500；尚无完整双种子训练。
-主行与判据补入 `docs/S37_XYZ_SCREEN_PREREG_20260929.md` §5，并更正设计稿页首仍称“未训练”的旧状态；本次只复核既有产物与补记文档。
+主行与判据补入 `docs/S37_EXPERIMENT_RECORDS.md` [XYZ-SCREEN] §5，并更正设计稿页首仍称“未训练”的旧状态；本次只复核既有产物与补记文档。
 
 C1 是保留 778 顶点 XYZ、射线关联的事件深度先验与三维相对关系、固定网格边和共同读出的版本；C0 仅屏蔽学习模块的显式三维通道。
 C1 递推 RA 21.0400，C0 22.1533，差 1.1133 mm，三点逐点比较均优于 C0；但选中点 TF 根旋转 6.8361° > 5.6095°，H4 整体未过。
@@ -623,13 +624,13 @@ C1 递推 RA 21.0400，C0 22.1533，差 1.1133 mm，三点逐点比较均优于 
 用户在查看短训结果后明确要求“现在做完整双种子训练”，覆盖此前默认不自动扩训练的安排。
 09:20:49 启动 `s37_xyz_c1_full`：3407 使用 GPU 2,3，3408 使用 GPU 4,5，均从零训练 6000 步；除种子、步数上限与产物路径外，配置与原 C1 一致。
 新配置与原配置的结构化比较通过；72 条训练序列/9 受试者、zgz 验证与种子均由训练元数据核对。
-独立后台流程自动衔接 12 点选点、双种子主行复测和统一表，不覆盖短训的 C1/C0 产物。登记、状态及最终结果见 `docs/S37_XYZ_FULL_PREREG_20260930.md`。
+独立后台流程自动衔接 12 点选点、双种子主行复测和统一表，不覆盖短训的 C1/C0 产物。登记、状态及最终结果见 `docs/S37_EXPERIMENT_RECORDS.md` [XYZ-FULL]。
 本条是启动记录；当前臂保持 `s37_routed`，尚无本次完整训练结果。
 
 
 ## 2026-09-30：XYZ C1 完整双种子训练完成
 
-未通过预注册精度采纳门；均值差 -0.7508 mm（打平）。详见 `docs/S37_XYZ_FULL_PREREG_20260930.md` §5；主行为 `outputs/semkine/s37_xyz_c1_full_main_row.json`。保留原短训产物，当前臂配置未自动改动。
+未通过预注册精度采纳门；均值差 -0.7508 mm（打平）。详见 `docs/S37_EXPERIMENT_RECORDS.md` [XYZ-FULL] §5；主行为 `outputs/semkine/s37_xyz_c1_full_main_row.json`。保留原短训产物，当前臂配置未自动改动。
 
 ## 2026-10-02：纠正目录最优方法汇报遗漏，补回历史 CNN 渲染跟踪参照
 
@@ -689,3 +690,14 @@ CPU 测试 70 项通过；迁移后评测/滤波 CLI、调度器导入和默认�
 - 汇总方式：每个原文件由一个子代理浓缩成约 15–30%（保留文献的会议 / 年份 / arXiv 编号、数字、结论、实验设计与反证条件、原文的局限与证据等级标签），再由另一个独立子代理对照原文逐条核对并就地修正（共修正不被原文支持的内容、过度表述和遗漏数十处）；文献总表另做了 83 行抽查（4 行修正）。浓缩不是逐字复制，需要逐字原文时用 git 取回。
 - 取回：`git show 4b8036e:docs/research/<目录>/<文件名>`（4b8036e 是删除前的最后一个提交，29 个文件都在里面）；整个目录 `git checkout 4b8036e -- docs/research`。
 - 未动：`.experiments/lit_hyp_20260929/` 下的脚本和产物；`docs/POSITIONING_VS_E3DPSM.md`、`docs/ARCHITECTURE_DECISION.md`（带文献对照但不是调研文件）。
+
+## 2026-10-03：十一份旧文档合并，docs 从 23 个 md 降到 13 个
+
+按用户要求把可以合并的文档合并，**原文原样保留**，不丢数字：
+- `S37_FKGRAPH_PREREG`、`S37_MESHQ_PREREG`、`S37_MESHGRAPH_PREREG`、`S37_ROOT_INNOVATION_PREREG`、`S37_ROTW_CNNROOT_PREREG`、`S37_EDGE6_ROOTFUSE_PREREG_20260929`、`S37_XYZ_CANDIDATE_20260929`、`S37_XYZ_SCREEN_PREREG_20260929`、`S37_XYZ_FULL_PREREG_20260930`（9 份）→ `docs/S37_EXPERIMENT_RECORDS.md`，每份是一节，标题前加 `[编号]`；
+- `S27_RETENTION_IS_NOT_A_CONTROL_VARIABLE`、`GNN_ARMS_ARCHIVE_20260828`（2 份）→ `docs/ARCHIVED_FAILURE_RECORDS.md`；
+- `POSITIONING_VS_E3DPSM`（1 份）→ `docs/网络结构分析.md` 附录 E。
+机械改动只有三处：合并后每份的标题降一级并加编号前缀；合并文件内份与份之间的链接改成本文内的链接；账本、`网络结构分析.md`、`S37_ROUTED_READOUT_PREREG.md`、`ARCHITECTURE_DECISION.md`、配置、工具、测试里对这些文件名的引用改成新文件名加编号。预注册 `DT_RENDER_TRACK_PREREG.md` 是追加式的，旧文字不改，在 §11.7 追加了对照说明。
+`model/model.py` 里 4 处注释仍写旧文件名（`S37_EDGE6_ROOTFUSE_PREREG_20260929.md`、`S37_ROOT_INNOVATION_PREREG.md` ×2、`S37_XYZ_SCREEN_PREREG_20260929.md`），没有改：`tools/u1a/` 把 `model/model.py` 的哈希记进 U1a 的证据链，只改注释也会让它对不上；U1a 结束后再改，旧名到新名的对照见两个合并文件的开头表。
+没有合并或移动：`U1A_*`（另一个会话在用，`tools/u1a/` 把 U1A 预注册和 `model/model.py` 等的哈希记进证据链，`make_verdict.py` 还会生成 U1A 结论）、`S37_ROOT_TRACKING_VERDICT`、`S38_*`、`DT_*`（只在预注册末尾追加 §11.7）、`S37_ROUTED_READOUT_PREREG`（只更新引用）、`ARCHITECTURE_DECISION`（只更新引用）。
+取回原文件：`git show 4fbb8e9:docs/<原文件名>.md`；单个文件：`git checkout 4fbb8e9 -- docs/<原文件名>.md`。上面各图片仍在 `docs/assets/`。

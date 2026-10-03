@@ -202,7 +202,7 @@ def main() -> None:
             "⇒ 手指读出成立且稳定；不稳定全在 root：图里只有 1-ring 边，root 头没有长程通路",
             fontsize=8.2, color=MUTED, va="top", linespacing=1.85, zorder=3)
 
-    ax.text(176, 1.5, "docs/S37_MESHGRAPH_PREREG.md", fontsize=7.2,
+    ax.text(176, 1.5, "docs/S37_EXPERIMENT_RECORDS.md", fontsize=7.2,
             color=GATE, ha="right", va="bottom")
 
     out = REPO / "docs/assets/s37_meshgraph.png"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S37 root innovation, stage 1 (docs/S37_ROOT_INNOVATION_PREREG.md): both seeds in parallel on
+# S37 root innovation, stage 1 (docs/S37_EXPERIMENT_RECORDS.md [ROOTINNOV]): both seeds in parallel on
 # GPUs 6,7 / 4,5, each from its own config (it warm-starts from that seed's selected S37 step), then
 # selection on the 250-step grid, the main row, and the pre-registered mechanism gates.
 # `tools/run_zgz_protocol.sh` is not used because it only selects a complete 6000-step grid and

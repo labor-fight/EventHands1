@@ -14,7 +14,7 @@
 #   * events are not nodes and not tokens: every event goes to the nearest visible vertex (16 px
 #     band, else background) and a node's input is only what its events say -- log-count share,
 #     mean offset, spread, mean time, polarity balance (6 channels; the flow fit is off, H6 of
-#     docs/S37_FKGRAPH_PREREG.md measured it at zero contribution);
+#     docs/S37_EXPERIMENT_RECORDS.md [FKGRAPH] measured it at zero contribution);
 #   * EdgeConv x3 on the fixed mesh; then fixed LBS pooling: joint j's evidence = [skinning-weighted
 #     mean over its observed vertices, hard-part max, coverage of its visible surface];
 #   * joint decoder k reads evidence k+1 (+ its prev angle), the root reads all sixteen evidences

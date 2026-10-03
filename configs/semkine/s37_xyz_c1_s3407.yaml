@@ -1,4 +1,4 @@
-# S37-XYZ budget-capped screen, arm C1 (2026-09-29, docs/S37_XYZ_SCREEN_PREREG_20260929.md).
+# S37-XYZ budget-capped screen, arm C1 (2026-09-29, docs/S37_EXPERIMENT_RECORDS.md [XYZ-SCREEN]).
 # Seed 3407 only; this is a mechanism screen, not an adoption run.
 #
 # Protocol note: trains on the nine-subject default split (splits_semkine.json) and validates,

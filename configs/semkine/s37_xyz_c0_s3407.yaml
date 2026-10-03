@@ -1,5 +1,5 @@
 # S37-XYZ budget-capped screen, arm C0 = the matched control (2026-09-29,
-# docs/S37_XYZ_SCREEN_PREREG_20260929.md). Identical to `s37_xyz_c1_s3407.yaml` except XYZ_GEOM:
+# docs/S37_EXPERIMENT_RECORDS.md [XYZ-SCREEN]). Identical to `s37_xyz_c1_s3407.yaml` except XYZ_GEOM:
 # the same association (which vertices / residual, A, q, valid, hit), the same records, widths,
 # parameter count, curriculum and schedule, but the explicit 3D channels -- event-to-vertex dXYZ,
 # z_prior and the mesh edge vectors -- are zero at the inputs of the learned modules. Trained from

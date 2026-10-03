@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""How much is a better absolute root worth to S37? (docs/S37_ROTW_CNNROOT_PREREG.md, part B.) Zero training.
+"""How much is a better absolute root worth to S37? (docs/S37_EXPERIMENT_RECORDS.md [ROTW], part B.) Zero training.
 
 S37's closed loop on zgz (val_core, 50 ms, the make_s36_row rng protocol), with the absolute CNN
 (ResNet18 on LNES, per-frame, no prev) run on the window ending at every S37 output. Variants:

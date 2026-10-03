@@ -1,4 +1,4 @@
-# Full C1 training authorized on 2026-09-30; docs/S37_XYZ_FULL_PREREG_20260930.md.
+# Full C1 training authorized on 2026-09-30; docs/S37_EXPERIMENT_RECORDS.md [XYZ-FULL].
 # Same architecture and recipe as the C1 screen; from scratch, 6000 optimizer steps.
 # Separate artifacts preserve the earlier single-seed screen.
 SEED: 3407
