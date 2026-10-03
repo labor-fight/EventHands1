@@ -23,10 +23,10 @@
 
 ## 2 Stage 0：零训练诊断
 
-### 2.1 抖动归因（D0a，76 条已记录运行，`outputs/dt/reports/jitter_offline.md`）
+### 2.1 抖动归因（D0a，已记录运行，`outputs/dt/reports/jitter_offline.md`）
 
-把 `acc_err` 按平移 / 根旋转 / 手指做 Shapley 归因（反事实混合：以 GT 为底，只把某一块换成预测再做 FK）。独立复核者重算了全部 4047 个单元格，全部吻合。
-- 最大贡献块：平移 71 次、根旋转 5 次、手指 0 次（去掉两条逐位相同的评测后 73 / 5 / 0）。份额中位数：平移 68%（22–87%），根 22%，手指 9%。
+把 `acc_err` 按平移 / 根旋转 / 手指做 Shapley 归因（反事实混合：以 GT 为底，只把某一块换成预测再做 FK）。独立复核者重算了该工具 76 条运行版本的全部 4047 个单元格，全部吻合；文件之后又加入了 DT 轮自己的运行（现为 79 条），新增部分没有再做独立复核。
+- 最大贡献块：平移 74 次、根旋转 5 次、手指 0 次；去掉一条逐位相同的重复评测后是 73 / 5 / 0。份额中位数：平移 68%（22–87%），根 22%（9–75%），手指 9%（3–25%）。
 - `rt_cnntrack` 是例外：平移 39–41%，根 37–39%，手指 21–22%。
 - 历史目标架构（`track_render51_dr_so3fk`，第 3000 步）：`jit_pred` 12.07 / 13.16，`acc_err` 16.2 / 17.2，平移份额 63% / 64%；`evalx` 复现旧评测器的 RA（12.254 / 12.192，误差 1e-6）。
 - `dt_base`：`acc_err` 12.1，其中只保留平移时 10.9，即 so3_trans_fk 的弱平移监督让平移抖动成为主项。
@@ -162,9 +162,55 @@ Baseline seed-to-seed spread (dt_base, range over its seeds): RA overall (mm) 0.
 | F13 `prev_mlp` 带着向训练均值的深度先验 | 推理期消融、C9a `dt_nopm`、C9b `dt_pmt` | 消融**确认**机制（z 输出置零：zgz_local 平移 90.6 → 36.1 mm，zgz_global 22.7 → 54.8 mm）；`dt_nopm` 未通过（RA +2.5 mm）；`dt_pmt` 只有种子 3408，待定 |
 | 评测缺加速度指标 | `evalx.jitter_decomp` | 已加，`acc_err` / `acc_ratio` / 按块归因进入每个评测 json |
 
-## 7 待补
+## 7 参数量、MACs 与延迟（正式测量：空闲 GPU、固定 CPU 核、各臂交替）
 
-- 第二波臂的结果（`dt_so3c`、`dt_pmt`（只有种子 3408）、`dt_cam`、`dt_w05`、`dt_l3`）和 `dt_dz` 种子 3409 的确认。预注册 §10.5：`dt_dz_w05`、`dt_dz_l3` 在启动前已撤销。
-- 零训练滤波套在 `dt_base`、`dt_dz`、`dt_trdz` 上的前后两行。
-- 参数量、MACs、延迟的正式测量（空闲 GPU、固定 CPU 核、与 `dt_base` 交替）和主表（`tools/report_table.py`）。
-- 复现命令、偏离清单、未解决项。
+`tools/dt/bench_dense.py`：批 1 的 `model(x, prev)`，真实 50 ms 包（`lyq_local` 与 `zgz_global`），多轮交替；"闭环每步"包含把输出读回主机；"CUDA graph"是把同一个前向录成一张图重放（`model/render_fast.py` 的 `GraphedForward`，逐位相同才报，批 1、仅推理，是部署形态，不替代 eager 数字，因为项目里其余各臂都是 eager 测的）。参数量是 `nn.Parameter` 之和，MACs 用 thop，口径同 `evalx.macs_of`。
+
+<!-- BENCH:BEGIN -->
+<!-- BENCH:END -->
+
+读数见表。要点：eager 延迟受 CPU 发射开销支配（GPU 实际忙碌不到 1 ms），所以参数量下降 75% 的 `dt_l3` 在 eager 下只快几个百分点，在 CUDA graph 下才体现出计算量的下降；`dt_so3c` 的 SO(3) 合成用 `semkine/lie.py`，每次约 3 ms，eager 延迟 +38%；`dt_cam` 多两个输入通道，几乎不增加计算。
+
+## 8 主表（AGENTS.md 格式，由 `tools/report_table.py` 生成）
+
+行由 `tools/tracking/evalx.py row`（最后一步，`--variant tf_pert`，滤波行为 `--variant filt`）生成，两个种子的均值，RA 括号里是两个种子。`tools/make_s36_row.py` 的头部 MACs 脚注只适用于 S36 头部布局，对稠密 CNN 臂会拒绝运行，所以没有用。滤波行的延迟是跟踪器的延迟，滤波另加约 0.1 ms 的主机运算。
+
+<!-- MAIN:BEGIN -->
+<!-- MAIN:END -->
+
+## 9 复现命令
+
+```
+python tools/dt/make_configs.py                               # configs/dt/*.yaml；--pack NAME FACTOR... 生成组合臂
+python tools/dt/jobs.py --arms ARM... --seeds 3407 3408 --prio P > jobs.json
+SCHED_PROG=outputs/dt python tools/tracking/sched.py daemon   # 调度器；submit jobs.json；GPU 列表在 outputs/dt/sched/allowed_gpus
+python tools/rt/debug_arm.py --config configs/dt/<arm>.yaml   # 训练前的调试门（dt_acc 用 outputs/dt/model_acc/debug_arm_dict.py）
+python tools/dt/screen_report.py                              # 配对门判定 outputs/dt/reports/screen_6k.md
+python tools/dt/verdict_tables.py; python tools/dt/jitter_tables.py ARM...; python tools/dt/filter_summary.py ARM...
+python tools/dt/filter_eval.py --run-dir outputs/semkine/<run> --ckpt last --gains "0.5,1.0,0.5" --perturb --out-dir outputs/dt/filter/<run>
+python tools/dt/transl_structure.py --runs "dt_*_s34*"; python tools/dt/depth_insample.py --run-dir ...; python tools/dt/ablate_eval.py --run-dir ...
+python tools/dt/jitter_offline.py --runs ...                  # 已记录运行的抖动归因（离线，不跑闭环）
+python tools/dt/bench_dense.py --arms NAME=RUN_DIR ... --graph --out outputs/dt/reports/bench_dense.json   # 空闲机器
+sh tools/dt/final_rows.sh GPU "CPU_LIST" ARM...               # 主行；然后 python tools/report_table.py ...
+python tools/dt/refresh_verdict.py NAME="command" ...         # 重新生成本文的表格区域
+```
+回归检查（部署后在 MAIN 上做过）：`rt_cnntrack_s3407` 最后一步重评 RA = 13.69480423503861（与记录逐位相同），`tools/s38/s37_repro.py` = 23.557357022200772（逐位相同）。
+
+## 10 偏离、限制与未解决项
+
+偏离（都登记在预注册的 §10 里）：
+- **§10.2 `dt_dz` 的 G6 护栏**：两个种子下以 0.001 触发；种子 3409 补齐后三个种子的放大比差均值 +0.025，低于 0.05，三个种子下不触发。
+- **§10.8 `dt_l3` 的 G3b、G4b 护栏**：G3b（绝对口径 `acc_err` +6.9%）只在绝对口径触发，根对齐口径 −3%；G4b（手指速度比 −0.064，阈值 −0.05）超出 0.014。按用户的主表优先规则采纳。
+- §10.5：按用户决定缩回原计划规模，`dt_dz_w05`、`dt_dz_l3`（第一版）、`dt_pmt` 种子 3407 的重排队、`dt_trdz` 种子 3409 在启动前取消；12:35 为空出 GPU 0、1 停掉了 `dt_cam_s3407` 和 `dt_pmt_s3407`（各约 50 分钟），`dt_cam_s3407` 重新排队，`dt_pmt` 因此只有种子 3408，不做配对判定。
+- 预注册的 `dt_dz` 几何门里，随附的 p95 ≤ 4 px 要求在 a = 1.25 的一个 64 标签池上没达到（4.35 px），登记的"平均 ≤ 2 px"门通过（0.45 px）；差来自手自身的深度范围（透视），见 `outputs/dt/reports/domrand_depth.md`。
+
+限制：
+- zgz 既是开发集也是测试集；两个种子只能可靠分辨 ≥ 2.5–3 mm 的差；`dt_base` 的种子间波动：RA 0.51 mm，绝对 MPJPE 1.3 mm。
+- 用量限制让构建和评审的子代理在 09:10–11:40 中断，以下评审没有完成：`model/render_fast.py` 与渲染分解报告（空闲机器的 21% / 82% 数字来自作者的探针，未经独立复核）、`jitter_offline.py` 的第二轮（NaN 序列处理和报告措辞）、`filter_eval.py` 的第二轮。它们只影响诊断和报告，不影响任何训练臂的结论。
+- 渲染补丁和 CUDA graph 形态没有并入训练代码，只用于延迟测量。
+- `dt_acc` 的 `debug_arm.py` 门用的是识别 dict 批次的副本（`outputs/dt/model_acc/debug_arm_dict.py`），原脚本不识别三连窗批次。
+- `evalx.py` 在本轮被改动：加了抖动块（绝对与根对齐两种口径），并修了 `aggregate_runs` 对新块的处理（评审发现的缺陷，会让 `evalx.py row` 崩溃）。该文件在 git 里原本是另一个会话改名后尚未提交的文件，这里一并提交。
+
+未解决：
+- zgz_global 的范围内深度偏差（约 +20 mm，所有模型都有）没有被任何臂改善，原因不明（手的大小排除了）。
+- 根对齐口径下滤波过平滑（预测的根对齐加速度降到 GT 的 0.6–0.8 倍），增益是事先固定的所以没有调；是否值得为主表口径单独选根增益，需要在不含 zgz 的数据上定。

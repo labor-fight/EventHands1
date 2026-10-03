@@ -121,23 +121,46 @@ def main() -> None:
     for name, (cfg, m) in models.items():
         for tag, (d, s) in seqs.items():
             items[(name, tag)] = staged_items(cfg, dev, d, s, a.packets)
-    graphs = {}
+    graphs, graph_equal = {}, {}
     if a.graph:
         from render_fast import GraphedForward
         for name, (cfg, m) in models.items():
             pk, betas, K = items[(name, "lyq_local")]
             gf = GraphedForward(m)
-            gf.capture(pk[0][0], pk[0][1], betas, K)
-            graphs[name] = gf
+            try:
+                gf.capture(pk[0][0], pk[0][1], betas, K)
+            except Exception as e:                 # e.g. CAM_PLANES: the standalone replica has a different input layout
+                print(f"graph capture not applicable for {name}: {type(e).__name__}", flush=True)
+                graph_equal[name] = 0
+                continue
+            # the standalone graph replays the DEFAULT dense forward: it is only valid for arms whose eager output it
+            # reproduces bit for bit (checked here on 40 real packets of both sequences); other arms get no graph row
+            m.set_hand_context(betas, K)
+            gf.set_context(betas, K)
+            same = 0
+            with torch.no_grad():
+                for x, p in pk[:20]:
+                    same += int(torch.equal(m(x, p), gf(x, p)))
+            pk2, betas2, K2 = items[(name, "zgz_global")]
+            m.set_hand_context(betas2, K2)
+            gf.set_context(betas2, K2)
+            with torch.no_grad():
+                for x, p in pk2[:20]:
+                    same += int(torch.equal(m(x, p), gf(x, p)))
+            graph_equal[name] = same
+            print(f"graph vs eager bit-identical packets for {name}: {same}/40", flush=True)
+            if same == 40:
+                graphs[name] = gf
     anchor0 = EX.latency_anchor(dev)
-    fwd = {(n, t, k): [] for n in models for t in seqs for k in (("eager", "graph") if a.graph else ("eager",))}
+    kinds = lambda n: (("eager", "graph") if (a.graph and n in graphs) else ("eager",))                  # noqa: E731
+    fwd = {(n, t, k): [] for n in models for t in seqs for k in kinds(n)}
     for r in range(a.rounds):
         for name, (cfg, m) in models.items():
             for tag in seqs:
                 pk, betas, K = items[(name, tag)]
                 m.set_hand_context(betas, K)
                 fwd[(name, tag, "eager")].append(forward_ms(lambda x, p: m(x, p), pk))
-                if a.graph:
+                if name in graphs:
                     graphs[name].set_context(betas, K)
                     fwd[(name, tag, "graph")].append(forward_ms(graphs[name], pk))
         print(f"round {r}: " + ", ".join(f"{n}/{t}/{k} {v[-1]:.2f}" for (n, t, k), v in fwd.items()), flush=True)
@@ -147,7 +170,7 @@ def main() -> None:
             pk, betas, K = items[(name, tag)]
             m.set_hand_context(betas, K)
             loop[(name, tag, "eager")] = float(np.median([loop_ms(lambda x, p: m(x, p), pk) for _ in range(3)]))
-            if a.graph:
+            if name in graphs:
                 graphs[name].set_context(betas, K)
                 loop[(name, tag, "graph")] = float(np.median([loop_ms(graphs[name], pk) for _ in range(3)]))
     anchor1 = EX.latency_anchor(dev)
@@ -157,17 +180,18 @@ def main() -> None:
         ent = {"params": int(sum(p.numel() for p in m.parameters())), "macs": EX.macs_of(cfg)}
         for tag in seqs:
             ent[tag] = {}
-            for kind in (("eager", "graph") if a.graph else ("eager",)):
+            for kind in kinds(name):
                 v = fwd[(name, tag, kind)]
                 ent[tag][kind] = {"forward_raw_median": float(np.median(v)), "forward_raw_min": float(min(v)),
                                   "forward_scaled_median": float(np.median(v)) * 1.75 / anchor,
                                   "loop_raw": loop[(name, tag, kind)], "loop_scaled": loop[(name, tag, kind)] * 1.75 / anchor,
                                   "rounds": v}
+        ent["graph_bit_identical_packets_of_40"] = graph_equal.get(name)
         res["arms"][name] = ent
     ref = next(iter(models))
     for name, ent in res["arms"].items():
         ent["ratio_to_" + ref] = {t: {k: ent[t][k]["forward_raw_median"] / res["arms"][ref][t][k]["forward_raw_median"]
-                                      for k in ent[t]} for t in seqs}
+                                      for k in ent[t] if k in res["arms"][ref][t]} for t in seqs}
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(res, indent=1))
     for name, ent in res["arms"].items():
