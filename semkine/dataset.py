@@ -79,6 +79,22 @@ class SemKineDataset(Dataset):
 
     A sample is a window of `window` milliseconds ending at `end_idx`, entirely inside one
     `valid_run`, exactly as the legacy loader defines it.
+
+    Optional triplet sample (`triplet=True`, i.e. `DATA.TRIPLET`; training and `legacy_lnes` only),
+    for a second-difference (acceleration) loss on three consecutive predictions. `__getitem__`
+    then returns `{"w0": t0, "w1": t1, "w2": t2, "valid": bool tensor}`, each `t_k` the usual
+    legacy 5-tuple `(lnes, prev, target, betas, camera_K)`. The three windows have the same length
+    `w` (the plain window's) and follow each other: window k holds the events of ms
+    `[e_k - w + 1, e_k]`, `prev_k = GT(e_k - w + 1)` (+ its own teacher-forcing noise) and
+    `target_k = GT(e_k)`, with `e_2 = end`, `e_1 = end - w`, `e_0 = end - 2w`, so the targets are
+    exactly `w` ms apart (unlike `_leading_packet`, whose target is the *next* window's first ms).
+    `w2` is the plain sample bit for bit: every extra draw comes after all the draws the plain path
+    makes. The domrand realisation, the polarity flip and the per-pixel swap mask are shared by
+    the three windows (one camera, one sensor); the event keep mask, the hot pixels and the prev
+    noise are drawn independently per window, with the shared realisation's rates. `valid` needs
+    a coin `rng.random() < triplet_frac` (the first draw after the plain sample) and `3 * w` ms of
+    history in the run; when it is False `w0` and `w1` alias `w2` and nothing more is computed,
+    so an invalid sample costs what a plain one does.
     """
 
     INPUT_MODES = ("legacy_lnes", "raw_packed", "both")
@@ -108,6 +124,8 @@ class SemKineDataset(Dataset):
         event_channels: Sequence[str] = ("last",),
         seed: int = 0,
         unroll_pair: bool = False,
+        triplet: bool = False,
+        triplet_frac: float = 1.0 / 3.0,
     ):
         if input_mode not in self.INPUT_MODES:
             raise ValueError(f"INPUT_MODE must be one of {self.INPUT_MODES}, got {input_mode!r}")
@@ -139,6 +157,20 @@ class SemKineDataset(Dataset):
         # on the model's own prediction for the window before it. Training only: randomising or
         # re-conditioning the evaluation input would make the metric a moving target.
         self.unroll_pair = bool(unroll_pair) and self.train
+        # Triplet training sample (class docstring). Training only, like the evaluation input has
+        # to stay a plain window; and only on the dense face, since the raw faces return packets.
+        self.triplet = bool(triplet) and self.train
+        self.triplet_frac = 1.0 / 3.0
+        if self.triplet:
+            if self.input_mode != "legacy_lnes":
+                raise ValueError(f"DATA.TRIPLET needs INPUT_MODE legacy_lnes, got {input_mode!r}")
+            try:
+                frac = float(triplet_frac)
+            except (TypeError, ValueError):
+                frac = float("nan")
+            if not 0.0 < frac <= 1.0:
+                raise ValueError(f"DATA.TRIPLET_FRAC must be a float in (0, 1], got {triplet_frac!r}")
+            self.triplet_frac = frac
         self.event_channels = tuple(event_channels)
 
         self._handles: Dict[int, SequenceHandles] = {}
@@ -372,19 +404,77 @@ class SemKineDataset(Dataset):
         )
         if self.input_mode == "legacy_lnes":
             # Legacy 5-tuple so the existing training loop and model take this dataset as-is.
-            return (
-                torch.from_numpy(packet.lnes),
-                torch.from_numpy(packet.prev_state),
-                torch.from_numpy(packet.target),
-                torch.from_numpy(packet.betas),
-                torch.from_numpy(packet.camera_K),
-            )
+            main = self._legacy_tuple(packet)
+            if not self.triplet:
+                return main
+            return self._triplet_sample(idx, si, h, end, window, dr, flip, swap_mask, rng, main)
         if not self.unroll_pair:
             return packet
         # Drawn after the main window is complete, so every draw the non-pair path makes keeps its
         # position in the stream and `unroll_pair=False` stays bitwise identical to S1.
         lead = self._leading_packet(idx, si, h, start, window, dr, flip, swap_mask, rng)
         return lead, packet
+
+    @staticmethod
+    def _legacy_tuple(packet: EventPacket):
+        """The legacy 5-tuple `(lnes, prev_state, target, betas, camera_K)` of one packet."""
+        return (
+            torch.from_numpy(packet.lnes),
+            torch.from_numpy(packet.prev_state),
+            torch.from_numpy(packet.target),
+            torch.from_numpy(packet.betas),
+            torch.from_numpy(packet.camera_K),
+        )
+
+    def _triplet_sample(self, idx, si, h, end, window, dr, flip, swap_mask, rng, main):
+        """`{"w0", "w1", "w2", "valid"}` of the triplet training sample; `main` is window 2.
+
+        The coin is the first draw after the plain sample's last one, so `main` is the plain
+        sample bit for bit. `valid` also needs `3 * window` ms of history in the run, so that the
+        earliest window, ms `[end - 3w + 1, end - 2w]`, stays inside it. When it is False the three
+        windows alias one array set and nothing more is computed.
+        """
+        run_a = int(self.index[idx][2])
+        coin = float(rng.random()) < self.triplet_frac
+        if not (coin and end - run_a + 1 >= 3 * window):
+            return {"w0": main, "w1": main, "w2": main, "valid": torch.tensor(False)}
+        # Backwards from the main window, so a further window would append its draws.
+        w1 = self._triplet_window(si, h, end - window, window, run_a, dr, flip, swap_mask, rng)
+        w0 = self._triplet_window(si, h, end - 2 * window, window, run_a, dr, flip, swap_mask, rng)
+        return {"w0": w0, "w1": w1, "w2": main, "valid": torch.tensor(True)}
+
+    def _triplet_window(self, si, h, e, window, run_a, dr, flip, swap_mask, rng):
+        """One earlier window of a triplet, as a legacy 5-tuple.
+
+        Events of ms `[e - window + 1, e]`, `prev = GT(e - window + 1)` plus its own teacher-forcing
+        noise, `target = GT(e)`. The domrand realisation `dr` (hence the camera, labels included),
+        `flip` and `swap_mask` are the main window's; the keep mask, the hot pixels and the noise
+        are drawn here, from `rng`, independently of the other windows.
+        """
+        start = e - window + 1
+        xs, ys, ps, us = self._raw_events(h, e, window)
+        target = self._to_target(h.pos51[e])
+        prev = self._to_target(h.pos51[start])
+        camera_K = h.camera_K.copy()
+        if self.domrand.enabled:
+            xs, ys, ps, us = self._domrand_events(xs, ys, ps, us, window, dr, camera_K, rng)
+            stacked, camera_K = DR.transform_labels(
+                np.stack([prev, target]), dr, camera_K, h.j0, self.render_scale
+            )
+            prev, target = stacked[0], stacked[1]
+        noise = self._sample_prev_noise(rng)
+        if noise is not None:
+            prev = prev + noise
+        p_eff = self._polarity(xs, ys, ps, flip, swap_mask)
+        packet = self._pack(
+            si, h, xs, ys, p_eff, us, window,
+            t_start_us=int(start) * 1000, t_end_us=(int(e) + 1) * 1000,
+            target=target, prev=prev, camera_K=camera_K,
+            is_start=bool(start == run_a), is_end=False,
+            meta={"window_ms": window, "end_idx": e, "seq": h.seq,
+                  "category": h.category, "domrand": dr, "triplet": True},
+        )
+        return self._legacy_tuple(packet)
 
     def _pack(self, si, h, xs, ys, p_eff, us, window, *, t_start_us, t_end_us,
               target, prev, camera_K, is_start, is_end, meta) -> EventPacket:
@@ -515,6 +605,11 @@ def build_dataset(cfg: dict, split: str, components: np.ndarray,
     track = cfg.get("TRACK", {}) or {}
     aug = cfg.get("AUG", {}) or {}
     ev = cfg.get("EVAL", {}) or {}
+    data = cfg["DATA"]
+    triplet = data.get("TRIPLET", False)
+    if isinstance(triplet, str):
+        # `TRIPLET: "false"` is a truthy string; a YAML quoting slip must not switch it on.
+        raise ValueError(f"DATA.TRIPLET must be a bool, got {triplet!r}")
     return SemKineDataset(
         root=root,
         sequences=sequences_for_split(root, split, manifest_path),
@@ -545,4 +640,7 @@ def build_dataset(cfg: dict, split: str, components: np.ndarray,
         seed=int(cfg.get("SEED", 0)),
         unroll_pair=bool(track.get("UNROLL_PAIR", False)) and bool(train),
         event_channels=EV.event_channels(cfg),
+        # Training split only (val / test stay plain windows); raises if the input is not LNES.
+        triplet=bool(triplet) and bool(train),
+        triplet_frac=data.get("TRIPLET_FRAC", 1.0 / 3.0),
     )

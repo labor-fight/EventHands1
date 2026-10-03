@@ -46,7 +46,7 @@ from semkine.events import EventPacket, collate_packets  # noqa: E402
 
 
 def _provenance(cfg_path):
-    """Code and config identity of a run (x1001): commit, branch, dirty flag, config sha256."""
+    """Code and config identity of a run: commit, branch, dirty flag, config sha256."""
     import hashlib
     import subprocess
 
@@ -75,10 +75,13 @@ class ThroughputCallback(pl.Callback):
         if self.t0 is None:
             self.t0 = time.time()
             self.n = 0
-        # A batch is one packet batch, an unroll `(lead, main)` pair, or the legacy tuple of
-        # tensors. Lightning may hand the pair back as a list, so do not test for `tuple`.
+        # A batch is one packet batch, an unroll `(lead, main)` pair, the legacy tuple of tensors,
+        # or (DATA.TRIPLET) the dict {"w0", "w1", "w2", "valid"}, whose window 2 is the plain sample.
+        # Lightning may hand the pair back as a list, so do not test for `tuple`.
         head = batch
-        if isinstance(batch, (tuple, list)) and hasattr(batch[-1], "batch_size"):
+        if isinstance(batch, dict):
+            head = batch["w2"]
+        elif isinstance(batch, (tuple, list)) and hasattr(batch[-1], "batch_size"):
             head = batch[-1]
         n = (head.batch_size if hasattr(head, "batch_size") else head[0].shape[0])
         self.n += n * max(trainer.world_size, 1)
@@ -108,6 +111,33 @@ class U1aPairStreamCallback(pl.Callback):
                           "samples": batch.batch_size, "events": int(batch.events.shape[0])})
         (self.output_dir / f"pair_stream_rank{trainer.global_rank}.json").write_text(
             json.dumps(self.rows, indent=2))
+
+
+#: MODEL keys only the student has, matched as `k == d.rstrip("_") or k.startswith(d)`. The frozen distillation
+#: teacher is the dense default-trunk arm, so none of them may reach its config: ENCODER* / ACTIVE_* describe a raw-event
+#: student, DISTILL_* the distillation itself, and CNN_BACKBONE the student's (smaller) trunk, which would build a
+#: teacher that cannot load its own checkpoint. CAM_PLANES / ROOT_COMPOSE / PREV_MLP_TRANSL stay: they define the
+#: architecture a teacher checkpoint was trained with.
+TEACHER_DROP = ("ENCODER", "DISTILL_", "ACTIVE_", "CNN_BACKBONE")
+
+
+def teacher_config(cfg):
+    """The distillation teacher's config: the student's, minus every student-only MODEL key (`TEACHER_DROP`). Dropping
+    by prefix rather than by name means adding a student key (S18 added three) cannot silently build a teacher that
+    refuses to load its own checkpoint."""
+    teacher_cfg = dict(cfg)
+    teacher_cfg["MODEL"] = {k: v for k, v in cfg.get("MODEL", {}).items()
+                            if not any(k == d.rstrip("_") or k.startswith(d) for d in TEACHER_DROP)}
+    return teacher_cfg
+
+
+def load_distill_teacher(ckpt, cfg):
+    """The frozen teacher of `MODEL.DISTILL_CKPT`: built from `teacher_config(cfg)`, weights loaded, eval mode, no
+    gradients. The student keeps it as a submodule (so Lightning moves it) and drops it from its own checkpoints."""
+    teacher = MNISTModel.load_from_checkpoint(ckpt, cfg=teacher_config(cfg), map_location="cpu").eval()
+    for p in teacher.parameters():
+        p.requires_grad_(False)
+    return teacher
 
 
 def main() -> None:
@@ -152,6 +182,9 @@ def main() -> None:
           f"val_core: {len(val_ds.sequences)} seqs / {len(val_ds)} samples "
           f"{sorted({s.split('_')[0] for s, _ in val_ds.sequences})}", flush=True)
 
+    if getattr(train_ds, "triplet", False):
+        print(f"triplet batches: frac {train_ds.triplet_frac:.4f}, "
+              f"LOSS.ACCEL_WEIGHT {float(cfg.get('LOSS', {}).get('ACCEL_WEIGHT', 0.0))}", flush=True)
     bsz = int(args.batch_size or tcfg["BATCH_SIZE_PER_GPU"])
     nw = int(args.num_workers if args.num_workers is not None else tcfg["NUM_WORKERS"])
     persistent = bool(tcfg.get("PERSISTENT_WORKERS", True)) and nw > 0
@@ -190,18 +223,7 @@ def main() -> None:
               flush=True)
     teacher_ckpt = cfg["MODEL"].get("DISTILL_CKPT")
     if teacher_ckpt:
-        teacher_cfg = dict(cfg)
-        # The teacher is the frozen dense arm, so every student-side key has to go. Dropping them
-        # by prefix rather than by name means adding a student key (S18 added three) cannot
-        # silently build a teacher that refuses to load its own checkpoint.
-        drop = ("ENCODER", "DISTILL_", "ACTIVE_")
-        tmodel = {k: v for k, v in cfg.get("MODEL", {}).items()
-                  if not any(k == d.rstrip("_") or k.startswith(d) for d in drop)}
-        teacher_cfg["MODEL"] = tmodel
-        model.teacher = MNISTModel.load_from_checkpoint(
-            teacher_ckpt, cfg=teacher_cfg, map_location="cpu").eval()
-        for p in model.teacher.parameters():
-            p.requires_grad_(False)
+        model.teacher = load_distill_teacher(teacher_ckpt, cfg)
         print(f"distillation teacher loaded from {teacher_ckpt}", flush=True)
 
     out_dir = Path(tcfg["OUTPUT_DIR"])
@@ -231,7 +253,7 @@ def main() -> None:
         callbacks=callbacks,
         enable_progress_bar=not u1a, log_every_n_steps=20, default_root_dir=str(out_dir),
         num_sanity_val_steps=0,
-        # x1001: val_loss never selects a checkpoint; a few batches keep a sanity signal
+        # val_loss never selects a checkpoint; a few batches keep a sanity signal
         limit_val_batches=tcfg.get("LIMIT_VAL_BATCHES", 1.0),
     )
     try:

@@ -33,6 +33,13 @@ class BaseModel(pl.LightningModule):
       mse_51d      (default) the historical weighted elementwise MSE
       so3_trans_fk L_rot + L_trans + 2 L_FK, each term on the manifold of the
                    quantity it measures -- see :meth:`_so3_fk_loss`
+
+    DT round (docs/DT_RENDER_TRACK_PREREG.md section 2), both off by default, both added to the loss before its log10:
+
+      LOSS.ACCEL_WEIGHT   w > 0: on a triplet batch (DATA.TRIPLET) w * the acceleration error of the absolute FK joints
+                          over three consecutive windows, see :meth:`_accel_loss`
+      MODEL.DISTILL_WEIGHT / DISTILL_CKPT
+                          a frozen teacher's output as a target, see :meth:`_maybe_distill`
     """
 
     LOSS_TYPES = ("mse_51d", "so3_trans_fk")
@@ -94,6 +101,16 @@ class BaseModel(pl.LightningModule):
         self.root_loss = str(loss_cfg.get("ROOT_LOSS", "mse_aa"))
         if self.root_loss not in ("mse_aa", "chordal"):
             raise ValueError(f"LOSS.ROOT_LOSS must be mse_aa or chordal, got {self.root_loss!r}")
+        # DT round, arm dt_acc. Weight of the acceleration loss on triplet batches (`_accel_loss`); 0 (the default) is
+        # off and every earlier path is untouched. Whether a positive weight can work (dense tracker with MANO, triplet
+        # data) is checked by `MNISTModel.__init__`, which knows the architecture.
+        _aw = loss_cfg.get("ACCEL_WEIGHT", 0.0)
+        try:
+            self.accel_weight = float(_aw)
+        except (TypeError, ValueError):
+            raise ValueError(f"LOSS.ACCEL_WEIGHT must be a number >= 0, got {_aw!r}") from None
+        if not (math.isfinite(self.accel_weight) and self.accel_weight >= 0.0):
+            raise ValueError(f"LOSS.ACCEL_WEIGHT must be a finite number >= 0, got {_aw!r}")
 
     def forward(self, x, prevpos):
         raise NotImplementedError()
@@ -225,6 +242,10 @@ class BaseModel(pl.LightningModule):
         return loss, parts
 
     def _unpack_batch(self, batch):
+        if isinstance(batch, dict):
+            # DATA.TRIPLET (arm dt_acc): {"w0", "w1", "w2", "valid"}. The main sample is window 2, the plain sample bit
+            # for bit; windows 0 and 1 and the mask are read by `_accel_loss` only.
+            batch = batch["w2"]
         if hasattr(batch, "events"):
             return batch
         if len(batch) >= 5:
@@ -405,8 +426,54 @@ class BaseModel(pl.LightningModule):
         x, prevpos, y, betas, camera_K = packed
         return self(x, prevpos, betas=betas, camera_K=camera_K), y, betas, packed
 
+    @staticmethod
+    def _legacy_window(batch):
+        """The dense tracker's legacy batch `(lnes, prev, target[, betas[, K]])` that `batch` carries: a plain tuple or
+        list of tensors, or the main window `w2` of a triplet dict. None for an `EventPacketBatch` or an unroll pair."""
+        if isinstance(batch, dict):
+            batch = batch["w2"]
+        if isinstance(batch, (tuple, list)) and len(batch) >= 3 and torch.is_tensor(batch[0]):
+            return batch
+        return None
+
+    def _distill_dense(self, pred, window, loss, parts):
+        """DT round, `MODEL.DISTILL_WEIGHT` on the dense tracker (arm dt_w05_kd). The frozen teacher reads the student's
+        own input, the same (lnes, prev state, betas, K), in eval mode under `no_grad`; the term is the training
+        objective between the student's output and the teacher's: with `so3_trans_fk` the same rotation + translation +
+        FK loss as the main term with the teacher's output where the ground truth would be, otherwise the MSE. It is
+        weighted by DISTILL_WEIGHT and added before the log10, and logged as `train_loss_distill`.
+
+        The teacher is a submodule (Lightning moves it with the student), so `model.train()` flips it to train mode too;
+        it is put back to eval here, before every use, and its BatchNorm statistics are never written."""
+        if self.teacher is None:
+            raise RuntimeError("MODEL.DISTILL_WEIGHT > 0 but no teacher is attached to the model (semkine/train.py loads "
+                               "it from MODEL.DISTILL_CKPT); skipping the term would train an undistilled arm")
+        x, prev, _, betas, camera_K = self._unpack_batch(window)
+        dev = pred.device
+        teacher = self.teacher
+        teacher.eval()
+        with torch.no_grad():
+            teacher_out = teacher(
+                x.to(dev), prev.to(dev),
+                betas=None if betas is None else betas.to(dev),
+                camera_K=None if camera_K is None else camera_K.to(dev),
+            )
+        teacher_out = teacher_out.detach()
+        if self.loss_type == "so3_trans_fk":
+            term = self._compute_loss(pred, teacher_out, betas)[0]
+        else:
+            term = F.mse_loss(pred, teacher_out)
+        parts["loss_distill"] = term
+        return loss + self.distill_weight * term, parts
+
     def _maybe_distill(self, pred, batch, loss, parts):
-        if self.distill_weight <= 0.0 or self.teacher is None:
+        if self.distill_weight <= 0.0:
+            return loss, parts
+        legacy = self._legacy_window(batch)
+        if legacy is not None:
+            # the dense tracker's tuple batch: this used to fall through to the silent return below
+            return self._distill_dense(pred, legacy, loss, parts)
+        if self.teacher is None:
             return loss, parts
         if isinstance(batch, (tuple, list)) and len(batch) == 2 and hasattr(batch[1], "events"):
             batch = batch[1]          # a paired sample distils on its main window
@@ -420,6 +487,63 @@ class BaseModel(pl.LightningModule):
             )
         parts["loss_distill"] = F.mse_loss(pred, teacher_out)
         return loss + self.distill_weight * parts["loss_distill"], parts
+
+    def _accel_loss(self, batch, pred):
+        """`LOSS.ACCEL_WEIGHT`: the acceleration error of a triplet batch, a scalar in metres.
+
+        `batch` is the collated triplet `{"w0", "w1", "w2", "valid"}` (`DATA.TRIPLET`): three consecutive, equally long
+        windows of one sequence, each a legacy tuple `(lnes, prev, target, betas, K)`, the targets exactly one window
+        apart, `w2` the plain sample; `pred` is the main forward's output on `w2` (all its rows, with their graph). For
+        the rows with `valid` true, `w0` and `w1` are run through the network too (teacher forcing: every window keeps
+        its own prev), which gives p0, p1 and p2 = pred[valid]. With J the model's own FK (absolute MANO joints, the
+        betas of the w2 rows for all three windows: it is one sequence) and g0, g1, g2 the targets,
+
+            L_acc = mean over valid rows, joints and axes of | (J(p2) - 2 J(p1) + J(p0)) - (J(g2) - 2 J(g1) + J(g0)) |
+
+        The extra forward leaves the BatchNorm running statistics alone (`_frozen_bn_stats`: it normalises with its own
+        batch, like any train-mode forward, but only the main forward writes them, exactly as without the term), so the
+        term cannot move what evaluation normalises with. Rows with `valid` false (their w0 and w1 alias w2) take no
+        part; with no valid row the term is a constant 0.
+        """
+        w0, w1, w2 = batch["w0"], batch["w1"], batch["w2"]
+        dev = pred.device
+        valid = batch["valid"].to(dev).bool().reshape(-1)
+        n = int(valid.sum())
+        if n == 0:
+            return torch.zeros((), device=dev, dtype=torch.float32)
+
+        def sel(w, i):
+            t = w[i]
+            return t[valid.to(t.device)].to(dev)
+
+        with self._frozen_bn_stats():
+            out01 = self(
+                torch.cat([sel(w0, 0), sel(w1, 0)]), torch.cat([sel(w0, 1), sel(w1, 1)]),
+                betas=torch.cat([sel(w0, 3), sel(w1, 3)]), camera_K=torch.cat([sel(w0, 4), sel(w1, 4)]),
+            )
+        p0, p1, p2 = out01[:n].float(), out01[n:].float(), pred[valid].float()
+        g0, g1, g2 = sel(w0, 2).float(), sel(w1, 2).float(), sel(w2, 2).float()
+        # The transform chain is precision sensitive and the trunk may run in bf16 (as in `_so3_fk_loss`).
+        with torch.autocast(device_type=dev.type, enabled=False):
+            betas, _ = self._resolve_betas_K(p2, sel(w2, 3), None)
+            b3 = betas.repeat(3, 1)
+            _, jp = self._fk(torch.cat([p0, p1, p2]), b3)
+            with torch.no_grad():
+                _, jg = self._fk(torch.cat([g0, g1, g2]), b3)
+            jp = jp.reshape(3, n, jp.shape[-2], 3)
+            jg = jg.reshape(3, n, jg.shape[-2], 3)
+            acc = (jp[2] - 2.0 * jp[1] + jp[0]) - (jg[2] - 2.0 * jg[1] + jg[0])
+            return acc.abs().mean()
+
+    def _add_accel(self, pred, batch, loss, parts):
+        """`training_step`'s half of `LOSS.ACCEL_WEIGHT` > 0: add w * L_acc to the loss (before the log10), keep the term
+        in `parts["loss_accel"]` for the log. A batch that is not a triplet dict would silently train without the term."""
+        if not isinstance(batch, dict):
+            raise ValueError("LOSS.ACCEL_WEIGHT > 0 needs triplet batches ({'w0', 'w1', 'w2', 'valid'}, DATA.TRIPLET: "
+                             f"true); got a {type(batch).__name__} batch, which would train without the term")
+        l_acc = self._accel_loss(batch, pred)
+        parts["loss_accel"] = l_acc
+        return loss + self.accel_weight * l_acc, parts
 
     #: prefix of the frozen distillation teacher's parameters
     TEACHER_PREFIX = "teacher."
@@ -448,11 +572,19 @@ class BaseModel(pl.LightningModule):
             # existed, and Lightning loads strictly. Dropping the key keeps those checkpoints
             # loadable; nothing reads it.
             sd.pop("gain_u", None)
+            if getattr(self, "teacher", None) is not None:
+                # DT round: a student resumed with its frozen teacher already attached (semkine/train.py attaches it before
+                # `fit`). The file has no teacher (`on_save_checkpoint`) but Lightning loads strictly, so the teacher gets
+                # its own tensors back; without a teacher nothing is added.
+                for k, v in self.teacher.state_dict().items():
+                    sd[self.TEACHER_PREFIX + k] = v
 
     def training_step(self, batch, batch_nb):
         pred, y, betas, packed = self._predict_batch(batch)
         loss, parts = self._compute_loss(pred, y, betas)
         loss, parts = self._maybe_distill(pred, batch, loss, parts)
+        if self.accel_weight > 0.0:
+            loss, parts = self._add_accel(pred, batch, loss, parts)
         if self.gain_reg_w > 0.0:
             g2 = self._gain_penalty(packed, pred)
             loss = loss + self.gain_reg_w * g2
@@ -472,6 +604,8 @@ class BaseModel(pl.LightningModule):
         self.log("train_rot_loss", parts["rot_loss"], sync_dist=True)
         if "loss_distill" in parts:
             self.log("train_loss_distill", parts["loss_distill"], sync_dist=True)
+        if "loss_accel" in parts:
+            self.log("train_loss_accel", parts["loss_accel"], sync_dist=True)
         self._log_so3_fk_parts("train", parts)
         self._log_route_stats("train")
         # Under AMP/bf16, log10 must run in fp32 to avoid illegal CUDA engines.
@@ -928,6 +1062,24 @@ class MNISTModel(BaseModel):
             self._append_input_channels(self.conv1, 2)
         self.distill_weight = float(model_cfg.get("DISTILL_WEIGHT", 0.0))
         self.teacher = None
+        # DT round. The two terms that need more than the model's own config refuse to build without it: a silently
+        # skipped term trains a copy of the baseline under the name of the arm (it has happened in this project).
+        if self.distill_weight > 0.0 and dense_trunk and not model_cfg.get("DISTILL_CKPT"):
+            raise ValueError("MODEL.DISTILL_WEIGHT > 0 on the dense tracker needs MODEL.DISTILL_CKPT, the teacher's "
+                             "checkpoint (semkine/train.py builds the frozen teacher from it); without a teacher the "
+                             "distillation term would silently do nothing")
+        if self.accel_weight > 0.0:
+            if self.encoder_name or self.routed or self.mesh_query:
+                raise ValueError("LOSS.ACCEL_WEIGHT > 0 scores the three (lnes, prev, target, betas, K) windows of a "
+                                 "dense-tracker triplet; it is not defined for the raw-event (ENCODER / routed / mesh "
+                                 "query) models, which take packet batches")
+            _trip = self.cfg.get("DATA", {}).get("TRIPLET", False)
+            if isinstance(_trip, str) or not _trip:
+                raise ValueError("LOSS.ACCEL_WEIGHT > 0 needs DATA.TRIPLET: true (triplet batches); without it the "
+                                 "term would silently never be computed")
+            if not self.prev_render:
+                raise ValueError("LOSS.ACCEL_WEIGHT > 0 scores absolute FK joints with the model's MANO layer, which "
+                                 "the dense tracker has with MODEL.PREV_RENDER")
         hid = int(model_cfg.get("ACTIVE_HIDDEN", 64))
         if self.fk_graph:
             from semkine.fk_graph import FKGraphEncoder, FKGraphSpec
