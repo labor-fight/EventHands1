@@ -22,6 +22,7 @@ from pose_repr import (
     get_slices,
     split_losses,
 )
+from backbones import build_backbone
 
 
 class BaseModel(pl.LightningModule):
@@ -633,6 +634,29 @@ class MNISTModel(BaseModel):
 
     The whole hand-model path is confined to the rasterizer: the trunk stays a
     plain conv1 adapter followed by an unmodified resnet18.
+
+    DT round (docs/DT_RENDER_TRACK_PREREG.md section 2): four keys of the dense tracker, every one off by default.
+    With all four at their defaults the modules, the random draws that initialise them, the forward ops and the loss
+    are those of the earlier rounds, bit for bit (tests/test_dt_model.py pins this against the pristine copy
+    outputs/dt/ref/model_orig.py). Impossible combinations raise ValueError.
+
+      CNN_BACKBONE     the trunk `rn`: a name of `backbones.BACKBONES` (default `resnet18`, torchvision's resnet18
+                       itself). Dense path only (no ENCODER, no ACTIVE_HEAD). Not `BACKBONE`: that key is dead and
+                       sits in many configs.
+      CAM_PLANES       two more input channels, appended after the render channels: the camera-ray slopes
+                       ((c - cx) / fx, (r - cy) / fy) of every render pixel under the sample's own render intrinsics
+                       (K * RENDER_SCALE, so DomRand's K' enters). conv1 grows by two input channels whose weights
+                       start at zero: every other initial weight equals the model without planes under the same
+                       seed. Needs PREV_RENDER and the dense path.
+      ROOT_COMPOSE     `add` (default): the root rotation is prev + delta in axis-angle. `so3`: R = Exp(delta_root)
+                       R_prev, a LEFT multiplication (the camera-frame convention of evalx's perturbations, of
+                       DomRand's roll and of S38's R_ref), returned as the principal axis-angle Log(R), |.| <= pi,
+                       computed in float32 with autocast off; with ZERO_EVENT_GATE (the default of the render arms)
+                       an event-free packet returns `prevpos` bit for bit; translation and fingers stay additive.
+                       Needs PREDICT_DELTA and the dense path. Meant for a rotation loss (so3_trans_fk, or mse_51d
+                       with ROOT_LOSS chordal): an axis-angle MSE would see the seam at pi.
+      PREV_MLP_TRANSL  false: prev_mlp's three translation outputs are masked to 0 in the dense forward (the layer
+                       keeps its shape, so state_dicts are unchanged). Needs PREVPOS_EMBED and the dense path.
     """
 
     #: rasterizable faces and their channel width
@@ -665,8 +689,10 @@ class MNISTModel(BaseModel):
             "FINGER_MEAS", "FINGER_FILTER_GAIN",
             "U1A_MODE", "U1A_HIDDEN", "U1A_FREEZE_ENCODER",
             "DISTILL_WEIGHT", "DISTILL_CKPT",
-            # x1001 E7
+            # absolute EventGNN control
             "POSE_HEAD_HIDDEN",
+            # DT round (docs/DT_RENDER_TRACK_PREREG.md section 2): dense trunk, ray planes, root composition, prev_mlp
+            "CNN_BACKBONE", "CAM_PLANES", "ROOT_COMPOSE", "PREV_MLP_TRANSL",
         }
     )
     #: every TRACK key the model or the dataset understands. Whitelisted for the same reason
@@ -869,6 +895,37 @@ class MNISTModel(BaseModel):
         if self.xyz_mesh and (self.prevpos_embed or bool(model_cfg.get("ACTIVE_HEAD", False))):
             raise ValueError("ENCODER=xyz_mesh has one common readout: set PREVPOS_EMBED and "
                              "ACTIVE_HEAD false")
+        # DT round (docs/DT_RENDER_TRACK_PREREG.md section 2). Four keys of the dense tracker. Every default builds the
+        # same modules from the same random draws and runs the same forward ops as the earlier rounds, so the recorded
+        # closed-loop numbers stay reproducible bit for bit; every impossible combination raises instead of being
+        # silently ignored (the project rule for MODEL keys).
+        dense_trunk = not self.encoder_name
+        self.cnn_backbone = model_cfg.get("CNN_BACKBONE", "resnet18")
+        if not isinstance(self.cnn_backbone, str):
+            raise ValueError(f"MODEL.CNN_BACKBONE must be a backbone name (a string), got {self.cnn_backbone!r}")
+        if "CNN_BACKBONE" in model_cfg and not (dense_trunk and not self.active_head):
+            raise ValueError("MODEL.CNN_BACKBONE replaces the dense ResNet18 trunk; it is only legal for the dense "
+                             "non-active-head path (no ENCODER, no ACTIVE_HEAD)")
+        self.cam_planes = model_cfg.get("CAM_PLANES", False)
+        if not isinstance(self.cam_planes, bool):
+            raise ValueError(f"MODEL.CAM_PLANES must be true or false, got {self.cam_planes!r}")
+        if self.cam_planes and not (self.prev_render and dense_trunk):
+            raise ValueError("MODEL.CAM_PLANES appends the render-resolution ray planes to the dense trunk's input, "
+                             "under the intrinsics the render uses; it needs PREV_RENDER and no ENCODER")
+        self.root_compose = str(model_cfg.get("ROOT_COMPOSE", "add")).lower()
+        if self.root_compose not in ("add", "so3"):
+            raise ValueError(f"MODEL.ROOT_COMPOSE must be add or so3, got {model_cfg.get('ROOT_COMPOSE')!r}")
+        if self.root_compose == "so3" and not (self.predict_delta and dense_trunk):
+            raise ValueError("MODEL.ROOT_COMPOSE: so3 composes the predicted rotation onto prev's root in the dense "
+                             "forward; it needs PREDICT_DELTA and no ENCODER")
+        self.prev_mlp_transl = model_cfg.get("PREV_MLP_TRANSL", True)
+        if not isinstance(self.prev_mlp_transl, bool):
+            raise ValueError(f"MODEL.PREV_MLP_TRANSL must be true or false, got {self.prev_mlp_transl!r}")
+        if not self.prev_mlp_transl and not (self.prevpos_embed and dense_trunk):
+            raise ValueError("MODEL.PREV_MLP_TRANSL: false masks the translation outputs of prev_mlp in the dense "
+                             "forward; it needs PREVPOS_EMBED and no ENCODER (the raw-event arms have PREV_MLP_ROOT)")
+        if self.cam_planes:
+            self._append_input_channels(self.conv1, 2)
         self.distill_weight = float(model_cfg.get("DISTILL_WEIGHT", 0.0))
         self.teacher = None
         hid = int(model_cfg.get("ACTIVE_HIDDEN", 64))
@@ -1037,7 +1094,7 @@ class MNISTModel(BaseModel):
                             for _ in range(15)
                         ])
             else:
-                # x1001 E7: an optional hidden layer makes the absolute readout non-linear
+                # absolute EventGNN control: an optional hidden layer makes the absolute readout non-linear
                 # (POSE_HEAD_HIDDEN = 0 keeps the single linear layer of every earlier arm).
                 ph = int(model_cfg.get("POSE_HEAD_HIDDEN", 0))
                 self.pose_head = (nn.Linear(feat, self.output_dim) if ph <= 0 else
@@ -1057,7 +1114,8 @@ class MNISTModel(BaseModel):
                 for _ in range(15)
             ])
         else:
-            self.rn = models.resnet18(num_classes=self.output_dim)
+            # `resnet18` (the default) is torchvision's resnet18(num_classes=OUTPUT_DIM) itself: same call, same draws
+            self.rn = build_backbone(self.cnn_backbone, self.output_dim)
         if self.prevpos_embed:
             self.prev_mlp = nn.Sequential(
                 nn.Linear(self.output_dim, 64),
@@ -1278,6 +1336,36 @@ class MNISTModel(BaseModel):
             camera_K[:, 0, 2] * s,
             camera_K[:, 1, 2] * s,
         )
+
+    @staticmethod
+    def _append_input_channels(conv, n: int) -> None:
+        """Widen `conv` in place by `n` input channels appended LAST, without drawing a random number.
+
+        The first channels keep their weights and the bias bit for bit and the new ones start at zero (the convention
+        of `init_from_abs_checkpoint_state`), so a model built with `CAM_PLANES` has, under the same seed, exactly the
+        initial weights of the model without the planes everywhere except those new input slices: conv1's first
+        channels, its bias, the trunk and prev_mlp are the same tensors, and the two models compute the same function
+        at initialisation.
+        """
+        w = conv.weight.data
+        conv.weight = nn.Parameter(torch.cat([w, w.new_zeros(w.shape[0], n, *w.shape[2:])], dim=1))
+        conv.in_channels = int(w.shape[1]) + n
+
+    def _cam_planes(self, camera_K):
+        """`CAM_PLANES`: the camera-ray slopes of every render-resolution pixel, `(B, H, W, 2)` float32.
+
+        plane_u[r, c] = (c - cx) / fx and plane_v[r, c] = (r - cy) / fy, with `(fx, fy, cx, cy)` the render
+        intrinsics of each sample (`_intrinsics`: its own K times RENDER_SCALE, so DomRand's K' enters) and c, r the
+        integer pixel indices `_render_chunk` projects to (u = fx x / z + cx rounded to the nearest index). The value
+        at a pixel is therefore x / z and y / z of the ray through it, whatever the (augmented) focal length.
+        """
+        fx, fy, cx, cy = self._intrinsics(camera_K)
+        B, h, w = camera_K.shape[0], self.render_h, self.render_w
+        c = torch.arange(w, device=camera_K.device, dtype=torch.float32)
+        r = torch.arange(h, device=camera_K.device, dtype=torch.float32)
+        u = ((c[None, :] - cx[:, None]) / fx[:, None])[:, None, :].expand(B, h, w)
+        v = ((r[None, :] - cy[:, None]) / fy[:, None])[:, :, None].expand(B, h, w)
+        return torch.stack([u, v], dim=-1)
 
     def _fk(self, params, betas):
         """Differentiable MANO forward: params -> (verts, 21 OpenPose joints)."""
@@ -1805,6 +1893,21 @@ class MNISTModel(BaseModel):
                 for v, ok in zip(rows, live)]
         return torch.tensor(vals, dtype=torch.float32).to(r.device, non_blocking=True)
 
+    def _compose_root_so3(self, added, delta, prevpos):
+        """`ROOT_COMPOSE: so3`: `added` is the additive update `delta + prevpos`; its root-rotation columns are replaced
+        by the principal axis-angle Log(Exp(delta_root) @ Exp(prev_root)), the delta applied on the LEFT (camera
+        frame), so a rotation of prev about any camera axis rotates the output by the same angle when delta is 0.
+        Translation and finger columns are `added`'s, untouched. The root block runs in float32 with autocast off
+        (a bf16 axis-angle near 130 degrees would be rounded to ~0.5 degree), is differentiable, and `so3_log` goes
+        through a quaternion, so it is well conditioned up to |phi| = pi and never returns a norm above pi.
+        The result is float32 whatever the trunk's dtype.
+        """
+        from semkine.lie import so3_exp, so3_log
+        r = self.slices.root
+        with torch.autocast(device_type=delta.device.type, enabled=False):
+            rot = so3_log(so3_exp(delta[:, r].float()) @ so3_exp(prevpos[:, r].float()))
+            return torch.cat([added[:, : r.start].float(), rot, added[:, r.stop:].float()], dim=-1)
+
     def forward(self, x, prevpos, betas=None, camera_K=None):
         if self.encoder_name:
             raise RuntimeError("this model reads raw events; call forward_packet")
@@ -1816,16 +1919,33 @@ class MNISTModel(BaseModel):
                 rend = self._render_prev(prevpos.float(), betas_f, k_f)
             rend = rend.to(dtype=lnes.dtype, device=lnes.device)
             x = torch.cat([lnes, rend], dim=-1)
+            if self.cam_planes:
+                # appended last: the channels before them keep the published order
+                with torch.no_grad():
+                    planes = self._cam_planes(k_f).to(dtype=lnes.dtype, device=lnes.device)
+                x = torch.cat([x, planes], dim=-1)
         x = x.permute(0, 3, 1, 2).contiguous()
         out = self.rn(self.conv1(x))
         if self.active_head:
             out = self._decode_active(out, prevpos)
         if self.prevpos_embed:
-            out = out + self.prev_mlp(prevpos.to(out.dtype))
+            pm = self.prev_mlp(prevpos.to(out.dtype))
+            if not self.prev_mlp_transl:
+                # PREV_MLP_TRANSL: false. The event-blind pull on the translation (it reads the raw previous
+                # translation) is dropped; the layer keeps its shape, its masked outputs get a zero gradient.
+                t = self.slices.transl
+                pm = torch.cat([pm[:, : t.start], torch.zeros_like(pm[:, t]), pm[:, t.stop:]], dim=-1)
+            out = out + pm
         if self.predict_delta:
             delta = out
+            empty = None
             if self.zero_event_gate:
                 empty = lnes.reshape(B, -1).abs().sum(dim=1, keepdim=True) <= 0
                 delta = torch.where(empty, torch.zeros_like(delta), delta)
             out = delta + prevpos.to(out.dtype)
+            if self.root_compose == "so3":
+                out = self._compose_root_so3(out, delta, prevpos)
+                if empty is not None:
+                    # Log(Exp(prev)) is prev only up to float error (and to the pi seam): hold it exactly
+                    out = torch.where(empty, prevpos.to(out.dtype), out)
         return out

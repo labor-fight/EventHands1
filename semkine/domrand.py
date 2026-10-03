@@ -18,9 +18,10 @@ Two families, both applied to the *events* rather than to a rasterised image:
 
 Label mirroring is exact rather than approximate, and the two families need different treatment:
 
-*Scale and shift are pure intrinsics changes.* Writing the event-space pixel map as
-`q -> a(q - c_s) + c_s + dp` with `c_s = s K[:2,2]` the principal point in event pixels and
-`s = RENDER_SCALE`, the same image is produced by leaving the 3D labels alone and using
+*Scale and shift are pure intrinsics changes* (`scale_mode: "focal"`, the default). Writing the
+event-space pixel map as `q -> a(q - c_s) + c_s + dp` with `c_s = s K[:2,2]` the principal point
+in event pixels and `s = RENDER_SCALE`, the same image is produced by leaving the 3D labels alone
+and using
 
     K' = A K,   A = [[a, 0, (1-a) c_x + dp_x / s],
                      [0, a, (1-a) c_y + dp_y / s],
@@ -28,6 +29,29 @@ Label mirroring is exact rather than approximate, and the two families need diff
 
 because the renderer forms its intrinsics as `s K` (`MNISTModel._intrinsics`), and per-sample K
 already reaches that branch. No 3D quantity moves.
+
+*The scale has a second, equally valid reading* (`scale_mode: "depth"`, arm dt_dz). The focal
+reading says "the camera's focal length became a f and the hand did not move", so the apparent
+size of the hand carries no depth information (+-25 %), although the camera has a constant focal
+length (54 of the 72 training sequences and every validation / test sequence share one K; the 18
+`_v4` recordings carry their own per-sequence K). The same augmented image is also "same camera,
+the hand is a times closer": every point's depth Z becomes Z / a with X and Y unchanged, because
+then `u' - c_x = f X / (Z / a) = a (u - c_x)`. That explains the image under the sequence's *true*
+K and extends the range of training depths (by 1 / a). The label change acts on the root joint's
+camera position `p0 = j0 + t` (the LBS pivot, see below), after the roll:
+
+    p0' = (p0_x, p0_y, p0_z / a),   t' = p0' - j0,   K' = A_1 K,   A_1 = A with a = 1
+
+so K' keeps only the shift, and rotations, fingers and betas do not move. The roll is a rotation
+about the camera z axis, which commutes with the z scaling, so the order of the two does not
+matter. This is a rigid shift of the whole hand by `p0_z (1 / a - 1)` in depth, whereas the image
+map corresponds to `Z_i -> Z_i / a` for every vertex i; the two differ by `(Z_i - p0_z)(1/a - 1)`,
+the hand's own depth extent. The root joint is therefore exact and the other vertices carry a
+perspective residual, which `tests/test_dt_domrand.py` measures in event pixels (180x240) for
+a in {0.8, 0.9, 1.1, 1.25}: on 1024 real training labels mean 0.35-1.26 px, p95 0.99-3.68 px,
+max 3.3-13.2 px; on the 64-label pool of the test mean 0.41-1.52 px, p95 1.16-4.35 px; always worst
+at a = 1.25 (see `outputs/dt/reports/domrand_depth.md`). The events are transformed identically in
+both modes, and so is the random stream (same draws, same order).
 
 *Roll is a 3D rotation.* MANO composes as `V = R_g (V_rest - j0) + j0 + t` with
 `j0 = J(betas)[0]` the LBS pivot (`ManoLayer.forward`: the root transform contributes
@@ -48,6 +72,15 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import numpy as np
+
+#: label meaning of the scale augmentation, see the module docstring
+SCALE_MODES = ("focal", "depth")
+
+
+def _check_scale_mode(mode: str) -> str:
+    if mode not in SCALE_MODES:
+        raise ValueError(f"scale_mode must be one of {SCALE_MODES}, got {mode!r}")
+    return mode
 
 
 @dataclass(frozen=True)
@@ -71,6 +104,13 @@ class DomRandConfig:
     p_geometric: float = 1.0
     #: probability of applying the event-statistics family at all
     p_event_stats: float = 1.0
+    #: label meaning of the scale. "focal" (default, the S1 behaviour): K' = A K and the 3D labels
+    #: do not move. "depth": same camera, the hand is `scale` times closer (root depth / scale,
+    #: K' keeps only the shift). Last field, so positional construction keeps working.
+    scale_mode: str = "focal"
+
+    def __post_init__(self) -> None:
+        _check_scale_mode(self.scale_mode)
 
     @classmethod
     def from_cfg(cls, cfg: dict | None) -> "DomRandConfig":
@@ -97,6 +137,12 @@ class DomRandSample:
     shift_px: Tuple[float, float]
     keep: float
     n_hot: int
+    #: label meaning of `scale` ("focal" / "depth"), copied from the config by `sample_params`.
+    #: LAST, so the five-argument positional construction of the S1 arms keeps working.
+    scale_mode: str = "focal"
+
+    def __post_init__(self) -> None:
+        _check_scale_mode(self.scale_mode)
 
     @property
     def geometric_identity(self) -> bool:
@@ -111,7 +157,7 @@ def sample_params(cfg: DomRandConfig, rng: np.random.Generator,
                   n_slots: int) -> DomRandSample:
     """Draw one realisation. `n_slots = H*W*2*window_ms` sets the hot-pixel count."""
     if not cfg.enabled:
-        return DomRandSample(0.0, 1.0, (0.0, 0.0), 1.0, 0)
+        return DomRandSample(0.0, 1.0, (0.0, 0.0), 1.0, 0, cfg.scale_mode)
     if rng.random() < cfg.p_geometric:
         roll = float(np.deg2rad(rng.uniform(-cfg.roll_deg, cfg.roll_deg)))
         scale = float(np.exp(rng.uniform(np.log(cfg.scale_min), np.log(cfg.scale_max))))
@@ -124,7 +170,7 @@ def sample_params(cfg: DomRandConfig, rng: np.random.Generator,
         n_hot = int(rng.poisson(cfg.hot_pixel_rate * n_slots))
     else:
         keep, n_hot = 1.0, 0
-    return DomRandSample(roll, scale, shift, keep, n_hot)
+    return DomRandSample(roll, scale, shift, keep, n_hot, cfg.scale_mode)
 
 
 def rot_z(theta: float) -> np.ndarray:
@@ -161,8 +207,12 @@ def _log_so3(R: np.ndarray) -> np.ndarray:
 
 def intrinsics_matrix(sample: DomRandSample, camera_K: np.ndarray,
                       render_scale: float) -> np.ndarray:
-    """`A` such that `K' = A K` realises the scale+shift part in event pixels."""
-    a = sample.scale
+    """`A` such that `K' = A K` realises the scale+shift part in event pixels.
+
+    In "depth" mode the scale is not an intrinsics change (it goes into the root depth label, see
+    :func:`transform_labels`), so `A` carries the shift only: the same formula with `a = 1`.
+    """
+    a = sample.scale if _check_scale_mode(sample.scale_mode) == "focal" else 1.0
     dpx, dpy = sample.shift_px
     cx, cy = float(camera_K[0, 2]), float(camera_K[1, 2])
     A = np.eye(3, dtype=np.float64)
@@ -178,7 +228,15 @@ def transform_labels(pos51: np.ndarray, sample: DomRandSample, camera_K: np.ndar
 
     `pos51` may be a single row or a stack; the local 45 residuals are untouched because a
     global rotation does not change any local joint rotation.
+
+    The scale part follows `sample.scale_mode`. "focal" (default): the labels keep their depth and
+    the scale goes into `K' = A K`. "depth": `K'` keeps only the shift and the root joint's camera
+    position `p0 = j0 + t` (after the roll) becomes `(p0_x, p0_y, p0_z / scale)`, i.e. only the z
+    component of `t` changes, to `(j0_z + t_z) / scale - j0_z`; rotations, fingers and the x, y
+    translation are bit-identical to the "focal" result for the same realisation. With
+    `scale == 1` the two modes are bit-identical.
     """
+    mode = _check_scale_mode(sample.scale_mode)
     out = np.array(pos51, dtype=np.float32, copy=True)
     K_new = np.asarray(camera_K, dtype=np.float32).copy()
     if sample.roll_rad != 0.0:
@@ -189,6 +247,15 @@ def transform_labels(pos51: np.ndarray, sample: DomRandSample, camera_K: np.ndar
             Rg = _rodrigues(flat[i, 3:6].astype(np.float64))
             flat[i, 0:3] = (Q @ (j0 + t) - j0).astype(np.float32)
             flat[i, 3:6] = _log_so3(Q @ Rg).astype(np.float32)
+        out = flat.reshape(out.shape)
+    if mode == "depth" and sample.scale != 1.0:
+        # After the roll `j0 + t` is `Q (j0 + t_in)`; a roll about the camera z axis leaves
+        # its z (the root joint's camera depth p0_z) alone. Only z is rewritten, x and y
+        # keep their bits.
+        flat = out.reshape(-1, out.shape[-1])
+        j0_z = float(np.asarray(j0, dtype=np.float64).reshape(-1)[2])
+        p0_z = j0_z + flat[:, 2].astype(np.float64)
+        flat[:, 2] = (p0_z / sample.scale - j0_z).astype(np.float32)
         out = flat.reshape(out.shape)
     if sample.scale != 1.0 or sample.shift_px != (0.0, 0.0):
         A = intrinsics_matrix(sample, K_new.astype(np.float64), render_scale)
