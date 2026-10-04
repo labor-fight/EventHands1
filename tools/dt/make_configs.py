@@ -20,11 +20,14 @@ to 2000 steps; the schedule reads TRAIN.MAX_STEPS, so a `--max-steps` cut would 
 from __future__ import annotations
 
 import copy
+import sys
 from pathlib import Path
 
 import yaml
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO))
+from tools.config_utils import merge  # noqa: E402
 PARENT = REPO / "configs/rt/rt_cnntrack.yaml"
 OUT = REPO / "configs/dt"
 SCREEN_STEPS = 2000
@@ -76,18 +79,44 @@ ARMS = {
                "C5: ResNet18 at half width (32-64-128-256), ~4x fewer parameters", "model.py, backbones.py"),
     "dt_l3": ({"MODEL": {"CNN_BACKBONE": "resnet18_l3"}},
               "C6: ResNet18 without layer4 (fc from 256), -75 % parameters", "model.py, backbones.py"),
+    # DT2 round (docs/DT2_PREREG.md): single factors, combined onto dt_dz_l3 with --pack.
+    # Noise floor: training LNES never has fewer than ~551 occupied slots (2e-4 hot pixels per slot-ms = 864 per
+    # 50 ms) while zgz_local has a median of 326 and a real background of ~32 events per 50 ms.
+    "dt_nfh": ({"AUG": {"DOMRAND": {"HOT_PIXEL_RATE": 2.0e-5}}},
+               "DT2-A3a: hot-pixel rate / 10 (training noise floor below the zgz_local occupancy)", ""),
+    "dt_nfk": ({"AUG": {"DOMRAND": {"HOT_PIXEL_RATE": 2.0e-5, "KEEP_MIN": 0.10}}},
+               "DT2-A3b: hot-pixel rate / 10 and event keep down to 0.10 (sparse packets in training)", ""),
+    # Window: 78 % of training windows exceed the 50 ms evaluation step, and the window also sets the training step
+    "dt_w50": ({"AUG": {"SPEED_AUG": False}, "DATA": {"WINDOW_MIN": 50, "WINDOW_MAX": 50}},
+               "DT2-A4a: fixed 50 ms window = evaluation step", ""),
+    "dt_w100": ({"DATA": {"WINDOW_MAX": 100}},
+                "DT2-A4b: log-uniform window 30-100 ms", ""),
+    # Event time: a second event plane with the earliest timestamp of each slot (events.py `first`)
+    "dt_lf": ({"DATA": {"EVENT_CHANNELS": ["last", "first"]}},
+              "DT2-A5: event planes [last, first] (direction of motion inside the window)", ""),
+    # Polarity: the per-pixel polarity swap at training time only erases the sign of the brightness change
+    "dt_nosw": ({"AUG": {"PIXEL_POLARITY_SWAP": False}},
+                "DT2-A8: no per-pixel polarity swap (polarity kept as evaluated)", ""),
+    # Model-side arms (docs/DT2_PREREG.md section 2; model/model.py, all default-off). Root rotation is 63 % of RA and its
+    # error is a slow systematic bias that is already there under teacher forcing (80 %); training has no regulariser.
+    "dt_ema": ({"TRAIN": {"EMA_DECAY": 0.999}},
+               "DT2-B1: weight EMA 0.999 (every checkpoint's state_dict is the EMA model, raw weights in raw_state_dict)",
+               "model.py"),
+    "dt_wd": ({"TRAIN": {"WEIGHT_DECAY": 0.01}},
+              "DT2-B2: AdamW weight decay 0.01 (Conv / Linear weights only; BatchNorm and biases not decayed)", "model.py"),
+    "dt_reg": ({"TRAIN": {"EMA_DECAY": 0.999, "WEIGHT_DECAY": 0.01}},
+               "DT2-B3: EMA 0.999 + AdamW weight decay 0.01", "model.py"),
+    "dt_rootw4": ({"LOSS": {"ROOT_ROT_WEIGHT": 4.0}},
+                  "DT2-B4: root rotation weighted 4 among the 16 rotations of L_rot (was 1)", "model.py"),
+    "dt_rooth": ({"MODEL": {"ROOT_HEAD": "spatial"}},
+                 "DT2-B5: spatial root readout on the layer3 map (zero-initialised, added to the fc's root row)",
+                 "model.py, backbones.py"),
+    "dt_rootanc": ({"MODEL": {"ROOT_HEAD": "anchor"}},
+                   "DT2-B6: anchored root readout (layer2 features sampled at the previous state's 21 projected joints)",
+                   "model.py, backbones.py"),
+    "dt_r32": ({"MODEL": {"RENDER_FP32": True}},
+               "DT2-B7: previous-state render in fp32 under bf16 training (hygiene arm)", "model.py"),
 }
-
-
-def merge(dst: dict, src: dict) -> dict:
-    for k, v in src.items():
-        if v is None:
-            dst.pop(k, None)
-        elif isinstance(v, dict):
-            merge(dst.setdefault(k, {}), v)
-        else:
-            dst[k] = v
-    return dst
 
 
 def arm_overrides(name: str) -> dict:

@@ -2,12 +2,12 @@
 """S38 (docs/S38_ROOT_TRACKING_PREREG.md): scheduler jobs for a set of arms x seeds.
 
 Per run: training (`semkine/train.py`, one GPU), then on a GPU the evaluation of the *last* checkpoint
-(`tools/x1001/evalx.py eval --ckpt last --controls --tf --perturb`; S38 reports no selected step), then
+(`tools/tracking/evalx.py eval --ckpt last --controls --tf --perturb`; S38 reports no selected step), then
 the closed-loop RA of every 500-step checkpoint (`tools/select_checkpoint.py`), whose grid median is
 reported beside the last step as a robustness figure and never used to pick a checkpoint.
 
     python tools/s38/jobs.py --arms s38_spabs_2k s38_spdelta_2k --seeds 3407 3408 > /tmp/jobs.json
-    SCHED_PROG=outputs/s38 python tools/x1001/sched.py submit /tmp/jobs.json
+    SCHED_PROG=outputs/s38 python tools/tracking/sched.py submit /tmp/jobs.json
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def jobs_for(arm: str, seed: int, prio: int) -> list:
              "cmd": [PY, "semkine/train.py", "--config", f"configs/s38/{arm}.yaml", "--seed", str(seed),
                      "--run-name", run, "--output-dir", rd]}
     last = {"id": f"{run}__evalx_last", "kind": "eval", "cwd": REPO, "after": [run], "prio": prio + 10,
-            "cmd": [PY, "tools/x1001/evalx.py", "eval", "--run-dir", rd, "--ckpt", "last",
+            "cmd": [PY, "tools/tracking/evalx.py", "eval", "--run-dir", rd, "--ckpt", "last",
                     "--controls", "--tf", "--perturb"]}
     grid = {"id": f"{run}__grid", "kind": "select", "cwd": REPO, "after": [last["id"]], "prio": prio - 10,
             "cmd": [PY, "tools/select_checkpoint.py", "--run-dir", rd]}

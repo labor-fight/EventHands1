@@ -32,7 +32,7 @@ from semkine import eval_track as ET
 from semkine.dataset import build_dataset, sequences_for_split, splits_manifest
 from semkine.events import EventPacket, collate_packets
 from semkine.lie import so3_exp, so3_log
-from tools.x1001.evalx import find_ckpt
+from tools.tracking.evalx import find_ckpt
 
 STEP_MS = 50
 TRAIN_SUBJECTS = {"ch", "lfz", "lpc", "lr", "ly", "lyh", "lyq", "ycy", "ylf"}

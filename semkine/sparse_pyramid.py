@@ -5,7 +5,7 @@ Why (docs/S38_ROOT_TRACKING_VERDICT.md, diagnosis)
 --------------------------------------------------
 The S37 event graph does not measure absolute hand orientation: its pooled feature decodes the root
 rotation no better than an event histogram (13-15 deg), and trained end to end on the absolute target
-(x1001 E7) it still reaches only 13-14 deg, where ResNet18 on LNES reaches 9-10 deg on the same
+(absolute EventGNN control) it still reaches only 13-14 deg, where ResNet18 on LNES reaches 9-10 deg on the same
 budget (docs/S37_ROOT_TRACKING_VERDICT.md section 2.1). Two properties of `EventGNN` explain that
 without invoking capacity:
 

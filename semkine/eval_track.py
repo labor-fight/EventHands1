@@ -58,6 +58,19 @@ def load_sequence(root: Path, legacy_dir: str, seq: str):
     )
 
 
+def mano_fk(mano, params, betas, device):
+    """Decode 51D poses in chunks and return joints and vertices as numpy arrays."""
+    oj, ov = [], []
+    for i0 in range(0, len(params), 2048):
+        chunk = torch.from_numpy(params[i0:i0 + 2048]).to(device)
+        dec = decode_to_mano_inputs(chunk, "mano_full_axis_angle", mano.hands_components, mano.hands_mean)
+        v, j = mano(betas.expand(len(chunk), -1), dec["global_orient"], dec["local_full_aa"], dec["transl"])
+        oj.append(j.cpu().numpy())
+        ov.append(v.cpu().numpy())
+    return np.concatenate(oj), np.concatenate(ov)
+
+
+
 def _window_events(events, offsets, tsub, end: int, window: int):
     """Events of `[end-window+1, end]` as `(N, 5)` [batch=0, x, y, t_rel_s, p] and count."""
     start = end - window + 1
@@ -204,20 +217,9 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
     elapsed = np.asarray(elapsed, dtype=np.int64)
     run_ids = np.asarray(run_ids, dtype=np.int64)
 
-    def mano_fk(params):
-        oj, ov = [], []
-        for i0 in range(0, len(params), 2048):
-            chunk = torch.from_numpy(params[i0 : i0 + 2048]).to(device)
-            dec = decode_to_mano_inputs(chunk, "mano_full_axis_angle",
-                                        mano.hands_components, mano.hands_mean)
-            v, j = mano(betas.expand(len(chunk), -1), dec["global_orient"],
-                        dec["local_full_aa"], dec["transl"])
-            oj.append(j.cpu().numpy())
-            ov.append(v.cpu().numpy())
-        return np.concatenate(oj), np.concatenate(ov)
 
-    pj, pv = mano_fk(preds)
-    gj, gv = mano_fk(gts)
+    pj, pv = mano_fk(mano, preds, betas, device)
+    gj, gv = mano_fk(mano, gts, betas, device)
     per_step = {
         "mpjpe_abs_mm": np.linalg.norm(pj - gj, axis=-1).mean(-1) * 1000,
         "mpvpe_abs_mm": np.linalg.norm(pv - gv, axis=-1).mean(-1) * 1000,

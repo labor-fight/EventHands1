@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Root-tracking round: the debug gate a candidate passes before its screening run.
 
-    python tools/rt/debug_arm.py --config configs/rt/rt_g3_2k.yaml [--ckpt CKPT] [--batch 64] [--steps 40]
+    python tools/rt/debug_arm.py --config configs/rt/rt_s37_2k.yaml [--ckpt CKPT] [--batch 64] [--steps 40]
 
 Each check prints PASS / FAIL with the number behind it; the exit status is 1 if any check fails.
   1 forward/backward  a train-mode bf16 step on real training packets: finite loss, and every trainable
@@ -46,7 +46,7 @@ import torch
 from torch.utils.data import DataLoader
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools" / "x1001")]
+sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools" / "tracking")]
 from config import load_config                                   # noqa: E402
 from model import MNISTModel                                     # noqa: E402
 from mano_layer import ManoLayer                                 # noqa: E402

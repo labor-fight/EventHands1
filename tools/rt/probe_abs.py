@@ -7,7 +7,7 @@ an event-graph / LNES-CNN frontend (S37, G3, E8, C37 read `prev` only at the rou
 penultimate 512-d vector of a dense ResNet18 arm. A ridge map (lambda by 5-fold CV on the training
 packets) from the standardised feature to the 3x3 root rotation matrix is fitted on the training
 subjects' 50 ms packets, projected to SO(3) (SVD), and scored on zgz as a geodesic angle. Same
-quantity as x1001 E1a's ridge column (docs/x1001/PHASE1_DIAG.md), lighter: no MLP, one export.
+absolute-rotation quantity, using no MLP, one export.
 
     python tools/rt/probe_abs.py --run-dir outputs/semkine/rt_c37_2k_s3407 [--ckpt last|selected|step=N]
 """
@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools" / "x1001")]
+sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools" / "tracking")]
 from config import load_config                                   # noqa: E402
 from model import MNISTModel                                     # noqa: E402
 from semkine import eval_track as ET                             # noqa: E402

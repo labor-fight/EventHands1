@@ -660,6 +660,19 @@ seed 0 / 1 均值：local 14.24549、global 10.46639、递推 RA 12.22316（12.2
 914 份二进制产物大小和时间戳未改变，另外四份 `last.ckpt` 由正在运行的 U1A 训练正常更新。未停止训练，也未改动数据划分或当前登记臂。
 CPU 测试 70 项通过；迁移后评测/滤波 CLI、调度器导入和默认路径、Python 语法及 shell 语法检查通过。
 
+## 2026-10-03：删除失效入口、孤立定义和重复临时代码
+
+按用户要求审计当前项目代码依赖后，删除 19 个源文件：旧五人协议模块及其生成入口、三份引用已删除配置和退役划分的 S33/S34 脚本、14 份无现行调用的 S38 临时脚本。
+S38 文档引用的两份诊断脚本保留，复现检查统一使用 `tools/s38/s37_repro.py`。桶统计入口改为 `tools/make_bucket_manifest.py`，只读取固定 `splits_semkine.json`，不生成或覆盖划分，评测桶沿用训练集阈值。
+
+删除无调用的 `ReturnPrevposModel`、`SoftToParsedSchedule`、`GNLMRefiner`、`_empty` 和 `FKGraphSpec.node_points`；FK 图探针复用路由探针的四个相同助手，闭环探针复用已有 FK 计算。
+包导出列表移除已不存在的模块；旧协议测试改为核验实际九人划分，清理失效的调试命令示例。
+
+CPU 测试 237 项通过。主模型 `BaseModel` / `MNISTModel` 的 AST 保持一致，四个共享探针函数体及合并前后的 FK 指标结果完全一致。
+134 份配置的解析值、42 份既有主行文件以及数据根的只读划分均未改变；同期配置注释中的文档链接更新保留。
+代码和调度队列对已删除源文件的残留引用为零；包导入、Python / shell 语法及 diff 空白检查通过，未停止调度或 GPU 作业。
+逐文件原因、源文件哈希和验证清单见 `outputs/cleanup/code_cleanup_20261003.json`。
+
 ## 2026-10-03：DT 轮（EventHands-Track render + SO3 + FK + DomRand 的抖动 / 误差 / 参数量）
 
 结论见 `docs/DT_RENDER_TRACK_VERDICT.md`，预注册见 `docs/DT_RENDER_TRACK_PREREG.md`（§10 起是看过结果之后的追加）。统一配方、6000 步、zgz（开发集 = 测试集）、两个种子 3407 / 3408 配对 `dt_base`。
@@ -701,3 +714,17 @@ CPU 测试 70 项通过；迁移后评测/滤波 CLI、调度器导入和默认�
 `model/model.py` 里 4 处注释仍写旧文件名（`S37_EDGE6_ROOTFUSE_PREREG_20260929.md`、`S37_ROOT_INNOVATION_PREREG.md` ×2、`S37_XYZ_SCREEN_PREREG_20260929.md`），没有改：`tools/u1a/` 把 `model/model.py` 的哈希记进 U1a 的证据链，只改注释也会让它对不上；U1a 结束后再改，旧名到新名的对照见两个合并文件的开头表。
 没有合并或移动：`U1A_*`（另一个会话在用，`tools/u1a/` 把 U1A 预注册和 `model/model.py` 等的哈希记进证据链，`make_verdict.py` 还会生成 U1A 结论）、`S37_ROOT_TRACKING_VERDICT`、`S38_*`、`DT_*`（只在预注册末尾追加 §11.7）、`S37_ROUTED_READOUT_PREREG`（只更新引用）、`ARCHITECTURE_DECISION`（只更新引用）。
 取回原文件：`git show 4fbb8e9:docs/<原文件名>.md`；单个文件：`git checkout 4fbb8e9 -- docs/<原文件名>.md`。上面各图片仍在 `docs/assets/`。
+
+## 2026-10-03：第二轮代码清理，移除旧结果生成链并合并重复实现
+
+按用户再次要求审计并删除无用代码，本轮删除五个旧入口：`tools/run_s17_final.py`、`tools/make_main_table.py`、`tools/report_ch_ablation.py`、`tools/run_loss_experiments.sh`、`tools/eval_ch_ablation.sh`。
+S17 工具没有执行评测或计算声明，却直接写入 PASS，且 `--dry-run` 未参与逻辑；旧主表和消融工具按指定副本或较差副本报告，不符合现行主行双种子均值规则。当前统一报告继续使用 `tools/report_table.py`，历史报告及其原始 JSON 保留。
+
+RT / S38 / DT 的三份相同配置合并函数统一到 `tools/config_utils.py`；递推评测与 `evalx` 的相同 FK 循环统一到 `semkine/eval_track.py::mano_fk`。计算步骤、分块大小、配置覆盖及空值删除语义不变。
+移除仍指向旧启动器的源码说明，并更正 S36 主行工具说明中的“8 条序列”为实际两条 zgz 序列；未改动主模型、训练入口、训练配置或数据划分。
+
+CPU 回归测试 345 项通过；60 份 RT / S38 / DT 配置重新生成后与原配置解析值完全一致。
+FK 在 1 / 17 / 2049 个姿态上输出逐位一致，覆盖 2048 的分块边界；两个有效段、递推信任系数 0 / 0.5 / 1 下的全部输出与清理前一致。
+134 份配置的实际参数、42 份现有主行及 189 份历史 JSON 未改变；主模型、MANO、姿态解码、骨干、训练入口和 U1A 核心文件哈希保持一致。
+源代码及四个调度队列不存在已删除入口的残留调用；统一报告可读取当前行和历史缓存行，语法及 diff 检查通过，未启停训练或调度进程。
+逐文件原因和验证清单见 `outputs/cleanup/code_cleanup_round2_20261003.json`。

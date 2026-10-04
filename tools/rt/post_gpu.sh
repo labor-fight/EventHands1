@@ -7,5 +7,5 @@ RD=/data1/lyq/code/mesh/EventHands1/outputs/semkine/$RUN
 cd /data1/lyq/code/mesh/EventHands1 || exit 1
 export CUDA_VISIBLE_DEVICES=$GPU
 $PY tools/select_checkpoint.py --run-dir "$RD" &&
-$PY tools/x1001/evalx.py eval --run-dir "$RD" --ckpt last --controls --tf --perturb &&
-$PY tools/x1001/evalx.py eval --run-dir "$RD" --ckpt selected
+$PY tools/tracking/evalx.py eval --run-dir "$RD" --ckpt last --controls --tf --perturb &&
+$PY tools/tracking/evalx.py eval --run-dir "$RD" --ckpt selected

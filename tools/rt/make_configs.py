@@ -2,9 +2,9 @@
 """Root-tracking round (docs/S37_ROOT_TRACKING_VERDICT.md): write every arm's config from its parent.
 
 Each arm is its parent config plus the listed overrides and nothing else, so an arm differs from
-its control exactly where the table below says. Parents: `configs/x1001/x1001_s37.yaml` (S37 routed
-readout, the x1001 recipe: 1 GPU x 512 x accumulate 2, cosine 4e-3 -> 2 %, warmup 500, 500-step
-checkpoint grid) and `configs/x1001/x1001_cnn.yaml` (ResNet18 on LNES, same recipe). The split is
+its control exactly where the table below says. Parents: `configs/semkine_recipes/s37.yaml` (S37 routed
+readout, the shared recipe: 1 GPU x 512 x accumulate 2, cosine 4e-3 -> 2 %, warmup 500, 500-step
+checkpoint grid) and `configs/semkine_recipes/cnn_abs.yaml` (ResNet18 on LNES, same recipe). The split is
 the fixed protocol's `splits_semkine.json` (AGENTS.md). `_2k` arms are the screening budget: the
 same recipe with the cosine compressed to 2000 steps (the schedule reads TRAIN.MAX_STEPS, so a
 `--max-steps` cut would leave the LR high instead).
@@ -14,17 +14,20 @@ same recipe with the cosine compressed to 2000 steps (the schedule reads TRAIN.M
 from __future__ import annotations
 
 import copy
+import sys
 from pathlib import Path
 
 import yaml
 
 REPO = Path(__file__).resolve().parents[2]
-S37 = REPO / "configs/x1001/x1001_s37.yaml"
-CNN = REPO / "configs/x1001/x1001_cnn.yaml"
-E7 = REPO / "configs/x1001/x1001_e7.yaml"
+sys.path.insert(0, str(REPO))
+from tools.config_utils import merge  # noqa: E402
+S37 = REPO / "configs/semkine_recipes/s37.yaml"
+CNN = REPO / "configs/semkine_recipes/cnn_abs.yaml"
+E7 = REPO / "configs/semkine_recipes/event_gnn_abs.yaml"
 OUT = REPO / "configs/rt"
 
-#: the CNN-track model of `configs/semkine/s1_track_domrand.yaml` (x1001_cnntrack, commit 27f9f91)
+#: the CNN-track model of `configs/semkine/s1_track_domrand.yaml` (rendered-state CNN tracking)
 CNN_TRACK = {"MODEL": {"PREDICT_DELTA": True, "PREVPOS_EMBED": True, "PREV_RENDER": True,
                        "ZERO_EVENT_GATE": True, "RENDER_H": 180, "RENDER_W": 240,
                        "RENDER_SCALE": 0.375, "RENDER_CHUNK": 256}}
@@ -37,22 +40,11 @@ ARMS = {
     "rt_cnntrack": (CNN, CNN_TRACK, "ResNet18 / LNES + rendered prev, prev + delta (render-and-compare tracking)"),
     # ablations: encoder under the absolute objective (graph vs rt_cnn), and the CNN tracked through the
     # event-blind prev_mlp only (vs rt_cnntrack: no rendered state, i.e. no explicit comparison)
-    "rt_e7": (E7, {}, "S37 event graph with an absolute 512-512-51 head, no prev (x1001 E7)"),
+    "rt_e7": (E7, {}, "S37 event graph with an absolute 512-512-51 head, no prev (absolute EventGNN control)"),
     "rt_cnndelta": (CNN, {"MODEL": {"PREDICT_DELTA": True, "PREVPOS_EMBED": True, "ZERO_EVENT_GATE": True}},
                     "ResNet18 / LNES, prev + delta with prev only through prev_mlp (no rendered state)"),
 }
 SCREEN_STEPS = 2000
-
-
-def merge(dst: dict, src: dict) -> dict:
-    for k, v in src.items():
-        if v is None:
-            dst.pop(k, None)
-        elif isinstance(v, dict):
-            merge(dst.setdefault(k, {}), v)
-        else:
-            dst[k] = v
-    return dst
 
 
 def write(name: str, parent: Path, over: dict, why: str, steps=None) -> Path:

@@ -335,7 +335,7 @@ CUDA_VISIBLE_DEVICES=6 python .experiments/arch_decision_20260930/D/eval_short.p
   - `B/full_main.log`、`B/full_h5.log`、`B/fuse_last.log`、`B/fuse_last_mech.log`；
   - `D/eval_short_102848.json`（200 步）、`D/eval_short_103112.json`（400 步）、`D/eval_short_step{200,400}.log`、`D/train_*.log`；
   - `E/latency_results.json`、`E/summary_table.json`；
-  - 运行时日志快照 `.experiments/arch_decision_20260930/debug-8c773e_snapshot_1039.ndjson`（NDJSON，48 条，截至 10:39；原 `.cursor/debug-8c773e.log` 已清空，留给复核运行）。
+  - 运行时日志快照 `.experiments/arch_decision_20260930/debug-8c773e_snapshot_1039.ndjson`（NDJSON，48 条，截至 10:39；探针脚本中的 debug 埋点已移除）。
 
 ## 7. 最关键的未决问题，与一个可能推翻本选择的实验
 

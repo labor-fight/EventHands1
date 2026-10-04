@@ -234,7 +234,7 @@ def measure_cost(cfg, per_seed, provenance):
     # Lazy imports ensure --dry-run / --cost-row never allocate a model or touch CUDA.
     import torch
     from model import MNISTModel
-    from tools.x1001 import evalx
+    from tools.tracking import evalx
 
     require(torch.cuda.is_available(), "--measure-cost requires the recorded CUDA timing environment")
     device = torch.device("cuda")
@@ -250,7 +250,7 @@ def measure_cost(cfg, per_seed, provenance):
             "latency_ms_scaled_full1p75": latency * 1.75 / anchor,
             "macs_forward_packet": macs, "params_total": int(sum(p.numel() for p in model.parameters())),
             "macs_forward_packet_note": "thop standard-layer MACs of whole forward_packet; nonstandard geometry/scatter excluded",
-            "cost_provenance": {"method": "tools.x1001.evalx latency_anchor/latency_model/macs_of",
+            "cost_provenance": {"method": "tools.tracking.evalx latency_anchor/latency_model/macs_of",
                                 "source_seed": first, "checkpoint": provenance[first]["checkpoint"],
                                 "config": provenance[first]["config"], "device": torch.cuda.get_device_name(device),
                                 "latency_sequence": "lyq_local", "step_ms": 50, "max_packets": 600,

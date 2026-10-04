@@ -133,12 +133,6 @@ class FKGraphSpec:
         return FKGraphSpec(vert_ids=vert_ids, vert_joint=vert_joint, lbs_wn=lbs_wn, idx=idx,
                            etype=etype, emask=emask, n_verts=n_verts, k=k_total)
 
-    def node_points(self, verts: torch.Tensor) -> torch.Tensor:
-        """3D node positions `(B, 16 + V, 3)` for posed vertices `(B, 778, 3)`: joint surface
-        centroids first, then the sampled vertices. The background node has no position."""
-        joints = torch.einsum("jv,bvc->bjc", self.lbs_wn.to(verts), verts.float())
-        return torch.cat([joints, verts.float()[:, self.vert_ids.to(verts.device)]], dim=1)
-
 
 def _farthest_point(P: torch.Tensor, n: int, start: int, ids: torch.Tensor) -> torch.Tensor:
     """Deterministic farthest-point sampling of `n` rows of `P`; returns the chosen global ids."""

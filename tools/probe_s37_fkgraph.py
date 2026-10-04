@@ -28,7 +28,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import re
 import sys
 import time
 from pathlib import Path
@@ -40,11 +39,10 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "model"))
 
-from config import load_config                                      # noqa: E402
-from model import MNISTModel                                        # noqa: E402
 from semkine import eval_track as ET                                # noqa: E402
 from semkine.dataset import sequences_for_split, splits_manifest    # noqa: E402
 from semkine.fk_graph import N_JOINTS, OBS_DIM, assign_and_observe  # noqa: E402
+from tools.probe_s37_route import arm_of, load_run, noise51, rot_angle_deg  # noqa: E402
 
 SMALL = (0.005, 0.05, 0.05)
 LARGE = (0.05, 0.3, 0.3)
@@ -53,48 +51,6 @@ TRAIN_SEQS = ("lyq_local", "lr_global", "ch_local", "ylf_global")
 MASKS = {"flow_only": [0, 0, 0, 0, 0, 0, 1, 1],
          "count_offset_only": [1, 1, 1, 0, 0, 0, 0, 0],
          "no_flow": [1, 1, 1, 1, 1, 1, 0, 0]}
-
-
-def load_run(spec: str, device):
-    run_dir, _, ckpt = spec.partition(":")
-    run = REPO / run_dir
-    if ckpt:
-        sel = {"ckpt": ckpt, "step": None}
-    else:
-        sels = sorted(run.glob("selection_val_core_step50*.json"))
-        if not sels:
-            raise SystemExit(f"{run_dir}: no selection JSON; run tools/select_checkpoint.py first")
-        sel = json.loads(sels[-1].read_text())["selected"]
-    cfg = load_config(json.loads((run / "training_metadata.json").read_text())["config_path"])
-    model = MNISTModel.load_from_checkpoint(sel["ckpt"], cfg=cfg, map_location=device)
-    return model.to(device).eval(), cfg, sel
-
-
-def arm_of(run_name: str) -> str:
-    return re.sub(r"_s\d{4}$", "", run_name)
-
-
-def noise51(rng, scales):
-    n = np.zeros(51, np.float32)
-    n[0:3] = rng.standard_normal(3) * scales[0]
-    n[3:6] = rng.standard_normal(3) * scales[1]
-    n[6:51] = rng.standard_normal(45) * scales[2]
-    return n
-
-
-def rot_angle_deg(aa_a, aa_b):
-    def to_mat(aa):
-        th = aa.norm(dim=-1, keepdim=True).clamp_min(1e-9)
-        k = aa / th
-        K = torch.zeros(aa.shape[0], 3, 3, device=aa.device)
-        K[:, 0, 1], K[:, 0, 2] = -k[:, 2], k[:, 1]
-        K[:, 1, 0], K[:, 1, 2] = k[:, 2], -k[:, 0]
-        K[:, 2, 0], K[:, 2, 1] = -k[:, 1], k[:, 0]
-        th = th.unsqueeze(-1)
-        return torch.eye(3, device=aa.device) + torch.sin(th) * K + (1 - torch.cos(th)) * (K @ K)
-    R = to_mat(aa_a).transpose(1, 2) @ to_mat(aa_b)
-    tr = (R[:, 0, 0] + R[:, 1, 1] + R[:, 2, 2]).clamp(-1.0, 3.0)
-    return torch.rad2deg(torch.acos(((tr - 1) / 2).clamp(-1.0, 1.0)))
 
 
 def runs_of(aux, pos51, step_ms):

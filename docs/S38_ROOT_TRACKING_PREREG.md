@@ -53,7 +53,7 @@
 | `s38_spabs` | E1 | M1 | **候选** |
 | `s38_spe7` | E1 | 绝对 51 维头、无 prev | 编码器对照：与 `rt_e7`（E0）、`rt_cnn`（稠密）在同一目标下比较 |
 
-每个臂 = 父配置（`configs/x1001/x1001_s37.yaml` / `x1001_e7.yaml`）+ 表中的键，由 `tools/s38/make_configs.py` 生成。训练配方与 `rt_*` 完全相同：单卡 × 512 × 梯度累积 2，Adam 4e-3，warmup 500，cosine 衰减到 2%，bf16。
+每个臂 = 父配置（`configs/semkine_recipes/s37.yaml` / `event_gnn_abs.yaml`）+ 表中的键，由 `tools/s38/make_configs.py` 生成。训练配方与 `rt_*` 完全相同：单卡 × 512 × 梯度累积 2，Adam 4e-3，warmup 500，cosine 衰减到 2%，bf16。
 
 ## 3. 调试门（训练之前，每个臂都要过）
 
@@ -87,7 +87,7 @@ S37 可复现性：改动后重评 `rt_s37_s3407` 最后一步，RA = 23.5573570
 
 ## 4. 评测协议（基线与候选统一）
 
-- `tools/x1001/evalx.py eval --ckpt last --controls --tf --perturb`，在 GPU 上、batch 1、50 ms 递推，每段从 GT 加噪声起步，rng 0。S37 的 2k 臂也在 GPU 上重评。
+- `tools/tracking/evalx.py eval --ckpt last --controls --tf --perturb`，在 GPU 上、batch 1、50 ms 递推，每段从 GT 加噪声起步，rng 0。S37 的 2k 臂也在 GPU 上重评。
 - **只报最后一步，不选点。** 不调任何超参，增益和 R_ref 都已固定。zgz 是唯一的评测受试者（AGENTS.md 规定），同时用作筛选判定，这一点在结论文档里明说。
 - 报告的量：
   - 主表各列（AGENTS.md 格式）。

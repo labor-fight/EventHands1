@@ -131,10 +131,46 @@ def teacher_config(cfg):
     return teacher_cfg
 
 
+def resolve_distill_ckpt(cfg):
+    """`MODEL.DISTILL_CKPT` with every `{SEED}` replaced by the run's seed (`cfg["SEED"]`, after `--seed`), so one config
+    distils each seed from the teacher trained with the same seed (`outputs/semkine/dt_dz_l3_s{SEED}/last.ckpt`). The
+    resolved path is written back into `cfg` (hence into the model's saved hyper-parameters, `config_resolved.yaml` and
+    `training_metadata.json`) and returned; a path without the placeholder is returned as it is, no key returns None.
+    A teacher file that does not exist raises here, before the dataset is built, not after minutes of start-up."""
+    model_cfg = cfg.get("MODEL", {})
+    path = model_cfg.get("DISTILL_CKPT")
+    if not path:
+        return None
+    if not isinstance(path, str):
+        raise ValueError(f"MODEL.DISTILL_CKPT must be a path string, got {path!r}")
+    resolved = path.replace("{SEED}", str(int(cfg.get("SEED", 0))))
+    if not Path(resolved).is_file():
+        raise FileNotFoundError(f"MODEL.DISTILL_CKPT {path!r} resolves to {resolved!r} for SEED "
+                                f"{cfg.get('SEED')}, which is not a file")
+    model_cfg["DISTILL_CKPT"] = resolved
+    return resolved
+
+
+def teacher_backbone(ckpt):
+    """The `MODEL.CNN_BACKBONE` the teacher checkpoint was trained with, read from its own saved hyper-parameters; None
+    when it has none (a default-trunk teacher, or a file that stores no hyper-parameters)."""
+    hp = torch.load(ckpt, map_location="cpu").get("hyper_parameters") or {}
+    model = hp.get("MODEL") or (hp.get("cfg") or {}).get("MODEL") or {}
+    return model.get("CNN_BACKBONE")
+
+
 def load_distill_teacher(ckpt, cfg):
     """The frozen teacher of `MODEL.DISTILL_CKPT`: built from `teacher_config(cfg)`, weights loaded, eval mode, no
-    gradients. The student keeps it as a submodule (so Lightning moves it) and drops it from its own checkpoints."""
-    teacher = MNISTModel.load_from_checkpoint(ckpt, cfg=teacher_config(cfg), map_location="cpu").eval()
+    gradients. The student keeps it as a submodule (so Lightning moves it) and drops it from its own checkpoints.
+
+    The student's own `CNN_BACKBONE` never reaches the teacher (`TEACHER_DROP`), but a teacher that was itself trained with
+    a non-default trunk (DT2: the `resnet18_l3` tracker `dt_dz_l3` teaching a `resnet18_l3w128` student) is built with the
+    trunk its checkpoint records; without that it would be a default resnet18 and refuse to load its own weights."""
+    tcfg = teacher_config(cfg)
+    backbone = teacher_backbone(ckpt)
+    if backbone is not None:
+        tcfg["MODEL"] = dict(tcfg["MODEL"], CNN_BACKBONE=backbone)
+    teacher = MNISTModel.load_from_checkpoint(ckpt, cfg=tcfg, map_location="cpu").eval()
     for p in teacher.parameters():
         p.requires_grad_(False)
     return teacher
@@ -165,6 +201,9 @@ def main() -> None:
     if args.output_dir:
         tcfg["OUTPUT_DIR"] = args.output_dir
     pl.seed_everything(int(cfg.get("SEED", 0)), workers=True)
+    distill_ckpt = resolve_distill_ckpt(cfg)      # `{SEED}` -> this run's seed; the model and the metadata see the real path
+    if distill_ckpt:
+        print(f"distillation teacher checkpoint (MODEL.DISTILL_CKPT, SEED {cfg['SEED']}): {distill_ckpt}", flush=True)
 
     components = np.load(cfg["MANO"]["NPZ"])["hands_components"].astype(np.float32)
     dr = DR.DomRandConfig.from_cfg(cfg)
@@ -185,6 +224,15 @@ def main() -> None:
     if getattr(train_ds, "triplet", False):
         print(f"triplet batches: frac {train_ds.triplet_frac:.4f}, "
               f"LOSS.ACCEL_WEIGHT {float(cfg.get('LOSS', {}).get('ACCEL_WEIGHT', 0.0))}", flush=True)
+    # SEMKINE_FAST_PIPE=1 / DATA.FAST_PIPE: the bit-for-bit fast sample path (semkine/dataset.py, "fast pipe")
+    fast_requested = bool(getattr(train_ds, "fast_pipe", False))
+    fast_active = bool(getattr(train_ds, "fast_pipe_active", False))
+    if fast_requested and fast_active:
+        print("fast_pipe: ON -- fast training-sample path, bitwise identical to the legacy one "
+              "(SEMKINE_FAST_PIPE / DATA.FAST_PIPE)", flush=True)
+    elif fast_requested:
+        print(f"fast_pipe: requested but not applicable ({train_ds.fast_pipe_reason}); "
+              f"using the legacy sample path", flush=True)
     bsz = int(args.batch_size or tcfg["BATCH_SIZE_PER_GPU"])
     nw = int(args.num_workers if args.num_workers is not None else tcfg["NUM_WORKERS"])
     persistent = bool(tcfg.get("PERSISTENT_WORKERS", True)) and nw > 0
@@ -224,7 +272,9 @@ def main() -> None:
     teacher_ckpt = cfg["MODEL"].get("DISTILL_CKPT")
     if teacher_ckpt:
         model.teacher = load_distill_teacher(teacher_ckpt, cfg)
-        print(f"distillation teacher loaded from {teacher_ckpt}", flush=True)
+        n_teacher = sum(p.numel() for p in model.teacher.parameters())
+        print(f"distillation teacher loaded from {teacher_ckpt}: trunk {model.teacher.cnn_backbone}, {n_teacher} "
+              f"parameters, loss weight {model.distill_weight}", flush=True)
 
     out_dir = Path(tcfg["OUTPUT_DIR"])
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -270,6 +320,8 @@ def main() -> None:
         "train_samples": len(train_ds), "val_samples": len(val_ds),
         "batch_size_per_gpu": bsz, "devices": devices, "max_steps": max_steps,
         "save_every_n_steps": every, "lr": tcfg["LR"],
+        "fast_pipe": fast_active, "fast_pipe_requested": fast_requested,
+        "distill_ckpt": distill_ckpt, "distill_weight": float(cfg["MODEL"].get("DISTILL_WEIGHT", 0.0)),
         "selection_policy": "explicit last only (U1a)" if u1a else "fixed step grid; select by recursive RA on val_core",
         "data_generator_seed": int(cfg["SEED"]) if u1a else None,
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),

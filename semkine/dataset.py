@@ -34,6 +34,74 @@ from semkine.events import EventPacket
 
 H_DEFAULT, W_DEFAULT = 180, 240
 
+#: `SEMKINE_FAST_PIPE=1` (or `DATA.FAST_PIPE: true`, or `fast_pipe=True`) switches the dense training
+#: sample to the fast path below. Default off: the legacy path is untouched and stays the reference.
+FAST_PIPE_ENV = "SEMKINE_FAST_PIPE"
+#: the fast path derives the LNES millisecond bin from the window geometry, which equals the legacy
+#: `us // 1000` only while the sub-millisecond stamp (`tools/extract_subms.py`: `ts % 1000`) is < 1000
+_TSUB_BOUND = 1000
+
+
+def _env_flag(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+class _FastFallback(Exception):
+    """A sample whose bit-for-bit equality the fast path cannot vouch for; the legacy path recomputes it."""
+
+
+class _FastScratch:
+    """Per-process buffers of the fast path (rebuilt after a fork, never pickled).
+
+    The arrays handed out by `ev` / `rand` / `key` are valid until the next call of the same method:
+    the fast path renders each window before it reads the next one.
+    """
+
+    def __init__(self) -> None:
+        self.pid = os.getpid()
+        #: occupancy of the 16-bit source-pixel key `y * 256 + x`, and the slot table indexed by it.
+        #: (bool, not uint8: `nonzero` on a bool array takes a ~6x faster path in numpy 1.26)
+        self.occ = np.zeros(1 << 16, np.bool_)
+        self.table = np.zeros(1 << 16, np.intp)
+        self._ev = np.empty(0, np.uint8)
+        self._key = np.empty(0, np.intp)
+        self._rand = np.empty(0, np.float64)
+        self._keep = np.empty(0, np.bool_)
+        self._tabs: Dict[int, np.ndarray] = {}
+
+    @staticmethod
+    def _grow(buf: np.ndarray, n: int) -> np.ndarray:
+        if n > buf.shape[0]:
+            return np.empty(max(n, int(buf.shape[0] * 1.5), 1 << 16), buf.dtype)
+        return buf
+
+    def ev(self, n: int) -> np.ndarray:
+        """`(n, 3)` uint8 scratch for the event block."""
+        self._ev = self._grow(self._ev, 3 * n)
+        return self._ev[:3 * n].reshape(n, 3)
+
+    def key(self, n: int) -> np.ndarray:
+        self._key = self._grow(self._key, n)
+        return self._key[:n]
+
+    def keep(self, n: int):
+        """`(uniform draws, keep mask)` scratch of length n."""
+        self._rand = self._grow(self._rand, n)
+        self._keep = self._grow(self._keep, n)
+        return self._rand[:n], self._keep[:n]
+
+    def tab(self, window: int) -> np.ndarray:
+        """`tab[ms] = ms / window` in float32, the value `events.splat_event_image` writes for ms bin `ms`.
+
+        Built with the same operations as there (`ms.astype(float32) / float(window)`), so each entry
+        is the same float32 division, not an approximation of it.
+        """
+        t = self._tabs.get(window)
+        if t is None:
+            t = np.arange(window, dtype=np.int64).astype(np.float32) / float(window)
+            self._tabs[window] = t
+        return t
+
 
 @dataclass
 class SequenceHandles:
@@ -126,6 +194,8 @@ class SemKineDataset(Dataset):
         unroll_pair: bool = False,
         triplet: bool = False,
         triplet_frac: float = 1.0 / 3.0,
+        fast_pipe: Optional[bool] = None,
+        prev_lag_ms: Optional[int] = None,
     ):
         if input_mode not in self.INPUT_MODES:
             raise ValueError(f"INPUT_MODE must be one of {self.INPUT_MODES}, got {input_mode!r}")
@@ -172,6 +242,22 @@ class SemKineDataset(Dataset):
                 raise ValueError(f"DATA.TRIPLET_FRAC must be a float in (0, 1], got {triplet_frac!r}")
             self.triplet_frac = frac
         self.event_channels = tuple(event_channels)
+        # DT2 deviation 7, DATA.PREV_LAG_MS: the conditioning state is the ground truth `lag` ms before the window's end
+        # (`pos51[end - lag + 1]`, clipped to the run start) instead of the window's first ms, so the age of `prev` no
+        # longer equals the evidence window. None (the default) is the recorded behaviour, bit for bit. Plain windows only.
+        self.prev_lag_ms: Optional[int] = None
+        if prev_lag_ms is not None:
+            if isinstance(prev_lag_ms, bool) or not isinstance(prev_lag_ms, int) or prev_lag_ms < 1:
+                raise ValueError(f"DATA.PREV_LAG_MS must be a positive integer (ms) or absent, got {prev_lag_ms!r}")
+            if self.triplet or self.unroll_pair:
+                raise ValueError("DATA.PREV_LAG_MS is defined for plain windows only, not with DATA.TRIPLET or TRACK.UNROLL_PAIR")
+            self.prev_lag_ms = int(prev_lag_ms)
+
+        # Fast data pipe (see `_fast_item`): requested by the argument, or by SEMKINE_FAST_PIPE when the
+        # argument is None. Whether it applies is a property of the configuration (`fast_pipe_reason`).
+        self.fast_pipe = _env_flag(FAST_PIPE_ENV) if fast_pipe is None else bool(fast_pipe)
+        self._fast_scr: Optional[_FastScratch] = None
+        self.set_fast_pipe(self.fast_pipe)
 
         self._handles: Dict[int, SequenceHandles] = {}
         self._pid = os.getpid()
@@ -283,6 +369,12 @@ class SemKineDataset(Dataset):
         return n
 
     # ---------------------------------------------------------------- windows
+    def _prev_index(self, start: int, end: int, run_a: int) -> int:
+        """ms of the conditioning state: the window's first ms, or `end - PREV_LAG_MS + 1` clipped to the run start."""
+        if self.prev_lag_ms is None:
+            return start
+        return max(end - self.prev_lag_ms + 1, run_a)
+
     def _window(self, idx: int, rng: np.random.Generator) -> Tuple[int, int, int, int]:
         si, end, run_a, run_b = (int(v) for v in self.index[idx])
         if self.fixed_window is not None:
@@ -360,15 +452,20 @@ class SemKineDataset(Dataset):
 
     # ---------------------------------------------------------------- getitem
     def __getitem__(self, idx: int):
+        if self._fast_on:
+            try:
+                return self._fast_item(idx)
+            except _FastFallback:
+                pass            # the legacy code below recomputes this sample from scratch
         # Per-sample stream: augmentation is a pure function of (seed, epoch-free index).
         rng = np.random.default_rng((self.seed * 1_000_003 + idx) & 0x7FFFFFFF)
-        si, end, window, _ = self._window(idx, rng)
+        si, end, window, run_a = self._window(idx, rng)
         h = self._handle(si)
         start = end - window + 1
 
         xs, ys, ps, us = self._raw_events(h, end, window)
         target = self._to_target(h.pos51[end])
-        prev = self._to_target(h.pos51[start])
+        prev = self._to_target(h.pos51[self._prev_index(start, end, run_a)])
         camera_K = h.camera_K.copy()
 
         # -------- domain randomisation, mirrored onto labels and intrinsics
@@ -553,6 +650,249 @@ class SemKineDataset(Dataset):
         )
 
 
+    # ------------------------------------------------------------------ fast pipe
+    # `__getitem__` of the dense training sample, re-implemented to cost about a third of the legacy
+    # path while returning *the same bits*. It is opt-in (`fast_pipe`, see `__init__`), and the legacy
+    # code above stays the reference: `tests/test_dt_pipe_fast.py` compares the two sample by sample.
+    #
+    # Why the result is identical, in the order the argument is needed:
+    #
+    # 1. Random stream. A sample's augmentation is a pure function of `(seed, idx)` and the draws
+    #    are made in the legacy order with the legacy calls: window, `sample_params`, keep mask
+    #    (`rng.random(n)`, `n` = all events of the window), hot pixels and their (unused) sub-ms
+    #    jitter, `transform_labels` (no draws), prev noise, polarity flip, per-pixel swap mask and,
+    #    for triplets, the coin and the per-window draws of the two earlier windows. Only the
+    #    arithmetic on the drawn values is reorganised, never the draws.
+    # 2. LNES value. `splat_event_image` writes one float32 per (pixel, polarity) slot, later events
+    #    overwriting earlier ones, from a stream that is non-decreasing in ms (storage order is ms
+    #    order; hot-pixel injection re-sorts by `us`, and `us // 1000` is the ms bin because the
+    #    stored sub-ms stamp is < 1000, which `_fast_events` checks). A slot therefore ends up with
+    #    the *largest* ms bin that hit it (`last`), or the smallest (`first`, reversed splat), and
+    #    ties carry equal values. So events can stay in storage order, hot events can be merged by
+    #    max/min instead of a merge-sort, and the value of ms bin `m` is `tab[m]`.
+    # 3. Pixel map. `transform_events` maps each event with float64 arithmetic that depends on the
+    #    source pixel only. It is evaluated once per distinct source pixel (`domrand.map_pixel_grid`,
+    #    same expression, same rounding) and looked up per event through a 16-bit key.
+    #    Dropped events (keep mask) and events that leave the frame are routed to dummy slots in the
+    #    head / tail of the output buffer instead of being filtered out.
+    # 4. Polarity. `p_eff = p ^ flip ^ swap[pixel of the *mapped* event]` (`_polarity`), i.e. the
+    #    parity of the destination slot is flipped by the mapped pixel's `pol = flip ^ swap` entry.
+    #
+    # Anything the argument does not cover (event channels other than `last` / `last,first`, an
+    # evaluation split, raw packets, a sub-ms stamp >= 1000, events outside the frame, an event file
+    # that is not uint8 x/y/p) is declined at construction (`fast_pipe_reason`) or per sample
+    # (`_FastFallback`) and runs on the legacy path.
+    def _fast_unsupported(self) -> Optional[str]:
+        if self.input_mode != "legacy_lnes":
+            return f"INPUT_MODE {self.input_mode!r} is not legacy_lnes"
+        if not self.train:
+            return "evaluation split (train=False)"
+        if self.event_channels not in (("last",), ("last", "first")):
+            return f"EVENT_CHANNELS {list(self.event_channels)} (only last / last,first are covered)"
+        if self.width > 256 or self.height > 256:
+            return f"frame {self.width}x{self.height} does not fit the 8-bit pixel key"
+        return None
+
+    def set_fast_pipe(self, flag: bool) -> None:
+        """(Re)evaluate whether the fast path applies; tests use it to flip one dataset between the paths."""
+        self.fast_pipe = bool(flag)
+        self.fast_pipe_reason = self._fast_unsupported()
+        self._fast_on = self.fast_pipe and self.fast_pipe_reason is None
+
+    @property
+    def fast_pipe_active(self) -> bool:
+        return self._fast_on
+
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        d["_fast_scr"] = None          # scratch buffers are per process
+        return d
+
+    def _fast_scratch(self) -> _FastScratch:
+        s = self._fast_scr
+        if s is None or s.pid != os.getpid():
+            s = self._fast_scr = _FastScratch()
+        return s
+
+    def _fast_events(self, h: SequenceHandles, start: int, end: int, window: int,
+                     dr: DR.DomRandSample, rng: np.random.Generator):
+        """Events of ms `[start, end]` plus the draws of `_domrand_events`: `(ev, counts, keep, hot)`.
+
+        `ev` is the `(n, 3)` uint8 x/y/p block of the window (None when empty), `counts` the events
+        per ms bin, `keep` the Bernoulli keep mask (None when nothing is dropped) and `hot` the hot
+        pixel table. Draws exactly what `_raw_events` + `_domrand_events` draw, in the same order.
+        """
+        off = h.offsets
+        a0, a1 = int(off[start]), int(off[end + 1])
+        n = a1 - a0
+        ev = counts = keep = None
+        if n > 0:
+            if h.tsub is not None:
+                ts = h.tsub[a0:a1]
+                if int(ts.max()) >= _TSUB_BOUND or (ts.dtype.kind != "u" and int(ts.min()) < 0):
+                    raise _FastFallback
+            src = h.events[a0:a1]
+            if src.dtype != np.uint8 or src.ndim != 2 or src.shape[1] != 3:
+                raise _FastFallback
+            scr = self._fast_scratch()
+            ev = scr.ev(n)
+            np.copyto(ev, src)
+            counts = np.diff(off[start:end + 2])
+            if dr.keep < 1.0:                      # DR.keep_mask(n, dr.keep, rng): rng.random(n) < keep
+                draws, keep = scr.keep(n)
+                rng.random(n, out=draws)
+                np.less(draws, dr.keep, out=keep)
+        hot = DR.sample_hot_pixels(dr.n_hot, window, self.width, self.height, rng)
+        if hot is not None:
+            rng.integers(0, 1000, len(hot))        # sub-ms jitter of the hot events: drawn, never binned
+        return ev, counts, keep, hot
+
+    @staticmethod
+    def _pair(prev: np.ndarray, target: np.ndarray) -> np.ndarray:
+        """`np.stack([prev, target])` for two float32 state vectors, without np.stack's python overhead."""
+        out = np.empty((2,) + prev.shape, np.float32)
+        out[0] = prev
+        out[1] = target
+        return out
+
+    def _fast_polarity(self, flip: bool, swap: Optional[np.ndarray]) -> np.ndarray:
+        """`pol[pixel] = flip ^ swap[pixel]` as uint8, with a trailing 0 for the out-of-frame pixel."""
+        hw = self.height * self.width
+        pol = np.zeros(hw + 1, np.uint8)
+        if swap is None:
+            if flip:
+                pol[:hw] = 1
+        else:
+            np.bitwise_xor(swap.reshape(-1).view(np.uint8), np.uint8(1 if flip else 0), out=pol[:hw])
+        return pol
+
+    def _fast_render(self, events, window: int, dr: DR.DomRandSample, camera_K: np.ndarray,
+                     pol: np.ndarray) -> np.ndarray:
+        """The `(H, W, 2 * len(event_channels))` event image of `_fast_events` output, as `_splat_lnes` makes it.
+
+        `camera_K` is the sequence's own K (what `transform_events` is given), not the augmented one.
+        """
+        ev, counts, keep, hot = events
+        H, W = self.height, self.width
+        hw = H * W
+        first = len(self.event_channels) == 2
+        scr = self._fast_scratch()
+        tab = scr.tab(window)
+        # Slot of pixel p, polarity q within a plane is `(p + 1) * 2 + q`: the two floats in front of
+        # and behind the plane are the dummy slots of dropped / out-of-frame events. `first` is a
+        # second plane with the same slots, initialised to 2.0 = "no event" (real values are < 1).
+        lbuf = np.zeros(hw * 2 + 4, np.float32)
+        fbuf = np.full(hw * 2 + 4, 2.0, np.float32) if first else None
+        if ev is not None:
+            n = ev.shape[0]
+            key = scr.key(n)
+            key[:] = np.ndarray((n,), dtype="<u2", buffer=ev, strides=(3,))     # y * 256 + x
+            occ = scr.occ
+            occ[key] = True
+            src = occ.nonzero()[0]                 # the distinct source pixels of the window
+            occ.fill(False)
+            sx, sy = src & 255, src >> 8
+            if int(sx.max()) >= W or int(sy.max()) >= H:
+                raise _FastFallback
+            npx = DR.map_pixel_grid(sx, sy, dr, camera_K, self.render_scale, W, H)
+            scr.table[src] = (npx + 1) * 2 + pol[npx]
+            slot = scr.table[key]                  # polarity bit of the slot = pol[mapped pixel]
+            np.bitwise_xor(slot, np.minimum(ev[:, 2], 1), out=slot)
+            if keep is not None:
+                np.multiply(slot, keep, out=slot)  # dropped events -> slot 0, in the head dummy slots
+            tv = np.repeat(tab, counts)
+            lbuf[slot] = tv                        # last write wins = latest ms bin
+            if first:                              # reversed, so that the earliest ms bin wins
+                fbuf[np.ascontiguousarray(slot[::-1])] = np.ascontiguousarray(tv[::-1])
+        if hot is not None:
+            hm, hx, hy, hp = hot[:, 0], hot[:, 1], hot[:, 2], hot[:, 3]
+            hpix = hy * W + hx
+            hs = (hpix + 1) * 2 + (np.minimum(hp, 1) ^ pol[hpix])
+            order = np.argsort(hm.astype(np.int16) if window < 32768 else hm, kind="stable")
+            hs, ht = hs[order], tab[hm[order]]     # ascending ms, so the last write of a slot is its max
+            lbuf[hs] = np.maximum(lbuf[hs], ht)
+            if first:
+                hs, ht = np.ascontiguousarray(hs[::-1]), np.ascontiguousarray(ht[::-1])
+                fbuf[hs] = np.minimum(fbuf[hs], ht)    # descending ms, the last write is the min
+        last = lbuf[2:2 + hw * 2].reshape(H, W, 2)
+        if not first:
+            return last
+        plane = fbuf[2:2 + hw * 2]
+        np.multiply(plane, plane < 2.0, out=plane)     # 2.0 -> 0.0 (slots no event touched)
+        out = np.empty((H, W, 4), np.float32)
+        out[:, :, 0:2] = last
+        out[:, :, 2:4] = plane.reshape(H, W, 2)
+        return out
+
+    def _fast_tuple(self, lnes: np.ndarray, prev: np.ndarray, target: np.ndarray,
+                    h: SequenceHandles, camera_K: np.ndarray):
+        """The legacy 5-tuple `(lnes, prev_state, target, betas, camera_K)` of one window."""
+        return (
+            torch.from_numpy(lnes),
+            torch.from_numpy(np.asarray(prev, np.float32)),
+            torch.from_numpy(np.asarray(target, np.float32)),
+            torch.from_numpy(h.betas.copy()),
+            torch.from_numpy(np.asarray(camera_K, np.float32)),
+        )
+
+    def _fast_window(self, h: SequenceHandles, start: int, end: int, window: int,
+                     dr: DR.DomRandSample, pol: np.ndarray, rng: np.random.Generator):
+        """A window of a triplet: events + draws, labels, prev noise (`_triplet_window` without its packet)."""
+        events = self._fast_events(h, start, end, window, dr, rng)
+        target = self._to_target(h.pos51[end])
+        prev = self._to_target(h.pos51[start])
+        camera_K = h.camera_K.copy()
+        if self.domrand.enabled:
+            stacked, camera_K = DR.transform_labels(
+                self._pair(prev, target), dr, camera_K, h.j0, self.render_scale
+            )
+            prev, target = stacked[0], stacked[1]
+        noise = self._sample_prev_noise(rng)
+        if noise is not None:
+            prev = prev + noise
+        return self._fast_tuple(self._fast_render(events, window, dr, h.camera_K, pol),
+                                prev, target, h, camera_K)
+
+    def _fast_item(self, idx: int):
+        """`__getitem__` of the legacy_lnes training sample on the fast path; raises `_FastFallback` to decline."""
+        rng = np.random.default_rng((self.seed * 1_000_003 + idx) & 0x7FFFFFFF)
+        si, end, window, run_a = self._window(idx, rng)
+        h = self._handle(si)
+        start = end - window + 1
+        target = self._to_target(h.pos51[end])
+        prev = self._to_target(h.pos51[self._prev_index(start, end, run_a)])
+        dr = DR.sample_params(self.domrand, rng, self.height * self.width * 2 * window)
+        events = self._fast_events(h, start, end, window, dr, rng)
+        camera_K = h.camera_K.copy()
+        if self.domrand.enabled:
+            stacked, camera_K = DR.transform_labels(
+                self._pair(prev, target), dr, camera_K, h.j0, self.render_scale
+            )
+            prev, target = stacked[0], stacked[1]
+        noise = self._sample_prev_noise(rng)
+        if noise is not None:
+            prev = prev + noise
+        flip = self.polarity_flip and int(rng.integers(0, 2)) == 1
+        swap = None
+        if self.pixel_polarity_swap:
+            swap = rng.integers(0, 2, size=(self.height, self.width)).astype(bool)
+        pol = self._fast_polarity(flip, swap)
+        main = self._fast_tuple(self._fast_render(events, window, dr, h.camera_K, pol),
+                                prev, target, h, camera_K)
+        if not self.triplet:
+            return main
+        # `_triplet_sample`: the coin is the first draw after the plain sample's last one; the two
+        # earlier windows then draw their own keep masks / hot pixels / prev noise, backwards.
+        run_a = int(self.index[idx][2])
+        coin = float(rng.random()) < self.triplet_frac
+        if not (coin and end - run_a + 1 >= 3 * window):
+            return {"w0": main, "w1": main, "w2": main, "valid": torch.tensor(False)}
+        e1, e0 = end - window, end - 2 * window
+        w1 = self._fast_window(h, e1 - window + 1, e1, window, dr, pol, rng)
+        w0 = self._fast_window(h, e0 - window + 1, e0, window, dr, pol, rng)
+        return {"w0": w0, "w1": w1, "w2": main, "valid": torch.tensor(True)}
+
+
 # -------------------------------------------------------------------- builders
 #: set to "1" only to re-score an artefact of a retired split for the record; never for training
 ALLOW_RETIRED_SPLITS_ENV = "EVENTHANDS_ALLOW_RETIRED_SPLITS"
@@ -610,6 +950,9 @@ def build_dataset(cfg: dict, split: str, components: np.ndarray,
     if isinstance(triplet, str):
         # `TRIPLET: "false"` is a truthy string; a YAML quoting slip must not switch it on.
         raise ValueError(f"DATA.TRIPLET must be a bool, got {triplet!r}")
+    fast = data.get("FAST_PIPE", False)
+    if isinstance(fast, str):
+        raise ValueError(f"DATA.FAST_PIPE must be a bool, got {fast!r}")
     return SemKineDataset(
         root=root,
         sequences=sequences_for_split(root, split, manifest_path),
@@ -643,4 +986,8 @@ def build_dataset(cfg: dict, split: str, components: np.ndarray,
         # Training split only (val / test stay plain windows); raises if the input is not LNES.
         triplet=bool(triplet) and bool(train),
         triplet_frac=data.get("TRIPLET_FRAC", 1.0 / 3.0),
+        # DATA.FAST_PIPE: true enables the fast path; absent / false leaves it to SEMKINE_FAST_PIPE.
+        fast_pipe=True if fast else None,
+        # DATA.PREV_LAG_MS (DT2 deviation 7): absent = the window's first ms, as recorded.
+        prev_lag_ms=data.get("PREV_LAG_MS"),
     )

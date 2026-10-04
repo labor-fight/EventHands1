@@ -6,7 +6,7 @@
 - zgz（`zgz_global`、`zgz_local`）既是开发集也是测试集：选点、调参、上报都在这两条序列上。不另设封存测试集。
 - 唯一的划分文件是数据根下的 `splits_semkine.json`（由 `tools/build_splits_semkine.py` 生成，文件只读）。
   配置的 `DATA.SPLITS_MANIFEST` 要么不写（默认就是它），要么写它的绝对路径；不要新建或换用别的划分。
-- x1001 的 8 人划分（`splits_x1001_dev_v1.json`）和封存测试（ly）已作废；按 8 人划分训练的 run 不进主表。
+- 退役的 8 人划分和旧封存测试（ly）已作废；按 8 人划分训练的 run 不进主表。
 
 ## Results are reported in one table, with these columns only (user's format, 2026-09-21)
 

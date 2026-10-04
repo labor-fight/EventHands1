@@ -2,7 +2,7 @@
 """S38 screening / full-budget report (docs/S38_ROOT_TRACKING_PREREG.md section 5).
 
 Every arm is compared with S37 at the same seeds, last step, GPU evaluation
-(`tools/x1001/evalx.py eval --ckpt last --controls --tf --perturb`). The registered gates:
+(`tools/tracking/evalx.py eval --ckpt last --controls --tf --perturb`). The registered gates:
   effective   paired RA mean <= -1.1 mm with every seed negative, and paired closed-loop root error mean < 0
   guards      MPJPE-local (zgz_local RA) seed mean not worse than S37's by >= 1.1 mm;
               absolute translation error seed mean not worse than S37's by more than 10 %

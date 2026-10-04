@@ -290,6 +290,37 @@ def transform_events(xs: np.ndarray, ys: np.ndarray, sample: DomRandSample,
     return keep
 
 
+def map_pixel_grid(xs: np.ndarray, ys: np.ndarray, sample: DomRandSample,
+                   camera_K: np.ndarray, render_scale: float, width: int,
+                   height: int) -> np.ndarray:
+    """Destination pixel index `y * width + x` of source pixels `(xs, ys)`; `height * width` when out of frame.
+
+    The fast data pipe (`SEMKINE_FAST_PIPE`, `dataset.py`) evaluates the pixel map of
+    :func:`transform_events` once per *distinct* source pixel of a window (thousands) instead of
+    once per event (tens of thousands), and looks the result up per event. For that to stay
+    bit for bit the same, the expression below is :func:`transform_events` verbatim (same
+    operands, same order, same `np.rint`, same in-frame test); `tests/test_dt_pipe_fast.py` pins
+    the two against each other, so an edit to one that misses the other fails there. The identity
+    realisation returns `ys * width + xs` and assumes the pixels are already in frame (the caller
+    checks).
+    """
+    if sample.geometric_identity:
+        return (ys * width + xs).astype(np.intp)
+    cxs = float(camera_K[0, 2]) * render_scale
+    cys = float(camera_K[1, 2]) * render_scale
+    c, s = np.cos(sample.roll_rad), np.sin(sample.roll_rad)
+    a = sample.scale
+    dx, dy = sample.shift_px
+    u = xs.astype(np.float64) - cxs
+    v = ys.astype(np.float64) - cys
+    nu = a * (c * u - s * v) + cxs + dx
+    nv = a * (s * u + c * v) + cys + dy
+    xi = np.rint(nu)
+    yi = np.rint(nv)
+    inb = (xi >= 0) & (xi < width) & (yi >= 0) & (yi < height)
+    return np.where(inb, yi * width + xi, height * width).astype(np.intp)
+
+
 def roll_pixel_residual_px(camera_K: np.ndarray, roll_rad: float, width: int,
                            height: int, render_scale: float) -> float:
     """Max pixel disagreement between the 3D z-rotation and an exact pixel rotation.

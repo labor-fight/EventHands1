@@ -7,15 +7,15 @@ until the host has issued the next kernels). The forward is launch bound: the GP
 the rest is the host issuing ~230 tiny kernels (outputs/dt/reports/render_breakdown.md):
 
   * 15 inside `ManoLayer.forward`: `transform_chain[self.parents[i]]` indexes a Python list with a 0-d CUDA
-    tensor, so Python calls `Tensor.__index__` -> `.item()` -> a device-to-host copy + stream sync, once per joint;
+    tensor, so Python calls `Tensor.__index__` -> `.item()` -> a device-to-host copy + stream sync, once per joint
+    (removed by `ManoLayer.fast_chain = True`, default off; `FastMano` below has its own copy of the layer);
   * 2 inside `MNISTModel._render_chunk`: boolean-mask indexing (`pix[valid]`, `z_safe[valid]`) runs `nonzero`.
 
 Everything here computes the *same floating point operations in the same order* as the code it replaces, so the
 outputs are bit-for-bit those of `MNISTModel._render_chunk` (`tests/test_dt_render.py` compares `torch.equal`
 against the live MAIN implementation on thousands of random states and on hand-made corner cases).  Nothing in this
-file changes a default: `MNISTModel` only uses it after `enable_fast_render()`, which exists only if
-outputs/dt/reports/render_fast_patch/render_fast_model.patch is applied (the 15 syncs of the stock `ManoLayer` are
-removed for every user by render_fast_mano_layer.patch).
+file changes a default: a model only uses it after `deploy_fast.enable_fast_render(model)`, which swaps the model
+INSTANCE's `_render_prev` (model/model.py is not touched).
 
 Contents
   FastMano            `ManoLayer.forward` op for op, with the parent table as Python ints (no sync); optionally
@@ -27,12 +27,17 @@ Contents
   rasterize_masked    the original masked implementation, kept as the ablation / reference (same code as
                       `_render_chunk`, factored into the stage functions the breakdown tool times).
   RenderFast          callable with the signature of `MNISTModel._render_prev(prevpos, betas, camera_K)`.
-  GraphedForward      (optional, opt-in) CUDA-graph replay of a whole batch-1 forward: either the replica
-                      `dense_forward` built on the above, or any callable `fn(x, prev, betas, K)` such as the
-                      model's own `forward`. The forward is first run eagerly under sync debug mode "error": a
-                      failed capture would poison torch 2.1's caching allocator ("captures_underway == 0"), a
-                      host sync is found there instead, cleanly. torch 2.1's profiler never returns after a
-                      graph replay: do not profile a graphed forward.
+  dense_forward       op-for-op replica of `MNISTModel.forward` for the dense PREV_RENDER arm with the render
+                      pluggable: every option of the DT rounds is covered (CAM_PLANES, ROOT_HEAD spatial / anchor,
+                      PREV_MLP_TRANSL, ROOT_COMPOSE, ZERO_EVENT_GATE); an arm it does not know raises
+                      NotImplementedError instead of silently dropping a head.
+  GraphedForward      (optional, opt-in) CUDA-graph replay of a whole batch-1 forward: by default the model's OWN
+                      `forward` (so every arm is covered, later changes of the forward included; it must be host-sync
+                      free, i.e. `deploy_fast.enable_fast_render(model)` first), or `render=` for the replica
+                      `dense_forward`, or any callable `fn(x, prev, betas, K)`. The forward is first run eagerly under
+                      sync debug mode "error": a failed capture would poison torch 2.1's caching allocator
+                      ("captures_underway == 0"), a host sync is found there instead, cleanly. torch 2.1's profiler
+                      never returns after a graph replay: do not profile a graphed forward.
 
 Exactness notes (read before "optimising" anything here).
   * `tensor / python_scalar` is `tensor * (1 / scalar)` on CUDA but a true division on CPU; the `/ 5.0` below is
@@ -92,7 +97,8 @@ class FastMano:
 
     def __init__(self, mano):
         self.mano = mano
-        self.parents: List[int] = [int(p) for p in mano.parents.tolist()]   # one sync, at construction
+        py = getattr(mano, "_parents_py", None)                             # no sync when the layer carries them
+        self.parents: List[int] = list(py) if py is not None else [int(p) for p in mano.parents.tolist()]  # else one sync
 
     def shape_terms(self, betas: torch.Tensor) -> ShapeTerms:
         return ShapeTerms(self.mano, betas)
@@ -322,6 +328,14 @@ class RenderFast:
     # -- the render ----------------------------------------------------------------------------------
     def __call__(self, prevpos: torch.Tensor, betas: torch.Tensor, camera_K: torch.Tensor) -> torch.Tensor:
         m = self.model
+        if getattr(m, "render_fp32", False):
+            # MODEL.RENDER_FP32: `_render_prev` runs the whole render in plain float32 under any autocast; so does this
+            with torch.autocast(device_type=prevpos.device.type, enabled=False):
+                return self._render(prevpos, betas, camera_K)
+        return self._render(prevpos, betas, camera_K)
+
+    def _render(self, prevpos, betas, camera_K):
+        m = self.model
         B = prevpos.shape[0]
         chunk = max(int(m.render_chunk), 1)
         out = [
@@ -359,12 +373,22 @@ class RenderFast:
 
 
 # ------------------------------------------------------------------------------------------------ forward
+def _check_dense_arm(model, what: str) -> None:
+    """The arms `dense_forward` replicates: the dense PREV_RENDER forward (no raw-event encoder, no active head)."""
+    if getattr(model, "encoder_name", "") or getattr(model, "active_head", False) or not model.prev_render:
+        raise NotImplementedError(f"{what} covers the dense PREV_RENDER arm only (no ENCODER, no ACTIVE_HEAD)")
+
+
 def dense_forward(model, x, prevpos, betas=None, camera_K=None, render=None):
     """`MNISTModel.forward` of the dense render-and-compare arm (PREV_RENDER, no active head, no raw-event
     encoder), op for op, with the render step pluggable (`render(prev, betas, K)`; default the model's own).
-    `tests/test_dt_render.py` pins it bitwise to the live `forward`, so a drift in the model shows up there."""
-    if getattr(model, "encoder_name", "") or getattr(model, "active_head", False) or not model.prev_render:
-        raise NotImplementedError("dense_forward covers the dense PREV_RENDER arm only")
+    Every forward option of the DT rounds is replicated, through the model's own helper where there is one:
+    CAM_PLANES (`_cam_planes`), MODEL.ROOT_HEAD spatial / anchor (`_trunk_with_root_head`), PREV_MLP_TRANSL false,
+    ZERO_EVENT_GATE, ROOT_COMPOSE so3 (`_compose_root_so3`). An arm outside the dense one raises NotImplementedError:
+    a replica that quietly dropped a head would be a different network. `tests/test_dt_render.py` pins it bitwise to
+    the live `forward` for each option, so a drift in the model shows up there; `GraphedForward` records the model's
+    own `forward` by default and does not depend on this replica."""
+    _check_dense_arm(model, "dense_forward")
     lnes = x
     B = lnes.shape[0]
     betas_f, k_f = model._resolve_betas_K(prevpos, betas, camera_K)
@@ -372,17 +396,66 @@ def dense_forward(model, x, prevpos, betas=None, camera_K=None, render=None):
         rend = (render or model._render_prev)(prevpos.float(), betas_f, k_f)
     rend = rend.to(dtype=lnes.dtype, device=lnes.device)
     x = torch.cat([lnes, rend], dim=-1)
+    if getattr(model, "cam_planes", False):
+        with torch.no_grad():
+            planes = model._cam_planes(k_f).to(dtype=lnes.dtype, device=lnes.device)
+        x = torch.cat([x, planes], dim=-1)
     x = x.permute(0, 3, 1, 2).contiguous()
-    out = model.rn(model.conv1(x))
+    if getattr(model, "root_head_kind", "none") == "none":
+        out = model.rn(model.conv1(x))
+    else:
+        out = model._trunk_with_root_head(model.conv1(x), prevpos, betas_f, k_f)
     if model.prevpos_embed:
-        out = out + model.prev_mlp(prevpos.to(out.dtype))
+        pm = model.prev_mlp(prevpos.to(out.dtype))
+        if not getattr(model, "prev_mlp_transl", True):
+            t = model.slices.transl
+            pm = torch.cat([pm[:, : t.start], torch.zeros_like(pm[:, t]), pm[:, t.stop:]], dim=-1)
+        out = out + pm
     if model.predict_delta:
         delta = out
+        empty = None
         if model.zero_event_gate:
             empty = lnes.reshape(B, -1).abs().sum(dim=1, keepdim=True) <= 0
             delta = torch.where(empty, torch.zeros_like(delta), delta)
         out = delta + prevpos.to(out.dtype)
+        if getattr(model, "root_compose", "add") == "so3":
+            out = model._compose_root_so3(out, delta, prevpos)
+            if empty is not None:
+                out = torch.where(empty, prevpos.to(out.dtype), out)
     return out
+
+
+def capture_checked(run, warmup: int = 3):
+    """Record `run()` (a callable that launches CUDA work on static buffers and returns its static output) as a CUDA
+    graph; returns `(graph, out)`. `run` is first called eagerly on a side stream -- once plain (lazy library
+    initialisation), then `warmup` times under sync debug mode "error": a capture that fails leaves torch 2.1's caching
+    allocator unusable for the next one ("captures_underway == 0 INTERNAL ASSERT FAILED"), so find out here, eagerly and
+    cleanly, that nothing synchronises with the host (a host synchronisation is what makes a capture fail, and it raises
+    RuntimeError "... synchronizing CUDA operation ..." under that mode). NOTE `run` really executes `warmup + 1` times:
+    anything it mutates (a state buffer) must be saved and restored by the caller."""
+    side = torch.cuda.Stream()
+    side.wait_stream(torch.cuda.current_stream())
+    with torch.cuda.stream(side):
+        run()
+        mode = torch.cuda.get_sync_debug_mode()
+        torch.cuda.set_sync_debug_mode("error")
+        try:
+            for _ in range(max(int(warmup), 1)):
+                run()
+        finally:
+            torch.cuda.set_sync_debug_mode(mode)
+    torch.cuda.current_stream().wait_stream(side)
+    torch.cuda.synchronize()
+    graph = torch.cuda.CUDAGraph()
+    with torch.cuda.graph(graph):
+        out = run()
+    torch.cuda.synchronize()
+    return graph, out
+
+
+def _cache_hits(model) -> Optional[int]:
+    """Number of per-sequence cache hits of the model's render hook (None if its `_render_prev` has no such counter)."""
+    return getattr(getattr(model, "_render_prev", None), "cache_hits", None)
 
 
 class GraphedForward:
@@ -394,11 +467,12 @@ class GraphedForward:
     at `capture`. betas / K are graph *inputs* (static buffers; `set_context` refreshes them), so a new sequence needs no
     re-capture. Inference only (no autograd).
 
-    `fn(x, prev, betas, K)` is what is captured. Default: `dense_forward` with a sync-free `RenderFast` (a replica of the
-    dense forward, for standalone use). The model patch passes the model's own `forward` (its `_render_prev` dispatching
-    to a `RenderFast`), so whatever the forward does -- later changes included -- is what is replayed; a forward with a
-    host sync cannot be captured and raises at `capture`.
+    `fn(x, prev, betas, K)` is what is captured. Default (no `fn`, no `render`): the MODEL'S OWN `forward`, so whatever the
+    forward does -- every arm, later changes included -- is what is replayed; a forward with a host sync cannot be captured
+    and raises at `capture` (`deploy_fast.enable_fast_render(model)` removes the syncs of the render arm first). With
+    `render=` (a sync-free `RenderFast`, no cache): the replica `dense_forward`, for standalone use.
 
+        deploy_fast.enable_fast_render(model)
         gf = GraphedForward(model); gf.capture(x0, prev0, betas, K)
         pred = gf(x, prev)                     # == model(x, prev), bit for bit
     """
@@ -407,15 +481,18 @@ class GraphedForward:
         self.model = model
         self.clone_output = bool(clone_output)
         self.capturing = False
-        if fn is None:
-            self.render = render if render is not None else RenderFast(model, raster=True, fk=True, cache=False)
-            if self.render.cache:
+        if fn is not None:
+            self.render = render
+        elif render is not None:
+            if render.cache:
                 raise ValueError("a cached RenderFast would freeze its per-sequence terms into the graph")
-            if not (self.render.raster and self.render.fk):
+            if not (render.raster and render.fk):
                 raise ValueError("the graph needs the host-sync-free render (raster=True, fk=True)")
+            self.render = render
             fn = lambda x, p, b, k: dense_forward(model, x, p, b, k, render=self.render)   # noqa: E731
         else:
-            self.render = render
+            self.render = None
+            fn = lambda x, p, b, k: model.forward(x, p, b, k)                              # noqa: E731
         self.fn = fn
         self.graph: Optional[torch.cuda.CUDAGraph] = None
         self._x = self._prev = self._betas = self._K = self._out = None
@@ -445,28 +522,15 @@ class GraphedForward:
         self._prev = prev.detach().float().clone()
         self._betas = betas.detach().to(device=dev, dtype=torch.float32).reshape(1, -1).clone()
         self._K = camera_K.detach().to(device=dev, dtype=torch.float32).reshape(1, 3, 3).clone()
+        hits0 = _cache_hits(self.model)
         self.capturing = True
         try:
-            side = torch.cuda.Stream()
-            side.wait_stream(torch.cuda.current_stream())
-            with torch.cuda.stream(side):
-                self._run()                                  # first call plain: lazy library initialisation
-                # A capture that fails leaves torch 2.1's caching allocator unusable for the next one ("captures_underway
-                # == 0 INTERNAL ASSERT FAILED"), so find out here, eagerly and cleanly: a host synchronisation, which is
-                # what makes a capture fail, raises under sync debug mode "error".
-                mode = torch.cuda.get_sync_debug_mode()
-                torch.cuda.set_sync_debug_mode("error")
-                try:
-                    for _ in range(max(int(warmup), 1)):
-                        self._run()
-                finally:
-                    torch.cuda.set_sync_debug_mode(mode)
-            torch.cuda.current_stream().wait_stream(side)
-            torch.cuda.synchronize()
-            graph = torch.cuda.CUDAGraph()
-            with torch.cuda.graph(graph):
-                self._out = self._run()
-            torch.cuda.synchronize()
+            graph, self._out = capture_checked(self._run, warmup)
+            if hits0 is not None and _cache_hits(self.model) != hits0:
+                # the graph reads betas / K from its own static buffers, which never are the model's context tensors; a hit
+                # would bake one sequence's terms into the graph as constants (a later sequence would silently get them)
+                raise RuntimeError("the per-sequence render cache was used while recording the graph (it would be frozen "
+                                   "into it); capture with explicit betas / K buffers, which is what GraphedForward does")
             self.graph = graph
         except Exception:
             self.graph = None

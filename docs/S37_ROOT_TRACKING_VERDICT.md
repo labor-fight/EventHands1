@@ -10,7 +10,7 @@
 1. **编码器是第一个瓶颈。**
    - S37 的事件图编码器提不出绝对朝向。在 Δ 目标下，它的特征解码根旋转与平凡的事件直方图相当（约 13–15°），在训练受试者上也一样，所以不是泛化问题。
    - 即使直接用绝对目标训练（E7），根旋转也只有 12–14°，RA 28.0；同预算的 ResNet18/LNES 是 9.8°、RA 15.5。
-   - 三个针对编码器的单变量改动（E9 空间采样、E8 时间感受野、G3 层级读出），放在 S37 的跟踪框架里都没有超过 S37。
+   - 两个针对编码器的单变量改动（E8 时间感受野、G3 层级读出），放在 S37 的跟踪框架里都没有超过 S37。
 2. **根的测量方式是第二个瓶颈，两者缺一不可。**
    - Δ 递推读出不要求编码器测绝对朝向：同一个 CNN，在 Δ 目标下只解码到 13.3°，在绝对目标下到 9.1°。
    - Δ 读出在闭环里按训练课程给定的固定增益信任 prev，偏差会一直带下去。
@@ -29,8 +29,8 @@
 ## 1. 协议、配方与基线
 
 - **数据协议（固定，AGENTS.md）**：9 人训练（72 条序列，`splits_semkine.json`），zgz（`zgz_global` + `zgz_local`，2590 个 50 ms 评测步）同时作开发集和测试集。没有封存测试集，凡在 zgz 上做的选择都带乐观偏差，所以每个数同时给出：最后一步（不选点）、选中点、网格中位数。
-- **评测协议（未改动）**：50 ms 递推，每个有效段从 GT + 噪声（5 mm / 0.05 rad）出发，rng 种子 0，四个精度列根对齐。`tools/x1001/evalx.py eval` 逐步复现 `track_sequence`，与选点结果的差 < 0.05 mm。
-- **统一训练配方（本轮所有臂）**：单卡 × 512 × 梯度累积 2（有效 1024），Adam 4e-3，warmup 500，cosine 衰减到 2%，bf16。短训筛选 `_2k` 为 2000 步（cosine 压缩到 2000 步），全量为 6000 步；每 500 步存一个 checkpoint。配置由 `tools/rt/make_configs.py` 从 `configs/x1001/x1001_{s37,cnn}.yaml` 派生，每个臂只差表中列出的键（`configs/rt/`）。
+- **评测协议（未改动）**：50 ms 递推，每个有效段从 GT + 噪声（5 mm / 0.05 rad）出发，rng 种子 0，四个精度列根对齐。`tools/tracking/evalx.py eval` 逐步复现 `track_sequence`，与选点结果的差 < 0.05 mm。
+- **统一训练配方（本轮所有臂）**：单卡 × 512 × 梯度累积 2（有效 1024），Adam 4e-3，warmup 500，cosine 衰减到 2%，bf16。短训筛选 `_2k` 为 2000 步（cosine 压缩到 2000 步），全量为 6000 步；每 500 步存一个 checkpoint。配置由 `tools/rt/make_configs.py` 从 `configs/semkine_recipes/{s37,cnn_abs}.yaml` 派生，每个臂只差表中列出的键（`configs/rt/`）。
 - **基线**：当前 main 的 S37 路由读出（`s37_routed`，历史主行 20.74 = 19.23 / 22.26，2 卡 × 512、常数学习率、选点）。本轮用统一配方重训：`rt_s37`（6000 步）和 `rt_s37_2k`（2000 步）。
 
 ## 2. 诊断：H2 / H5
@@ -39,9 +39,7 @@
 
 | 证据 | 结果 | 来源 |
 |---|---|---|
-| E1a 探针（历史 9 人 checkpoint，无 prev 池化特征 → 根旋转，MLP / ridge） | S37 13.2–13.8°，与平凡事件直方图（13.25°）无差别；CNN 9.1–9.5° | `docs/x1001/PHASE1_DIAG.md` §1 |
-| E7：同一图编码器改用绝对目标端到端训练（8 人划分，x1001 配方，诊断用） | 根旋转 13.3° / 14.6°，RA 24.80 / 26.11；同配方 CNN 9.3° / 9.3°、RA 14.55 / 13.61 | `EventHands1_x1001/runs/x1001_{e7,cnn}_s340*` |
-| 本轮 ridge 探针（`tools/rt/probe_abs.py`，训练集拟合、zgz 评分；校准：历史 CNN 9.23° 对 E1a 9.24°） | 见下表 | `outputs/semkine/<run>/probe_abs_last.json` |
+| 本轮 ridge 探针（`tools/rt/probe_abs.py`，训练集拟合、zgz 评分） | 见下表 | `outputs/semkine/<run>/probe_abs_last.json` |
 
 | 编码器（训练目标） | zgz | 训练集 5 折交叉验证 |
 |---|---|---|
@@ -57,11 +55,9 @@
 
 ### 2.2 H5：事件率敏感——不是主因
 
-- PHASE1_DIAG §3：S37 与 CNN 随事件率稀释的劣化幅度相近；keep ≥ 0.1 时图的邻域几何不变，误差照样上升。"按事件计数定义的邻域导致 S37 特有的率敏感"不成立。
 - 本轮按事件率分档（`evalx` 的 `by_events`，s3407）：S37 在 zgz_local 上 RA 25.4 / 26.8 / 24.2（每 50 ms 事件数 < 500 / 500–2000 / 2000–10000），事件充足时也是 24.2；CNN 为 19.5 / 15.3 / 13.8。S37 在 local 上的劣势与事件率基本无关。
-- 时间感受野：S37 每个节点只"看见" 1.9 ms（三跳祖先跨度），5 ms 切片遮挡会让 2048 个节点全部重排（PHASE1_DIAG §4）。E8（整包因果 kNN，时间权重 0.1，三跳跨度 21 ms）正是针对这一点，结果见 §3。
 
-### 2.3 评测方法（本轮新增，`tools/x1001/evalx.py eval --controls --tf --perturb`）
+### 2.3 评测方法（本轮新增，`tools/tracking/evalx.py eval --controls --tf --perturb`）
 
 - **闭环**：协议闭环；对照 `hold`（段首状态不动）、`noevents`（空包闭环）。
 - **教师强制（TF）**：每步喂上一步的 GT 状态，得到单步误差；闭环 / TF 为放大倍数。
@@ -76,7 +72,6 @@
 | 臂 | 相对 S37 改了什么（假设） | RA s3407 / s3408 | 配对差 | 闭环根 | TF 根 | 放大 | 残留 k1 / k5 | 判定与原因 |
 |---|---|---|---|---|---|---|---|---|
 | S37（基线） | — | 19.03 / 24.31 | — | 10.03 / 12.36 | 5.69 / 6.04 | 2.18 / 2.50 | 0.56 / 0.18 | 种子间差 5.3 mm；s3408 有 3 段连续失败 |
-| E9 空间分层抽样 | 采样（8 人划分、x1001 配方，诊断用） | 网格后段 24.2–26.0 / 34.9–38.6 | S37 同配方 21.1–24.9 | — | — | — | — | ✗ 两个种子都差，s3408 差 13 mm 以上 |
 | G3 层级网格读出 | 层级 / 多尺度表示 | 24.16 / 22.41 | +5.13 / −1.91 | 13.70 / 12.45 | 6.91 / 5.98 | 2.36 / 2.78 | 0.51 / 0.14 | ✗ 方向不一致；探针显示特征里绝对朝向信息反而更少（16.4°） |
 | E8 整包因果 kNN | 时间感受野（三跳 1.9 → 21 ms） | 24.28 / 24.14 | +5.25 / −0.18 | 13.32 / 12.41 | 6.22 / 6.56 | 2.50 / 2.48 | 0.49 / 0.15 | ✗ 单步与 S37 相当，闭环放大更大 |
 | C37 = CNN 编码器 + S37 路由读出 | 只换编码器 | 23.20 / 24.11 | +4.17 / −0.20 | **16.85 / 17.04** | **11.07 / 12.81** | 1.48 / 1.48 | 0.35 / 0.08 | ✗ Δ 根头每步注入约 10° 噪声：它只读 [f; 证据]，看不到 prev 的根，没法比较观测和状态 |
@@ -144,7 +139,7 @@ x_t 作为下一步的状态
 ```
 
 - 网络就是本轮统一配方下训练的 ResNet18/LNES 绝对回归（`configs/rt/rt_cnn.yaml`，6000 步，三个种子 3407 / 3408 / 3409）。平滑没有可训练参数，实现在 `semkine/anchored.py:CausalFilter`。
-- 平滑增益由 `tools/x1001/filter_screen.py` 在 s3407、s3408 上各自两折交叉选取：根 0.5、平移 1.0（不平滑）在四个折里都被选中；手指两个折选 0.5、两个折选 0.6，取 0.5。此后**固定不再调**，s3409 是样本外确认。
+- 平滑增益由 `tools/tracking/filter_screen.py` 在 s3407、s3408 上各自两折交叉选取：根 0.5、平移 1.0（不平滑）在四个折里都被选中；手指两个折选 0.5、两个折选 0.6，取 0.5。此后**固定不再调**，s3409 是样本外确认。
 - 部署要求：空包保持上一次输出。zgz 上没有空包，最少的包有 ≤ 10 个事件，这条规则不影响本文任何数字。
 
 ### 5.2 统一结果表（AGENTS.md 格式，`tools/report_table.py`）
@@ -226,14 +221,14 @@ x_t 作为下一步的状态
 
 ## 7. 训练命令、配置、checkpoint 与提交
 
-- **配置**：`configs/rt/*.yaml` 由 `python tools/rt/make_configs.py` 生成，每个臂 = 父配置（`configs/x1001/x1001_s37.yaml` / `x1001_cnn.yaml` / `x1001_e7.yaml`）+ `ARMS` 表里列出的键，划分固定为 `splits_semkine.json`。`_2k` 为 2000 步筛选预算。
-- **训练**（每个种子单卡；调度器 `SCHED_PROG=outputs/rt python tools/x1001/sched.py daemon` 排队，任务清单与 GPU 小时在 `outputs/rt/sched/manifests/`）：
+- **配置**：`configs/rt/*.yaml` 由 `python tools/rt/make_configs.py` 生成，每个臂 = 父配置（`configs/semkine_recipes/s37.yaml` / `cnn_abs.yaml` / `event_gnn_abs.yaml`）+ `ARMS` 表里列出的键，划分固定为 `splits_semkine.json`。`_2k` 为 2000 步筛选预算。
+- **训练**（每个种子单卡；调度器 `SCHED_PROG=outputs/rt python tools/tracking/sched.py daemon` 排队，任务清单与 GPU 小时在 `outputs/rt/sched/manifests/`）：
   ```
   python semkine/train.py --config configs/rt/<arm>.yaml --seed <3407|3408|3409> \
       --run-name <arm>_s<seed> --output-dir outputs/semkine/<arm>_s<seed>
   ```
 - **调试门**：`python tools/rt/debug_arm.py --config configs/rt/<arm>.yaml [--ckpt CKPT]`（前向/反向、能学、eval 确定性、状态契约、投影几何、闭环、运行时间）。
-- **后处理**：`tools/rt/post_gpu.sh <run> <gpu>` = `tools/select_checkpoint.py` 12 点（短训 4 点）闭环选点 → `tools/x1001/evalx.py eval --ckpt last --controls --tf --perturb` → `--ckpt selected`。
+- **后处理**：`tools/rt/post_gpu.sh <run> <gpu>` = `tools/select_checkpoint.py` 12 点（短训 4 点）闭环选点 → `tools/tracking/evalx.py eval --ckpt last --controls --tf --perturb` → `--ckpt selected`。
 - **H2 探针**：`python tools/rt/probe_abs.py --run-dir outputs/semkine/<run> --ckpt last`。
 - **最终结构（逐包 CNN + 因果平滑）**：
   ```
@@ -242,7 +237,7 @@ x_t 作为下一步的状态
   python tools/rt/pair_eval.py row --arm rt_cnnf --runs outputs/semkine/rt_cnnf_s3407 outputs/semkine/rt_cnnf_s3408 \
       outputs/semkine/rt_cnnf_s3409 --ckpt last --variant tf_pert
   ```
-  平滑增益的来源：`python tools/x1001/filter_screen.py --arm rt_cnn --seeds 3407 3408 --tag evalx_val_core_last_tf_pert --runs-root outputs/semkine --out-dir outputs/rt/reports`。
+  平滑增益的来源：`python tools/tracking/filter_screen.py --arm rt_cnn --seeds 3407 3408 --tag evalx_val_core_last_tf_pert --runs-root outputs/semkine --out-dir outputs/rt/reports`。
 - **主表全部行**：`tools/rt/make_rows.sh <GPU>`，在一张空闲 GPU 上依次给每个臂出主行并测延迟。
 - **锚定跟踪**：
   ```
@@ -270,10 +265,9 @@ x_t 作为下一步的状态
 
 1. **跨受试者泛化是 CNN 根误差的主体。** 绝对 CNN 的特征在训练受试者上解码根旋转是 3.1°（5 折交叉验证），在 zgz 上是 9.1°（§2.1）。下一步的主要收益在数据和泛化：更多受试者、受试者条件化（形状 / 手大小）、更强的跨人增广。编码器结构上的改进必须在这个差距上看效果，不能只看同受试者的拟合。
 2. **评测集太小，种子方差太大。** zgz 只有 1 个受试者、2 条序列，既是开发集也是测试集；同一配方的 S37 两个种子能差 5 mm。要支撑 SOTA 结论，需要在不参与任何选择的受试者上做留一受试者交叉验证，并在公开基准上按其原协议评测（数据目录里已有 `evrealhands12`、`eventhands12`）。
-3. **低事件率（zgz_local）仍是最大误差来源。** 最好的结构在 local 上仍比 global 差约 4.4 mm（14.68 对 10.29）。CNN 在事件 < 500 / 50 ms 时 RA 比事件充足时差约 6 mm；x1001 在 8 人划分上测到，加长证据窗口能让 CNN 在 local 上降低约 1.3 mm（开发集选的，未在独立测试集上确认）。编码器的自适应时间积分是下一个编码器方向，需要在固定协议内以模型结构的形式实现和评测，不能靠改评测窗口。
+3. **低事件率（zgz_local）仍是最大误差来源。** 最好的结构在 local 上仍比 global 差约 4.4 mm（14.68 对 10.29）。CNN 在事件 < 500 / 50 ms 时 RA 比事件充足时差约 6 mm。编码器的自适应时间积分是下一个编码器方向，需要在固定协议内以模型结构的形式实现和评测，不能靠改评测窗口。
 4. **平移（深度）没有进主表，但差距很大。** 主表四列都根对齐。绝对 MPJPE：CNN 逐帧约 78 mm，渲染比较的 CNN 跟踪约 57 mm。对 3D 跟踪来说，平移需要专门的测量（渲染比较或深度先验），这是锚定跟踪下一步可以分工的地方：根和手指用绝对测量锚定，平移交给渲染比较跟踪。
 5. **时序状态还没有找到真正有用的形式。** 本轮测过的跟踪状态（S37 路由、CNN-Δ、渲染比较、两网络锚定、单网络双头）在全量训练后都没有超过"逐包估计 + 常数平滑"。仍然值得试的只有一种：带来的信息与逐包估计互补、并且不累积误差的状态。渲染比较跟踪在 global 和平移上明显更好（global RA 9.43、绝对 MPJPE 57 mm，逐包分别是 10.5、78 mm），可以考虑让它只负责平移和 global 段，根和手指交给逐包估计加平滑。
-6. **实时性只在 50 ms 步长下验证过。** 按 5 ms 到达、7 ms 截止的流式实时验收（x1001 PROTOCOL §7）还没对最终结构做。
 
 ## 9. 注意事项
 

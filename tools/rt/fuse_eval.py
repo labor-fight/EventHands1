@@ -7,7 +7,7 @@ tracker T (x_trk = T(E_t, x_{t-1})). Each step the fed-back state is the blend
     root rotation:  R = R_trk Exp(a_r Log(R_trk^T R_abs))      fingers / translation: (1 - a_f) x_trk + a_f x_abs
 so a = 0 is the tracker's own loop and a = 1 the absolute arm alone. Every (a_r, a_f) on the grid is a full
 protocol loop (init GT + noise, rng 0); the gains are chosen by two-fold cross-fitting over alternating 10 s
-blocks (chosen on one fold, scored on the other), as in tools/x1001/filter_screen.py.
+blocks (chosen on one fold, scored on the other), as in tools/tracking/filter_screen.py.
 
     python tools/rt/fuse_eval.py --abs outputs/semkine/rt_cnn_2k_s3407 --trk outputs/semkine/rt_cnndelta_2k_s3407
 """
@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools" / "x1001")]
+sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools" / "tracking")]
 from config import load_config                                   # noqa: E402
 from mano_layer import ManoLayer                                 # noqa: E402
 from model import MNISTModel                                     # noqa: E402

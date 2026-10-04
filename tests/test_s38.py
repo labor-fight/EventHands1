@@ -254,7 +254,7 @@ def test_abs_root_train_and_inference_paths_agree_and_filter_is_a_geodesic_step(
     m.eval()
     m.root_filter_gain = 1.0
     ev = m._abs_root(r, prev, counts, 1)
-    sys.path.insert(0, str(REPO / "tools" / "x1001"))
+    sys.path.insert(0, str(REPO / "tools" / "tracking"))
     from evalx import rot_err_deg as _rot51
 
     def rot_err_deg(a, b):                    # evalx reads columns 3:6 of 51D states
@@ -327,7 +327,7 @@ def test_s38_arms_differ_from_their_parents_only_where_registered():
 
 def test_s37_config_builds_the_s37_model_unchanged():
     """S37's config never reaches an S38 branch: delta root, six-wide routed root head, axis-angle loss."""
-    m = _model(_cfg("configs/x1001/x1001_s37.yaml"))
+    m = _model(_cfg("configs/semkine_recipes/s37.yaml"))
     assert m.root_meas == "delta" and m.root_filter_gain == 1.0 and m.root_loss == "mse_aa"
     assert m.root_head.out_features == 6 and not hasattr(m, "root_abs_head")
     assert type(m.event_encoder).__name__ == "EventGNN"

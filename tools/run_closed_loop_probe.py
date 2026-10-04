@@ -188,18 +188,8 @@ def _run(model, mano, cfg, root, legacy_dir, seq, step_ms, device, teacher_force
 
 def _metrics(preds, gts, mano, betas, device):
     """RA- and absolute MPJPE, defined exactly as `track_sequence` defines them."""
-    def fk(params):
-        oj = []
-        for i0 in range(0, len(params), 2048):
-            chunk = torch.from_numpy(params[i0: i0 + 2048]).to(device)
-            dec = ET.decode_to_mano_inputs(chunk, "mano_full_axis_angle",
-                                           mano.hands_components, mano.hands_mean)
-            _, j = mano(betas.expand(len(chunk), -1), dec["global_orient"],
-                        dec["local_full_aa"], dec["transl"])
-            oj.append(j.cpu().numpy())
-        return np.concatenate(oj)
 
-    pj, gj = fk(preds), fk(gts)
+    pj, gj = (_fk_joints(params, mano, betas, device) for params in (preds, gts))
     return {
         "n_frames": int(len(preds)),
         "mpjpe_abs_mm": float(np.linalg.norm(pj - gj, axis=-1).mean() * 1000),

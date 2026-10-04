@@ -441,7 +441,7 @@ def main(argv=None):
                      "tools/u1a/prepare.py", "tools/u1a/verify.py", "tools/u1a/debug.py", "tools/u1a/report.py",
                      "tools/u1a/probe.py", "tools/u1a/gates.py", "tools/u1a/u0_equivalence.py",
                      "tools/u1a/evaluate_phase.py", "tools/u1a/run_raw.py", "tools/u1a/finish_6k.py",
-                     "tools/report_table.py", "tools/x1001/evalx.py", "tools/u1a/make_verdict.py"):
+                     "tools/report_table.py", "tools/tracking/evalx.py", "tools/u1a/make_verdict.py"):
         evidence.add(REPO / relative, "code_or_prereg_source")
     document = render(current, screen, debug, u0, evidence, completion)
     evidence.recheck()

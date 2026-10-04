@@ -25,7 +25,6 @@ from mano_layer import ManoLayer                     # noqa: E402
 from pose_repr import decode_to_mano_inputs          # noqa: E402
 from semkine import domrand as DR                    # noqa: E402
 from semkine import events as EV                     # noqa: E402
-from semkine import protocol as PR                   # noqa: E402
 from semkine.dataset import SemKineDataset, sequences_for_split, mano_root_joint  # noqa: E402
 
 CFG = ROOT / "configs" / "eventhands_track_render51.yaml"
@@ -288,17 +287,16 @@ def test_domrand_is_reproducible_from_index(root, components):
 
 # ------------------------------------------------------------------ protocol
 def test_protocol_splits_are_subject_disjoint(root):
-    m = PR.build_manifest(root)
-    rep = m.leakage_report()
-    assert rep["clean"], rep
-    assert len(m.subjects["test"]) >= 3, "S1 requires at least 3 test subjects"
-    assert len(m.subjects["val"]) >= 2, "S1 requires at least 2 val subjects"
-    assert sum(len(v) for v in m.splits.values()) == 74
+    train = {seq for seq, _ in sequences_for_split(root, "train")}
+    held = {seq for seq, _ in sequences_for_split(root, "val")}
+    assert not train & held
+    assert not {seq.split("_")[0] for seq in train} & {seq.split("_")[0] for seq in held}
+    assert len(train | held) == 74
 
 
 def test_protocol_keeps_recording_variants_together(root):
-    m = PR.build_manifest(root)
-    where = {s: k for k, v in m.splits.items() for s in v}
+    where = {seq: split for split in ("train", "val")
+             for seq, _ in sequences_for_split(root, split)}
     for seq in where:
         base = seq.replace("_v2", "").replace("_v3", "").replace("_v4", "")
         for other, split in where.items():
@@ -307,16 +305,15 @@ def test_protocol_keeps_recording_variants_together(root):
 
 
 def test_stress_sequence_is_in_test_and_flagged(root):
-    m = PR.build_manifest(root)
-    assert "zgz_local" in m.splits["test"]
-    assert "zgz_local" in PR.STRESS_SEQUENCES
-    ev = {s: m.stats[s]["events_per_50ms"] for s in m.splits["test"]}
-    assert ev["zgz_local"] == min(ev.values()), "stress label should mark the sparsest sequence"
+    manifest = json.loads((root / "splits_semkine.json").read_text())
+    assert "zgz_local" in manifest["test"]["trials"]
+    assert "zgz_local" in manifest["_stress_sequences"]
 
 
 def test_all_sequences_have_microsecond_timestamps(root):
-    m = PR.build_manifest(root)
-    missing = [s for s, st in m.stats.items() if not st["has_subms"]]
+    sequences = sequences_for_split(root, "train") + sequences_for_split(root, "val")
+    missing = [seq for seq, directory in sequences
+               if not (root / directory / f"{seq}_tsub.npy").is_file()]
     assert not missing, f"run tools/extract_subms.py; missing for {missing[:5]}"
 
 

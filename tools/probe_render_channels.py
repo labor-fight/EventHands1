@@ -16,8 +16,8 @@ Two probes, neither of which trains anything:
 
 `--mode zero --zero none` reproduces a serial `model/eval_track.py` run bit-for-bit;
 it is the control that proves the wrapper is inert. It can differ from a *recorded*
-number by ~0.01 mm when that number came from `tools/eval_ch_ablation.sh`, which
-packs several rollouts per GPU and lets contention pick different kernels.
+number by ~0.01 mm when the historical evaluation packed several rollouts per GPU
+and contention selected different kernels.
 
 Zeroing reads *dependence*, not *necessity*: a zeroed face is an off-distribution
 input, so a large jump only says the trained net leans on that channel, never that

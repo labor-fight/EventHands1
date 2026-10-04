@@ -31,7 +31,7 @@ from semkine import eval_track as ET
 from semkine.dataset import sequences_for_split, splits_manifest
 from semkine.events import EventPacket, collate_packets
 from semkine.lie import so3_exp, so3_log
-from tools.x1001.evalx import find_ckpt
+from tools.tracking.evalx import find_ckpt
 
 
 def sha256(path):

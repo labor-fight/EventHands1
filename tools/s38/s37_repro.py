@@ -5,7 +5,7 @@ import sys, json
 from pathlib import Path
 import numpy as np, torch
 REPO = Path("/data1/lyq/code/mesh/EventHands1")
-sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools"), str(REPO / "tools/x1001")]
+sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools"), str(REPO / "tools/tracking")]
 import evalx as EX
 from config import load_config
 from model import MNISTModel

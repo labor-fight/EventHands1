@@ -42,6 +42,12 @@ MEASURED = {
     "mobilenet_v3_small": (1_570_131, 51_233_824, 56_591_096),
     "shufflenet_v2_x0_5": (394_067, 36_298_032, 39_956_976),
     "mobilenet_v3_small_nodrop": (1_570_131, 51_233_824, 56_591_096),
+    # DT2 (package E, arm dt_dz_l3w128): layer3 at 128 channels (layer3 holds 607,488 of them, 2,099,712 at 256 wide);
+    # measured on the server with the same torch / torchvision / thop as the rows above
+    "resnet18_l3w128": (1_297_139, 970_620_288, 978_400_256),
+    # DT2 deviation 4 (arms dt_dz_l3w128s48 / dt_dz_l3w128b1), measured the same way on the server
+    "resnet18_l3w128s48": (959_459, 605_394_048, 611_350_016),
+    "resnet18_l3w128b1": (632_307, 514_981_248, 520_487_936),
 }
 TOL = 0.01                                              # relative band around every measured count except resnet18
 
@@ -165,6 +171,56 @@ def test_l3_drops_layer4_and_reads_256_features():
     assert seen["shape"] == (1, 256, 12, 15)
 
 
+def test_l3w128_halves_layer3_and_keeps_stem_layer1_layer2_and_layer4_identity():
+    """DT2 arm 1: the l3 trunk with a 128-wide layer3. Everything before layer3 has the l3 trunk's tensor shapes; layer3 and
+    the fc are narrower."""
+    ref = build_backbone("resnet18_l3", OUT_DIM)
+    m = build_backbone("resnet18_l3w128", OUT_DIM)
+    assert isinstance(m, ScaledResNet) and m.stage_widths[:3] == (64, 128, 128) and m.stage_blocks == (2, 2, 2, 0)
+    assert isinstance(m.layer4, nn.Identity) and m.fc.in_features == 128 and m.fc.out_features == OUT_DIM
+    assert list(m.state_dict()) == list(ref.state_dict())                       # same module tree, only widths differ
+    sm, sr = m.state_dict(), ref.state_dict()
+    for k in sm:
+        if k.startswith(("conv1.", "bn1.", "layer1.", "layer2.")):
+            assert sm[k].shape == sr[k].shape, k                                  # stem, layer1, layer2: widths unchanged
+        elif k.startswith("layer3.") and k.endswith((".weight", ".bias", ".running_mean", ".running_var")):
+            assert sm[k].shape[0] == 128 and sr[k].shape[0] == 256, k             # every layer3 tensor: 128 out vs 256 out
+    # layer3: 128 output channels in every conv, the first block downsamples 128 -> 128 with a stride-2 1x1 conv
+    assert [c.out_channels for c in m.layer3.modules() if isinstance(c, nn.Conv2d)] == [128] * 5
+    assert m.layer3[0].conv1.in_channels == 128 and m.layer3[0].conv1.stride == (2, 2)
+    assert m.layer3[0].downsample[0].kernel_size == (1, 1) and m.layer3[0].downsample[0].stride == (2, 2)
+    assert sum(p.numel() for p in m.layer3.parameters()) == 607_488
+    assert sum(p.numel() for p in ref.layer3.parameters()) == 2_099_712
+    seen = {}
+    h = m.avgpool.register_forward_hook(lambda _m, i, o: seen.update(shape=tuple(i[0].shape)))
+    m.eval()(torch.zeros(1, 3, *HW))
+    h.remove()
+    assert seen["shape"] == (1, 128, 12, 15)
+    assert sum(isinstance(x, nn.BatchNorm2d) for x in m.modules()) == 15
+
+
+def test_stage_widths_none_changes_nothing_and_bad_values_raise():
+    """`stage_widths=None` (every registered name but one) is the old constructor bit for bit; the explicit form
+    `(64, 128, 256, 512)` at width 1.0 is the same net as the default; bad specs raise."""
+    torch.manual_seed(3)
+    a = ScaledResNet(OUT_DIM, width=0.5, layers=(2, 2, 2, 0))
+    torch.manual_seed(3)
+    b = ScaledResNet(OUT_DIM, width=0.5, layers=(2, 2, 2, 0), stage_widths=None)
+    _assert_same_state(a, b)
+    torch.manual_seed(3)
+    c = ScaledResNet(OUT_DIM, layers=(2, 2, 2, 0), stage_widths=(64, 128, 256, 512))
+    torch.manual_seed(3)
+    d = ScaledResNet(OUT_DIM, layers=(2, 2, 2, 0))
+    _assert_same_state(c, d)
+    torch.manual_seed(3)
+    _assert_same_state(ScaledResNet(OUT_DIM, layers=(2, 2, 2, 0), stage_widths=(64, 128, 256)), d)   # partial spec: rest default
+    # a spec shorter than the stages it covers fills the rest from `width`
+    assert ScaledResNet(OUT_DIM, width=0.5, stage_widths=(40,)).stage_widths == (40, 64, 128, 256)
+    for bad in [(), (64, 128, 128, 512, 1), (0, 128), (64, -1), (64.0, 128), (True, 128), ("64",)]:
+        with pytest.raises(ValueError):
+            ScaledResNet(OUT_DIM, layers=(2, 2, 2, 0), stage_widths=bad)
+
+
 def test_resnet10_has_one_block_per_stage():
     m = build_backbone("resnet10", OUT_DIM)
     assert [len(getattr(m, f"layer{i}")) for i in (1, 2, 3, 4)] == [1, 1, 1, 1]
@@ -216,6 +272,8 @@ def test_parameter_counts_order_and_ratios():
     assert 0.24 < p["resnet18_l3"] / p["resnet18"] < 0.26          # layer4 holds 74.9 % of the parameters
     assert 0.24 < p["resnet18_w0.5"] / p["resnet18"] < 0.26
     assert 0.43 < p["resnet10"] / p["resnet18"] < 0.45
+    w128 = count_params(build_backbone("resnet18_l3w128", OUT_DIM))
+    assert 0.45 < w128 / p["resnet18_l3"] < 0.48 and w128 < p["resnet18_w0.5"] / 2          # 1.30 M of the l3 trunk's 2.80 M
 
 
 @pytest.mark.parametrize("name", list(BACKBONES))

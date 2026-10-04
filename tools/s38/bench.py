@@ -30,7 +30,7 @@ import numpy as np
 import torch
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools"), str(REPO / "tools" / "x1001")]
+sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools"), str(REPO / "tools" / "tracking")]
 import evalx as EX                                                    # noqa: E402
 import make_s36_row as MR                                             # noqa: E402
 from config import load_config                                       # noqa: E402

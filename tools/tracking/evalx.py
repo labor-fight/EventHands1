@@ -16,6 +16,11 @@ row    aggregate N seeds of one arm into `<base>/outputs/semkine/<arm>_main_row.
     python tools/tracking/evalx.py eval --run-dir outputs/semkine/rt_s37_s3407 [--ckpt selected|last|step=N]
                                      [--split val_core --manifest M] [--controls]
     python tools/tracking/evalx.py row --arm rt_s37 --runs outputs/semkine/rt_s37_s3407 outputs/semkine/rt_s37_s3408
+
+Evidence-window options (DT3; every one is off by default and the default evaluation is bit for bit what it was):
+`--window-ms W` (a longer past window at the same 50 ms step), `--clip-run-start` (clip the window to the segment's start, as
+training does, instead of only to the recording's start), `--count-mode norm` (hand a count-aware filter the window's event
+count rescaled to a 50 ms rate), `--window-set 150,200,300 --min-events N` (the smallest listed window holding >= N events).
 """
 from __future__ import annotations
 
@@ -39,6 +44,7 @@ from mano_layer import ManoLayer                                      # noqa: E4
 from model import MNISTModel                                          # noqa: E402
 from pose_repr import decode_to_mano_inputs                           # noqa: E402
 from semkine import eval_track as ET                                  # noqa: E402
+from semkine.eval_track import mano_fk                                # noqa: E402
 from semkine import events as EV                                      # noqa: E402
 from semkine.dataset import sequences_for_split                       # noqa: E402
 
@@ -57,17 +63,6 @@ def find_ckpt(run: Path, which: str, split_tag: str = "val_core"):
         which = f"step={steps[-1]}"
     st = int(which.split("=")[1])
     return next(run.glob(f"*-step={st}.ckpt")), st, None
-
-
-def mano_fk(mano, params, betas, device):
-    oj, ov = [], []
-    for i0 in range(0, len(params), 2048):
-        chunk = torch.from_numpy(params[i0:i0 + 2048]).to(device)
-        dec = decode_to_mano_inputs(chunk, "mano_full_axis_angle", mano.hands_components, mano.hands_mean)
-        v, j = mano(betas.expand(len(chunk), -1), dec["global_orient"], dec["local_full_aa"], dec["transl"])
-        oj.append(j.cpu().numpy())
-        ov.append(v.cpu().numpy())
-    return np.concatenate(oj), np.concatenate(ov)
 
 
 def aa_to_R(aa):
@@ -89,25 +84,138 @@ def rot_err_deg(p51, g51):
     return torch.rad2deg(((tr - 1) / 2).clamp(-1, 1).acos()).numpy()
 
 
-def window_of(offsets, end, wmode, win, min_events, max_win):
+def window_of(offsets, end, wmode, win, min_events, max_win, floor=0, wset=()):
     """Evidence window (ms) ending at `end`. fixed: `win`; adaptive: the shortest window >= `win`
-    holding >= `min_events` events, capped at `max_win`. Causal either way (only past events)."""
+    holding >= `min_events` events, capped at `max_win`. Causal either way (only past events).
+
+    `floor` (ms, default 0 = the recording's start): the earliest ms the window may reach back to; the window is
+    clipped to `lim = end + 1 - floor`. Training clips a window to its segment's start (a window never spans the gap
+    between two valid runs), `run_sequence(clip_run_start=True)` passes the segment start here. `wset` (default empty):
+    a quantized hybrid window -- the smallest member of `sorted(wset)` whose raw event count (clipped to `lim`) reaches
+    `min_events`, else the largest member, then clipped to `lim`; it replaces `wmode` / `win` / `max_win`. With the
+    defaults this is the original function, bit for bit."""
+    lim = end + 1 - floor
+    if len(wset):
+        ws = sorted(wset)
+        w = ws[-1]
+        for m in ws:
+            if offsets[end + 1] - offsets[end - min(m, lim) + 1] >= min_events:
+                w = m
+                break
+        return int(min(w, lim))
     if wmode == "fixed":
-        return int(min(win, end + 1))
-    w = int(min(win, end + 1))
-    while w < max_win and w < end + 1 and offsets[end + 1] - offsets[end - w + 1] < min_events:
-        w = min(w + 10, max_win, end + 1)
+        return int(min(win, lim))
+    w = int(min(win, lim))
+    while w < max_win and w < lim and offsets[end + 1] - offsets[end - w + 1] < min_events:
+        w = min(w + 10, max_win, lim)
     return int(w)
+
+
+COUNT_MODES = ("last50", "norm")
+
+
+def parse_window_set(text):
+    """`--window-set`: '150,200,300' (or any iterable of ints) -> the sorted tuple of distinct positive windows; '' -> ()."""
+    parts = [p for p in str(text).split(",") if p.strip()] if isinstance(text, str) else list(text or ())
+    ws = sorted({int(p) for p in parts})
+    if any(w <= 0 for w in ws):
+        raise ValueError(f"window set {text!r}: every window must be a positive number of ms")
+    return tuple(ws)
+
+
+def window_opts(a):
+    """`(clip_run_start, count_mode, window_set)` of an evaluation's args `a` (an argparse Namespace; a field it does not
+    have is the default, so a Namespace built before these options existed keeps working)."""
+    return (bool(getattr(a, "clip_run_start", False)), getattr(a, "count_mode", "last50") or "last50",
+            parse_window_set(getattr(a, "window_set", ()) or ()))
+
+
+def check_window_opts(a):
+    """Raise ValueError when the window options of `a` contradict each other (the CLIs turn it into a parser error)."""
+    clip, cmode, wset = window_opts(a)
+    if cmode not in COUNT_MODES:
+        raise ValueError(f"--count-mode {cmode!r}: choose from {COUNT_MODES}")
+    if wset:
+        if getattr(a, "min_events", 0) <= 0:
+            raise ValueError("--window-set needs --min-events N > 0 (the event count that decides the window)")
+        if getattr(a, "window_mode", "fixed") != "fixed" or getattr(a, "window_ms", STEP) != STEP:
+            raise ValueError("--window-set replaces --window-mode / --window-ms; give one or the other")
+
+
+def run_options(a):
+    """The keyword arguments `evaluate` adds to its `run_sequence` call: only the non-default window options, so an
+    evaluation with the defaults calls `run_sequence` exactly as before (a monkeypatched older signature keeps working)."""
+    clip, cmode, wset = window_opts(a)
+    kw = {}
+    if clip:
+        kw["clip_run_start"] = True
+    if cmode != "last50":
+        kw["count_mode"] = cmode
+    if wset:
+        kw["wset"] = wset
+    return kw
+
+
+def wset_tag(wset, min_events):
+    """'_wset150-200-300_n5000': the file-tag part of a window set (it replaces the fixed / adaptive window tag)."""
+    return f"_wset{'-'.join(str(w) for w in wset)}_n{min_events}"
+
+
+def option_tag(a):
+    """'_clip' (segment-clipped windows) and '_cnorm' (rate-normalized event count): the file-tag parts of the other
+    window options; '' by default."""
+    clip, cmode, _ = window_opts(a)
+    return ("_clip" if clip else "") + ("_cnorm" if cmode == "norm" else "")
+
+
+def eval_tag(a):
+    """File stem of `cmd_eval`'s outputs: `evalx_<split>_<ckpt>[_tf][_pert]<window>[_clip][_cnorm][_<suffix>]`, where
+    `<window>` is `_wset<a>-<b>-<c>_n<N>` for a window set, else (a window other than the fixed 50 ms) `_w<mode><ms>`
+    (+ `_n<min_events>_x<max>` when adaptive). Without the new options this is the historical name."""
+    wset = window_opts(a)[2]
+    tag = f"evalx_{a.split}_{a.ckpt.replace('=', '')}"
+    tag += "_tf" if a.tf else ""
+    tag += "_pert" if a.perturb else ""
+    if wset:
+        tag += wset_tag(wset, a.min_events)
+    elif a.window_mode != "fixed" or a.window_ms != STEP:
+        tag += f"_w{a.window_mode}{a.window_ms}" + (f"_n{a.min_events}_x{a.max_window_ms}" if a.window_mode == "adaptive" else "")
+    tag += option_tag(a)
+    tag += f"_{a.suffix}" if a.suffix else ""
+    return tag
+
+
+def window_record(a):
+    """The json `window` entry of an evaluation: mode / ms / min_events / max_ms as ever; when any window option is on, also
+    `clip_run_start`, `count_mode`, `window_set` (and mode `set` for a window set)."""
+    clip, cmode, wset = window_opts(a)
+    rec = {"mode": a.window_mode, "ms": a.window_ms, "min_events": a.min_events, "max_ms": a.max_window_ms}
+    if clip or cmode != "last50" or wset:
+        rec.update(mode="set" if wset else a.window_mode, clip_run_start=clip, count_mode=cmode, window_set=list(wset))
+    return rec
 
 
 @torch.no_grad()
 def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fixed", win=STEP,
-                 min_events=0, max_win=300):
+                 min_events=0, max_win=300, clip_run_start=False, count_mode="last50", wset=()):
     """`track_sequence`'s loop, keeping every step. mode: model | hold | noevents | tf.
     `tf` (teacher forcing) feeds the ground truth of the previous evaluated step back instead of the
     prediction (the first step of a segment keeps the protocol's noisy initial state), so its error is
     the single-step error under a clean state. `prev` records the state each step was conditioned on.
-    The evaluated steps never change (ends a+49, a+99, ...); only the evidence window may."""
+    The evaluated steps never change (ends a+49, a+99, ...); only the evidence window may: `wmode` / `win` /
+    `min_events` / `max_win` (fixed or adaptive), or `wset` (a quantized set of windows, see `window_of`), and
+    `clip_run_start` clips it to the segment's start `a` (training's convention; by default only to the recording's
+    start, so a window may reach back over the gap before a segment). The window of every step is returned in `win`.
+
+    A model with `reset_state` is reset at the start of every segment (no random numbers consumed); one with
+    `get_state` has its state recorded before every step in the returned `fstate` (a list parallel to `prev`, not
+    written to the npz); one with `takes_event_count` is called `model(x, prev, n_events=n)` with the raw event count
+    of the 50 ms packet (0 in mode `noevents`); `count_mode="norm"` hands it instead the window's raw count rescaled to a
+    50 ms rate, `float(n_win) * (STEP / w)` with `n_win` the events of the window `w` (identical to the 50 ms count at
+    w = 50; `r["count"]`, hence the event buckets, stays the 50 ms count and `r["count_f"]` holds the float handed to the
+    model). Bare models and `FilteredTracker` are called as before."""
+    if count_mode not in COUNT_MODES:
+        raise ValueError(f"count_mode {count_mode!r}: choose from {COUNT_MODES}")
     events, offsets, aux, pos51 = ET.load_sequence(root, d, seq)
     tsub_path = root / d / f"{seq}_tsub.npy"
     tsub = np.load(tsub_path, mmap_mode="r") if tsub_path.exists() else None
@@ -118,18 +226,37 @@ def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fix
         model.set_hand_context(betas, camera_K)
     runs = np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2)
     ev_ch = EV.event_channels(cfg)
-    preds, gts, ends_all, runs_all, elapsed, counts, prevs = [], [], [], [], [], [], []
+    # A stateful filter (semkine.anchored.AdaptiveFilter): `reset_state(prev)` at each segment start, `get_state()` before
+    # each step (the state the step is conditioned on, parallel to `prev`) for `perturb_trials`; a model with
+    # `takes_event_count` is also handed the packet's raw event count. Bare models and FilteredTracker have none of these.
+    stateful = hasattr(model, "get_state")
+    with_count = bool(getattr(model, "takes_event_count", False))
+    preds, gts, ends_all, runs_all, elapsed, counts, prevs, fstate = [], [], [], [], [], [], [], []
+    wins, counts_f = [], []
     for run_id, (a, b) in enumerate(runs):
         ends = np.arange(a + STEP - 1, b, STEP, dtype=np.int64)
         if not len(ends):
             continue
+        floor = int(a) if clip_run_start else 0                 # a window never reaches before the segment (training's rule)
         prev = pos51[a].copy() + ET.sample_init_noise(cfg, rng, 1.0)
         prev_t = torch.from_numpy(prev).view(1, -1).to(device)
         init_t = prev_t.clone()
+        if hasattr(model, "reset_state"):
+            model.reset_state(prev_t)
         for end in ends:
             n_ev = int(offsets[int(end) + 1] - offsets[int(end) - STEP + 1])
-            w = window_of(offsets, int(end), wmode, win, min_events, max_win)
+            w = window_of(offsets, int(end), wmode, win, min_events, max_win, floor=floor, wset=wset)
+            if count_mode == "norm":
+                # the window's events at a 50 ms rate; python float arithmetic on purpose: a device float64 `n.to(float64) * (50.0 / w)`
+                # computes the very same product
+                n_win = int(offsets[int(end) + 1] - offsets[int(end) - w + 1])
+                n_cnt = float(n_win) * (STEP / w)
+                counts_f.append(n_cnt)
+            else:
+                n_cnt = n_ev
             prevs.append(prev_t.cpu().numpy()[0])
+            if stateful:
+                fstate.append(model.get_state())
             if mode == "hold":
                 pred = init_t
             elif use_raw:
@@ -141,7 +268,10 @@ def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fix
                 x = torch.from_numpy(ET.build_lnes(events, offsets, int(end), w, ev_ch)).unsqueeze(0).to(device)
                 if mode == "noevents":
                     x = torch.zeros_like(x)
-                pred = model(x, prev_t)
+                if with_count:
+                    pred = model(x, prev_t, n_events=0 if mode == "noevents" else n_cnt)
+                else:
+                    pred = model(x, prev_t)
             prev_t = pred if mode != "tf" else torch.from_numpy(pos51[int(end)].copy()).view(1, -1).to(device)
             preds.append(pred.cpu().numpy()[0])
             gts.append(pos51[end])
@@ -149,10 +279,14 @@ def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fix
             runs_all.append(run_id)
             elapsed.append(int(end - a))
             counts.append(n_ev)
-    return {"pred": np.stack(preds).astype(np.float32), "gt": np.stack(gts).astype(np.float32),
-            "end": np.asarray(ends_all), "run": np.asarray(runs_all), "elapsed": np.asarray(elapsed),
-            "count": np.asarray(counts), "betas": aux["betas"],
-            "prev": np.stack(prevs).astype(np.float32)}
+            wins.append(w)
+    r = {"pred": np.stack(preds).astype(np.float32), "gt": np.stack(gts).astype(np.float32),
+         "end": np.asarray(ends_all), "run": np.asarray(runs_all), "elapsed": np.asarray(elapsed),
+         "count": np.asarray(counts), "betas": aux["betas"],
+         "prev": np.stack(prevs).astype(np.float32), "fstate": fstate, "win": np.asarray(wins, dtype=np.int64)}
+    if count_mode != "last50":
+        r["count_f"] = np.asarray(counts_f, dtype=np.float64)
+    return r
 
 
 def aa_compose(rot_aa, aa):
@@ -185,6 +319,14 @@ def perturb_trials(model, cfg, root, d, seq, device, r, thetas=(10.0, 20.0), hor
     if hasattr(model, "set_hand_context"):
         model.set_hand_context(betas, camera_K)
     ev_ch = EV.event_channels(cfg)
+    # a stateful filter (AdaptiveFilter) branches from the loop's own state snapshot `r["fstate"]`; a model that takes
+    # the packet's event count gets `r["count_f"]` when the loop handed it a rate-normalized count, else `r["count"]`
+    # (the same count the closed loop used); the branch steps use the closed loop's window of the same step `r["win"]`
+    # (50 ms when `r` has none)
+    stateful = hasattr(model, "set_state")
+    if stateful and not r.get("fstate"):
+        raise ValueError("a stateful model needs the per-step state snapshots `fstate` of the closed loop `r`")
+    with_count = bool(getattr(model, "takes_event_count", False))
     base = rot_err_deg(r["pred"], r["gt"])
     rng = np.random.default_rng(seed)
     out = {float(t): {"div": [], "excess": []} for t in thetas}
@@ -200,15 +342,21 @@ def perturb_trials(model, cfg, root, d, seq, device, r, thetas=(10.0, 20.0), hor
                 prev = r["prev"][i0].copy()
                 prev[3:6] = aa_compose(axis * np.deg2rad(th), prev[3:6])
                 prev_t = torch.from_numpy(prev).view(1, -1).to(device)
+                if stateful:                           # the branch starts from the state the closed loop had at step i0
+                    model.set_state(r["fstate"][i0])
                 preds = []
                 for i in range(i0, i0 + horizon):
                     end = int(r["end"][i])
+                    w = int(r["win"][i]) if "win" in r else STEP
                     if use_raw:
-                        ev5 = ET._window_events(events, offsets, tsub, end, STEP)
-                        pred = model.forward_packet(ET.make_eval_packet(ev5, prev_t, betas, camera_K, STEP, device))
+                        ev5 = ET._window_events(events, offsets, tsub, end, w)
+                        pred = model.forward_packet(ET.make_eval_packet(ev5, prev_t, betas, camera_K, w, device))
                     else:
-                        x = torch.from_numpy(ET.build_lnes(events, offsets, end, STEP, ev_ch)).unsqueeze(0).to(device)
-                        pred = model(x, prev_t)
+                        x = torch.from_numpy(ET.build_lnes(events, offsets, end, w, ev_ch)).unsqueeze(0).to(device)
+                        if with_count:
+                            pred = model(x, prev_t, n_events=float(r["count_f"][i]) if "count_f" in r else int(r["count"][i]))
+                        else:
+                            pred = model(x, prev_t)
                     prev_t = pred
                     preds.append(pred.cpu().numpy()[0])
                 br = np.stack(preds).astype(np.float32)
@@ -374,8 +522,13 @@ def block_ci(vals, end, n_boot=2000, seed=0):
 def evaluate(model, cfg, mano, root, seqs, device, a, label=""):
     """The protocol loop on `seqs` for any model object (a trained arm or a composite such as
     `semkine.anchored.AnchoredTracker`): the modes `a` asks for (model, controls, tf), perturbation
-    recovery, per-sequence CIs / failures / event-rate buckets / motion. Returns `(summary, arrays)`."""
+    recovery, per-sequence CIs / failures / event-rate buckets / motion. Returns `(summary, arrays)`.
+
+    `a` holds `controls`, `tf`, `perturb`, `window_mode`, `window_ms`, `min_events`, `max_window_ms` and, optionally,
+    `clip_run_start`, `count_mode`, `window_set` (`window_opts`: a Namespace without them is the default evaluation)."""
     modes = ["model"] + (["hold", "noevents"] if a.controls else []) + (["tf"] if a.tf else [])
+    check_window_opts(a)
+    wopt = run_options(a)                       # {} unless a DT3 window option is on: run_sequence is then called as ever
     out, t0 = {}, time.time()
     arrays = {}
     for mode in modes:
@@ -383,13 +536,16 @@ def evaluate(model, cfg, mano, root, seqs, device, a, label=""):
         res = {}
         for s, d in seqs:
             r = run_sequence(model, cfg, root, d, s, device, rng, mode, a.window_mode, a.window_ms,
-                             a.min_events, a.max_window_ms)
+                             a.min_events, a.max_window_ms, **wopt)
             m = per_step_metrics(mano, r, device)
             res[s] = (r, m)
             for k, v in m.items():
                 arrays[f"{mode}|{s}|{k}"] = v.astype(np.float32)
             if mode == "model":
-                for k in ("pred", "gt", "end", "run", "elapsed", "count"):
+                # the per-step window (and the rate-normalized count) are saved only by a run with a DT3 window option on,
+                # so every earlier invocation keeps its npz key set
+                for k in ("pred", "gt", "end", "run", "elapsed", "count") + (("win",) + (("count_f",) if "count_f" in r else ())
+                                                                              if wopt else ()):
                     arrays[f"{mode}|{s}|{k}"] = r[k]
                 if a.perturb:
                     for th, dd in perturb_trials(model, cfg, root, d, s, device, r).items():
@@ -464,17 +620,12 @@ def cmd_eval(a):
     out = {"run": run.name, "ckpt": str(ckpt), "step": step, "split": a.split, "manifest": str(mani)}
     summary, arrays = evaluate(model, cfg, mano, root, seqs, device, a, label=f"{run.name} step={step}")
     out.update(summary)
-    out["window"] = {"mode": a.window_mode, "ms": a.window_ms, "min_events": a.min_events, "max_ms": a.max_window_ms}
-    if sel_ra is not None and a.split == "val_core" and a.window_mode == "fixed" and a.window_ms == STEP:
+    out["window"] = window_record(a)
+    if sel_ra is not None and a.split == "val_core" and out["window"]["mode"] == "fixed" and a.window_ms == STEP:
         drift = abs(out["model"]["overall"]["mpjpe_ra_mm"] - sel_ra)
         out["selection_drift_mm"] = drift
         assert drift < 0.05, f"re-run drift {drift:.4f} mm vs selection"
-    tag = f"evalx_{a.split}_{a.ckpt.replace('=', '')}"
-    tag += "_tf" if a.tf else ""
-    tag += "_pert" if a.perturb else ""
-    if a.window_mode != "fixed" or a.window_ms != STEP:
-        tag += f"_w{a.window_mode}{a.window_ms}" + (f"_n{a.min_events}_x{a.max_window_ms}" if a.window_mode == "adaptive" else "")
-    tag += f"_{a.suffix}" if a.suffix else ""
+    tag = eval_tag(a)
     np.savez_compressed(run / f"{tag}.npz", **arrays)
     (run / f"{tag}.json").write_text(json.dumps(out, indent=1))
     print("wrote", run / f"{tag}.json", flush=True)
@@ -512,6 +663,7 @@ def latency_model(model, cfg, device, max_packets=600, passes=3):
     if hasattr(model, "set_hand_context"):
         model.set_hand_context(betas, K)
     raw = bool(getattr(model, "encoder_name", ""))
+    with_count = bool(getattr(model, "takes_event_count", False))
     ev_ch = EV.event_channels(cfg)
     items = []
     for a, b in np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2):
@@ -522,17 +674,26 @@ def latency_model(model, cfg, device, max_packets=600, passes=3):
                                                  prev, betas, K, STEP, device))
             else:
                 items.append((torch.from_numpy(ET.build_lnes(events, offsets, int(end), STEP, ev_ch))
-                              .unsqueeze(0).to(device), prev))
+                              .unsqueeze(0).to(device), prev)
+                             + ((int(offsets[int(end) + 1] - offsets[int(end) - STEP + 1]),) if with_count else ()))
             if len(items) >= max_packets:
                 break
         if len(items) >= max_packets:
             break
-    f = (lambda it: model.forward_packet(it)) if raw else (lambda it: model(*it))   # noqa: E731
+    if raw:
+        f = lambda it: model.forward_packet(it)                                    # noqa: E731
+    elif with_count:                                  # a filter that scales its gains by the packet's raw event count
+        f = lambda it: model(it[0], it[1], n_events=it[2])                         # noqa: E731
+    else:
+        f = lambda it: model(*it)                                                  # noqa: E731
+    reset = lambda: model.reset_state(items[0][1]) if hasattr(model, "reset_state") and not raw else None  # noqa: E731
+    reset()
     for it in items[:100]:
         f(it)
     torch.cuda.synchronize()
     means = []
     for _ in range(passes):
+        reset()
         t0 = time.perf_counter()
         for it in items:
             f(it)
@@ -626,6 +787,16 @@ def main():
     e.add_argument("--window-ms", type=int, default=STEP)
     e.add_argument("--min-events", type=int, default=0)
     e.add_argument("--max-window-ms", type=int, default=300)
+    e.add_argument("--clip-run-start", action="store_true",
+                   help="clip every evidence window to its segment's start (training's rule), not only to the recording's start "
+                        "(file tag _clip)")
+    e.add_argument("--count-mode", choices=COUNT_MODES, default="last50",
+                   help="the event count handed to a count-aware filter: last50 = the 50 ms packet's (the protocol), norm = the "
+                        "window's count rescaled to a 50 ms rate (file tag _cnorm)")
+    e.add_argument("--window-set", type=parse_window_set, default=(),
+                   help="comma list of windows in ms, e.g. 150,200,300: per step the smallest holding >= --min-events events "
+                        "(else the largest), clipped to the available past; replaces --window-mode / --window-ms "
+                        "(file tag _wset150-200-300_n<min-events>)")
     e.add_argument("--suffix", default="", help="appended to the output name, e.g. to re-evaluate a run on another "
                    "device without overwriting its recorded evaluation (row: pass it inside --variant)")
     r = sub.add_parser("row")
@@ -635,6 +806,11 @@ def main():
     r.add_argument("--ckpt", default="selected")
     r.add_argument("--variant", default="", help="evaluation variant tag, e.g. wadaptive50_n2000_x300")
     a = ap.parse_args()
+    if a.cmd == "eval":
+        try:
+            check_window_opts(a)
+        except ValueError as err:
+            ap.error(str(err))
     cmd_eval(a) if a.cmd == "eval" else cmd_row(a)
 
 

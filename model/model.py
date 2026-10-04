@@ -2,6 +2,7 @@
 """EventHands absolute-pose models (config-driven 12D / 51D)."""
 from __future__ import annotations
 
+import collections
 import contextlib
 import dataclasses
 import gc
@@ -22,7 +23,7 @@ from pose_repr import (
     get_slices,
     split_losses,
 )
-from backbones import build_backbone
+from backbones import build_backbone, resnet_forward_taps
 
 
 class BaseModel(pl.LightningModule):
@@ -40,7 +41,34 @@ class BaseModel(pl.LightningModule):
                           over three consecutive windows, see :meth:`_accel_loss`
       MODEL.DISTILL_WEIGHT / DISTILL_CKPT
                           a frozen teacher's output as a target, see :meth:`_maybe_distill`
+
+    DT2 round (docs/DT2_PREREG.md section 2), all off by default; with the defaults the loss, the optimiser and every
+    saved checkpoint are those of the earlier rounds bit for bit (tests/test_dt_model.py, test_dt_model2.py):
+
+      LOSS.ROOT_ROT_WEIGHT  w != 1: `so3_trans_fk`'s L_rot is (w d_root + sum of the 15 finger d) / (w + 15) instead of
+                          the plain mean over the 16 rotations, see :meth:`_so3_fk_loss`
+      TRAIN.WEIGHT_DECAY  wd > 0: `torch.optim.AdamW` (decoupled decay) instead of Adam; the weights of Conv / Linear
+                          layers decay, BatchNorm parameters and every bias do not (:meth:`_param_groups`)
+      TRAIN.EMA_DECAY     d > 0: an exponential moving average of the parameters and the BatchNorm running statistics,
+                          updated after every optimiser step (:meth:`_register_ema_hook`). Every SAVED checkpoint's `state_dict` is the EMA model (so
+                          evalx / select_checkpoint / load_from_checkpoint evaluate the EMA weights without change); the
+                          raw weights go to `raw_state_dict` and a `--resume` continues from them (:meth:`_ema_checkpoint`,
+                          :meth:`on_load_checkpoint`). Validation runs on the EMA weights.
+
+    DT2 round, package E (arm dt_dz_l3_roll), off by default; with the default the batch, the random draws and the step
+    are those of the earlier rounds bit for bit (tests/test_dt_model4.py pins it):
+
+      TRACK.ROLLOUT_P / TRACK.ROLLOUT_RAMP
+                          p > 0: on a triplet batch (DATA.TRIPLET) the previous state of window 2 is replaced, for a
+                          fraction p(step) of the rows that have a real w0 / w1, by the tracker's own two-step bare
+                          feed-back (w0 with its own prev -> o0, w1 with prev = o0 -> o1; no gradient, BatchNorm running
+                          statistics untouched), see :meth:`_maybe_rollout`
     """
+
+    #: TRACK.ROLLOUT_P of the model (0 = off); `MNISTModel.__init__` sets the instance values
+    rollout_p = 0.0
+    rollout_ramp = (500, 2000)
+    _rollout_stats = None
 
     LOSS_TYPES = ("mse_51d", "so3_trans_fk")
     #: cosine decays to this fraction of the peak rather than to zero, so the last
@@ -111,6 +139,32 @@ class BaseModel(pl.LightningModule):
             raise ValueError(f"LOSS.ACCEL_WEIGHT must be a number >= 0, got {_aw!r}") from None
         if not (math.isfinite(self.accel_weight) and self.accel_weight >= 0.0):
             raise ValueError(f"LOSS.ACCEL_WEIGHT must be a finite number >= 0, got {_aw!r}")
+        # DT2 round, default off (see the class docstring)
+        self.root_rot_weight = self._number("LOSS.ROOT_ROT_WEIGHT", loss_cfg.get("ROOT_ROT_WEIGHT", 1.0))
+        if not self.root_rot_weight > 0.0:
+            raise ValueError(f"LOSS.ROOT_ROT_WEIGHT must be a finite number > 0, got {loss_cfg.get('ROOT_ROT_WEIGHT')!r}")
+        if self.root_rot_weight != 1.0 and self.loss_type != "so3_trans_fk":
+            raise ValueError("LOSS.ROOT_ROT_WEIGHT != 1 re-weights the root among the rotations of L_rot, which only "
+                             "LOSS.TYPE so3_trans_fk has; with mse_51d it would silently do nothing")
+        train_cfg = self.cfg.get("TRAIN", {}) or {}
+        self.weight_decay = self._number("TRAIN.WEIGHT_DECAY", train_cfg.get("WEIGHT_DECAY", 0.0))
+        if self.weight_decay < 0.0:
+            raise ValueError(f"TRAIN.WEIGHT_DECAY must be a finite number >= 0, got {train_cfg.get('WEIGHT_DECAY')!r}")
+        self.ema_decay = self._number("TRAIN.EMA_DECAY", train_cfg.get("EMA_DECAY", 0.0))
+        if not 0.0 <= self.ema_decay < 1.0:
+            raise ValueError(f"TRAIN.EMA_DECAY must be in [0, 1) (0 = off), got {train_cfg.get('EMA_DECAY')!r}")
+        #: EMA state (plain attributes, not modules / buffers: they never enter `state_dict`)
+        self._ema = None                #: name -> EMA tensor, built on the first update from the live weights
+        self._ema_pending = None        #: name -> CPU tensor restored from a checkpoint, moved on first use
+        self._ema_steps = 0             #: optimiser steps the EMA has seen (drives the warm-up of the decay)
+        self._ema_backup = None         #: raw weights while the validation loop runs on the EMA weights
+
+    @staticmethod
+    def _number(name, value) -> float:
+        """`value` as a finite float; booleans, strings and NaN / inf are configuration errors, not numbers."""
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+            raise ValueError(f"{name} must be a finite number, got {value!r}")
+        return float(value)
 
     def forward(self, x, prevpos):
         raise NotImplementedError()
@@ -161,7 +215,13 @@ class BaseModel(pl.LightningModule):
             dot = (quats(dec_p) * quats(dec_g)).sum(dim=-1)
             # Clamped so a perfect prediction cannot round to a negative loss, which
             # training_step's log10 would turn into NaN.
-            loss_rot = (1.0 - dot.square().clamp(max=1.0)).mean()
+            if self.root_rot_weight == 1.0:
+                loss_rot = (1.0 - dot.square().clamp(max=1.0)).mean()
+            else:
+                # LOSS.ROOT_ROT_WEIGHT w: joint 0 of `dot` (B, 16) is the root, the other 15 the fingers' rotations
+                d_rot = 1.0 - dot.square().clamp(max=1.0)
+                w = self.root_rot_weight
+                loss_rot = ((w * d_rot[:, 0] + d_rot[:, 1:].sum(dim=1)) / (w + (n_joint_aa - 1))).mean()
             loss_trans = F.smooth_l1_loss(dec_p["transl"], dec_g["transl"],
                                           beta=self.trans_beta)
 
@@ -310,6 +370,80 @@ class BaseModel(pl.LightningModule):
         main.prev_state = torch.where(take[:, None], cond, main.prev_state)
         return main
 
+    def rollout_p_now(self) -> float:
+        """`TRACK.ROLLOUT_P` after the linear ramp at the current optimiser step: p(step) = ROLLOUT_P * clip((step - start)
+        / (full - start), 0, 1) with `ROLLOUT_RAMP = [start, full]` (0 up to `start`, the full probability from `full` on)."""
+        if self.rollout_p <= 0.0:
+            return 0.0
+        s0, s1 = self.rollout_ramp
+        frac = min(max((int(self.global_step) - s0) / float(s1 - s0), 0.0), 1.0)
+        return self.rollout_p * frac
+
+    def _maybe_rollout(self, batch):
+        """`TRACK.ROLLOUT_P` > 0: re-condition window 2 of a triplet batch on the tracker's own closed-loop estimate.
+
+        The measured gap this addresses (DT2 package E): under teacher forcing the tracker's root rotation error is 5.59
+        degrees, in its own recursion 6.96 (RA 7.49 against 10.07 mm); the previous state the network is trained on is the
+        ground truth plus independent noise, never a state that carries its own, time-correlated error. `_maybe_unroll`
+        (the S22 lead window) did the same with a raw-event pair and *replaced* the conditioning by a near-clean
+        prediction, which narrowed the error curriculum; here the replacement is the output of a two-step *bare* feed-back
+        (no filter: the closed loop of the main table feeds the output back as it is), which carries the self-error,
+        and only a fraction of the rows is replaced, so the noise curriculum of the other rows stays.
+
+        `batch` is the collated triplet `{"w0", "w1", "w2", "valid"}` (`DATA.TRIPLET`, see `_accel_loss`): three consecutive
+        equally long windows of one sequence, each a legacy tuple `(lnes, prev, target, betas, K)`. For the rows with
+        `valid` true (the others have w0 / w1 aliasing w2 and are excluded):
+
+            o0 = f(w0.lnes, prev = w0.prev)        # the state at the end of window 0 (teacher-forced start)
+            o1 = f(w1.lnes, prev = o0)             # the state at the end of window 1, 1 ms before window 2 starts
+
+        both as ONE batched forward over all valid rows (the BatchNorm batch statistics of a 64-row forward differ visibly
+        from a 256-row one; measured 0.300 against 0.155 RMS correction), under `torch.no_grad()`, with autocast off
+        (float32) and `_frozen_bn_stats` (train-mode normalisation with the batch's own statistics, the running statistics
+        untouched, so the main forward is the only writer, as without the term). Then, for every valid row with
+        `rand < p(step)`, w2's prev becomes `o1.detach().float()`; the main forward and the loss run as usual on that batch
+        (single-step supervision of w2's target), so no gradient flows through the rollout. `rand` is one uniform per row
+        of the batch. The batch dict is updated in place (`training_step`'s distillation reads window 2 from it too).
+
+        p(step) is `rollout_p_now()`: 0 until `ROLLOUT_RAMP[0]`, linear up to `ROLLOUT_P` at `ROLLOUT_RAMP[1]`. While it is 0
+        nothing is drawn and nothing is run. Only a training-mode model rolls out (validation batches are plain tuples; a
+        training-mode model fed anything but a triplet dict raises, because it would silently train without the term).
+        The step's p, the number of replaced rows and of valid rows are kept in `_rollout_stats` for `training_step`'s log.
+        """
+        if self.rollout_p <= 0.0 or not self.training:
+            return batch
+        if not (isinstance(batch, dict) and {"w0", "w1", "w2", "valid"} <= set(batch)):
+            raise ValueError("TRACK.ROLLOUT_P > 0 needs triplet batches ({'w0', 'w1', 'w2', 'valid'}, DATA.TRIPLET: true); got "
+                             f"a {type(batch).__name__} batch, which would train without the term")
+        p = self.rollout_p_now()
+        self._rollout_stats = {"p": p, "rows": 0, "valid": 0}
+        if p <= 0.0:
+            return batch
+        w0, w1, w2 = batch["w0"], batch["w1"], batch["w2"]
+        prev2 = w2[1]
+        dev = prev2.device
+        valid = batch["valid"].to(dev).bool().reshape(-1)
+        take = valid & (torch.rand(prev2.shape[0], device=dev) < p)
+        n_valid, n_take = int(valid.sum()), int(take.sum())
+        self._rollout_stats.update(rows=n_take, valid=n_valid)
+        if n_take == 0:
+            return batch
+        sel = valid.nonzero(as_tuple=False).reshape(-1)
+
+        def rows(w, i):
+            return w[i].to(dev)[sel].float()
+
+        with torch.no_grad(), self._frozen_bn_stats(), torch.autocast(device_type=dev.type, enabled=False):
+            o0 = self(rows(w0, 0), rows(w0, 1), betas=rows(w0, 3), camera_K=rows(w0, 4))
+            o1 = self(rows(w1, 0), o0.float(), betas=rows(w1, 3), camera_K=rows(w1, 4))
+        new_prev = prev2.clone()
+        sub = take[sel]
+        new_prev[sel[sub]] = o1[sub].detach().float().to(new_prev.dtype)
+        w2 = list(w2)
+        w2[1] = new_prev
+        batch["w2"] = tuple(w2) if isinstance(batch["w2"], tuple) else w2
+        return batch
+
     def _sample_cond_delta(self, ref):
         """A conditioning-state perturbation drawn from the curriculum's own noise distribution.
 
@@ -419,7 +553,7 @@ class BaseModel(pl.LightningModule):
         state this one saw: `_maybe_unroll` and the dataset's noise are both random, and
         re-unpacking would silently compare two different conditioning states.
         """
-        packed = self._unpack_batch(self._maybe_unroll(batch))
+        packed = self._unpack_batch(self._maybe_unroll(self._maybe_rollout(batch)))
         if hasattr(packed, "events"):
             pred = self.forward_packet(packed)
             return pred, packed.target, packed.betas, packed
@@ -560,9 +694,159 @@ class BaseModel(pl.LightningModule):
         if sd is not None:
             for k in [k for k in sd if k.startswith(self.TEACHER_PREFIX)]:
                 del sd[k]
+        if self.ema_decay > 0.0:
+            self._ema_checkpoint(checkpoint)
+
+    # ------------------------------------------------------------------------------------ DT2: weight EMA
+    def _ema_live(self):
+        """name -> the live tensor of every entry the EMA tracks: the floating-point parameters and the BatchNorm
+        running statistics (the keys they have in `state_dict`); the frozen teacher and every other buffer are left out
+        (constants and counters are copied from the raw weights when a checkpoint is written)."""
+        live = {}
+        for n, p in self.named_parameters():
+            if not n.startswith(self.TEACHER_PREFIX) and p.is_floating_point():
+                live[n] = p.data
+        for n, b in self.named_buffers():
+            if (n.endswith(".running_mean") or n.endswith(".running_var")) and not n.startswith(self.TEACHER_PREFIX) \
+                    and b.is_floating_point():
+                live[n] = b
+        return live
+
+    def _ema_ready(self, live):
+        """The EMA tensors, built on first use: from the tensors restored by `on_load_checkpoint` if any, else from the
+        live weights (an EMA that has seen nothing is the weights); moved to the live tensors' device if they moved."""
+        if self._ema is None:
+            pend = self._ema_pending or {}
+            self._ema = {k: (pend[k].to(device=v.device, dtype=v.dtype).clone() if k in pend else v.detach().clone())
+                         for k, v in live.items()}
+            self._ema_pending = None
+        else:
+            for k, v in live.items():
+                if self._ema[k].device != v.device:
+                    self._ema[k] = self._ema[k].to(v.device)
+        return self._ema
+
+    @torch.no_grad()
+    def ema_update(self):
+        """One EMA step, `ema <- ema + (1 - d) (live - ema)` with d = min(EMA_DECAY, (1 + n) / (10 + n)) after n steps
+        (the warm-up lets the average forget the random initial weights quickly). Called after every optimiser step
+        (:meth:`_register_ema_hook`); `lerp` leaves an entry that equals the live value exactly unchanged."""
+        if self.ema_decay <= 0.0:
+            return
+        live = self._ema_live()
+        ema = self._ema_ready(live)
+        n = self._ema_steps
+        d = min(self.ema_decay, (1.0 + n) / (10.0 + n))
+        for k, v in live.items():
+            ema[k].lerp_(v, 1.0 - d)
+        self._ema_steps = n + 1
+
+    def _register_ema_hook(self, opt):
+        """TRAIN.EMA_DECAY > 0: one EMA update after every `opt.step()` (a torch step post-hook on the optimiser that
+        `configure_optimizers` returns). The step runs once per optimiser step, not per accumulated micro-batch, and
+        Lightning's checkpoint callback runs after it, so a checkpoint written at step N contains an EMA that has seen
+        the N-th update. A hook on the optimiser instead of an `optimizer_step` override leaves the module's Lightning
+        hooks as they were (an override makes Lightning warn about accumulation in every run, EMA or not)."""
+        if self.ema_decay > 0.0:
+            opt.register_step_post_hook(lambda optimizer, args, kwargs: self.ema_update())
+        return opt
+
+    def ema_state_dict(self):
+        """The model's full `state_dict` with the EMA values in the tracked entries (what a checkpoint's `state_dict`
+        holds); raises if the EMA is off. Tensors are copies."""
+        if self.ema_decay <= 0.0:
+            raise RuntimeError("TRAIN.EMA_DECAY is 0: this model keeps no EMA")
+        ema = self._ema_ready(self._ema_live())
+        raw = self._raw_state_dict()
+        return collections.OrderedDict((k, (ema[k].detach().clone() if k in ema else v)) for k, v in raw.items())
+
+    def _raw_state_dict(self):
+        """The raw (trained) weights as a `state_dict` copy, also when called from inside the validation loop, where the
+        live tensors hold the EMA values and the raw ones are in `_ema_backup`."""
+        sd = self.state_dict()
+        out = collections.OrderedDict()
+        for k, v in sd.items():
+            if torch.is_tensor(v):
+                v = (self._ema_backup[k] if self._ema_backup is not None and k in self._ema_backup else v)
+                v = v.detach().clone()
+            out[k] = v
+        return out
+
+    def _ema_checkpoint(self, checkpoint):
+        """`on_save_checkpoint` with TRAIN.EMA_DECAY > 0: `state_dict` becomes the EMA model, the raw weights are kept in
+        `raw_state_dict`, `ema` records the decay and the number of EMA steps. (The teacher keys are already removed
+        from `checkpoint["state_dict"]`; both dicts follow its key order.)"""
+        sd = checkpoint.get("state_dict")
+        if sd is None:
+            return
+        ema = self._ema_ready(self._ema_live())
+        raw = self._raw_state_dict()
+        raw = collections.OrderedDict((k, raw[k]) for k in sd)
+        checkpoint["raw_state_dict"] = raw
+        checkpoint["state_dict"] = collections.OrderedDict(
+            (k, (ema[k].detach().clone() if k in ema else raw[k])) for k in sd)
+        checkpoint["ema"] = {"decay": float(self.ema_decay), "steps": int(self._ema_steps)}
+
+    @torch.no_grad()
+    def _ema_swap_in(self):
+        """Validation runs on the EMA weights: write them into the live tensors (the optimiser keeps its references),
+        the raw ones wait in `_ema_backup`. Nothing happens without an EMA (EMA off, or no step taken yet)."""
+        if self.ema_decay <= 0.0 or self._ema is None or self._ema_backup is not None:
+            return
+        live = self._ema_live()
+        ema = self._ema_ready(live)
+        self._ema_backup = {k: v.detach().clone() for k, v in live.items()}
+        for k, v in live.items():
+            v.copy_(ema[k])
+
+    @torch.no_grad()
+    def _ema_swap_out(self):
+        if self._ema_backup is None:
+            return
+        for k, v in self._ema_live().items():
+            v.copy_(self._ema_backup[k])
+        self._ema_backup = None
+
+    def on_train_start(self):
+        """The EMA exists from the first step on: built from the (possibly restored) weights, so the first update already
+        blends the initial weights, and the first validation has an EMA to run on."""
+        if self.ema_decay > 0.0:
+            self._ema_ready(self._ema_live())
+
+    def on_validation_start(self):
+        self._ema_swap_in()
+
+    def on_validation_end(self):
+        self._ema_swap_out()
+
+    def _is_fit_resume(self):
+        """True while a Trainer that is FITTING holds this model, i.e. `on_load_checkpoint` is called by `trainer.fit(...,
+        ckpt_path=...)` (Lightning 1.9.5 calls it before `load_state_dict`). `load_from_checkpoint` (evaluation, the
+        distillation teacher) builds a model without a Trainer, and `trainer.validate / test` are not FITTING."""
+        from pytorch_lightning.trainer.states import TrainerFn
+        trainer = getattr(self, "_trainer", None)
+        return trainer is not None and getattr(getattr(trainer, "state", None), "fn", None) == TrainerFn.FITTING
+
+    def _ema_resume(self, checkpoint):
+        """`trainer.fit(ckpt_path=...)` on a checkpoint written with TRAIN.EMA_DECAY > 0: training continues from the RAW
+        weights (`raw_state_dict` replaces `state_dict` before Lightning loads it), and the EMA is restored from the
+        checkpoint's `state_dict` (which is the EMA) together with its step count, so it continues without a seam.
+        Without `raw_state_dict` (a checkpoint of a non-EMA run) the weights are both the raw weights and the EMA's
+        starting point. An EMA-free run that resumes an EMA checkpoint also takes the raw weights."""
+        sd = checkpoint.get("state_dict")
+        if sd is None:
+            return
+        if self.ema_decay > 0.0:
+            self._ema = None
+            self._ema_pending = {k: sd[k].detach().cpu().clone() for k in self._ema_live() if k in sd}
+            self._ema_steps = int((checkpoint.get("ema") or {}).get("steps", 0)) if "raw_state_dict" in checkpoint else 0
+        if "raw_state_dict" in checkpoint:
+            checkpoint["state_dict"] = checkpoint["raw_state_dict"]
 
     def on_load_checkpoint(self, checkpoint):
         """Accept checkpoints written before `on_save_checkpoint` existed."""
+        if self._is_fit_resume():
+            self._ema_resume(checkpoint)
         sd = checkpoint.get("state_dict")
         if sd is not None:
             for k in [k for k in sd if k.startswith(self.TEACHER_PREFIX)]:
@@ -583,6 +867,10 @@ class BaseModel(pl.LightningModule):
         pred, y, betas, packed = self._predict_batch(batch)
         loss, parts = self._compute_loss(pred, y, betas)
         loss, parts = self._maybe_distill(pred, batch, loss, parts)
+        if self.rollout_p > 0.0 and self._rollout_stats is not None:
+            # TRACK.ROLLOUT_P: this step's probability and the number of rows whose prev became the rollout's
+            self.log("train_rollout_p", self._rollout_stats["p"], prog_bar=True, sync_dist=True)
+            self.log("train_rollout_rows", float(self._rollout_stats["rows"]), prog_bar=True, sync_dist=True)
         if self.accel_weight > 0.0:
             loss, parts = self._add_accel(pred, batch, loss, parts)
         if self.gain_reg_w > 0.0:
@@ -603,7 +891,7 @@ class BaseModel(pl.LightningModule):
         self.log("train_pos_loss", parts["pos_loss"], sync_dist=True)
         self.log("train_rot_loss", parts["rot_loss"], sync_dist=True)
         if "loss_distill" in parts:
-            self.log("train_loss_distill", parts["loss_distill"], sync_dist=True)
+            self.log("train_loss_distill", parts["loss_distill"], prog_bar=True, sync_dist=True)
         if "loss_accel" in parts:
             self.log("train_loss_accel", parts["loss_accel"], sync_dist=True)
         self._log_so3_fk_parts("train", parts)
@@ -701,12 +989,34 @@ class BaseModel(pl.LightningModule):
                                 "hypothesisId": "H6"}) + "\n")
     # endregion
 
+    def _param_groups(self, wd):
+        """AdamW groups for TRAIN.WEIGHT_DECAY: `weight` of every Conv / Linear layer decays by `wd`; BatchNorm
+        weights and biases, every bias and any other parameter do not (weight 0). Frozen parameters stay out."""
+        decay, plain, seen = [], [], set()
+        for mod in self.modules():
+            for pname, p in mod.named_parameters(recurse=False):
+                if not p.requires_grad or id(p) in seen:
+                    continue
+                seen.add(id(p))
+                if pname == "weight" and isinstance(mod, (nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear)):
+                    decay.append(p)
+                else:
+                    plain.append(p)
+        n_train = sum(1 for p in self.parameters() if p.requires_grad)
+        assert len(decay) + len(plain) == n_train, "every trainable parameter belongs to exactly one weight-decay group"
+        return [{"params": decay, "weight_decay": wd}, {"params": plain, "weight_decay": 0.0}]
+
     def configure_optimizers(self):
         tcfg = self.cfg.get("TRAIN", {})
         lr = float(tcfg.get("LR", 1e-3))
         # Frozen parameters (TRAIN.TRAINABLE_PREFIXES) stay out of the optimiser; with nothing
         # frozen this is every parameter in the same order as before.
-        opt = optim.Adam([p for p in self.parameters() if p.requires_grad], lr=lr)
+        if self.weight_decay > 0.0:
+            # TRAIN.WEIGHT_DECAY (DT2): decoupled decay on the Conv / Linear weights only
+            opt = optim.AdamW(self._param_groups(self.weight_decay), lr=lr, weight_decay=self.weight_decay)
+        else:
+            opt = optim.Adam([p for p in self.parameters() if p.requires_grad], lr=lr)
+        self._register_ema_hook(opt)
         warmup = int(tcfg.get("WARMUP_STEPS", 0))
         schedule = str(tcfg.get("LR_SCHEDULE", "constant"))
         if schedule not in self.LR_SCHEDULES:
@@ -740,13 +1050,50 @@ class BaseModel(pl.LightningModule):
         }
 
 
-class ReturnPrevposModel(BaseModel):
-    def __init__(self, cfg: Optional[Dict[str, Any]] = None):
-        super().__init__(cfg)
-        self.dummy = nn.Parameter(torch.zeros(1), requires_grad=True)
+class SpatialRootHead(nn.Module):
+    """`MODEL.ROOT_HEAD: spatial`: a root-rotation readout that keeps the spatial layout the global-average pool discards.
 
-    def forward(self, x, prevpos):
-        return prevpos + 0 * self.dummy
+    layer3 map (C, h, w) -> Conv3x3(C, 64) + BatchNorm + ReLU -> Conv3x3(64, 32) + ReLU -> flatten -> Linear(32 h w, 3).
+    The last layer starts at zero (weight and bias), so the head's output is exactly 0 at initialisation and the model
+    computes the baseline's function; its three outputs are ADDED to the root axis-angle columns of the trunk's 51-d
+    output (the fc's own root row stays). 183,395 parameters for the l3 trunk (256 x 12 x 15).
+    """
+
+    def __init__(self, c_in: int, h: int, w: int, mid: int = 64, c2: int = 32, out: int = 3):
+        super().__init__()
+        self.conv1 = nn.Conv2d(c_in, mid, 3, padding=1)
+        self.bn = nn.BatchNorm2d(mid)
+        self.conv2 = nn.Conv2d(mid, c2, 3, padding=1)
+        self.fc = nn.Linear(c2 * h * w, out)
+        self.in_hw = (int(h), int(w))
+        nn.init.zeros_(self.fc.weight)
+        nn.init.zeros_(self.fc.bias)
+
+    def forward(self, f):
+        if tuple(f.shape[-2:]) != self.in_hw:
+            raise ValueError(f"ROOT_HEAD spatial was built for a {self.in_hw} feature map, got {tuple(f.shape[-2:])}")
+        x = F.relu(self.bn(self.conv1(f)))
+        x = F.relu(self.conv2(x))
+        return self.fc(torch.flatten(x, 1))
+
+
+class AnchorRootHead(nn.Module):
+    """`MODEL.ROOT_HEAD: anchor`: the MLP of the anchored root readout. Its input is built by
+    `MNISTModel._anchor_features` (the layer2 features bilinearly sampled at the 21 joints of the previous state's FK,
+    plus each joint's normalised pixel position and an in-bounds flag): `n_joints x (c_in + 3)` numbers ->
+    Linear(., 256) + ReLU -> Linear(256, 3), the last layer zero-initialised exactly like `SpatialRootHead`'s.
+    """
+
+    def __init__(self, c_in: int = 128, n_joints: int = 21, hidden: int = 256, out: int = 3):
+        super().__init__()
+        self.n_joints, self.c_in = int(n_joints), int(c_in)
+        self.fc1 = nn.Linear(self.n_joints * (self.c_in + 3), hidden)
+        self.fc2 = nn.Linear(hidden, out)
+        nn.init.zeros_(self.fc2.weight)
+        nn.init.zeros_(self.fc2.bias)
+
+    def forward(self, feats):
+        return self.fc2(F.relu(self.fc1(feats.flatten(1))))
 
 
 class MNISTModel(BaseModel):
@@ -791,10 +1138,29 @@ class MNISTModel(BaseModel):
                        with ROOT_LOSS chordal): an axis-angle MSE would see the seam at pi.
       PREV_MLP_TRANSL  false: prev_mlp's three translation outputs are masked to 0 in the dense forward (the layer
                        keeps its shape, so state_dicts are unchanged). Needs PREVPOS_EMBED and the dense path.
+
+    DT2 round (docs/DT2_PREREG.md section 2), two more keys of the dense tracker, off by default (the modules, the random
+    draws that build them, the forward ops and the loss are those of the earlier rounds bit for bit):
+
+      ROOT_HEAD        `none` (default) | `spatial` | `anchor`. A second root-rotation readout whose three outputs are
+                       ADDED to the root axis-angle columns [3:6] of the trunk's 51-d output (next to the fc's own root
+                       row) before prev_mlp, the event gate and `prev + delta`; its last layer is zero-initialised, so the
+                       model starts as the baseline. Needs PREDICT_DELTA, the 51-d layout and a torchvision-style trunk
+                       (`resnet_forward_taps`). Built after every other module, so under one seed the rest of the model
+                       has the baseline's initial weights.
+                         spatial  layer3 map -> `SpatialRootHead` (keeps the spatial layout; 183,395 parameters for l3)
+                         anchor   layer2 map (stride 8) sampled at the 21 joints of the previous state's FK, projected
+                                  with the render intrinsics (`_intrinsics`, so DomRand's K' enters) -> `AnchorRootHead`
+                                  (needs PREV_RENDER: MANO and the intrinsics)
+      RENDER_FP32      true: the previous-state render (MANO FK, projection, z-buffer) runs with autocast disabled, so the
+                       training render under bf16 autocast equals the fp32 render the evaluation uses bit for bit. Needs
+                       PREV_RENDER and the dense path.
     """
 
     #: rasterizable faces and their channel width
     RENDER_FACES = {"sil": 1, "inv": 1, "semsil": 1}
+    #: values of MODEL.ROOT_HEAD
+    ROOT_HEADS = ("none", "spatial", "anchor")
     #: every MODEL key the model or the training script understands
     MODEL_KEYS = frozenset(
         {
@@ -827,6 +1193,8 @@ class MNISTModel(BaseModel):
             "POSE_HEAD_HIDDEN",
             # DT round (docs/DT_RENDER_TRACK_PREREG.md section 2): dense trunk, ray planes, root composition, prev_mlp
             "CNN_BACKBONE", "CAM_PLANES", "ROOT_COMPOSE", "PREV_MLP_TRANSL",
+            # DT2 round (docs/DT2_PREREG.md section 2): a second root readout, fp32 render
+            "ROOT_HEAD", "RENDER_FP32",
         }
     )
     #: every TRACK key the model or the dataset understands. Whitelisted for the same reason
@@ -839,6 +1207,8 @@ class MNISTModel(BaseModel):
             "PREV_NOISE_P_SMALL", "PREV_NOISE_P_LARGE", "PREV_NOISE_P_CORR",
             "UNROLL_PAIR", "UNROLL_P", "UNROLL_RAMP", "UNROLL_RESIDUAL",
             "GAIN_REG_W", "GAIN_REG_SCALE",
+            # DT2 round, package E: closed-loop rollout of the conditioning state on triplet batches (`_maybe_rollout`)
+            "ROLLOUT_P", "ROLLOUT_RAMP",
         }
     )
     #: floor of the semsil value inside the mask, so the mask stays readable as a
@@ -1060,6 +1430,25 @@ class MNISTModel(BaseModel):
                              "forward; it needs PREVPOS_EMBED and no ENCODER (the raw-event arms have PREV_MLP_ROOT)")
         if self.cam_planes:
             self._append_input_channels(self.conv1, 2)
+        # DT2 round: RENDER_FP32 and ROOT_HEAD (the head itself is built at the end of __init__)
+        self.render_fp32 = model_cfg.get("RENDER_FP32", False)
+        if not isinstance(self.render_fp32, bool):
+            raise ValueError(f"MODEL.RENDER_FP32 must be true or false, got {self.render_fp32!r}")
+        if self.render_fp32 and not (self.prev_render and dense_trunk):
+            raise ValueError("MODEL.RENDER_FP32 sets the precision of the previous-state render of the dense tracker; it "
+                             "needs PREV_RENDER and no ENCODER (anywhere else it would silently do nothing)")
+        _rh = model_cfg.get("ROOT_HEAD", "none")
+        if not isinstance(_rh, str) or _rh.lower() not in self.ROOT_HEADS:
+            raise ValueError(f"MODEL.ROOT_HEAD must be one of {list(self.ROOT_HEADS)}, got {_rh!r}")
+        self.root_head_kind = _rh.lower()
+        if self.root_head_kind != "none":
+            if not (dense_trunk and not self.active_head and self.predict_delta and self.output_dim == 51
+                    and self.pose_repr == "mano_full_axis_angle"):
+                raise ValueError("MODEL.ROOT_HEAD adds a readout to the root-rotation delta of the dense 51-d tracker; it "
+                                 "needs PREDICT_DELTA, the mano_full_axis_angle layout, no ENCODER and no ACTIVE_HEAD")
+            if self.root_head_kind == "anchor" and not self.prev_render:
+                raise ValueError("MODEL.ROOT_HEAD anchor samples the features at the previous state's projected joints; "
+                                 "it needs PREV_RENDER (MANO and the render intrinsics)")
         self.distill_weight = float(model_cfg.get("DISTILL_WEIGHT", 0.0))
         self.teacher = None
         # DT round. The two terms that need more than the model's own config refuse to build without it: a silently
@@ -1080,6 +1469,29 @@ class MNISTModel(BaseModel):
             if not self.prev_render:
                 raise ValueError("LOSS.ACCEL_WEIGHT > 0 scores absolute FK joints with the model's MANO layer, which "
                                  "the dense tracker has with MODEL.PREV_RENDER")
+        # DT2 round, package E: TRACK.ROLLOUT_P / ROLLOUT_RAMP (`_maybe_rollout`). Every impossible combination raises
+        # instead of training a copy of the baseline under the name of the arm.
+        self.rollout_p = self._number("TRACK.ROLLOUT_P", track_cfg.get("ROLLOUT_P", 0.0))
+        if not 0.0 <= self.rollout_p <= 1.0:
+            raise ValueError(f"TRACK.ROLLOUT_P must be a probability in [0, 1] (0 = off), got {track_cfg.get('ROLLOUT_P')!r}")
+        _rr = track_cfg.get("ROLLOUT_RAMP", [500, 2000])
+        if not (isinstance(_rr, (list, tuple)) and len(_rr) == 2
+                and all(isinstance(v, int) and not isinstance(v, bool) for v in _rr) and 0 <= _rr[0] < _rr[1]):
+            raise ValueError(f"TRACK.ROLLOUT_RAMP must be [start_step, full_step], two integers with 0 <= start < full, "
+                             f"got {_rr!r}")
+        self.rollout_ramp = (int(_rr[0]), int(_rr[1]))
+        if self.rollout_p > 0.0:
+            if self.encoder_name or self.routed or self.mesh_query:
+                raise ValueError("TRACK.ROLLOUT_P > 0 runs the dense tracker's forward on triplet windows; it is not "
+                                 "defined for the raw-event (ENCODER / routed / mesh query) models")
+            _trip = self.cfg.get("DATA", {}).get("TRIPLET", False)
+            if isinstance(_trip, str) or not _trip:
+                raise ValueError("TRACK.ROLLOUT_P > 0 needs DATA.TRIPLET: true (triplet batches); without it the "
+                                 "rollout would silently never run")
+            if self.accel_weight > 0.0:
+                raise ValueError("TRACK.ROLLOUT_P > 0 together with LOSS.ACCEL_WEIGHT > 0 is not defined: the acceleration "
+                                 "term scores w2's forward against teacher-forced w0 / w1 windows, but w2's prev would "
+                                 "come from the rollout of those same windows")
         hid = int(model_cfg.get("ACTIVE_HIDDEN", 64))
         if self.fk_graph:
             from semkine.fk_graph import FKGraphEncoder, FKGraphSpec
@@ -1347,6 +1759,9 @@ class MNISTModel(BaseModel):
             if self.u1a_freeze_encoder:
                 self.event_encoder.requires_grad_(False)
                 self.event_encoder.eval()
+        if self.root_head_kind != "none":
+            # last, so every module above is built from the same random draws as without the head
+            self._build_root_head(model_cfg)
         # Stage-1 training of an arm on a frozen trunk: only parameters under these prefixes train.
         prefixes = (self.cfg.get("TRAIN", {}) or {}).get("TRAINABLE_PREFIXES")
         if prefixes:
@@ -1526,6 +1941,97 @@ class MNISTModel(BaseModel):
         )
         return self.mano(betas, dec["global_orient"], dec["local_full_aa"], dec["transl"])
 
+    @staticmethod
+    def _stage_channels(rn, name):
+        """Output channels of stage `name` of a torchvision-style BasicBlock ResNet; ValueError if it is not there."""
+        stage = getattr(rn, name, None)
+        if stage is None or isinstance(stage, nn.Identity):
+            raise ValueError(f"MODEL.ROOT_HEAD reads the {name} feature map, which this trunk does not have")
+        try:
+            return int(stage[-1].bn2.num_features)
+        except (AttributeError, TypeError, IndexError):
+            raise ValueError(f"MODEL.ROOT_HEAD needs a BasicBlock ResNet trunk, {name} is {type(stage).__name__}") from None
+
+    def _build_root_head(self, model_cfg):
+        """`MODEL.ROOT_HEAD`: the second root readout (`SpatialRootHead` / `AnchorRootHead`), see the class docstring.
+        Feature-map sizes are those of the ResNet stem (7x7 s2, max-pool s2) and stride-2 stages: layer2 ceil(n / 8),
+        layer3 ceil(n / 16), for the input height / width of the dense tracker (DATA.HEIGHT / WIDTH)."""
+        if not isinstance(self.rn, models.ResNet):
+            raise ValueError(f"MODEL.ROOT_HEAD reads feature maps of a torchvision-style ResNet trunk, got "
+                             f"{type(self.rn).__name__}")
+        data = self.cfg.get("DATA", {}) or {}
+        H, W = int(data.get("HEIGHT", 180)), int(data.get("WIDTH", 240))
+        if self.root_head_kind == "spatial":
+            c3 = self._stage_channels(self.rn, "layer3")
+            self.root_readout = SpatialRootHead(c3, -(-H // 16), -(-W // 16))
+        else:
+            c2 = self._stage_channels(self.rn, "layer2")
+            self.root_readout = AnchorRootHead(c2, n_joints=21)
+            #: layer2 cell m sits at input pixel 8 m (see `_anchor_features`); its map is ceil(H / 8) x ceil(W / 8)
+            self._anchor_stride = 8
+            self._anchor_hw = (-(-H // 8), -(-W // 8))
+
+    def _anchor_features(self, f2, prevpos, betas_f, k_f):
+        """`ROOT_HEAD: anchor`: `(B, 21, C + 3)` features of the 21 OpenPose joints of the previous state.
+
+        The joints are the FK of `prevpos` (MANO, absolute camera frame, metres) projected with the render intrinsics
+        `_intrinsics(K')` (the same `K * RENDER_SCALE`, per sample, as the render and the event frame, so DomRand's
+        augmented K' enters): u = fx x / z + cx, v = fy y / z + cy, in render pixels where a pixel's centre is its integer
+        index (the render rounds u to the nearest index).
+
+        Grid geometry, derived from the stem. conv1 (7x7, stride 2, padding 3), max-pool (3x3, stride 2, padding 1) and
+        layer2's first conv (3x3, stride 2, padding 1) each centre output cell m on input index 2 m, so layer2 cell m
+        sits at input pixel 8 m: the continuous layer2 index of pixel u is u / 8. `grid_sample(align_corners=True)` maps
+        the normalised coordinate -1 to index 0 and +1 to index N - 1 with a linear map in index space, so
+        g = 2 (u / 8) / (N - 1) - 1 reproduces exactly that index (with `align_corners=False` the cell centres would sit at
+        half-index offsets and the stride-8 geometry would be off by up to 4 pixels). The last cell (index 22 / 29) sits at
+        pixel 176 / 232, short of the image's last pixel 179 / 239: coordinates are clamped to the map (`padding_mode=
+        "border"`), not zero-extended.
+
+        A joint is in bounds when z > 0 and its rounded pixel lies in the image (the render's own test); out-of-bounds
+        joints get a zero feature and flag 0, in-bounds ones the sampled feature and flag 1. Each joint's vector is
+        [feature (C), u / (W - 1) 2 - 1, v / (H - 1) 2 - 1 (clamped to +-2), flag]. The FK / projection run in float32
+        with autocast off and without gradient (the previous state is an input); the sampling is differentiable in the
+        feature map.
+        """
+        B, C, H2, W2 = f2.shape
+        if (H2, W2) != self._anchor_hw:
+            raise ValueError(f"ROOT_HEAD anchor was built for a {self._anchor_hw} layer2 map, got {(H2, W2)}")
+        h, w = self.render_h, self.render_w
+        dev = f2.device
+        with torch.autocast(device_type=dev.type, enabled=False):
+            with torch.no_grad():
+                _, joints = self._fk(prevpos.float(), betas_f.float())
+                fx, fy, cx, cy = self._intrinsics(k_f.float())
+                x, y, z = joints.unbind(-1)
+                z_safe = z.clamp(min=1e-6)
+                u = fx[:, None] * x / z_safe + cx[:, None]
+                v = fy[:, None] * y / z_safe + cy[:, None]
+                inb = (z > 1e-6) & (u >= -0.5) & (u < w - 0.5) & (v >= -0.5) & (v < h - 0.5)
+                s = float(self._anchor_stride)
+                gx = 2.0 * (u / s) / (W2 - 1) - 1.0
+                gy = 2.0 * (v / s) / (H2 - 1) - 1.0
+                grid = torch.stack([gx, gy], dim=-1).unsqueeze(2)                    # (B, 21, 1, 2)
+                inb_f = inb.to(torch.float32)
+                pos = torch.stack([2.0 * u / (w - 1) - 1.0, 2.0 * v / (h - 1) - 1.0], dim=-1).clamp(-2.0, 2.0)
+            samp = F.grid_sample(f2.float(), grid, mode="bilinear", padding_mode="border", align_corners=True)
+            samp = samp.squeeze(-1).transpose(1, 2) * inb_f.unsqueeze(-1)            # (B, 21, C), zero out of bounds
+            return torch.cat([samp, pos, inb_f.unsqueeze(-1)], dim=-1)
+
+    def _trunk_with_root_head(self, z, prevpos, betas_f, k_f):
+        """The dense trunk `rn(z)` plus the root readout: the trunk's logits (bit for bit `rn(z)`, see
+        `resnet_forward_taps`) with the head's three outputs added to the root-rotation columns."""
+        tap = "layer3" if self.root_head_kind == "spatial" else "layer2"
+        out, got = resnet_forward_taps(self.rn, z, (tap,))
+        f = got[tap]
+        if self.root_head_kind == "spatial":
+            r = self.root_readout(f)
+        else:
+            r = self.root_readout(self._anchor_features(f, prevpos, betas_f, k_f))
+        r = r.to(out.dtype)
+        rs = self.slices.root
+        return torch.cat([out[:, : rs.start], out[:, rs] + r, out[:, rs.stop:]], dim=1)
+
     def _render_chunk(self, prevpos, betas, camera_K):
         """Rasterize the previous state into the requested faces; (B, H, W, C)."""
         verts, _ = self._fk(prevpos, betas)
@@ -1578,6 +2084,13 @@ class MNISTModel(BaseModel):
         return torch.cat([faces[c] for c in self.render_channels], dim=-1)
 
     def _render_prev(self, prevpos, betas, camera_K):
+        if self.render_fp32:
+            # MODEL.RENDER_FP32: the whole render (MANO FK, projection, z-buffer) in plain float32 under any autocast
+            with torch.autocast(device_type=prevpos.device.type, enabled=False):
+                return self._render_prev_chunks(prevpos, betas, camera_K)
+        return self._render_prev_chunks(prevpos, betas, camera_K)
+
+    def _render_prev_chunks(self, prevpos, betas, camera_K):
         B = prevpos.shape[0]
         chunk = max(int(self.render_chunk), 1)
         out = [
@@ -2077,7 +2590,12 @@ class MNISTModel(BaseModel):
                     planes = self._cam_planes(k_f).to(dtype=lnes.dtype, device=lnes.device)
                 x = torch.cat([x, planes], dim=-1)
         x = x.permute(0, 3, 1, 2).contiguous()
-        out = self.rn(self.conv1(x))
+        if self.root_head_kind == "none":
+            out = self.rn(self.conv1(x))
+        else:
+            if not self.prev_render:                       # `spatial` reads the trunk only; `anchor` requires PREV_RENDER
+                betas_f = k_f = None
+            out = self._trunk_with_root_head(self.conv1(x), prevpos, betas_f, k_f)
         if self.active_head:
             out = self._decode_active(out, prevpos)
         if self.prevpos_embed:

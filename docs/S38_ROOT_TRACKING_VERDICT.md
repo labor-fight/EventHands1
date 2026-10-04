@@ -62,7 +62,7 @@ FLOPs 列沿用历史口径（thop，标准合成包）；v2 在真实 zgz 包�
 
 **协议**（全部臂统一，与上一轮相同）：
 - **数据**：9 人训练（`splits_semkine.json`），zgz（global + local，2590 个 50 ms 评测步）是唯一的评测受试者。
-- **评测**：`tools/x1001/evalx.py eval --ckpt last --controls --tf --perturb`，GPU、batch 1、50 ms 递推，每段从 GT 加噪声（5 mm / 0.05 rad）起步，rng 0。
+- **评测**：`tools/tracking/evalx.py eval --ckpt last --controls --tf --perturb`，GPU、batch 1、50 ms 递推，每段从 GT 加噪声（5 mm / 0.05 rad）起步，rng 0。
 - **训练配方**：单卡 × 512 × 梯度累积 2，Adam 4e-3，warmup 500，cosine 衰减到 2%，bf16。短训 2000 步，全量 6000 步。
 - **不在测试集上调参**：
   - 只报最后一步，不选点；网格中位数只作稳健性参考。
@@ -317,7 +317,7 @@ v2 用三个种子：3407、3408 已配对筛选过，**3409 没有参与任何�
 - **v2 在预算内**：延迟是 S37 的 0.905 倍，MACs 远低于 S37。v2 比 v1 快，是因为去掉了 15 个手指头的 Python 循环（S37 为了逐位可复现特意保留了这个循环）。
 - 绝对根路径本身每包多花约 0.25 ms：主机往返一次，加纯 Python float64 合成。S37+绝对根与 v1 因此超出 S37 约 3–4%，但它们都不是采纳的结构。
 - 参数量是 S37 的 2.4 倍，仍远小于稠密 CNN 的 11.2 M。
-- 实时性只在 50 ms 协议步长下成立（利用率约 0.12）。按 x1001 PROTOCOL §7 的 5 ms 到达、7 ms 截止验收，S37 和 v2 都会积压，本轮没有改变这一点。
+- 实时性只在 50 ms 协议步长下成立（利用率约 0.12）。
 
 
 ### 8.2 稀疏与异步：一个新事件改变多少计算（`tools/s38/async_footprint.py`）
@@ -369,24 +369,24 @@ $PY tools/rt/debug_arm.py --config configs/s38/<arm>_2k.yaml \
     --ckpt outputs/s38/debug/<arm>_2k_s3407/dbg_<arm>_2k_s3407-step=500.ckpt --budget configs/rt/rt_s37_2k.yaml
 # 训练 + 最后一步评测 + 网格（调度器：一卡一任务，NUMA 本地 CPU 切片）
 $PY tools/s38/jobs.py --arms <arm> --seeds 3407 3408 > /tmp/jobs.json
-SCHED_PROG=$PWD/outputs/s38 $PY tools/x1001/sched.py daemon &      # outputs/s38/sched/allowed_gpus
-SCHED_PROG=$PWD/outputs/s38 $PY tools/x1001/sched.py submit /tmp/jobs.json
+SCHED_PROG=$PWD/outputs/s38 $PY tools/tracking/sched.py daemon &      # outputs/s38/sched/allowed_gpus
+SCHED_PROG=$PWD/outputs/s38 $PY tools/tracking/sched.py submit /tmp/jobs.json
 #   单个任务等价于：
 $PY semkine/train.py --config configs/s38/<arm>.yaml --seed <seed> --run-name <arm>_s<seed> \
     --output-dir outputs/semkine/<arm>_s<seed>
-$PY tools/x1001/evalx.py eval --run-dir outputs/semkine/<arm>_s<seed> --ckpt last --controls --tf --perturb
+$PY tools/tracking/evalx.py eval --run-dir outputs/semkine/<arm>_s<seed> --ckpt last --controls --tf --perturb
 $PY tools/select_checkpoint.py --run-dir outputs/semkine/<arm>_s<seed>     # 只取网格中位数
 # S37 2k 基线在 GPU 上重评（不覆盖上一轮的 CPU 评测）
-$PY tools/x1001/evalx.py eval --run-dir outputs/semkine/rt_s37_2k_s<seed> --ckpt last --controls --tf --perturb --suffix gpu
+$PY tools/tracking/evalx.py eval --run-dir outputs/semkine/rt_s37_2k_s<seed> --ckpt last --controls --tf --perturb --suffix gpu
 # 滤波消融：同一 checkpoint 关掉滤波
-$PY tools/x1001/evalx.py eval --run-dir outputs/semkine/<arm>_s<seed> --config configs/s38/<arm>_gain1.yaml \
+$PY tools/tracking/evalx.py eval --run-dir outputs/semkine/<arm>_s<seed> --config configs/s38/<arm>_gain1.yaml \
     --ckpt last --controls --tf --perturb --suffix gain1
 # 报告、门、异步足迹、正式测速、主表
 $PY tools/s38/screen_report.py --budget 2k        # 或 6k
 $PY tools/s38/async_footprint.py --runs outputs/semkine/s38_spmeas_2k_s3407 outputs/semkine/rt_s37_2k_s3407
 CUDA_VISIBLE_DEVICES=0 taskset -c 0-3 $PY tools/s38/bench.py --arms rt_s37=outputs/semkine/rt_s37_s3407 \
     v2=outputs/semkine/s38_spmeas_s3407 --out outputs/s38/reports/bench.json
-$PY tools/x1001/evalx.py row --arm <arm> --runs outputs/semkine/<arm>_s3407 ... --ckpt last --variant tf_pert
+$PY tools/tracking/evalx.py row --arm <arm> --runs outputs/semkine/<arm>_s3407 ... --ckpt last --variant tf_pert
 $PY tools/report_table.py ...
 ```
 
@@ -411,7 +411,7 @@ S37 可复现性核对：`$PY tools/s38/s37_repro.py`，重评 `rt_s37_s3407` �
 
 ## 11. 产物
 
-- 代码：`semkine/sparse_pyramid.py`；`model/model.py`（`ROOT_MEAS` / `ROOT_REF` / `ROOT_FILTER_GAIN` / `FINGER_MEAS` / `FINGER_FILTER_GAIN`，`LOSS.ROOT_LOSS`）；`semkine/anchored.py`（`root_step`）；`semkine/event_gnn.py`（只多保存池化向量）；`tools/rt/debug_arm.py`（新增检查）；`tools/x1001/evalx.py`（`--suffix`）。
+- 代码：`semkine/sparse_pyramid.py`；`model/model.py`（`ROOT_MEAS` / `ROOT_REF` / `ROOT_FILTER_GAIN` / `FINGER_MEAS` / `FINGER_FILTER_GAIN`，`LOSS.ROOT_LOSS`）；`semkine/anchored.py`（`root_step`）；`semkine/event_gnn.py`（只多保存池化向量）；`tools/rt/debug_arm.py`（新增检查）；`tools/tracking/evalx.py`（`--suffix`）。
 - 工具：`tools/s38/`（`make_configs.py`、`jobs.py`、`screen_report.py`、`bench.py`、`async_footprint.py`、`s37_repro.py`）。
 - 配置：`configs/s38/`；测试：`tests/test_s38.py`；预注册：`docs/S38_ROOT_TRACKING_PREREG.md`。
 - 训练与评测：`outputs/semkine/s38_*_s<seed>/`（checkpoint 每 500 步一个；`evalx_val_core_last_tf_pert.json`、`*_gain1.json`、`selection_*.json`）。S37 2k 的 GPU 重评在 `rt_s37_2k_s<seed>/*_gpu.json`；S37 种子 3409 在 `outputs/semkine/rt_s37_s3409/`。

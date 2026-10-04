@@ -55,7 +55,12 @@ ORIG_SHA256 = "0521bd0ae87839a3529cf7a3b3ee05ad20b47a63d6595008fc3e4ac6fd70a7c2"
 RT_CFG = REPO / "configs" / "rt" / "rt_cnntrack.yaml"
 DT = REPO / "configs" / "dt"
 DATA_ROOT = REPO / "data" / "hand_data51"
-NEW_KEYS = ("CNN_BACKBONE", "CAM_PLANES", "ROOT_COMPOSE", "PREV_MLP_TRANSL")
+#: MODEL keys the pristine reference (outputs/dt/ref/model_orig.py) does not know. The DT2 round added the last two
+#: (ROOT_HEAD, RENDER_FP32; tests/test_dt_model3.py pins them): configs that carry any of them are not "existing blocks".
+NEW_KEYS = ("CNN_BACKBONE", "CAM_PLANES", "ROOT_COMPOSE", "PREV_MLP_TRANSL", "ROOT_HEAD", "RENDER_FP32")
+#: TRACK keys the pristine reference does not know (DT2 package E, tests/test_dt_model4.py pins them); configs that carry
+#: any of them are not "existing blocks" either (the reference refuses them as unknown TRACK keys)
+NEW_TRACK_KEYS = ("ROLLOUT_P", "ROLLOUT_RAMP")
 H, W = 180, 240
 BASE_K = torch.tensor([[603.4507, 0.0, 325.09183], [0.0, 602.95654, 242.09796], [0.0, 0.0, 1.0]])
 
@@ -215,7 +220,8 @@ def so3_model():
 # =========================================================================================== (a) backward compatibility
 @pytest.mark.parametrize("path", [RT_CFG, DT / "dt_base.yaml"], ids=["rt_cnntrack", "dt_base"])
 @pytest.mark.parametrize("explicit", [{}, {"CNN_BACKBONE": "resnet18"}, {"CAM_PLANES": False},
-                                      {"ROOT_COMPOSE": "add"}, {"PREV_MLP_TRANSL": True}], ids=str)
+                                      {"ROOT_COMPOSE": "add"}, {"PREV_MLP_TRANSL": True},
+                                      {"ROOT_HEAD": "none"}, {"RENDER_FP32": False}], ids=str)
 def test_default_state_dict_modules_and_rng_equal_the_original(orig, path, explicit):
     """Same keys, shapes, values, module tree and the same number of random draws, also with every new key written
     out at its default value."""
@@ -235,7 +241,8 @@ def _model_blocks():
             cfg = load_config(p)
         except Exception:                                         # not a model config
             continue
-        if "MODEL" not in cfg or any(k in cfg["MODEL"] for k in NEW_KEYS):
+        if "MODEL" not in cfg or any(k in cfg["MODEL"] for k in NEW_KEYS) \
+                or any(k in (cfg.get("TRACK") or {}) for k in NEW_TRACK_KEYS):
             continue
         key = json.dumps({k: cfg.get(k) for k in ("MODEL", "TRACK", "LOSS", "DATA", "MANO")}, sort_keys=True,
                          default=str)
@@ -270,7 +277,8 @@ def test_every_existing_model_block_builds_identically(orig):
 
 @pytest.mark.parametrize("path", [RT_CFG, DT / "dt_base.yaml"], ids=["rt_cnntrack", "dt_base"])
 @pytest.mark.parametrize("explicit", [{}, {"CNN_BACKBONE": "resnet18", "CAM_PLANES": False, "ROOT_COMPOSE": "add",
-                                           "PREV_MLP_TRANSL": True}], ids=["plain", "defaults-written-out"])
+                                           "PREV_MLP_TRANSL": True, "ROOT_HEAD": "none", "RENDER_FP32": False}],
+                         ids=["plain", "defaults-written-out"])
 def test_default_forward_equals_the_original_bitwise(orig, path, explicit):
     a = _randomize(_build(orig.MNISTModel, _cfg(path))).eval()
     b = _randomize(_build(MNISTModel, _cfg(path, **explicit))).eval()
@@ -319,7 +327,8 @@ def test_pristine_reference_is_the_file_before_the_edit(orig):
     assert not set(NEW_KEYS) & set(orig.MNISTModel.MODEL_KEYS)
     assert set(NEW_KEYS) <= set(MNISTModel.MODEL_KEYS)
     assert set(orig.MNISTModel.MODEL_KEYS) <= set(MNISTModel.MODEL_KEYS)
-    assert set(orig.MNISTModel.TRACK_KEYS) == set(MNISTModel.TRACK_KEYS)
+    assert set(orig.MNISTModel.TRACK_KEYS) == set(MNISTModel.TRACK_KEYS) - set(NEW_TRACK_KEYS)
+    assert set(NEW_TRACK_KEYS) <= set(MNISTModel.TRACK_KEYS) and not set(NEW_TRACK_KEYS) & set(orig.MNISTModel.TRACK_KEYS)
 
 
 # ================================================================================================== (b) ROOT_COMPOSE so3

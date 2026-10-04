@@ -12,7 +12,20 @@ json summary, every row with its delta versus (1, 1, 1).
 
 Gains are fixed a priori and never chosen on the evaluation subject (AGENTS.md: zgz is both the development
 and the test subject). Only the pre-registered primary (0.5, 1.0, 0.5) may be adopted; every other triple is
-a descriptive sensitivity row.
+a descriptive sensitivity row. (DT2 round: the user later allowed gain selection on zgz under a two-fold
+interleaved-block cross-fit, `tools/dt/filter_sweep_2fold.py`, with in-fold and out-of-fold numbers reported.)
+
+`--filter-spec` evaluates `semkine.anchored.AdaptiveFilter` specs (event-count-dependent gains, optional alpha-beta
+velocity; the filter takes the packet's raw event count from `evalx.run_sequence`): a JSON object / list / file path,
+tag `af<hash>_<readable name>`, the canonical spec stored in the json. `--window-ms` changes the evidence window of
+the closed loop (default 50 = the protocol; `evalx.perturb_trials` branches use the closed loop's window of the same step,
+`r["win"]`, so with `--window-ms 200 --perturb` the branches are rolled on 200 ms windows too). The other window options
+of `tools/tracking/evalx.py` pass through unchanged and are off by default: `--clip-run-start` (windows clipped to the
+segment's start, as in training), `--count-mode norm` (the filter's event count is the window's count rescaled to a 50 ms
+rate), `--window-set 150,200,300 --min-events N` (per step the smallest listed window with >= N events). A window other
+than 50 ms adds `_w<ms>` to the tags, the other options `_clip` / `_cnorm` / `_wset150-200-300_n<N>`; `--no-wtag` drops all
+of these decorations (the tag is then the spec hash / gain triple alone -- the caller keeps the runs apart by `--out-dir`;
+the json's `window` entry still records everything).
 
     python tools/dt/filter_eval.py --run-dir outputs/semkine/rt_cnntrack_s3407 --ckpt last \\
         --gains '1,1,1;0.5,1,0.5' --controls --tf --perturb --out-dir outputs/dt/filter/rt_cnntrack_s3407
@@ -49,7 +62,7 @@ sys.path[:0] = [str(REPO), str(REPO / "model"), str(REPO / "tools" / "tracking")
 from config import load_config                                   # noqa: E402
 from mano_layer import ManoLayer                                 # noqa: E402
 from model import MNISTModel                                     # noqa: E402
-from semkine.anchored import FilteredTracker                     # noqa: E402
+from semkine.anchored import AdaptiveFilter, FilteredTracker     # noqa: E402
 from semkine.dataset import sequences_for_split                  # noqa: E402
 import evalx as EX                                               # noqa: E402
 
@@ -110,10 +123,61 @@ def build_run(run: Path, ckpt: str, device, config=None):
     return cfg, model, path, step, sel_ra
 
 
-def eval_args(controls=False, tf=False, perturb=False):
-    """The fields `evalx.evaluate` reads from its `a`: the fixed protocol (50 ms windows) plus the modes."""
+def eval_args(controls=False, tf=False, perturb=False, window_ms=EX.STEP, clip_run_start=False, count_mode="last50",
+              window_set=(), min_events=0):
+    """The fields `evalx.evaluate` reads from its `a`: the fixed protocol (50 ms windows unless `window_ms`) plus the modes
+    and the DT3 window options (segment-clipped windows, the rate-normalized event count, a window set decided by
+    `min_events`; all off by default)."""
     return argparse.Namespace(controls=bool(controls), tf=bool(tf), perturb=bool(perturb), window_mode="fixed",
-                              window_ms=EX.STEP, min_events=0, max_window_ms=300)
+                              window_ms=int(window_ms), min_events=int(min_events), max_window_ms=300,
+                              clip_run_start=bool(clip_run_start), count_mode=count_mode,
+                              window_set=EX.parse_window_set(window_set))
+
+
+# ------------------------------------------------------------------------------------------ filter specs
+def load_filter_specs(arg: str):
+    """`--filter-spec`: a JSON string or the path of a JSON file holding one spec (an object) or a list of specs.
+    A spec is `semkine.anchored.AdaptiveFilter.canonical_spec`'s dict, e.g.
+    `{"a_root": [[300, 0.3], [3000, 0.5], [30000, 0.8]], "a_rest": 1.0, "a_trans": 0.5, "beta": 0.2}`.
+    Returns a list of the specs as given (validated)."""
+    stripped = arg.lstrip()
+    is_file = False
+    if stripped[:1] not in ("{", "["):                                   # a JSON text is never a path (and may be longer than NAME_MAX)
+        try:
+            is_file = Path(arg).is_file()
+        except OSError:
+            is_file = False
+    text = Path(arg).read_text() if is_file else arg
+    obj = json.loads(text)
+    specs = obj if isinstance(obj, list) else [obj]
+    for sp in specs:
+        AdaptiveFilter.canonical_spec(sp)                                # raises on a malformed spec
+    return specs
+
+
+def _spec_gain_txt(v) -> str:
+    return f"{v:g}" if isinstance(v, (int, float)) else "n" + "-".join(f"{g:g}" for _, g in v)
+
+
+def spec_readable(spec: dict) -> str:
+    """A short human-readable name of a spec: 'r0.5_f1_t0.5', 'rn0.3-0.5-0.8_f1_t0.5_b0.2', ... (node counts and the
+    other fields are in the hash)."""
+    c = AdaptiveFilter.canonical_spec(spec)
+    out = f"r{_spec_gain_txt(c['a_root'])}_f{_spec_gain_txt(c['a_rest'])}_t{_spec_gain_txt(c['a_trans'])}"
+    if c["beta_root"] or c["beta_trans"]:
+        out += f"_b{c['beta_root']:g}" + ("" if c["beta_root"] == c["beta_trans"] else f"-{c['beta_trans']:g}")
+    if c["decay"] != 0.5:
+        out += f"_d{c['decay']:g}"
+    return out + ("_host" if c["host"] else "")
+
+
+def spec_tag(spec: dict) -> str:
+    """'af<6 hex of the canonical spec's md5>_<readable name>': the hash identifies the spec (the same spec written
+    with defaults spelled out or left out has one tag), the name is for people (the spec's own `name` if it has one)."""
+    c = AdaptiveFilter.canonical_spec(spec)
+    h = hashlib.md5(json.dumps(c, sort_keys=True).encode()).hexdigest()[:6]
+    name = re.sub(r"[^A-Za-z0-9._+-]+", "-", str(spec["name"])) if spec.get("name") else spec_readable(c)
+    return f"af{h}_{name}"
 
 
 def _write_atomic(path: Path, text: str):
@@ -122,14 +186,17 @@ def _write_atomic(path: Path, text: str):
     os.replace(tmp, path)
 
 
-def cmd_eval(a):
+def cmd_eval(a, post=None):
+    """Evaluate the gain triples / filter specs / raw tracker `a` asks for; `post(arrays=, seqs=, mano=, device=, root=, cfg=)`
+    (optional) may return a dict that is stored in the json as `post` (`tools/dt/filter_sweep_2fold.py` adds the fold sums)."""
     if a.threads:
         torch.set_num_threads(a.threads)
     run = Path(a.run_dir)
     out_dir = Path(a.out_dir)
     gains = parse_gains(a.gains) if a.gains else []
-    if not gains and not a.raw:
-        raise SystemExit("nothing to do: give --gains and/or --raw")
+    specs = load_filter_specs(a.filter_spec) if a.filter_spec else []
+    if not gains and not a.raw and not specs:
+        raise SystemExit("nothing to do: give --gains, --filter-spec and/or --raw")
     device = torch.device(a.device) if a.device else torch.device("cuda" if torch.cuda.is_available() else "cpu")
     cfg, model, ckpt, step, sel_ra = build_run(run, a.ckpt, device, a.config)
     mano = ManoLayer(cfg["MANO"]["NPZ"], add_mean=False).to(device).eval()
@@ -139,26 +206,42 @@ def cmd_eval(a):
     trained = json.loads((run / "training_metadata.json").read_text()).get("train_sequences", [])
     leak = {s.split("_")[0] for s, _ in seqs} & {s.split("_")[0] for s in trained}
     assert not leak, f"{a.split} subjects {sorted(leak)} are in {run.name}'s training set"
-    ns = eval_args(a.controls, a.tf, a.perturb)
+    ns = eval_args(a.controls, a.tf, a.perturb, a.window_ms, getattr(a, "clip_run_start", False),
+                   getattr(a, "count_mode", "last50"), getattr(a, "window_set", ()), getattr(a, "min_events", 0))
+    EX.check_window_opts(ns)
+    wtag = "" if ns.window_ms == EX.STEP else f"_w{ns.window_ms}"           # the default 50 ms keeps the historical tags
+    if ns.window_set:
+        wtag = EX.wset_tag(ns.window_set, ns.min_events)
+    wtag += EX.option_tag(ns)                                                # _clip / _cnorm of a DT3 window option
+    if getattr(a, "no_wtag", False):                                         # the sweep keeps its run directories apart instead
+        wtag = ""
     env = {"torch": torch.__version__, "device": str(device),
            "gpu": torch.cuda.get_device_name(device) if device.type == "cuda" else None,
            "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
            "md5": {p: md5_of(REPO / p) for p in ("semkine/anchored.py", "tools/tracking/evalx.py", "model/model.py")}}
-    jobs = ([("raw" + (f"_{a.suffix}" if a.suffix else ""), None)] if a.raw else []) + [
-        (gain_tag(g) + (f"_{a.suffix}" if a.suffix else ""), g) for g in gains]
-    for tag, g in jobs:
-        net = model if g is None else FilteredTracker(model, *g).to(device).eval()
+    sfx = f"_{a.suffix}" if a.suffix else ""
+    jobs = ([("raw" + wtag + sfx, None, None)] if a.raw else []) + [
+        (gain_tag(g) + wtag + sfx, g, None) for g in gains] + [
+        (spec_tag(sp) + wtag + sfx, None, AdaptiveFilter.canonical_spec(sp)) for sp in specs]
+    for tag, g, spec in jobs:
+        if spec is not None:
+            net = AdaptiveFilter.from_spec(model, spec).to(device).eval()
+        else:
+            net = model if g is None else FilteredTracker(model, *g).to(device).eval()
         label = f"{run.name} step={step} {tag}"
         t0 = time.time()
         summary, arrays = EX.evaluate(net, cfg, mano, root, seqs, device, ns, label=label)
         out = {"run": run.name, "ckpt": str(ckpt), "step": step, "split": a.split, "manifest": str(mani),
-               "filter": None if g is None else {"class": "semkine.anchored.FilteredTracker", "tag": tag,
-                                                  "a_root": g[0], "a_rest": g[1], "a_trans": g[2]},
+               "filter": None if (g is None and spec is None) else (
+                   {"class": "semkine.anchored.AdaptiveFilter", "tag": tag, "spec": spec} if spec is not None else
+                   {"class": "semkine.anchored.FilteredTracker", "tag": tag,
+                    "a_root": g[0], "a_rest": g[1], "a_trans": g[2]}),
                "gains": None if g is None else {"root": g[0], "rest": g[1], "trans": g[2]},
                "flags": {"controls": ns.controls, "tf": ns.tf, "perturb": ns.perturb}}
         out.update(summary)
-        out["window"] = {"mode": ns.window_mode, "ms": ns.window_ms, "min_events": ns.min_events,
-                         "max_ms": ns.max_window_ms}
+        if post is not None:
+            out["post"] = post(arrays=arrays, seqs=seqs, mano=mano, device=device, root=root, cfg=cfg)
+        out["window"] = EX.window_record(ns)
         out["wall_s"] = time.time() - t0
         out["env"] = env
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -520,6 +603,7 @@ def law_check_tag(model, gains, cfg, root, seqs, npz_path, thetas=LAW_THETAS):
         net.set_hand_context(torch.tensor(aux["betas"], dtype=torch.float32).view(1, -1),
                              torch.tensor(aux["camera_K"], dtype=torch.float32).view(1, 3, 3))
         pred, run_id, end, elapsed = (z[f"model|{s}|{k}"] for k in ("pred", "run", "end", "elapsed"))
+        wins = z[f"model|{s}|win"] if f"model|{s}|win" in z.files else None      # saved by a DT3 window-option run; else 50 ms packets
         plan = trial_plan(run_id, elapsed)
         axes = trial_axes(len(plan))
         for th in rows:
@@ -528,7 +612,8 @@ def law_check_tag(model, gains, cfg, root, seqs, npz_path, thetas=LAW_THETAS):
             stored_k1[th] += list(z[key][:, 0] / th)
         for j, i0 in enumerate(plan):
             assert run_id[i0 - 1] == run_id[i0], "a branched step must have a predecessor in its segment"
-            x = torch.from_numpy(EX.ET.build_lnes(events, offsets, int(end[i0]), EX.STEP, ev_ch)).unsqueeze(0)
+            x = torch.from_numpy(EX.ET.build_lnes(events, offsets, int(end[i0]), EX.STEP if wins is None else int(wins[i0]),
+                                                  ev_ch)).unsqueeze(0)
             es = [axes[j] * np.deg2rad(th) for th in rows]
             _, res = law_trial(net, tap, x, pred[i0 - 1], es)
             held = gains is not None and not bool((x.abs().sum() > 0).item())
@@ -1131,6 +1216,23 @@ def main(argv=None):
     ap.add_argument("--run-dir", help="a run directory, e.g. outputs/semkine/rt_cnntrack_s3407")
     ap.add_argument("--ckpt", default="last", help="selected | last | step=N (evalx.find_ckpt)")
     ap.add_argument("--gains", default="", help="'ROOT,REST,TRANS;ROOT,REST,TRANS;...' (report: override the default set)")
+    ap.add_argument("--filter-spec", default="", help="AdaptiveFilter spec(s): a JSON object / list of objects, or the path of a JSON file "
+                                                      "(semkine.anchored.AdaptiveFilter.canonical_spec); tag = af<hash>_<readable name>, "
+                                                      "the canonical spec is recorded in the json (alongside or instead of --gains)")
+    ap.add_argument("--window-ms", type=int, default=EX.STEP, help="evidence window of the evaluation in ms (default 50 = the protocol; "
+                                                                   "other values add _w<ms> to the tags; perturbation branches use the same "
+                                                                   "window as the closed-loop step they branch from)")
+    ap.add_argument("--clip-run-start", action="store_true", help="clip every evidence window to its segment's start (training's rule), "
+                                                                  "not only to the recording's start (tag suffix _clip)")
+    ap.add_argument("--count-mode", choices=EX.COUNT_MODES, default="last50",
+                    help="the event count a filter spec gets: last50 = the 50 ms packet's (the protocol), norm = the window's count "
+                         "rescaled to a 50 ms rate (tag suffix _cnorm)")
+    ap.add_argument("--window-set", type=EX.parse_window_set, default=(),
+                    help="comma list of windows in ms, e.g. 150,200,300: per step the smallest holding >= --min-events events (else the "
+                         "largest), clipped to the available past; replaces --window-ms (tag _wset150-200-300_n<min-events>)")
+    ap.add_argument("--min-events", type=int, default=0, help="--window-set: the raw event count that decides the window")
+    ap.add_argument("--no-wtag", action="store_true", help="drop the window decorations (_w<ms>, _clip, _cnorm, _wset...) from the tags "
+                                                           "(default: keep them); keep the runs apart by --out-dir")
     ap.add_argument("--raw", action="store_true", help="also evaluate the unwrapped tracker (no FilteredTracker), tag 'raw'")
     ap.add_argument("--controls", action="store_true", help="also the hold / no-events controls (all triples of this call)")
     ap.add_argument("--tf", action="store_true", help="also the teacher-forced loop")
@@ -1168,6 +1270,10 @@ def main(argv=None):
     else:
         if not (a.run_dir and a.out_dir):
             ap.error("evaluation needs --run-dir and --out-dir")
+        try:
+            EX.check_window_opts(a)
+        except ValueError as err:
+            ap.error(str(err))
         cmd_eval(a)
 
 

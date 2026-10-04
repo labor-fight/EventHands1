@@ -197,10 +197,6 @@ class EventPacketBatch:
             assert bool((self.events[:, EV_P] >= 0).all() and (self.events[:, EV_P] <= 1).all())
 
 
-def _empty(n_cols: int = EV_COLS) -> np.ndarray:
-    return np.zeros((0, n_cols), dtype=np.float32)
-
-
 def collate_packets(items: Sequence[EventPacket]) -> EventPacketBatch:
     """Ragged collate. Never pads to `N_max`; never merges state across sequences.
 

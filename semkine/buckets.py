@@ -318,7 +318,7 @@ def masks_for_sequence(manifest: dict, seq: str, n_steps: int) -> Dict[str, np.n
     if int(entry["n_steps"]) != int(n_steps):
         raise ValueError(
             f"{seq}: bucket manifest has {entry['n_steps']} steps but the evaluator produced "
-            f"{n_steps}; regenerate with tools/make_semkine_manifest.py --step-ms"
+            f"{n_steps}; regenerate with tools/make_bucket_manifest.py --step-ms"
         )
     out = {}
     for b, idx in entry["buckets"].items():

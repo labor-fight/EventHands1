@@ -81,6 +81,14 @@ class ManoLayer(nn.Module):
         parents = data["kintree_table"][0].copy()
         parents[0] = -1
         self.register_buffer("parents", torch.tensor(parents, dtype=torch.long))
+        # Opt-in (default False), `deploy_fast.enable_fast_render`: the kinematic chain below indexes a Python list with a
+        # joint's parent. With the CUDA tensor `self.parents[i]` that is `Tensor.__index__` -> `.item()`: a device-to-host
+        # copy and a cudaStreamSynchronize per joint, 15 per forward. With `fast_chain` the same indices as Python ints
+        # (`_parents_py`) build the same graph of the same operations (bit-identical output) without any host
+        # synchronisation, which is also what lets a CUDA graph capture the forward. Neither attribute is a buffer or a
+        # parameter: checkpoints and state_dicts are unchanged.
+        self._parents_py = [int(p) for p in parents]
+        self.fast_chain = False
         self.add_mean = add_mean
         self.num_joints = 16
 
@@ -132,10 +140,13 @@ class ManoLayer(nn.Module):
             rot_mats.view(-1, 3, 3), rel_joints.reshape(-1, 3, 1)
         ).view(batch, 16, 4, 4)
 
+        # `fast_chain` (default off): Python-int parents, no `.item()` host sync per joint (see `__init__`); a layer
+        # unpickled from before this attribute existed has neither attribute and takes the original path
+        parents = self._parents_py if getattr(self, "fast_chain", False) else self.parents
         transform_chain = [transforms_mat[:, 0]]
         for i in range(1, self.num_joints):
             transform_chain.append(
-                torch.matmul(transform_chain[self.parents[i]], transforms_mat[:, i])
+                torch.matmul(transform_chain[parents[i]], transforms_mat[:, i])
             )
         transforms = torch.stack(transform_chain, dim=1)  # (B, 16, 4, 4)
 

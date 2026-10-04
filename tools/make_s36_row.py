@@ -3,11 +3,11 @@
 
 Accuracy re-runs the exact selection protocol (`select_checkpoint.py`: val_core = the held-out
 subject zgz under `splits_semkine.json`, 50 ms recursive steps, rng seed 0, the checkpoint each
-seed's selection JSON picked) and aggregates the 8 sequences into the table's local / global columns,
+seed's selection JSON picked) and aggregates the two zgz sequences into the table's local / global columns,
 frames-weighted, root-aligned. The reproduced overall RA is asserted against the
 selection JSON so a protocol drift cannot go unnoticed.
 
-Cost columns follow `tools/make_main_table.py`: batch-1 latency on this machine scaled
+Cost columns use batch-1 latency on this machine scaled
 so that EventHands-Full = 1.75 ms, thop MACs for the frontend only (the CNN rows count
 conv1+resnet only; heads add ~0.0005 G and are noted), params = every nn.Parameter.
 The one necessary deviation: an event frontend's latency is data dependent, so instead

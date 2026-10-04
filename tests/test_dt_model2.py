@@ -66,6 +66,18 @@ RT = REPO / "configs" / "rt"
 DT = REPO / "configs" / "dt"
 RT_CFG, BASE_CFG, ACC_CFG, W05_CFG = RT / "rt_cnntrack.yaml", DT / "dt_base.yaml", DT / "dt_acc.yaml", DT / "dt_w05.yaml"
 S37_CFG = RT / "rt_s37_2k.yaml"
+#: DT2 round (tests/test_dt_model3.py): the MODEL keys the pre-edit reference does not know, and the LOSS / TRAIN keys the
+#: edited model reads and the reference ignores. Configs that carry any of them are not "existing blocks".
+DT2_MODEL_KEYS = frozenset({"ROOT_HEAD", "RENDER_FP32"})
+DT2_OTHER_KEYS = {"LOSS": ("ROOT_ROT_WEIGHT",), "TRAIN": ("WEIGHT_DECAY", "EMA_DECAY"),
+                  # DT2 package E (tests/test_dt_model4.py): the rollout keys of the TRACK block
+                  "TRACK": ("ROLLOUT_P", "ROLLOUT_RAMP")}
+NEW_TRACK_KEYS = frozenset(DT2_OTHER_KEYS["TRACK"])
+
+
+def _uses_dt2_keys(cfg):
+    return bool(DT2_MODEL_KEYS & set(cfg.get("MODEL", {}))) or any(
+        k in (cfg.get(sec) or {}) for sec, keys in DT2_OTHER_KEYS.items() for k in keys)
 DATA_ROOT = REPO / "data" / "hand_data51"
 REAL_TEACHER = REPO / "outputs" / "semkine" / "rt_cnntrack_s3407" / "last.ckpt"
 H, W = 180, 240
@@ -258,8 +270,9 @@ def _stub_forward(m, out01):
 # ======================================================================================== (a) backward compatibility
 def test_a_pristine_copies_are_the_files_before_the_edit(orig):
     assert hashlib.sha256(ORIG_TRAIN.read_bytes()).hexdigest() == ORIG_TRAIN_SHA256
-    assert set(orig.MNISTModel.MODEL_KEYS) == set(MNISTModel.MODEL_KEYS)         # no new MODEL key: unknown ones still raise
-    assert set(orig.MNISTModel.TRACK_KEYS) == set(MNISTModel.TRACK_KEYS)
+    assert set(orig.MNISTModel.MODEL_KEYS) == set(MNISTModel.MODEL_KEYS) - DT2_MODEL_KEYS   # nothing else new: unknown ones still raise
+    assert DT2_MODEL_KEYS <= set(MNISTModel.MODEL_KEYS) and not DT2_MODEL_KEYS & set(orig.MNISTModel.MODEL_KEYS)
+    assert set(orig.MNISTModel.TRACK_KEYS) == set(MNISTModel.TRACK_KEYS) - NEW_TRACK_KEYS
     assert not hasattr(orig.MNISTModel, "_accel_loss") and hasattr(MNISTModel, "_accel_loss")
     with pytest.raises(ValueError, match="unknown MODEL keys"):
         MNISTModel(_cfg(BASE_CFG, model={"NOT_A_KEY": 1}))
@@ -284,7 +297,7 @@ def _model_blocks():
             cfg = load_config(p)
         except Exception:                                         # not a model config
             continue
-        if "MODEL" not in cfg:
+        if "MODEL" not in cfg or _uses_dt2_keys(cfg):
             continue
         key = json.dumps({k: cfg.get(k) for k in ("MODEL", "TRACK", "LOSS", "DATA", "MANO")}, sort_keys=True, default=str)
         if key not in seen:

@@ -4,7 +4,9 @@
 Only 2k/6k are accepted. This runner never trains or starts another phase.
 Four explicit-last evaluations run on GPUs 0/2/4/6, each with 18 physical
 cores and their SMT siblings. Their successful exits precede both sequential
-GPU-0 cost measurements. Existing evaluation/log/row/table artifacts are
+GPU-0 cost measurements. With --wait-for-raw, costs also wait for the same
+phase's complete successful raw probes. Standalone calls do not wait by default.
+Existing evaluation/log/row/table artifacts are
 never overwritten. A fixed S38 reference row can be reused only if identical.
 
   python tools/u1a/evaluate_phase.py 2k
@@ -79,7 +81,7 @@ def build_plan(phase, python, manifest=MANIFEST, threads=2):
         run = f"u1a_{mode}_{phase}_s{seed}"
         cpus = cpu_partition(index)
         command = ["taskset", "-c", ",".join(map(str, cpus)), python, "-u",
-                   "tools/x1001/evalx.py", "eval", "--run-dir", str(ROWS / run),
+                   "tools/tracking/evalx.py", "eval", "--run-dir", str(ROWS / run),
                    "--ckpt", "last", "--split", "val_core", "--manifest", str(manifest),
                    "--controls", "--tf", "--perturb"]
         jobs.append({"run": run, "seed": seed, "mode": mode, "gpu": GPUS[index],
@@ -260,6 +262,41 @@ def terminate_own_children(children):
             job.update(status="interrupted", exit_code=process.returncode, end_unix=time.time())
 
 
+def wait_for_raw(phase, verification, timeout_seconds):
+    """Read-only barrier; all same-phase raw workers must have exited zero."""
+    path = OUTPUT / f"{phase}_raw_state.json"
+    expected = {f"u1a_{mode}_{phase}_s{seed}" for seed in SEEDS for mode in MODES}
+    allowed = expected | {f"s38_spmeas_s{seed}" for seed in SEEDS}
+    deadline = time.monotonic() + timeout_seconds
+    print(f"waiting for complete {phase} raw probes before GPU-0 costs: {path}", flush=True)
+    while True:
+        if path.is_file():
+            raw = read_json(path)
+            require(raw.get("phase") == phase, "raw barrier state belongs to a different phase")
+            require(raw.get("stage") != "failed", f"raw runner failed: {raw.get('error')}")
+            jobs = raw.get("jobs", [])
+            names = [job["run"] for job in jobs]
+            require(len(names) == len(set(names)) and set(names) <= allowed,
+                    "raw barrier has unexpected or duplicate jobs")
+            require(not any(job.get("status") == "failed" for job in jobs), "a raw probe failed")
+            if raw.get("stage") == "complete":
+                require(expected <= set(names), "completed raw state is missing a preregistered candidate")
+                require(all(job.get("status") == "complete" and job.get("exit_code") == 0 for job in jobs),
+                        "completed raw state contains unfinished/failed workers")
+                require(raw.get("verification", {}).get("sha256") == verification["sha256"],
+                        "raw and recursive runners used different phase verification sources")
+                print(f"{phase} raw barrier passed; all raw workers exited zero before costs", flush=True)
+                return {"path": str(path), "sha256": sha256(path), "runner_pid": raw.get("runner_pid"),
+                        "runs": names, "all_raw_workers_exit_zero": True}
+        require(time.monotonic() < deadline, "timed out waiting for same-phase raw completion; no costs started")
+        time.sleep(5)
+
+
+def interrupt(signum, _frame):
+    # Raising inside the main try triggers cleanup of only our own worker groups.
+    raise SystemExit(f"evaluation runner received signal {signum}")
+
+
 def report_job(mode, phase, budget, python):
     arm = f"u1a_{mode}_{phase}"
     cpus = cpu_partition(0)
@@ -312,9 +349,13 @@ def main(argv=None):
     parser.add_argument("--threads", type=int, default=2, help="threads per numerical library within each 18-core+SMT partition")
     parser.add_argument("--idle-memory-mb", type=int, default=1024, help="GPU must be below this memory usage and have no compute processes")
     parser.add_argument("--plan", action="store_true", help="print commands/partitions only; no validation, process, GPU query, or writes")
+    parser.add_argument("--preflight", action="store_true", help="read-only source/output/resource checks; no locks, output, evaluation or GPU work")
+    parser.add_argument("--wait-for-raw", action="store_true", help="wait for this phase's successful raw workers before cost profiling; used by finish_6k")
+    parser.add_argument("--raw-wait-timeout-seconds", type=float, default=3600, help="bounded raw barrier wait; default one hour")
     args = parser.parse_args(argv)
     require(1 <= args.threads <= 18, "--threads must be between 1 and 18")
     require(args.idle_memory_mb > 0, "GPU idle memory threshold must be positive")
+    require(0 < args.raw_wait_timeout_seconds < float("inf"), "raw wait timeout must be positive and finite")
     budget, jobs = build_plan(args.phase, args.python, threads=args.threads)
     reports = [report_job(mode, args.phase, budget, args.python) for mode in MODES]
     if args.plan:
@@ -325,6 +366,12 @@ def main(argv=None):
     validate_cpu_partitions(jobs)
     baseline, baseline_sources = baseline_preflight()
     require(Path(args.python).is_file(), f"Python executable is unavailable: {args.python}")
+    if args.preflight:
+        idle = require_idle(GPUS, args.idle_memory_mb)
+        print(json.dumps({"preflight": "passed", "phase": args.phase, "budget": budget,
+                          "verification": verification, "baseline_sources": baseline_sources,
+                          "gpu_idle": idle, "wait_for_raw_before_cost": args.wait_for_raw}, indent=2))
+        return
     OUTPUT.mkdir(parents=True, exist_ok=True)
     state_path = OUTPUT / f"{args.phase}_evaluation_state.json"
     # Shared with run_phase.py: training and evaluation cannot own the phase concurrently.
@@ -341,13 +388,20 @@ def main(argv=None):
                  "jobs": jobs, "reports": reports, "gpu_idle_before_eval": require_idle(GPUS, args.idle_memory_mb)}
         atomic_state(state_path, state)
         children = []
+        signal.signal(signal.SIGTERM, interrupt)
+        signal.signal(signal.SIGINT, interrupt)
         try:
             state["stage"] = "evaluating"
             for job in jobs:
                 launch(job, args.threads, state, state_path, children)
             wait_children(children, state, state_path)
             state["all_evaluations_exit_zero_unix"] = time.time()
-            # No evaluation process is alive when cost profiling starts; only GPU 0 is visible.
+            if args.wait_for_raw:
+                state["stage"] = "waiting_for_raw_before_cost"
+                atomic_state(state_path, state)
+                state["raw_barrier"] = wait_for_raw(args.phase, verification, args.raw_wait_timeout_seconds)
+            # No evaluation process is alive. When requested, raw workers have
+            # also exited, so their overlapping CPU partition cannot affect costs.
             for report in reports:
                 state["stage"] = f"cost_{report['arm']}"
                 state["gpu_idle_before_cost"] = require_idle([0], args.idle_memory_mb)

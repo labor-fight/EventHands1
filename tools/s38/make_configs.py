@@ -3,8 +3,8 @@
 
 Same contract as `tools/rt/make_configs.py`: each arm is its parent plus the listed overrides and
 nothing else, so an arm differs from its control exactly where the table below says. Parents are the
-x1001 recipe configs (`configs/x1001/x1001_s37.yaml`: S37 routed readout, the fixed baseline;
-`configs/x1001/x1001_e7.yaml`: S37's graph with an absolute 51D head, the encoder control). The split
+shared recipe configs (`configs/semkine_recipes/s37.yaml`: S37 routed readout, the fixed baseline;
+`configs/semkine_recipes/event_gnn_abs.yaml`: S37's graph with an absolute 51D head, the encoder control). The split
 is the fixed protocol's `splits_semkine.json`. `_2k` arms are the screening budget (the cosine
 compressed to 2000 steps).
 
@@ -31,8 +31,9 @@ import yaml
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO)]
-S37 = REPO / "configs/x1001/x1001_s37.yaml"
-E7 = REPO / "configs/x1001/x1001_e7.yaml"
+from tools.config_utils import merge  # noqa: E402
+S37 = REPO / "configs/semkine_recipes/s37.yaml"
+E7 = REPO / "configs/semkine_recipes/event_gnn_abs.yaml"
 OUT = REPO / "configs/s38"
 SCREEN_STEPS = 2000
 
@@ -61,17 +62,6 @@ def training_root_ref() -> list:
 def m1(ref: list) -> dict:
     return {"MODEL": {"ROOT_MEAS": "abs", "ROOT_REF": ref, "ROOT_FILTER_GAIN": 0.5},
             "LOSS": {"ROOT_LOSS": "chordal"}}
-
-
-def merge(dst: dict, src: dict) -> dict:
-    for k, v in src.items():
-        if v is None:
-            dst.pop(k, None)
-        elif isinstance(v, dict):
-            merge(dst.setdefault(k, {}), v)
-        else:
-            dst[k] = v
-    return dst
 
 
 def arms(ref: list) -> dict:
