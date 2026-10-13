@@ -310,9 +310,36 @@ def normalized_config(cfg,paired=True):
     result=copy.deepcopy(cfg);result.pop('_config_path',None)
     if paired:
         for key in ('XDL_QUERY','XDL_SELF','XDL_OBSERVATION_NULL'):result.get('MODEL',{}).pop(key,None)
-    for key in ('OUTPUT_DIR','RUN_NAME'):result.get('TRAIN',{}).pop(key,None)
-    result.get('EVAL',{}).pop('OUTPUT_DIR',None)
+        for key in ('OUTPUT_DIR','RUN_NAME'):result.get('TRAIN',{}).pop(key,None)
+        result.get('EVAL',{}).pop('OUTPUT_DIR',None)
     return result
+
+
+def audit_config_identity(directory,meta,finish,identity,checkpoint_cfg):
+    """Verify each recorded serialization, then all configuration semantics.
+
+    train_finish identifies the run's resolved YAML, while a diagnostic may use
+    either that YAML or the frozen original source YAML. Different YAML bytes
+    are expected; semantic agreement never replaces their byte verification.
+    """
+    paths={'source':Path(meta['config_path']).resolve(),
+           'resolved':(Path(directory)/'config_resolved.yaml').resolve(),
+           'diagnostic':Path(identity['config']).resolve()}
+    expected={'source':meta['config_sha256'],'resolved':finish['config_sha256'],
+              'diagnostic':identity['config_sha256']}
+    configs={name:D.load_config(path) for name,path in paths.items()}
+    provenance={name:{'path':str(path),'expected_sha256':expected[name],
+                      'actual_sha256':sha(path)} for name,path in paths.items()}
+    checks={name+'_config_bytes':item['actual_sha256']==item['expected_sha256']
+            for name,item in provenance.items()}
+    checks['diagnostic_config_path']=paths['diagnostic'] in (paths['source'],paths['resolved'])
+    semantics={name:normalized_config(cfg,False) for name,cfg in configs.items()}
+    semantics['checkpoint']=normalized_config(checkpoint_cfg,False)
+    checks['complete_config_equivalence']=all(cfg==semantics['source'] for cfg in semantics.values())
+    provenance['semantic_sha256']={name:hashlib.sha256(json.dumps(cfg,sort_keys=True).encode()).hexdigest()
+                                   for name,cfg in semantics.items()}
+    provenance['semantic_policy']='full loaded configuration; exclude only _config_path'
+    return checks,provenance
 
 
 def config_mode_checks(run,cfg):
@@ -332,7 +359,7 @@ def audit_training(bank,run,identity,out):
         freeze_path=Path(out)/'frozen_manifest.json';freeze=json.loads(freeze_path.read_text());freeze_hash=sha(freeze_path)
         checks=config_mode_checks(run,cfg);checks.update(run_name=meta['run_name']==run,formal=meta['preflight_not_formal'] is False and finish['preflight_not_formal'] is False,
             fresh=meta['start_step']==0 and meta['resumed_from'] is None,finished=finish['status']=='completed_exact_step6000' and finish['global_step']==6000,
-            ckpt=finish['checkpoint_sha256']==identity['checkpoint_sha256'],resolved_config=finish['config_sha256']==identity['config_sha256'],
+            ckpt=finish['checkpoint_sha256']==identity['checkpoint_sha256'],
             source_config=sha(meta['config_path'])==meta['config_sha256'],frozen=meta['freeze_manifest_sha256']==freeze_hash,
             split=meta['split_sha256']==bank['split']['sha256'],train_sequences=meta['train_sequences']==[s for s,m in bank['sequences'].items() if m['cohort']=='seen'],
             EBS=meta['effective_batch']==1024 and meta['devices']==2 and meta['batch_size_per_gpu']==512 and meta['accumulate_grad_batches']==1,
@@ -344,8 +371,10 @@ def audit_training(bank,run,identity,out):
         checks['source_config_modes']=all(config_mode_checks(run,original_cfg).values())
         saved=torch.load(identity['checkpoint'],map_location='cpu');hp=saved.get('hyper_parameters',{});hp=hp.get('cfg',hp)
         checks['checkpoint_hparams']=normalized_config(hp,False)==normalized_config(cfg,False)
+        config_checks,config_identity=audit_config_identity(directory,meta,finish,identity,hp);checks.update(config_checks)
         checks['source_config_frozen']=freeze['source_sha256'].get(str(Path(meta['config_path']).resolve().relative_to(REPO.resolve())))==meta['config_sha256']
         exposures=[];streams=[];files=[{'path':str(meta_path),'sha256':sha(meta_path)},{'path':str(finish_path),'sha256':sha(finish_path)},{'path':str(freeze_path),'sha256':freeze_hash}]
+        files += [{'path':item['path'],'sha256':item['actual_sha256']} for name,item in config_identity.items() if name in ('source','resolved','diagnostic')]
         for rank in (0,1):
             ep=directory/f'actual_exposure_rank{rank}.json';sp=directory/f'pair_stream_rank{rank}.json'
             exposure=json.loads(ep.read_text());stream=json.loads(sp.read_text());exposures.append(exposure);streams.append(stream)
@@ -354,7 +383,7 @@ def audit_training(bank,run,identity,out):
             checks[f'rank{rank}_streams']=len(stream)==3 and [r['optimizer_step'] for r in stream]==[0,1,2] and all(r['rank']==rank and r['main_rows']==512 for r in stream)
             files+=[{'path':str(ep),'sha256':sha(ep)},{'path':str(sp),'sha256':sha(sp)}]
         stream_projection=[[{k:r[k] for k in ('optimizer_step','rank','global_rows','sample_index_sha256','main_sha256','prefix_sha256','main_rows','main_events')} for r in stream] for stream in streams]
-        return {'status':'COMPLETE' if all(checks.values()) else 'FAIL','checks':checks,'files':files,'exposures':exposures,
+        return {'status':'COMPLETE' if all(checks.values()) else 'FAIL','checks':checks,'files':files,'exposures':exposures,'configuration_identity':config_identity,
             'normalized_config_sha256':hashlib.sha256(json.dumps(normalized_config(cfg),sort_keys=True).encode()).hexdigest(),
             'paired_first3_each_rank_sha256':hashlib.sha256(json.dumps(stream_projection,sort_keys=True).encode()).hexdigest(),
             'stream_scope':'first three actual main/prefix packets on each rank; remaining data flow is fixed source/counter protocol, not a claimed6000-step full-event hash measurement'}

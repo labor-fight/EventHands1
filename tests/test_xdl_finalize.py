@@ -85,3 +85,51 @@ def test_arm_modes_and_training_contract_cannot_silently_alias_another_condition
          'DATA':{'WINDOW_MIN':50,'WINDOW_MAX':50},'AUG':{'SPEED_AUG':False},'TRAIN':{'DEVICES':2,'BATCH_SIZE_PER_GPU':512,'ACCUMULATE_GRAD_BATCHES':1,'MAX_STEPS':6000}}
     assert all(f.config_mode_checks('xdl_n1_s3407',cfg).values())
     assert not all(f.config_mode_checks('xdl_q1_s3407',cfg).values())
+
+
+def config_identity_fixture(tmp_path):
+    import yaml
+    f=finalize();source=tmp_path/'source.yaml';run=tmp_path/'run';run.mkdir()
+    source.write_text(yaml.safe_dump({'DATA':{'ROOT':'data'},'MANO':{'NPZ':'assets/mano_right.npz'},
+        'MODEL':{'XDL_QUERY':'mano'},'TRAIN':{'OUTPUT_DIR':'outputs/test','RUN_NAME':'test'},
+        'EVAL':{'OUTPUT_DIR':'outputs/eval'}},sort_keys=False))
+    checkpoint_cfg=f.D.load_config(source)
+    resolved=run/'config_resolved.yaml'
+    resolved.write_text(yaml.safe_dump({k:v for k,v in checkpoint_cfg.items() if k!='_config_path'},sort_keys=True))
+    meta={'config_path':str(source),'config_sha256':f.sha(source)}
+    finish={'config_sha256':f.sha(resolved)}
+    identity={'config':str(source),'config_sha256':f.sha(source)}
+    return f,run,meta,finish,identity,checkpoint_cfg
+
+
+def test_original_and_resolved_configs_require_their_own_bytes_and_complete_semantics(tmp_path):
+    f,run,meta,finish,identity,cfg=config_identity_fixture(tmp_path)
+    assert meta['config_sha256']!=finish['config_sha256']
+    assert hasattr(f,'audit_config_identity'), 'missing separate source/resolved byte identity guard'
+    checks,provenance=f.audit_config_identity(run,meta,finish,identity,cfg)
+    assert all(checks.values())
+    assert provenance['source']['actual_sha256']==meta['config_sha256']
+    assert provenance['resolved']['actual_sha256']==finish['config_sha256']
+    identity={'config':str(run/'config_resolved.yaml'),'config_sha256':finish['config_sha256']}
+    assert all(f.audit_config_identity(run,meta,finish,identity,cfg)[0].values())
+
+
+@pytest.mark.parametrize('mutation',('source_sha','resolved_sha','identity_sha','semantic_model','semantic_output','unrecognized_identity_path'))
+def test_config_identity_rejects_byte_tampering_semantic_drift_and_alias_paths(tmp_path,mutation):
+    import json
+    import yaml
+    f,run,meta,finish,identity,cfg=config_identity_fixture(tmp_path)
+    assert hasattr(f,'audit_config_identity'), 'missing complete config identity guard'
+    if mutation=='source_sha':meta['config_sha256']='0'*64
+    elif mutation=='resolved_sha':finish['config_sha256']='0'*64
+    elif mutation=='identity_sha':identity['config_sha256']='0'*64
+    elif mutation.startswith('semantic_'):
+        resolved=run/'config_resolved.yaml';payload=yaml.safe_load(resolved.read_text())
+        if mutation=='semantic_model':payload['MODEL']['XDL_QUERY']='fixed'
+        else:payload['TRAIN']['OUTPUT_DIR']=str(tmp_path/'other-output')
+        resolved.write_text(yaml.safe_dump(payload));finish['config_sha256']=f.sha(resolved)
+    else:
+        alias=tmp_path/'alias.yaml';alias.write_text((run/'config_resolved.yaml').read_text())
+        identity={'config':str(alias),'config_sha256':f.sha(alias)}
+    checks,provenance=f.audit_config_identity(run,meta,finish,identity,cfg)
+    assert not all(checks.values()), json.dumps(provenance)

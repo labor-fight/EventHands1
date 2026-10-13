@@ -4,9 +4,11 @@
 
 记录按**证据编码器及实验主体**分成两部分：LNES + CNN 的稠密卷积；event + 类图神经网络的异步稀疏网络分析。CNN 主干后加图头仍归稠密路线；图编码器与 CNN 根观测混合的实验保留完整证据链并交叉引用。第二部分也收录事件点网络、网格图与稀疏卷积；目录类别不表示所有实现都具备逐事件异步运行时，是否实现必须以各记录的原文为准。
 
-**最新裁决（2026-10-06 晚，S42）**：用户重新授权以 S39 为唯一基线的新一轮（诊断—实现—消融—闭环验证）。三个候选（A 手部 ROI、B 部署环路自身前态训练、C 集成蒸馏）中只有 B 带来可靠的闭环改进；最好的组合 S42（S39 配方 + B + l3w192 主干）三种子 local MPJPE 9.90（每个种子 < 10）、MPVPE 8.69、global 7.28、参数 −31%、MAC −12%，但按预注册门可靠性（第三种子 +0.02）、local 滞后（+0.13 步）与端到端时延（持平）未过，**不采纳，S39 仍为正式基线**。见 [S42 结论](#s42-verdict) 与 [S42 预注册](#s42-prereg)。
+**当前状态（2026-10-13，XDL）**：F0/Q0/F1/Q1/N1 五臂均完成 seed3407 的 fresh step6000 训练及完整评价，旧五权重诊断也已完成；第二 seed 未执行。最终主表、固定比较、恢复与运动护栏、配置身份修正及证据边界见 [XDL 最终结果](#xdl-final-results-20261013)，跨轮整理见 [S37 系列与 XYZ 关联诊断](S37_XYZ_ASSOC_DIAGNOSIS.md)。本轮单 seed 的描述性结果未满足完整恢复与保护要求，**S39 仍为正式默认方案**。正式图表及来源快照见 [已提交的文档附件](assets/xdl_20261013/README.md)；CPU 复核命令见 [复算入口](S37_XYZ_ASSOC_DIAGNOSIS.md#xdl-reproduction)。
 
-**最新裁决（2026-10-06）**：用户已明确暂停原“持续实验直到 local <10 mm”的 goal，代码已恢复并保留 **S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 \***。后续未采纳实验、证据边界、源码来源与回退验证见[终态归档](#tracking-stop-s39-20261006)。本任务自动派发已禁用、dispatcher 已停止；历史“下一步”不代表当前执行授权。
+**S42 裁决（2026-10-06 晚）**：用户重新授权以 S39 为唯一基线的新一轮（诊断—实现—消融—闭环验证）。三个候选（A 手部 ROI、B 部署环路自身前态训练、C 集成蒸馏）中只有 B 带来可靠的闭环改进；最好的组合 S42（S39 配方 + B + l3w192 主干）三种子 local MPJPE 9.90（每个种子 < 10）、MPVPE 8.69、global 7.28、参数 −31%、MAC −12%，但按预注册门可靠性（第三种子 +0.02）、local 滞后（+0.13 步）与端到端时延（持平）未过，**不采纳，S39 仍为正式基线**。见 [S42 结论](#s42-verdict) 与 [S42 预注册](#s42-prereg)。
+
+**持续实验暂停与恢复（2026-10-06）**：用户已明确暂停原“持续实验直到 local <10 mm”的 goal，代码已恢复并保留 **S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 \***。后续未采纳实验、证据边界、源码来源与回退验证见[终态归档](#tracking-stop-s39-20261006)。本任务自动派发已禁用、dispatcher 已停止；历史“下一步”不代表当前执行授权。
 
 **现行协议与起点（2026-10-05，协议不变）**：9 人、72 序列训练；zgz_global 与 zgz_local 同为开发集和测试集；唯一划分文件是数据根下只读的 `splits_semkine.json`，不另设封存测试集。当前对照与最优起点为 S39（`dt3_dz_l3_w200cfg`），来历见 [DT3 裁决](#dt3-verdict)；S41 及后续候选未替代 S39；持续实验已于2026-10-06暂停。`s39_covmap` 仅使用 run 名，不再称 S39。
 
@@ -18,7 +20,7 @@
 
 **S37 证据复核（2026-10-07，只读）**：对历史 S37（`s37_routed`）与统一配方重训（`rt_s37`）做了一次只读诊断（无训练、无新评测、无新主行）。完整记录、分格 tracking 判定、瓶颈与竞争解释、失败证据审查、稀疏异步可行性、尚缺机制与最小验证设计见 [S37 证据复核与瓶颈诊断](#s37-diagnosis-20261007)；其 §10 列出本文件中关于 S37 的旧读法与数字的更正，各处原文保留。此项不改变当前正式起点 S39。
 
-导航：[S42 结论](#s42-verdict) · [S42 预注册](#s42-prereg) · [暂停与S39恢复](#tracking-stop-s39-20261006) · [第一部分：稠密卷积](#dense-cnn) · [第二部分：异步稀疏与图网络](#sparse-event-graph) · [共用协议与工程账本](#ledger-dense) · [稀疏路线账本](#ledger-sparse) · [S37 证据复核（10-07）](#s37-diagnosis-20261007) · [S43 预注册（10-07）](#s43-prereg) · [S43 消融（10-08）](#s43-ablation) · [副本目录清理（10-07）](#ledger-dense--2026-10-07-variant-dirs)
+导航：[XDL 最终结果（10-13）](#xdl-final-results-20261013) · [XDL 执行合同](#xdl-execution-20261013) · [S37/XA/XB/XC/XDL 综合诊断](S37_XYZ_ASSOC_DIAGNOSIS.md) · [S42 结论](#s42-verdict) · [S42 预注册](#s42-prereg) · [暂停与S39恢复](#tracking-stop-s39-20261006) · [第一部分：稠密卷积](#dense-cnn) · [第二部分：异步稀疏与图网络](#sparse-event-graph) · [共用协议与工程账本](#ledger-dense) · [稀疏路线账本](#ledger-sparse) · [S37 证据复核（10-07）](#s37-diagnosis-20261007) · [S43 预注册（10-07）](#s43-prereg) · [S43 消融（10-08）](#s43-ablation) · [副本目录清理（10-07）](#ledger-dense--2026-10-07-variant-dirs)
 
 迁移索引（原文件名仅用于溯源，正文均在本文件）：
 
@@ -9915,3 +9917,66 @@ xa_c1r_s3407：COMPLETE。
 所有 natural 初态均为同一冻结 C0_s3407 的共同前态，然后各权重以自己的预测继续20步；local AUC差描述这种共同错误状态的恢复，不是不同模型各自自然错误发生率。旧C1在大扰动bank下更收缩，但共同natural恢复较差，说明收缩必须与正确GT终点、事件对照及闭环动态保护一起判；该现象不单独识别根因。完整探针、短段、subject/cohort汇总与undefined项见 `outputs/xdl/legacy_results_audit.json`，独立审查见 `legacy_independent_analysis_review.json`。新五臂尚在训练，此处不作Q/F、自身训练或N1收益结论，也不替换S39。
 
 <!-- EXPERIMENT_RECORD:XDL-LEGACY-RESULTS-20261013:END -->
+
+<!-- EXPERIMENT_RECORD:XDL-FINAL-RESULTS-20261013:BEGIN -->
+<a id="xdl-final-results-20261013"></a>
+
+### [XDL] 五臂单 seed 完整执行与结果
+
+**完成状态。** seed3407 的 F0/Q0/F1/Q1/N1 均 fresh 训练至实际 optimizer step6000，并完成全有效段主评价、固定事件诊断、自身递推恢复和运动护栏。最终调度记录为 `completed_all_five`，10个训练/评价任务全部 exit0、无剩余运行任务、无失败；旧五权重诊断亦完成。第二seed未执行。S39仍为原默认方案。
+
+**主要结论。** 当前最大的表现问题是 **错误前态的响应能收缩，但输出没有可靠回到真实绝对状态；local 的位置漂移和正常动作跟随尤其不足**。本轮 MANO 条件查询优于固定 atlas 查询，自身前态训练也改善主评价，说明这两条路线有条件效用。它们没有解决 local 恢复，不能把训练分布失配认定为唯一原因，也不能把 MANO 条件关联整体判为无效。异步时间关联并非该2×2的独立因子，整体编码、读出、绝对深度可观测性和数据边界仍未分别隔离。
+
+以下主表由 `tools/report_table.py` 读取实际主行生成，原件为 [final_main_table.md](assets/xdl_20261013/final_main_table.md)。新五行均为单seed3407；兼容字段 `two_seed_mean` 在这些新行中只存该一个seed，不是两个seed均值。S39是原三seed、W200、滤波/门控配方的参考，不能当本轮架构因果对照。表中既定 FLOPs 列沿用 THOP 支持层的 MAC 计数，未包含全部原生FK、关联、邻域/scatter等运算；Latency 为原 Full1.75 anchor 的完整查询校准值，不是端到端传感器时延。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XDL F0：固定查询／teacher，单seed3407 | 27.89 | 18.84 | 24.61 | 13.71 | 23.04 | 15.08 ms | 0.268 G | 0.49 M |
+| XDL Q0：MANO查询／teacher，单seed3407 | 24.50 | 15.48 | 19.69 | 11.00 | 19.67 | 15.22 ms | 0.268 G | 0.49 M |
+| XDL F1：固定查询／自身前态，单seed3407 | 27.54 | 12.99 | 24.59 | 9.74 | 19.75 | 16.90 ms | 0.268 G | 0.49 M |
+| XDL Q1：MANO查询／自身前态，单seed3407 | 23.91 | 10.93 | 19.37 | 8.33 | 16.96 | 16.09 ms | 0.268 G | 0.49 M |
+| XDL N1：零观测／自身前态，单seed3407 | 41.17 | 50.41 | 30.38 | 38.45 | 46.11 | 17.48 ms | 0.268 G | 0.49 M |
+
+**全部预声明主评价比较。** 以下 improvement 为 base−candidate，单位mm，顺序为 overall/local/global；只与 V2 的1.1mm实用margin比较，未补造repeat δ、τ、CI或显著性。
+
+- Q0/F0：3.375 / 3.392 / 3.359；Q1/F1：2.788 / 3.629 / 2.058。MANO查询在两种前态来源下均有主评价收益，当前证据支持保留条件查询。
+- F1/F0：3.293 / 0.352 / 5.847；Q1/Q0：2.706 / 0.589 / 4.546。自身训练收益主要来自global，local两项都未达到1.1mm实用margin。
+- Q1/N1：29.150 / 17.261 / 39.479。事件内容对全段RA表现有明显的单run工程信号；这不等于所有绝对位置与恢复门通过。
+- 预声明补充 F1/N1：26.362 / 13.632 / 37.421；Q1/F0：6.081 / 3.981 / 7.905。
+- 四格交互 `E_Q0+E_F1−E_F0−E_Q1`：overall−0.587、local+0.237、global−1.302。没有支持普遍超加性，更不满足原可靠协同声明条件。
+
+**固定同E、错误MANO前态的能力。** 五臂在zgz两序列的三块large探针上均满足描述性收缩政策（medianρ≤.90且至少70%ρ<1），但N1也能满足，不能把该政策当实际GT恢复。Q1 local large translation/root/finger 的medianρ为0.492/0.464/0.547；对应真实腕点85.27mm、root12.02°、finger9.81°。其同E配对方向的中位cosine（translation、root-left、finger-left）约0.948/0.962/0.847，但N1也约0.974/0.972/0.831。这里测到的是抵消相对于clean输出的人工扰动方向，不能据此宣称正确绝对MANO状态已找回；left/right旋转条件读数均保留于审计。
+
+小扰动揭示另一边界：local small translation 下，F0/Q0/F1/Q1 的medianρ依次0.951/0.926/0.772/0.950，ρ<1比例52.08%/56.25%/65.28%/52.78%，四个有事件臂均未满足该收缩政策；N1为0.508/100%，却有很差的全段RA和动作表现。seen汇总与global的三块small/large政策读数均已保留；seen九人分别汇总、每序列仅一个稀疏探针，不把72序列当72独立受试者，也不声称逐事件完整Jacobian。全部块、尺度、GT终点、方向和尾部读数见 [results_audit.json](../outputs/xdl/results_audit.json)。
+
+**自身递推恢复。** natural初态全部来自同一个冻结C0参考，随后各模型只用自己的输出推进，保留20次真实查询、21状态及49/50ms时钟。global/local natural RA真实时间AUC（mm）依次为：F0 13.201/28.251；Q0 12.520/26.203；F1 10.570/27.269；Q1 10.004/24.892；N1 22.495/28.309。
+
+Q1相对Q0在local natural的RA-AUC改善1.310mm，但腕点AUC由85.220恶化到98.883mm；F1相对F0的local腕点AUC亦由137.388恶化到145.074mm。Q1相对N1的local RA-AUC改善3.416mm，腕点却比N1的87.271mm更差。Q1从clean GT起态开始，local20步腕点AUC仍97.519mm，说明表现问题不只发生在共同natural错误起态。
+
+local每臂24个natural片段中8个initially_satisfied，余下16个全部右删失、0个新增持续恢复，正确可恢复分母为16而不是24。global每臂有1个initially_satisfied、23个待恢复，F0/Q0/F1/Q1/N1新增持续恢复分别5/6/13/6/0，其余18/17/10/17/23右删失。不能只展示成功轨迹，亦不能把Q1的最低RA-AUC解释为最高恢复率。四块large/small/mixed与clean的完整恢复、rho-AUC、半误差恢复及删失均留在审计；全部短run和空包保持步骤亦在正式分母内。
+
+**正常运动护栏。** Q1 full-run clean global的absolute gain/cos/lag约1.049/0.954/0ms，root约0.872/0.855/0ms，说明部分整体运动可跟随；finger仅0.128/0.172/50ms。local active层的absolute约0.285/0.112/114.706ms，root约0.146/0.058/100ms，finger约0.320/0.369/58.824ms，恢复与正常动作跟随仍弱。local这里共有41个有效run，其中17个具有所需200ms/active读数，24个短段或低能量读数为undefined，保留其数量，未当作能力通过。
+
+具体预声明护栏反例：Q1相对Q0，local clean absolute lag增加29.412ms（超过25ms），root cosine下降0.0625（超过0.05）；Q1相对F1，local clean absolute与finger lag均增加35.294ms。故主RA改善不能升级为全保护门通过。各初态、每块及seen九人读数和undefined分母完整保留，勿以少数clean案例替代全部small护栏。
+
+**事件内容与空包控制。** 每臂960个预声明错内容查询、48个empty查询均完成且有限，empty全部exact hold；错内容变换与N1观测置零的原始输出、相同初态和真实事件对应终点全部保存。独立读取实际raw确认N1 960/960个错E控制的模型输出逐位不变（两序列×两模式各240），Q1四组均有非零内容响应。N1重新FK计分的腕点等端点存在约1.5e−5mm浮点尾差，原样保留，不把端点计分逐位相等混同模型输出一致。Q1/N1主比较支持本训练run的整体事件效用；单步错内容敏感性只作补充，不能单独识别深度或证明该查询中心必要。
+
+**修复优先级与未识别项。** 先把local绝对位置、root/finger实际运动和自身恢复作为联合验收目标，避免优化ρ或RA时把偏置与动作抹平。保留本轮有收益的MANO条件查询和自身前态训练作为候选基础，下一步分别验证事件编码/分块读出是否保留细动作及绝对位置信息、恢复监督是否能改善真实GT而保护clean运动。本轮尚未把这些候选训练或证实。仅修改起始噪声或增加self比例不能从现有结果保证解决local；目前也没有足够证据把整个MANO/GNN或所有异步XYZ方案判错。新银行、state99、旧关联共同存在，新旧C0比较不能隔离银行容量效应。
+
+**完成身份、计数与成本。** 旧每权重58,750查询（bank18,048、恢复17,280、motion23,422），合计293,750。新每臂84,670（bank18,048、恢复43,200、motion23,422），五臂423,350，另全段主评12,950，合计新科学评价436,300；共同参考、健康预检和latency/MAC调用另计，不能混入上述科学查询分母。30个诊断分项 observed==expected，mandatory非有限为0，无有限子集补均值。训练实际main30,720,000＋full burn50,614,272＝81,334,272窗口行，三个self臂的coin及burn计数完全相同，两个teacher均无self/burn。十份first3 rank实际事件/初态流哈希一致；其余6000步由固定counter源码和逐步row合同约束，未声称测量了完整6000步事件哈希。
+
+训练费用终值46.7738078940 GPU·h（含未完成首次通信启动0.4738915714），新评价2.1356730096，已分配合计48.9094809036；加先期10 GPU·h预算预留得到保守58.9094809036，低于82上限。该10是预算预留，并非先期实测费用。训练60/新评价12分项上限均满足，物理卡仅GPU2–7且无任务占卡重叠。[最终费用审查](../outputs/xdl/independent_final_cost_review.json) 绑定最终journal SHA `a6682298e33291b222072b733da11c3f84680fad9c8edf396765d6ff27e41748`。
+
+实际五个唯一checkpoint和optimizer state均6000，模型与优化器数值有限；PL1.9.5的精确ModelCheckpoint管理字段 `kth_value=+inf` 是 `monitor=None` 的已核源码哨兵，原样保留，不能据此豁免其它非有限。冻结清单513个身份含371个数据文件，全部内容验证通过；默认14项源与提案身份一致。冻结data_identity的scope末句“v2/v3/v4 files not used”为描述错误：实际split及371文件完整包含九人72训练序列各版本（360训练文件＋10留出文件＋1split），未改冻结原文，实际路径/hash证据见 [final_identity_review.json](../outputs/xdl/final_identity_review.json)。
+
+**分析器修正及测试。** 主评和诊断实际都使用原yaml；train_finish记录训练保存的resolved配置。两者加载后除 `_config_path` 全语义一致，但序列化bytes的SHA不同。早期分析器把两类SHA直接相比产生错误FAIL，真实RED保留；修正仅涉及冻结外finalizer，现分别核原文件/训练resolved/实际诊断输入bytes、限定合法路径，并与checkpoint完整语义一致。预测、主行和冻结训练源均未修改；独立分链复审通过。最终target suite为68 passed（含7个新增红绿回归），日志与receipt保留；此前整仓测试的7个默认快照失败未伪装为通过。
+
+最终 [审计结果](../outputs/xdl/results_audit.json) SHA `c5ba02a7b473906fd508e4dfaa10d9aa08aa1c72fb028b01cd94791e573d47e1`；finalizer SHA `33d6b286bcd220e00d3fc92779b4498cd504ce74b12c45eab874016cd56e3656`；plotter SHA `0a6aef2d972a2817e844ac52b7b2662921b40d94771f7700dd4c4cfd2be1acc2`。正式 [扰动/GT终点图](assets/xdl_20261013/xdl_large_bank_rho_gt.png) 与 [自身恢复图](assets/xdl_20261013/xdl_natural_recovery_gt.png) 均有同名standalone SVG、完整raw来源和figure manifest，保留新五臂及旧C0/C1 seed3407，无CI或筛选子集。
+
+最终 [独立科学审查](../outputs/xdl/independent_final_scientific_review.json) 为 `PASS_DESCRIPTIVE_SCIENTIFIC_REVIEW`，SHA `8a6f682eb8edbad3789b7d38ca144e5192fc20fd632f33a866ab4a664ad14f11`，绑定上述实际审计；它确认完整性和这里的单seed描述边界，不是全部能力门通过。七固定比较各120个正常运动指标的mean护栏、defined分母和seen九人结果均保留。根同时核对两张正式PNG可读性、完整曲线/图例和规范主表逐字一致。
+
+**证据边界与方法归属。** 所有固定比较及交互完整保留。这里只有一个fresh训练seed，zgz仍一人两序列且开发/测试重合；不能靠事件、片段或probe数制造受试者/seed独立性，不给p/CI、复跑δ、跨seed稳定或普遍因果声明。本轮使用 `research-experiment-workflow`、`statistical-analysis`、`scientific-critical-thinking`、TDD与完成验收，文献角色沿用XD第21项的关联/观测区分和运动启发，没有新Jev调用。方法归属：[Kassis, T., Agarwal, V., He, Y., Patel, D., & Brueckner, A. M. (2026), Scientific Agent Skills: A Library of Procedural Knowledge for Research Agents](https://doi.org/10.48550/arXiv.2609.00065)，当前官方arXiv元数据已核对，引用无版本后缀；它是程序性方法来源，不是本模型有效性的证据。
+
+<!-- EXPERIMENT_RECORD:XDL-FINAL-RESULTS-20261013:END -->
