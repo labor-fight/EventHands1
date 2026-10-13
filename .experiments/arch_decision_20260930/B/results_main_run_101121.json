@@ -1,0 +1,1699 @@
+{
+ "protocol": {
+  "part": "main",
+  "train_per_seq": 300,
+  "smoke": false
+ },
+ "alpha": 0.5,
+ "run": "run_101121",
+ "ckpts": {
+  "s37_routed_s3407": "outputs/semkine/s37_routed_s3407/s37_routed_s3407-step=2500.ckpt",
+  "s37_routed_s3408": "outputs/semkine/s37_routed_s3408/s37_routed_s3408-step=5000.ckpt",
+  "s37diag_cnnabs_s3407": "outputs/semkine/s37diag_cnnabs_s3407/s37diag_cnnabs_s3407-step=4000.ckpt",
+  "s37diag_cnnabs_s3408": "outputs/semkine/s37diag_cnnabs_s3408/s37diag_cnnabs_s3408-step=3500.ckpt"
+ },
+ "H0": {
+  "s37_routed_s3407:zgz_global": {
+   "ra": 15.6638,
+   "ra_art": 8.7827,
+   "ra_rot": 14.8804,
+   "rot_deg": 11.3236,
+   "abs": 34.7286,
+   "main_row": 15.664,
+   "drift": 0.0002
+  },
+  "s37_routed_s3407:zgz_local": {
+   "ra": 23.3345,
+   "ra_art": 16.7747,
+   "ra_rot": 14.8342,
+   "rot_deg": 11.069,
+   "abs": 110.3883,
+   "main_row": 23.334,
+   "drift": 0.0005
+  },
+  "s37_routed_s3408:zgz_global": {
+   "ra": 15.9724,
+   "ra_art": 5.9668,
+   "ra_rot": 16.9764,
+   "rot_deg": 11.6302,
+   "abs": 75.3695,
+   "main_row": 15.972,
+   "drift": 0.0004
+  },
+  "s37_routed_s3408:zgz_local": {
+   "ra": 29.4914,
+   "ra_art": 17.2371,
+   "ra_rot": 18.886,
+   "rot_deg": 12.8373,
+   "abs": 89.1212,
+   "main_row": 29.491,
+   "drift": 0.0004
+  }
+ },
+ "n_train_sequences": 72,
+ "H2_extract_max_abs_diff": {
+  "s37_routed_s3407": 0.0,
+  "s37_routed_s3408": 0.0
+ },
+ "H2": {
+  "n_train": 21600,
+  "n_test": 2590,
+  "train_mean": {
+   "zgz_global": {
+    "rot_deg": 18.6557,
+    "finger_rmse_deg": 9.2422,
+    "ra_root_only_mm": 25.5883,
+    "ra_fingers_only_mm": 11.9447,
+    "ra_both_mm": 27.1564
+   },
+   "zgz_local": {
+    "rot_deg": 13.5894,
+    "finger_rmse_deg": 17.3699,
+    "ra_root_only_mm": 14.1882,
+    "ra_fingers_only_mm": 21.1638,
+    "ra_both_mm": 30.3904
+   }
+  },
+  "s37diag_cnnabs_s3407:own_head": {
+   "zgz_global": {
+    "rot_deg": 8.0995,
+    "finger_rmse_deg": 6.811,
+    "ra_root_only_mm": 9.9085,
+    "ra_fingers_only_mm": 4.8613,
+    "ra_both_mm": 9.8906
+   },
+   "zgz_local": {
+    "rot_deg": 9.2985,
+    "finger_rmse_deg": 11.0629,
+    "ra_root_only_mm": 12.7275,
+    "ra_fingers_only_mm": 10.8769,
+    "ra_both_mm": 17.2462
+   }
+  },
+  "s37diag_cnnabs_s3408:own_head": {
+   "zgz_global": {
+    "rot_deg": 8.9182,
+    "finger_rmse_deg": 6.5472,
+    "ra_root_only_mm": 10.4792,
+    "ra_fingers_only_mm": 4.4065,
+    "ra_both_mm": 10.4531
+   },
+   "zgz_local": {
+    "rot_deg": 9.215,
+    "finger_rmse_deg": 11.3029,
+    "ra_root_only_mm": 12.7696,
+    "ra_fingers_only_mm": 11.6162,
+    "ra_both_mm": 17.6628
+   }
+  },
+  "s37_routed_s3407:closed_loop_output": {
+   "zgz_global": {
+    "rot_deg": 11.3236,
+    "finger_rmse_deg": 9.1384,
+    "ra_root_only_mm": 14.8804,
+    "ra_fingers_only_mm": 8.7827,
+    "ra_both_mm": 15.6638
+   },
+   "zgz_local": {
+    "rot_deg": 11.069,
+    "finger_rmse_deg": 15.0098,
+    "ra_root_only_mm": 14.8343,
+    "ra_fingers_only_mm": 16.7747,
+    "ra_both_mm": 23.3345
+   }
+  },
+  "s37_routed_s3408:closed_loop_output": {
+   "zgz_global": {
+    "rot_deg": 11.6302,
+    "finger_rmse_deg": 7.9238,
+    "ra_root_only_mm": 16.9764,
+    "ra_fingers_only_mm": 5.9668,
+    "ra_both_mm": 15.9724
+   },
+   "zgz_local": {
+    "rot_deg": 12.8373,
+    "finger_rmse_deg": 15.1157,
+    "ra_root_only_mm": 18.8861,
+    "ra_fingers_only_mm": 17.2371,
+    "ra_both_mm": 29.4914
+   }
+  },
+  "hist": {
+   "dim": 4800,
+   "ridge_info": {
+    "lambda": 1,
+    "holdout_sq_err_by_lambda": {
+     "0.01": 3.6633,
+     "0.1": 3.3721,
+     "1": 3.2309,
+     "10": 3.3567,
+     "100": 3.6749,
+     "1000": 3.9895
+    }
+   },
+   "mlp_verify": {
+    "requires_grad_all": true,
+    "grad_enabled_in_loop": true,
+    "loss_step0": 0.9562,
+    "grad_norm_step0": 0.2362,
+    "params_with_nonzero_grad": 6,
+    "n_param_tensors": 6,
+    "rel_param_change": 2.0339,
+    "best_step": 750,
+    "final_train_loss": 0.0812,
+    "best_holdout_loss": 0.9711,
+    "curve": [
+     [
+      150,
+      0.3557,
+      0.9798
+     ],
+     [
+      300,
+      0.2643,
+      0.9841
+     ],
+     [
+      450,
+      0.1825,
+      0.9955
+     ],
+     [
+      600,
+      0.1696,
+      0.974
+     ],
+     [
+      750,
+      0.158,
+      0.9711
+     ],
+     [
+      900,
+      0.1325,
+      0.9834
+     ],
+     [
+      1050,
+      0.1208,
+      0.9876
+     ],
+     [
+      1200,
+      0.1207,
+      0.9967
+     ],
+     [
+      1350,
+      0.1172,
+      1.0159
+     ],
+     [
+      1500,
+      0.1049,
+      1.0069
+     ],
+     [
+      1650,
+      0.1011,
+      1.004
+     ],
+     [
+      1800,
+      0.0981,
+      1.0036
+     ],
+     [
+      1950,
+      0.0934,
+      1.0053
+     ],
+     [
+      2100,
+      0.0962,
+      0.9985
+     ],
+     [
+      2250,
+      0.0847,
+      1.0149
+     ],
+     [
+      2400,
+      0.0811,
+      1.0173
+     ],
+     [
+      2550,
+      0.0795,
+      1.0063
+     ],
+     [
+      2700,
+      0.0792,
+      1.0277
+     ],
+     [
+      2850,
+      0.0871,
+      1.0143
+     ],
+     [
+      3000,
+      0.0812,
+      1.0142
+     ]
+    ]
+   },
+   "holdout_rot_deg": {
+    "ridge": 16.2267,
+    "mlp": 15.1142
+   },
+   "test": {
+    "ridge": {
+     "zgz_global": {
+      "rot_deg": 15.468,
+      "finger_rmse_deg": 8.6088,
+      "ra_root_only_mm": 19.642,
+      "ra_fingers_only_mm": 9.6226,
+      "ra_both_mm": 21.9829
+     },
+     "zgz_local": {
+      "rot_deg": 13.0125,
+      "finger_rmse_deg": 17.1051,
+      "ra_root_only_mm": 18.7095,
+      "ra_fingers_only_mm": 22.5806,
+      "ra_both_mm": 34.1821
+     }
+    },
+    "mlp": {
+     "zgz_global": {
+      "rot_deg": 13.8857,
+      "finger_rmse_deg": 8.1185,
+      "ra_root_only_mm": 17.7467,
+      "ra_fingers_only_mm": 7.3062,
+      "ra_both_mm": 18.0004
+     },
+     "zgz_local": {
+      "rot_deg": 13.446,
+      "finger_rmse_deg": 16.352,
+      "ra_root_only_mm": 20.0826,
+      "ra_fingers_only_mm": 22.0883,
+      "ra_both_mm": 33.667
+     }
+    }
+   }
+  },
+  "s37_routed_s3407:pf": {
+   "dim": 768,
+   "ridge_info": {
+    "lambda": 0.01,
+    "holdout_sq_err_by_lambda": {
+     "0.01": 2.803,
+     "0.1": 2.8085,
+     "1": 2.9188,
+     "10": 3.2025,
+     "100": 3.5937,
+     "1000": 3.9972
+    }
+   },
+   "mlp_verify": {
+    "requires_grad_all": true,
+    "grad_enabled_in_loop": true,
+    "loss_step0": 0.9576,
+    "grad_norm_step0": 0.1865,
+    "params_with_nonzero_grad": 6,
+    "n_param_tensors": 6,
+    "rel_param_change": 2.0074,
+    "best_step": 450,
+    "final_train_loss": 0.2183,
+    "best_holdout_loss": 0.9516,
+    "curve": [
+     [
+      150,
+      0.5658,
+      0.9684
+     ],
+     [
+      300,
+      0.5069,
+      0.9694
+     ],
+     [
+      450,
+      0.3798,
+      0.9516
+     ],
+     [
+      600,
+      0.3755,
+      0.9701
+     ],
+     [
+      750,
+      0.3708,
+      0.9982
+     ],
+     [
+      900,
+      0.3206,
+      0.9959
+     ],
+     [
+      1050,
+      0.3005,
+      0.982
+     ],
+     [
+      1200,
+      0.3117,
+      0.9895
+     ],
+     [
+      1350,
+      0.289,
+      0.9816
+     ],
+     [
+      1500,
+      0.2762,
+      0.9924
+     ],
+     [
+      1650,
+      0.2851,
+      1.0024
+     ],
+     [
+      1800,
+      0.2541,
+      1.0022
+     ],
+     [
+      1950,
+      0.2509,
+      0.998
+     ],
+     [
+      2100,
+      0.2618,
+      1.002
+     ],
+     [
+      2250,
+      0.2407,
+      0.9977
+     ],
+     [
+      2400,
+      0.2278,
+      0.9806
+     ],
+     [
+      2550,
+      0.2204,
+      0.996
+     ],
+     [
+      2700,
+      0.2324,
+      1.0104
+     ],
+     [
+      2850,
+      0.2265,
+      1.0029
+     ],
+     [
+      3000,
+      0.2183,
+      1.0058
+     ]
+    ]
+   },
+   "holdout_rot_deg": {
+    "ridge": 15.7422,
+    "mlp": 17.1313
+   },
+   "test": {
+    "ridge": {
+     "zgz_global": {
+      "rot_deg": 13.33,
+      "finger_rmse_deg": 8.1059,
+      "ra_root_only_mm": 16.8109,
+      "ra_fingers_only_mm": 8.2156,
+      "ra_both_mm": 16.4873
+     },
+     "zgz_local": {
+      "rot_deg": 16.1405,
+      "finger_rmse_deg": 16.8174,
+      "ra_root_only_mm": 24.3544,
+      "ra_fingers_only_mm": 22.4389,
+      "ra_both_mm": 35.3371
+     }
+    },
+    "mlp": {
+     "zgz_global": {
+      "rot_deg": 12.3194,
+      "finger_rmse_deg": 7.2412,
+      "ra_root_only_mm": 16.2344,
+      "ra_fingers_only_mm": 5.8775,
+      "ra_both_mm": 16.2262
+     },
+     "zgz_local": {
+      "rot_deg": 18.8171,
+      "finger_rmse_deg": 18.3902,
+      "ra_root_only_mm": 28.5837,
+      "ra_fingers_only_mm": 21.736,
+      "ra_both_mm": 37.8846
+     }
+    }
+   }
+  },
+  "s37_routed_s3408:pf": {
+   "dim": 768,
+   "ridge_info": {
+    "lambda": 1,
+    "holdout_sq_err_by_lambda": {
+     "0.01": 3.0155,
+     "0.1": 2.8579,
+     "1": 2.8545,
+     "10": 3.0589,
+     "100": 3.613,
+     "1000": 4.0249
+    }
+   },
+   "mlp_verify": {
+    "requires_grad_all": true,
+    "grad_enabled_in_loop": true,
+    "loss_step0": 0.9547,
+    "grad_norm_step0": 0.1665,
+    "params_with_nonzero_grad": 6,
+    "n_param_tensors": 6,
+    "rel_param_change": 1.9889,
+    "best_step": 600,
+    "final_train_loss": 0.2143,
+    "best_holdout_loss": 0.9259,
+    "curve": [
+     [
+      150,
+      0.5385,
+      0.9548
+     ],
+     [
+      300,
+      0.4921,
+      0.9317
+     ],
+     [
+      450,
+      0.3632,
+      0.96
+     ],
+     [
+      600,
+      0.3713,
+      0.9259
+     ],
+     [
+      750,
+      0.3392,
+      0.9777
+     ],
+     [
+      900,
+      0.3163,
+      0.9682
+     ],
+     [
+      1050,
+      0.2978,
+      0.968
+     ],
+     [
+      1200,
+      0.2973,
+      0.9819
+     ],
+     [
+      1350,
+      0.2852,
+      0.9478
+     ],
+     [
+      1500,
+      0.2728,
+      0.9712
+     ],
+     [
+      1650,
+      0.2759,
+      0.9884
+     ],
+     [
+      1800,
+      0.2485,
+      0.9722
+     ],
+     [
+      1950,
+      0.2478,
+      0.981
+     ],
+     [
+      2100,
+      0.2663,
+      0.9854
+     ],
+     [
+      2250,
+      0.2386,
+      0.9749
+     ],
+     [
+      2400,
+      0.2193,
+      0.9851
+     ],
+     [
+      2550,
+      0.2145,
+      0.9863
+     ],
+     [
+      2700,
+      0.2304,
+      0.9934
+     ],
+     [
+      2850,
+      0.2199,
+      0.9941
+     ],
+     [
+      3000,
+      0.2143,
+      0.999
+     ]
+    ]
+   },
+   "holdout_rot_deg": {
+    "ridge": 14.9563,
+    "mlp": 16.3113
+   },
+   "test": {
+    "ridge": {
+     "zgz_global": {
+      "rot_deg": 12.0675,
+      "finger_rmse_deg": 7.5041,
+      "ra_root_only_mm": 14.7229,
+      "ra_fingers_only_mm": 7.1574,
+      "ra_both_mm": 14.927
+     },
+     "zgz_local": {
+      "rot_deg": 13.0422,
+      "finger_rmse_deg": 16.6437,
+      "ra_root_only_mm": 19.3893,
+      "ra_fingers_only_mm": 22.9769,
+      "ra_both_mm": 33.1218
+     }
+    },
+    "mlp": {
+     "zgz_global": {
+      "rot_deg": 11.9541,
+      "finger_rmse_deg": 7.2581,
+      "ra_root_only_mm": 15.3978,
+      "ra_fingers_only_mm": 6.0373,
+      "ra_both_mm": 15.1464
+     },
+     "zgz_local": {
+      "rot_deg": 21.0494,
+      "finger_rmse_deg": 17.6374,
+      "ra_root_only_mm": 32.1963,
+      "ra_fingers_only_mm": 22.317,
+      "ra_both_mm": 40.1299
+     }
+    }
+   }
+  },
+  "s37_routed_s3407:route_gt": {
+   "dim": 4624,
+   "ridge_info": {
+    "lambda": 0.1,
+    "holdout_sq_err_by_lambda": {
+     "0.01": 1.8205,
+     "0.1": 1.657,
+     "1": 1.8024,
+     "10": 2.3391,
+     "100": 3.18,
+     "1000": 3.859
+    }
+   },
+   "mlp_verify": {
+    "requires_grad_all": true,
+    "grad_enabled_in_loop": true,
+    "loss_step0": 0.9634,
+    "grad_norm_step0": 0.3169,
+    "params_with_nonzero_grad": 6,
+    "n_param_tensors": 6,
+    "rel_param_change": 1.8439,
+    "best_step": 450,
+    "final_train_loss": 0.0529,
+    "best_holdout_loss": 0.6674,
+    "curve": [
+     [
+      150,
+      0.221,
+      0.6956
+     ],
+     [
+      300,
+      0.1563,
+      0.6816
+     ],
+     [
+      450,
+      0.1197,
+      0.6674
+     ],
+     [
+      600,
+      0.1063,
+      0.6738
+     ],
+     [
+      750,
+      0.0987,
+      0.6745
+     ],
+     [
+      900,
+      0.0828,
+      0.703
+     ],
+     [
+      1050,
+      0.0809,
+      0.6922
+     ],
+     [
+      1200,
+      0.0755,
+      0.6852
+     ],
+     [
+      1350,
+      0.0733,
+      0.7114
+     ],
+     [
+      1500,
+      0.07,
+      0.6848
+     ],
+     [
+      1650,
+      0.0683,
+      0.7039
+     ],
+     [
+      1800,
+      0.0654,
+      0.7065
+     ],
+     [
+      1950,
+      0.0616,
+      0.701
+     ],
+     [
+      2100,
+      0.068,
+      0.7098
+     ],
+     [
+      2250,
+      0.0577,
+      0.6982
+     ],
+     [
+      2400,
+      0.0561,
+      0.7014
+     ],
+     [
+      2550,
+      0.0558,
+      0.6961
+     ],
+     [
+      2700,
+      0.0561,
+      0.6985
+     ],
+     [
+      2850,
+      0.0552,
+      0.6991
+     ],
+     [
+      3000,
+      0.0529,
+      0.7055
+     ]
+    ]
+   },
+   "holdout_rot_deg": {
+    "ridge": 11.7742,
+    "mlp": 12.6511
+   },
+   "test_route_gt(oracle)": {
+    "ridge": {
+     "zgz_global": {
+      "rot_deg": 8.3634,
+      "finger_rmse_deg": 7.2181,
+      "ra_root_only_mm": 10.4785,
+      "ra_fingers_only_mm": 5.5534,
+      "ra_both_mm": 10.6852
+     },
+     "zgz_local": {
+      "rot_deg": 9.4247,
+      "finger_rmse_deg": 12.1853,
+      "ra_root_only_mm": 13.1342,
+      "ra_fingers_only_mm": 12.7773,
+      "ra_both_mm": 19.9291
+     }
+    },
+    "mlp": {
+     "zgz_global": {
+      "rot_deg": 7.7511,
+      "finger_rmse_deg": 6.7247,
+      "ra_root_only_mm": 10.0306,
+      "ra_fingers_only_mm": 4.7532,
+      "ra_both_mm": 10.0775
+     },
+     "zgz_local": {
+      "rot_deg": 9.6901,
+      "finger_rmse_deg": 11.494,
+      "ra_root_only_mm": 13.068,
+      "ra_fingers_only_mm": 12.4756,
+      "ra_both_mm": 19.7212
+     }
+    }
+   },
+   "test_route_own": {
+    "ridge": {
+     "zgz_global": {
+      "rot_deg": 13.3904,
+      "finger_rmse_deg": 8.2906,
+      "ra_root_only_mm": 15.8937,
+      "ra_fingers_only_mm": 7.3353,
+      "ra_both_mm": 16.4469
+     },
+     "zgz_local": {
+      "rot_deg": 11.2506,
+      "finger_rmse_deg": 16.105,
+      "ra_root_only_mm": 15.4131,
+      "ra_fingers_only_mm": 18.7642,
+      "ra_both_mm": 25.8223
+     }
+    },
+    "mlp": {
+     "zgz_global": {
+      "rot_deg": 11.7767,
+      "finger_rmse_deg": 7.2845,
+      "ra_root_only_mm": 15.1109,
+      "ra_fingers_only_mm": 5.8708,
+      "ra_both_mm": 15.4555
+     },
+     "zgz_local": {
+      "rot_deg": 10.9924,
+      "finger_rmse_deg": 14.8666,
+      "ra_root_only_mm": 15.3327,
+      "ra_fingers_only_mm": 16.276,
+      "ra_both_mm": 24.582
+     }
+    }
+   }
+  },
+  "s37_routed_s3408:route_gt": {
+   "dim": 4624,
+   "ridge_info": {
+    "lambda": 0.1,
+    "holdout_sq_err_by_lambda": {
+     "0.01": 1.8385,
+     "0.1": 1.7111,
+     "1": 1.8412,
+     "10": 2.3304,
+     "100": 3.1682,
+     "1000": 3.8515
+    }
+   },
+   "mlp_verify": {
+    "requires_grad_all": true,
+    "grad_enabled_in_loop": true,
+    "loss_step0": 0.9621,
+    "grad_norm_step0": 0.3021,
+    "params_with_nonzero_grad": 6,
+    "n_param_tensors": 6,
+    "rel_param_change": 1.8372,
+    "best_step": 600,
+    "final_train_loss": 0.0558,
+    "best_holdout_loss": 0.6845,
+    "curve": [
+     [
+      150,
+      0.2178,
+      0.7055
+     ],
+     [
+      300,
+      0.1615,
+      0.7028
+     ],
+     [
+      450,
+      0.123,
+      0.6907
+     ],
+     [
+      600,
+      0.1143,
+      0.6845
+     ],
+     [
+      750,
+      0.1082,
+      0.6924
+     ],
+     [
+      900,
+      0.0863,
+      0.696
+     ],
+     [
+      1050,
+      0.0834,
+      0.6879
+     ],
+     [
+      1200,
+      0.0787,
+      0.7199
+     ],
+     [
+      1350,
+      0.0769,
+      0.71
+     ],
+     [
+      1500,
+      0.0729,
+      0.7133
+     ],
+     [
+      1650,
+      0.0709,
+      0.6994
+     ],
+     [
+      1800,
+      0.069,
+      0.6979
+     ],
+     [
+      1950,
+      0.0641,
+      0.704
+     ],
+     [
+      2100,
+      0.0889,
+      0.7175
+     ],
+     [
+      2250,
+      0.0622,
+      0.7279
+     ],
+     [
+      2400,
+      0.0588,
+      0.7112
+     ],
+     [
+      2550,
+      0.0559,
+      0.702
+     ],
+     [
+      2700,
+      0.0593,
+      0.7049
+     ],
+     [
+      2850,
+      0.056,
+      0.7088
+     ],
+     [
+      3000,
+      0.0558,
+      0.7019
+     ]
+    ]
+   },
+   "holdout_rot_deg": {
+    "ridge": 12.1379,
+    "mlp": 12.8107
+   },
+   "test_route_gt(oracle)": {
+    "ridge": {
+     "zgz_global": {
+      "rot_deg": 8.3162,
+      "finger_rmse_deg": 7.1235,
+      "ra_root_only_mm": 10.6355,
+      "ra_fingers_only_mm": 5.2696,
+      "ra_both_mm": 10.8876
+     },
+     "zgz_local": {
+      "rot_deg": 9.2052,
+      "finger_rmse_deg": 12.6241,
+      "ra_root_only_mm": 12.8851,
+      "ra_fingers_only_mm": 13.1609,
+      "ra_both_mm": 20.6098
+     }
+    },
+    "mlp": {
+     "zgz_global": {
+      "rot_deg": 7.6254,
+      "finger_rmse_deg": 6.6994,
+      "ra_root_only_mm": 9.4787,
+      "ra_fingers_only_mm": 4.3917,
+      "ra_both_mm": 10.0423
+     },
+     "zgz_local": {
+      "rot_deg": 9.6682,
+      "finger_rmse_deg": 11.6833,
+      "ra_root_only_mm": 13.1767,
+      "ra_fingers_only_mm": 11.8394,
+      "ra_both_mm": 19.3429
+     }
+    }
+   },
+   "test_route_own": {
+    "ridge": {
+     "zgz_global": {
+      "rot_deg": 10.6493,
+      "finger_rmse_deg": 8.4888,
+      "ra_root_only_mm": 14.5027,
+      "ra_fingers_only_mm": 7.3392,
+      "ra_both_mm": 15.1522
+     },
+     "zgz_local": {
+      "rot_deg": 12.8831,
+      "finger_rmse_deg": 15.9394,
+      "ra_root_only_mm": 18.5454,
+      "ra_fingers_only_mm": 17.7076,
+      "ra_both_mm": 29.2567
+     }
+    },
+    "mlp": {
+     "zgz_global": {
+      "rot_deg": 9.8617,
+      "finger_rmse_deg": 7.7018,
+      "ra_root_only_mm": 14.2864,
+      "ra_fingers_only_mm": 5.8725,
+      "ra_both_mm": 14.8081
+     },
+     "zgz_local": {
+      "rot_deg": 12.7516,
+      "finger_rmse_deg": 15.6885,
+      "ra_root_only_mm": 17.7949,
+      "ra_fingers_only_mm": 17.3453,
+      "ra_both_mm": 27.8786
+     }
+    }
+   }
+  },
+  "s37diag_cnnabs_s3407:pen": {
+   "dim": 512,
+   "ridge_info": {
+    "lambda": 0.1,
+    "holdout_sq_err_by_lambda": {
+     "0.01": 0.9386,
+     "0.1": 0.8927,
+     "1": 0.9784,
+     "10": 1.9228,
+     "100": 3.5149,
+     "1000": 4.0394
+    }
+   },
+   "mlp_verify": {
+    "requires_grad_all": true,
+    "grad_enabled_in_loop": true,
+    "loss_step0": 0.9597,
+    "grad_norm_step0": 0.1778,
+    "params_with_nonzero_grad": 6,
+    "n_param_tensors": 6,
+    "rel_param_change": 1.3111,
+    "best_step": 900,
+    "final_train_loss": 0.1055,
+    "best_holdout_loss": 0.3459,
+    "curve": [
+     [
+      150,
+      0.1665,
+      0.407
+     ],
+     [
+      300,
+      0.1548,
+      0.3692
+     ],
+     [
+      450,
+      0.1264,
+      0.3644
+     ],
+     [
+      600,
+      0.1331,
+      0.3512
+     ],
+     [
+      750,
+      0.1389,
+      0.3563
+     ],
+     [
+      900,
+      0.1157,
+      0.3459
+     ],
+     [
+      1050,
+      0.1101,
+      0.3497
+     ],
+     [
+      1200,
+      0.1235,
+      0.3638
+     ],
+     [
+      1350,
+      0.1176,
+      0.366
+     ],
+     [
+      1500,
+      0.1134,
+      0.3646
+     ],
+     [
+      1650,
+      0.1227,
+      0.3628
+     ],
+     [
+      1800,
+      0.1131,
+      0.3623
+     ],
+     [
+      1950,
+      0.1164,
+      0.3825
+     ],
+     [
+      2100,
+      0.1315,
+      0.3728
+     ],
+     [
+      2250,
+      0.1143,
+      0.3798
+     ],
+     [
+      2400,
+      0.0986,
+      0.3711
+     ],
+     [
+      2550,
+      0.1103,
+      0.3906
+     ],
+     [
+      2700,
+      0.1152,
+      0.401
+     ],
+     [
+      2850,
+      0.103,
+      0.3956
+     ],
+     [
+      3000,
+      0.1055,
+      0.396
+     ]
+    ]
+   },
+   "holdout_rot_deg": {
+    "ridge": 8.6068,
+    "mlp": 7.0348
+   },
+   "test": {
+    "ridge": {
+     "zgz_global": {
+      "rot_deg": 8.7854,
+      "finger_rmse_deg": 6.6702,
+      "ra_root_only_mm": 10.1169,
+      "ra_fingers_only_mm": 5.1003,
+      "ra_both_mm": 10.5474
+     },
+     "zgz_local": {
+      "rot_deg": 9.8368,
+      "finger_rmse_deg": 10.9819,
+      "ra_root_only_mm": 14.2934,
+      "ra_fingers_only_mm": 11.0879,
+      "ra_both_mm": 19.025
+     }
+    },
+    "mlp": {
+     "zgz_global": {
+      "rot_deg": 9.0709,
+      "finger_rmse_deg": 6.7871,
+      "ra_root_only_mm": 11.392,
+      "ra_fingers_only_mm": 4.9445,
+      "ra_both_mm": 11.4649
+     },
+     "zgz_local": {
+      "rot_deg": 10.5604,
+      "finger_rmse_deg": 11.1822,
+      "ra_root_only_mm": 15.287,
+      "ra_fingers_only_mm": 10.9736,
+      "ra_both_mm": 19.8439
+     }
+    }
+   }
+  },
+  "s37diag_cnnabs_s3408:pen": {
+   "dim": 512,
+   "ridge_info": {
+    "lambda": 0.1,
+    "holdout_sq_err_by_lambda": {
+     "0.01": 0.9945,
+     "0.1": 0.8516,
+     "1": 0.914,
+     "10": 1.8613,
+     "100": 3.5097,
+     "1000": 4.0402
+    }
+   },
+   "mlp_verify": {
+    "requires_grad_all": true,
+    "grad_enabled_in_loop": true,
+    "loss_step0": 0.9648,
+    "grad_norm_step0": 0.1938,
+    "params_with_nonzero_grad": 6,
+    "n_param_tensors": 6,
+    "rel_param_change": 1.3313,
+    "best_step": 300,
+    "final_train_loss": 0.1113,
+    "best_holdout_loss": 0.3873,
+    "curve": [
+     [
+      150,
+      0.1908,
+      0.4092
+     ],
+     [
+      300,
+      0.1649,
+      0.3873
+     ],
+     [
+      450,
+      0.1332,
+      0.3921
+     ],
+     [
+      600,
+      0.1458,
+      0.4081
+     ],
+     [
+      750,
+      0.151,
+      0.4266
+     ],
+     [
+      900,
+      0.1265,
+      0.4096
+     ],
+     [
+      1050,
+      0.1193,
+      0.4216
+     ],
+     [
+      1200,
+      0.1314,
+      0.4284
+     ],
+     [
+      1350,
+      0.1257,
+      0.4261
+     ],
+     [
+      1500,
+      0.1261,
+      0.4337
+     ],
+     [
+      1650,
+      0.132,
+      0.4396
+     ],
+     [
+      1800,
+      0.1243,
+      0.4315
+     ],
+     [
+      1950,
+      0.1256,
+      0.4549
+     ],
+     [
+      2100,
+      0.1401,
+      0.448
+     ],
+     [
+      2250,
+      0.1227,
+      0.4358
+     ],
+     [
+      2400,
+      0.1068,
+      0.4496
+     ],
+     [
+      2550,
+      0.1198,
+      0.4617
+     ],
+     [
+      2700,
+      0.1242,
+      0.4504
+     ],
+     [
+      2850,
+      0.1124,
+      0.4451
+     ],
+     [
+      3000,
+      0.1113,
+      0.4687
+     ]
+    ]
+   },
+   "holdout_rot_deg": {
+    "ridge": 8.9089,
+    "mlp": 6.6472
+   },
+   "test": {
+    "ridge": {
+     "zgz_global": {
+      "rot_deg": 8.758,
+      "finger_rmse_deg": 6.5612,
+      "ra_root_only_mm": 10.8698,
+      "ra_fingers_only_mm": 4.6357,
+      "ra_both_mm": 11.0285
+     },
+     "zgz_local": {
+      "rot_deg": 10.1315,
+      "finger_rmse_deg": 11.2232,
+      "ra_root_only_mm": 14.1408,
+      "ra_fingers_only_mm": 11.7455,
+      "ra_both_mm": 19.5647
+     }
+    },
+    "mlp": {
+     "zgz_global": {
+      "rot_deg": 8.9765,
+      "finger_rmse_deg": 6.7116,
+      "ra_root_only_mm": 10.7264,
+      "ra_fingers_only_mm": 4.6998,
+      "ra_both_mm": 10.6506
+     },
+     "zgz_local": {
+      "rot_deg": 10.4724,
+      "finger_rmse_deg": 11.4592,
+      "ra_root_only_mm": 14.6242,
+      "ra_fingers_only_mm": 11.9804,
+      "ra_both_mm": 20.1234
+     }
+    }
+   }
+  }
+ },
+ "R1": {
+  "s37_routed_s3407": {
+   "primary_head": "ridge",
+   "holdout_rot_deg_pf": {
+    "ridge": 15.7422,
+    "mlp": 17.1313
+   },
+   "variants": {
+    "base_alpha0": {
+     "zgz_global": {
+      "ra": 15.6121,
+      "ra_art": 8.7875,
+      "ra_rot": 14.8205,
+      "rot_deg": 11.2961,
+      "abs": 35.0296
+     },
+     "zgz_local": {
+      "ra": 23.3394,
+      "ra_art": 16.7667,
+      "ra_rot": 14.8722,
+      "rot_deg": 11.0773,
+      "abs": 110.2977
+     },
+     "frame_weighted_ra": 19.2042
+    },
+    "R1_ridge_a0.5": {
+     "zgz_global": {
+      "ra": 15.8223,
+      "ra_art": 8.0043,
+      "ra_rot": 14.7651,
+      "rot_deg": 11.9574,
+      "abs": 36.081
+     },
+     "zgz_local": {
+      "ra": 27.8206,
+      "ra_art": 17.5216,
+      "ra_rot": 17.9874,
+      "rot_deg": 11.8343,
+      "abs": 103.5502
+     },
+     "frame_weighted_ra": 21.3999
+    },
+    "R1_mlp_a0.5": {
+     "zgz_global": {
+      "ra": 15.6263,
+      "ra_art": 8.0923,
+      "ra_rot": 13.9026,
+      "rot_deg": 11.0202,
+      "abs": 36.0127
+     },
+     "zgz_local": {
+      "ra": 30.738,
+      "ra_art": 17.5616,
+      "ra_rot": 21.2418,
+      "rot_deg": 13.8037,
+      "abs": 103.1279
+     },
+     "frame_weighted_ra": 22.6512
+    },
+    "R1_ridge_a1.0": {
+     "zgz_global": {
+      "ra": 17.8735,
+      "ra_art": 7.9219,
+      "ra_rot": 16.8109,
+      "rot_deg": 13.33,
+      "abs": 37.7104
+     },
+     "zgz_local": {
+      "ra": 33.0947,
+      "ra_art": 17.7021,
+      "ra_rot": 24.3544,
+      "rot_deg": 16.1405,
+      "abs": 101.3735
+     },
+     "frame_weighted_ra": 24.9493
+    },
+    "ctrl_trainmean_a0.5": {
+     "zgz_global": {
+      "ra": 22.1288,
+      "ra_art": 8.0854,
+      "ra_rot": 21.3405,
+      "rot_deg": 15.8014,
+      "abs": 34.2186
+     },
+     "zgz_local": {
+      "ra": 23.3243,
+      "ra_art": 16.7968,
+      "ra_rot": 12.1432,
+      "rot_deg": 9.9565,
+      "abs": 109.3886
+     },
+     "frame_weighted_ra": 22.6845
+    },
+    "ctrl_hist_ridge_a0.5": {
+     "zgz_global": {
+      "ra": 17.0401,
+      "ra_art": 8.2491,
+      "ra_rot": 17.0813,
+      "rot_deg": 13.7086,
+      "abs": 32.2722
+     },
+     "zgz_local": {
+      "ra": 25.8841,
+      "ra_art": 17.3108,
+      "ra_rot": 14.8175,
+      "rot_deg": 10.1053,
+      "abs": 107.2466
+     },
+     "frame_weighted_ra": 21.1514
+    },
+    "ref_cnn_ridge_a0.5": {
+     "zgz_global": {
+      "ra": 12.3458,
+      "ra_art": 8.3415,
+      "ra_rot": 9.4955,
+      "rot_deg": 8.578,
+      "abs": 35.3161
+     },
+     "zgz_local": {
+      "ra": 22.5042,
+      "ra_art": 17.1696,
+      "ra_rot": 11.8543,
+      "rot_deg": 8.2055,
+      "abs": 106.6686
+     },
+     "frame_weighted_ra": 17.0681
+    }
+   },
+   "mechanism": {
+    "zgz_global": {
+     "abs_head_rot_deg": 13.33,
+     "s37_closed_rot_deg": 11.2961,
+     "err_vector_cos_mean": 0.7078,
+     "err_norm_corr": 0.4879,
+     "acf_abs_head": {
+      "1": 0.8696,
+      "5": 0.7571,
+      "20": 0.5441
+     },
+     "acf_s37_closed": {
+      "1": 0.9758,
+      "5": 0.8553,
+      "20": 0.5353
+     }
+    },
+    "zgz_local": {
+     "abs_head_rot_deg": 16.1405,
+     "s37_closed_rot_deg": 11.0773,
+     "err_vector_cos_mean": 0.0283,
+     "err_norm_corr": 0.0578,
+     "acf_abs_head": {
+      "1": 0.8068,
+      "5": 0.7269,
+      "20": 0.6518
+     },
+     "acf_s37_closed": {
+      "1": 0.9366,
+      "5": 0.8376,
+      "20": 0.692
+     }
+    }
+   }
+  },
+  "s37_routed_s3408": {
+   "primary_head": "ridge",
+   "holdout_rot_deg_pf": {
+    "ridge": 14.9563,
+    "mlp": 16.3113
+   },
+   "variants": {
+    "base_alpha0": {
+     "zgz_global": {
+      "ra": 15.9992,
+      "ra_art": 5.963,
+      "ra_rot": 17.0023,
+      "rot_deg": 11.6478,
+      "abs": 75.411
+     },
+     "zgz_local": {
+      "ra": 29.4991,
+      "ra_art": 17.2396,
+      "ra_rot": 18.8946,
+      "rot_deg": 12.8456,
+      "abs": 89.109
+     },
+     "frame_weighted_ra": 22.2748
+    },
+    "R1_ridge_a0.5": {
+     "zgz_global": {
+      "ra": 13.9843,
+      "ra_art": 5.8437,
+      "ra_rot": 13.1823,
+      "rot_deg": 11.2366,
+      "abs": 84.2677
+     },
+     "zgz_local": {
+      "ra": 28.4572,
+      "ra_art": 17.6906,
+      "ra_rot": 17.537,
+      "rot_deg": 11.9498,
+      "abs": 83.0657
+     },
+     "frame_weighted_ra": 20.7122
+    },
+    "R1_mlp_a0.5": {
+     "zgz_global": {
+      "ra": 13.6449,
+      "ra_art": 5.8318,
+      "ra_rot": 12.9414,
+      "rot_deg": 10.7932,
+      "abs": 84.5867
+     },
+     "zgz_local": {
+      "ra": 34.8225,
+      "ra_art": 17.8562,
+      "ra_rot": 25.5007,
+      "rot_deg": 16.8354,
+      "abs": 78.6623
+     },
+     "frame_weighted_ra": 23.4897
+    },
+    "R1_ridge_a1.0": {
+     "zgz_global": {
+      "ra": 16.4386,
+      "ra_art": 5.8576,
+      "ra_rot": 14.7229,
+      "rot_deg": 12.0675,
+      "abs": 88.4762
+     },
+     "zgz_local": {
+      "ra": 29.4893,
+      "ra_art": 17.7157,
+      "ra_rot": 19.3893,
+      "rot_deg": 13.0422,
+      "abs": 79.6503
+     },
+     "frame_weighted_ra": 22.5054
+    },
+    "ctrl_trainmean_a0.5": {
+     "zgz_global": {
+      "ra": 21.0371,
+      "ra_art": 5.7817,
+      "ra_rot": 19.9971,
+      "rot_deg": 15.4065,
+      "abs": 82.9639
+     },
+     "zgz_local": {
+      "ra": 26.3719,
+      "ra_art": 17.279,
+      "ra_rot": 14.5359,
+      "rot_deg": 11.9044,
+      "abs": 85.3391
+     },
+     "frame_weighted_ra": 23.517
+    },
+    "ctrl_hist_ridge_a0.5": {
+     "zgz_global": {
+      "ra": 16.6262,
+      "ra_art": 5.805,
+      "ra_rot": 15.7838,
+      "rot_deg": 13.2984,
+      "abs": 81.5891
+     },
+     "zgz_local": {
+      "ra": 28.4942,
+      "ra_art": 17.6423,
+      "ra_rot": 17.2795,
+      "rot_deg": 12.0035,
+      "abs": 83.5337
+     },
+     "frame_weighted_ra": 22.1432
+    },
+    "ref_cnn_ridge_a0.5": {
+     "zgz_global": {
+      "ra": 10.8532,
+      "ra_art": 5.8595,
+      "ra_rot": 10.7972,
+      "rot_deg": 8.7133,
+      "abs": 81.9451
+     },
+     "zgz_local": {
+      "ra": 24.0701,
+      "ra_art": 17.5232,
+      "ra_rot": 13.5076,
+      "rot_deg": 9.4619,
+      "abs": 75.8933
+     },
+     "frame_weighted_ra": 16.9973
+    }
+   },
+   "mechanism": {
+    "zgz_global": {
+     "abs_head_rot_deg": 12.0675,
+     "s37_closed_rot_deg": 11.6478,
+     "err_vector_cos_mean": 0.5486,
+     "err_norm_corr": 0.3115,
+     "acf_abs_head": {
+      "1": 0.9266,
+      "5": 0.8152,
+      "20": 0.5271
+     },
+     "acf_s37_closed": {
+      "1": 0.9759,
+      "5": 0.8528,
+      "20": 0.4476
+     }
+    },
+    "zgz_local": {
+     "abs_head_rot_deg": 13.0423,
+     "s37_closed_rot_deg": 12.8456,
+     "err_vector_cos_mean": 0.5993,
+     "err_norm_corr": 0.1906,
+     "acf_abs_head": {
+      "1": 0.8692,
+      "5": 0.8013,
+      "20": 0.6966
+     },
+     "acf_s37_closed": {
+      "1": 0.9436,
+      "5": 0.8478,
+      "20": 0.7207
+     }
+    }
+   }
+  }
+ },
+ "seconds": 637.9
+}

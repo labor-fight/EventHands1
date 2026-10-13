@@ -1,5 +1,5 @@
 # dt_dz_l3w128s48: DT2 deviation 4: efficiency arm, dt_dz_l3w128 with stem / layer1 / layer2 at 48 / 48 / 96 channels (no distillation).
-# = configs/dt2/dt_dz_l3w128.yaml + {'MODEL': {'CNN_BACKBONE': 'resnet18_l3w128s48'}} (docs/DT2_PREREG.md, deviation 4). Seeds and output paths on the command line.
+# = configs/dt2/dt_dz_l3w128.yaml + {'MODEL': {'CNN_BACKBONE': 'resnet18_l3w128s48'}} (docs/EXPERIMENT_RECORDS.md#dt2-prereg, deviation 4). Seeds and output paths on the command line.
 SEED: 3407
 DATA:
   ROOT: /data1/lyq/code/mesh/EventHands/data/hand_data51

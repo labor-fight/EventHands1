@@ -1,0 +1,38 @@
+{
+  "conclusion": "结束于 t(=end ms) 的包只用 [t−window+1, t] 内事件与上一步 pred；默认评测不读未来事件。GT 仅用于段首初始化与事后打分；active_policy 探针对外传入当前/上一步 GT，非默认路径。",
+  "evidence": [
+    {
+      "claim": "事件窗因果：[end−window+1, end]，offsets[end+1] 为右开边界，不含 end+1 ms 及以后",
+      "file_line": "semkine/eval_track.py:61-78 (_window_events); :100-115 (build_lnes 同窗)"
+    },
+    {
+      "claim": "评测递推：段首 prev=pos51[a]+noise，之后 prev←pred；每步只喂该窗事件",
+      "file_line": "semkine/eval_track.py:155-195"
+    },
+    {
+      "claim": "GT 仅 append 用于指标，不回灌模型（默认 active_policy=None）",
+      "file_line": "semkine/eval_track.py:197; make_s36_row.py:82 (track_sequence 无 active_policy)"
+    },
+    {
+      "claim": "例外：active_policy 可读 pos51[prev_end]/pos51[end]（协议外探针）",
+      "file_line": "semkine/eval_track.py:182-191"
+    },
+    {
+      "claim": "路由用 batch.prev_state（上一步输出）做 FK/投影，no_grad",
+      "file_line": "model/model.py:1545-1570; :1455-1463 (_route_nodes)"
+    },
+    {
+      "claim": "输出 = prev + Δ（predict_delta）",
+      "file_line": "model/model.py:1585-1597"
+    }
+  ],
+  "latency_column": {
+    "method": "本机实测 raw mean(min over 3 passes) / Full 锚点 raw * 1.75 ms，非纯 FLOPs 换算",
+    "file_line": "tools/make_s36_row.py:10-15,53,106-123,127-164,306-318"
+  },
+  "realtime_constraint_written": {
+    "LIVE_DEMO.md": "无包间隔/截止时间数值约束",
+    "configs": "EVAL.WINDOW_MS: 50 为评测步长/证据窗，非硬实时 deadline",
+    "docs": "多处写 50 ms 协议步，未见硬截止时间条款"
+  }
+}

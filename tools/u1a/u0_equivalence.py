@@ -353,8 +353,12 @@ def main():
     torch.backends.cudnn.allow_tf32 = False
     device = torch.device(args.device)
     start = time.monotonic()
-    protected = [REPO / 'model/model.py', REPO / 'semkine/u1a_readout.py', REPO / 'docs/U1A_SHARED_MEASUREMENT_PREREG.md']
-    protected = [p for p in protected if p.is_file()]
+    # New diagnostics protect the consolidated record; old U0 hashes remain
+    # historical evidence and are verified by make_verdict.py using original bytes.
+    protected = [REPO / 'model/model.py', REPO / 'semkine/u1a_readout.py', REPO / 'docs/EXPERIMENT_RECORDS.md']
+    missing = [str(p) for p in protected if not p.is_file()]
+    if missing:
+        raise FileNotFoundError('missing protected source: ' + ', '.join(missing))
     protected_hashes = {str(p): sha256(p) for p in protected}
     result = {'kind': 'U0_folded_S38_interface_equivalence_no_training', 'device': str(device),
               'cuda_visible_devices': os.environ.get('CUDA_VISIBLE_DEVICES'),

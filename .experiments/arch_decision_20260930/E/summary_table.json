@@ -1,0 +1,25 @@
+{
+  "s37_zgz_global_stages_ms": {
+    "cpu_window_pack_h2d": {"p50": 0.85, "p95": 1.72, "p99": 2.25},
+    "token_sample_knn": {"p50": 2.84, "p95": 3.22, "p99": 3.41},
+    "edgeconv": {"p50": 0.79, "p95": 0.92, "p99": 0.99},
+    "pool_mean_max_proj": {"p50": 0.60, "p95": 0.71, "p99": 0.77},
+    "route_fk_project": {"p50": 2.28, "p95": 2.59, "p99": 2.80},
+    "route_dispatch": {"p50": 0.81, "p95": 0.92, "p99": 0.99},
+    "pool_joint": {"p50": 0.74, "p95": 0.85, "p99": 0.91},
+    "heads_prevmlp": {"p50": 1.54, "p95": 1.76, "p99": 1.87},
+    "forward_packet_only": {"p50": 9.30, "p95": 10.42, "p99": 10.99},
+    "e2e_incl_cpu": {"p50": 10.23, "p95": 11.71, "p99": 12.60},
+    "peak_alloc_MiB": 47.4
+  },
+  "s37_zgz_local_e2e": {"p50": 9.62, "p95": 10.70, "p99": 11.13, "peak_MiB": 40.6},
+  "cnn_zgz_global_e2e": {"p50": 2.61, "p95": 3.55, "p99": 4.04, "peak_MiB": 62.4},
+  "addon_cuda_total": {"p50": 1.62, "p95": 1.83, "p99": 1.92},
+  "queue_zgz_global": {
+    "5ms": {"util": 2.06, "backlog_end": 686, "max_wait_ms": 7178, "e2e_p99": 7110},
+    "10ms": {"util": 1.03, "backlog_end": 39, "max_wait_ms": 408, "e2e_p99": 407},
+    "50ms": {"util": 0.21, "backlog_end": 1, "max_wait_ms": 0, "e2e_p99": 12.6}
+  },
+  "staged_vs_direct_bitwise_equal": true,
+  "packets_after_warmup": {"zgz_global": 1356, "zgz_local": 1174}
+}

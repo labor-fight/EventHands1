@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DT round formal runtime measurement of DENSE (LNES) arms (docs/DT_RENDER_TRACK_PREREG.md section 4).
+"""DT round formal runtime measurement of DENSE (LNES) arms (docs/EXPERIMENT_RECORDS.md#dt-prereg section 4).
 
 `tools/s38/bench.py` times `forward_packet` of the event-graph arms; the dense arms of this round
 (ResNet18 / LNES + rendered previous state) have a plain `model(x, prev)` forward, so this is its counterpart with the same

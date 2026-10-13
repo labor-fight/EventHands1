@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S37 root innovation (docs/S37_EXPERIMENT_RECORDS.md [ROOTINNOV]): the contract tests.
+"""S37 root innovation (docs/EXPERIMENT_RECORDS.md#s37-rootinnov [ROOTINNOV]): the contract tests.
 
 What must hold:
 

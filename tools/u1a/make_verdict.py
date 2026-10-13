@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Generate the U1a verdict from completed explicit-last artifacts only.
 
-Default writes docs/U1A_SHARED_MEASUREMENT_VERDICT.md only after every 6k
+Default writes outputs/u1a/reports/U1A_SHARED_MEASUREMENT_VERDICT.md only after every 6k
 training, verification, evaluation, raw, gate and completion check finishes.
+Review the generated report before incorporating it into the U1A-VERDICT section
+of docs/EXPERIMENT_RECORDS.md; this tool never overwrites that consolidated record.
 --phase 2k --dry-run validates the existing screening schema and prints a
 SCREENING preview. It cannot write a verdict. No selection file, training,
 evaluation, model, checkpoint tensor loading, or CUDA operation is used.
@@ -13,9 +15,12 @@ evaluation, model, checkpoint tensor loading, or CUDA operation is used.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import math
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -24,7 +29,9 @@ import yaml
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "outputs" / "u1a"
 ROWS = REPO / "outputs" / "semkine"
-TARGET = REPO / "docs" / "U1A_SHARED_MEASUREMENT_VERDICT.md"
+TARGET = OUT / "reports" / "U1A_SHARED_MEASUREMENT_VERDICT.md"
+PREREG = REPO / "docs" / "EXPERIMENT_RECORDS.md"
+PREREG_ID = "U1A-PREREG"
 SEEDS = ("3407", "3408")
 MODES = ("shared", "untied")
 LIMITS = {"ra_mm": 1.1, "local_mm": 1.1, "translation_ratio": 1.1, "root_deg": 1.0}
@@ -41,9 +48,26 @@ def resolved(value):
     return (path if path.is_absolute() else REPO / path).resolve()
 
 
+def prereg_block(text):
+    begin, end = (f"<!-- EXPERIMENT_RECORD:{PREREG_ID}:{edge} -->" for edge in ("BEGIN", "END"))
+    require(text.count(begin) == text.count(end) == 1, "missing or duplicate U1A-PREREG block")
+    before, _, after = text.partition(begin)
+    require(end not in before and end in after, "U1A-PREREG block markers are out of order")
+    return after.partition(end)[0].encode("utf-8")
+
+
+def original_prereg(text):
+    prefix = f"<!-- EXPERIMENT_ORIGINAL:{PREREG_ID}:BASE64 "
+    require(text.count(prefix) == 1, "missing or duplicate original U1A-PREREG snapshot")
+    encoded, separator, _ = text.partition(prefix)[2].partition(" -->")
+    require(bool(separator), "unterminated original U1A-PREREG snapshot")
+    return base64.b64decode(encoded, validate=True)
+
+
 class Evidence:
     def __init__(self):
         self.files = {}
+        self.byte_sources = {}
 
     def add(self, value, role, expected=None):
         path = resolved(value)
@@ -65,6 +89,43 @@ class Evidence:
 
     def text(self, value, role, expected=None):
         return self.add(value, role, expected).read_text(encoding="utf-8")
+
+    def add_bytes(self, label, link, data, role, expected=None):
+        digest = hashlib.sha256(data).hexdigest()
+        require(expected is None or expected == digest, f"{role}: source hash changed: {label}")
+        item = self.byte_sources.setdefault((label, link), {"sha256": digest, "roles": set()})
+        require(item["sha256"] == digest, f"source changed during verdict generation: {label}")
+        item["roles"].add(role)
+
+    def prereg(self, role="current/U1A_prereg_block"):
+        text = self.text(PREREG, "current/U1A_prereg_container")
+        self.add_bytes("docs/EXPERIMENT_RECORDS.md [U1A-PREREG current block]",
+                       PREREG.as_posix() + "#u1a-prereg", prereg_block(text), role)
+        return text
+
+    def u0_source(self, value, role, expected, commit):
+        """Verify historical bytes without assigning their hash to a current file."""
+        path = resolved(value)
+        # Keep the retired filename solely as an identity in immutable U0 JSON.
+        legacy_name = "U1A_SHARED_MEASUREMENT_" + "PREREG.md"
+        if path == REPO / "docs" / legacy_name:
+            text = self.prereg()
+            self.add_bytes("docs/EXPERIMENT_RECORDS.md [U1A-PREREG original byte snapshot]",
+                           PREREG.as_posix() + "#u1a-prereg", original_prereg(text), role, expected)
+            return
+        self.add(path, role + "/current_file")
+        if self.files[path]["sha256"] == expected:
+            return
+        require(isinstance(commit, str) and re.fullmatch(r"[0-9a-fA-F]{40,64}", commit),
+                "historical U0 source hash requires its recorded source_commit")
+        try:
+            relative = path.relative_to(REPO).as_posix()
+        except ValueError:
+            raise ValueError(f"historical U0 source is outside the repository: {path}") from None
+        result = subprocess.run(["git", "show", f"{commit}:{relative}"], cwd=REPO, capture_output=True)
+        require(result.returncode == 0, f"missing historical U0 Git blob: {commit}:{relative}")
+        self.add_bytes(f"git show {commit}:{relative}", None, result.stdout,
+                       role + "/historical_git_blob", expected)
 
     def sources(self, value, role):
         if isinstance(value, dict):
@@ -251,12 +312,13 @@ def load_debug_and_u0(evidence, baseline):
     require(u0["kind"] == "U0_folded_S38_interface_equivalence_no_training" and u0["not_an_accuracy_arm"] is True
             and u0["all_interface_checks_pass"] is True and {str(r["seed"]) for r in u0["runs"]} == set(SEEDS),
             "full U0 equivalence failed or missing seeds")
-    evidence.add(REPO / "tools/u1a/u0_equivalence.py", "U0/executable", u0["script_sha256"])
+    evidence.u0_source(REPO / "tools/u1a/u0_equivalence.py", "U0/executable", u0["script_sha256"],
+                       u0.get("source_commit"))
     require(u0["device"] == "cpu" and u0["precision"] == "fp32 full model, independent fp64 random algebra; TF32 disabled",
             "U0 precision/device differs from the stated equivalence scope")
     require(u0["source_files_before_sha256"] == u0["source_files_after_sha256"], "U0 altered its source files")
     for path, digest in u0["source_files_after_sha256"].items():
-        evidence.add(path, "U0/source_unchanged", digest)
+        evidence.u0_source(path, "U0/source_unchanged", digest, u0.get("source_commit"))
     for run in u0["runs"]:
         seed = str(run["seed"])
         require(run["interface_equivalence_pass"] is True and run["step"] == 6000
@@ -414,6 +476,10 @@ def render(current, screen, debug, u0, evidence, completion):
             display = str(path)
         roles = "; ".join(sorted(item["roles"]))
         lines.append(f"| [{display}]({path.as_posix()}) | {roles} | {item['sha256']} |")
+    for (label, link), item in sorted(evidence.byte_sources.items()):
+        display = f"[{label}]({link})" if link else f"`{label}`"
+        roles = "; ".join(sorted(item["roles"]))
+        lines.append(f"| {display} | {roles} | {item['sha256']} |")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -436,7 +502,8 @@ def main(argv=None):
         require(completion["final_adoption_eligible"] is current["gate"]["final_adoption_eligible"], "completion adoption mismatch")
     debug, u0 = load_debug_and_u0(evidence, current["rows"]["S38"])
     evidence.json(OUT / "initialization.json", "prepared_initialization_registry")
-    for relative in ("docs/U1A_SHARED_MEASUREMENT_PREREG.md", "tests/test_u1a_readout.py", "tests/test_s38.py",
+    evidence.prereg()
+    for relative in ("tests/test_u1a_readout.py", "tests/test_s38.py",
                      "tests/test_s37_routed_readout.py", "model/model.py", "semkine/u1a_readout.py", "semkine/train.py",
                      "tools/u1a/prepare.py", "tools/u1a/verify.py", "tools/u1a/debug.py", "tools/u1a/report.py",
                      "tools/u1a/probe.py", "tools/u1a/gates.py", "tools/u1a/u0_equivalence.py",
@@ -453,6 +520,7 @@ def main(argv=None):
         require(TARGET.read_text(encoding="utf-8") == document, "existing verdict differs; refusing implicit overwrite")
         print(f"unchanged: {TARGET}")
     else:
+        TARGET.parent.mkdir(parents=True, exist_ok=True)
         with TARGET.open("x", encoding="utf-8") as stream:
             stream.write(document)
         print(f"wrote {TARGET}")
@@ -463,4 +531,3 @@ if __name__ == "__main__":
         main()
     except (ValueError, KeyError, FileNotFoundError) as error:
         raise SystemExit(f"U1a verdict refused: {error}")
-

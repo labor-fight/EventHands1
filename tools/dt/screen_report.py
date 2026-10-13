@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Paired-gate report of the DT round (docs/DT_RENDER_TRACK_PREREG.md; section 5 is the contract).
+"""Paired-gate report of the DT round (docs/EXPERIMENT_RECORDS.md#dt-prereg; section 5 is the contract).
 
     python tools/dt/screen_report.py [--base dt_base] [--arms ARM ...] [--out-prefix PATH]
                                      [--runs-dir DIR] [--latency-json FILE] [--offline-json FILE | --no-offline]

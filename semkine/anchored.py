@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""Root tracking: absolute measurement + residual tracking (docs/S37_ROOT_TRACKING_VERDICT.md).
+r"""Root tracking: absolute measurement + residual tracking (EXPERIMENT_RECORDS.md#root-tracking-verdict).
 
 A tracker that updates its own previous output (`prev + delta`) has the better single step and the
 worse closed loop: every arm of that kind measured in this round (S37, CNN-delta, CNN-track) is
@@ -14,7 +14,7 @@ the same packet every step keeps the first and removes the second:
 `a = 0` is the tracker's own loop, `a = 1` the absolute arm. The two estimates must not share their
 features: one network with both heads (the retired `MODEL.ABS_TRACK`, commit a555857) made the heads'
 errors coincide and gained nothing. Trained to the full budget the delta arm becomes absolute-like and
-two-network anchoring adds no more than a second absolute network would (docs/S37_ROOT_TRACKING_VERDICT.md);
+two-network anchoring adds no more than a second absolute network would (EXPERIMENT_RECORDS.md#root-tracking-verdict);
 `CausalFilter` below -- the "no motion" tracker -- is the form the round kept.
 """
 from __future__ import annotations
@@ -131,7 +131,7 @@ class AnchoredTracker(nn.Module):
 
 class FilteredTracker(nn.Module):
     """A `prev + delta` tracker with a constant-gain causal filter on its own output (DT round,
-    docs/DT_RENDER_TRACK_PREREG.md): the fed-back state is `prev` moved toward the tracker's output by
+    docs/EXPERIMENT_RECORDS.md#dt-prereg): the fed-back state is `prev` moved toward the tracker's output by
     fixed gains, `anchor_blend(prev, out, ...)` -- geodesic on the root rotation, linear on fingers and
     translation, i.e. `prev + a (out - prev)` with the root on SO(3). `a = 1` is the tracker itself;
     `a_rest` is the finger gain and `a_trans` the translation gain (default: the finger gain). An
@@ -182,7 +182,7 @@ class CausalFilter(nn.Module):
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# DT2 round, package B (docs/DT2_PREREG.md): a stateful, event-count-adaptive, device-side causal filter.
+# DT2 round, package B (EXPERIMENT_RECORDS.md#dt2-prereg): a stateful, event-count-adaptive, device-side causal filter.
 # `FilteredTracker` above is untouched; `AdaptiveFilter` generalises it: gains that depend on the packet's raw
 # event count, an optional alpha-beta velocity term on the root (SO(3) tangent) and the translation, a float64
 # torch implementation that stays on the device, and (for the constant-gain, no-velocity case) a host switch that
@@ -268,7 +268,7 @@ def _canon_gain(g):
 
 class AdaptiveFilter(nn.Module):
     """`FilteredTracker` with event-count-dependent gains, an optional alpha-beta velocity and a device-side float64
-    implementation (docs/DT2_PREREG.md). Per packet, with `z` the tracker's output given `prev` (the previous
+    implementation (EXPERIMENT_RECORDS.md#dt2-prereg). Per packet, with `z` the tracker's output given `prev` (the previous
     FILTERED state -- the network never sees a predicted state), `n` the packet's raw event count:
 
         x- = prev (+) v              translation: prev_t + v_t;  root: Exp(v_r) R_prev (left, camera frame);  fingers: prev

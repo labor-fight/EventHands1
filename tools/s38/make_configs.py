@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S38 root-tracking round (docs/S38_ROOT_TRACKING_VERDICT.md): write every arm's config from its parent.
+"""S38 root-tracking round (EXPERIMENT_RECORDS.md#s38-verdict): write every arm's config from its parent.
 
 Same contract as `tools/rt/make_configs.py`: each arm is its parent plus the listed overrides and
 nothing else, so an arm differs from its control exactly where the table below says. Parents are the
@@ -15,7 +15,7 @@ The two factors of the round:
 
 `ROOT_REF` is the mean root rotation of the *training* split (chordal mean over the 50 ms protocol
 steps of every valid run); no development or test sequence enters it. The filter gain 0.5 is fixed
-a priori (the geodesic midpoint; docs/ARCHITECTURE_DECISION.md section 3.1 registered 0.5 as the prior) and
+a priori (the geodesic midpoint; docs/EXPERIMENT_RECORDS.md#architecture-decision section 3.1 registered 0.5 as the prior) and
 is not tuned on zgz.
 
     python tools/s38/make_configs.py            # (re)writes configs/s38/*.yaml
@@ -76,7 +76,7 @@ def arms(ref: list) -> dict:
         "s38_spabsaa": (S37, merge(merge(copy.deepcopy(SP), m1(ref)), {"MODEL": {"ROOT_REF": [0.0, 0.0, 0.0]},
                                                                        "LOSS": {"ROOT_LOSS": None}}),
                         "sparse pyramid + absolute root as plain axis-angle (no reference, MSE): convention ablation"),
-        # second candidate (after the 2000-step screen, docs/S38_ROOT_TRACKING_PREREG.md section 7): the sparse
+        # second candidate (after the 2000-step screen, docs/EXPERIMENT_RECORDS.md#s38-prereg section 7): the sparse
         # pyramid's pool also measures the fingers, filtered with the same a-priori gain; translation stays routed
         "s38_spmeas": (S37, merge(merge(copy.deepcopy(SP), m1(ref)), {"MODEL": {"FINGER_MEAS": "abs",
                                                                                 "FINGER_FILTER_GAIN": 0.5}}),

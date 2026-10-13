@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DT round diagnostic D0f (docs/DT_RENDER_TRACK_PREREG.md): depth accuracy of a trained checkpoint on its OWN
+"""DT round diagnostic D0f (EXPERIMENT_RECORDS.md#dt-prereg): depth accuracy of a trained checkpoint on its OWN
 training sequences, by sequence depth.
 
 zgz_local lies at 699-742 mm, outside the training depths (<= 710 mm). If the depth error of the recorded models

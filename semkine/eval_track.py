@@ -153,6 +153,9 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
     tsub_path = root / legacy_dir / f"{seq}_tsub.npy"
     tsub = np.load(tsub_path, mmap_mode="r") if tsub_path.exists() else None
     use_raw = bool(getattr(model, "encoder_name", ""))
+    #: XYZ-ASSOC oracle arm (MODEL.XYZ_ASSOC_PREV=target): the model casts the association on the window-end
+    #: ground-truth mesh, so each step hands it pos51[end]. Not deployable; any other model skips this.
+    oracle_assoc = getattr(model, "xyz_assoc_prev", "self") == "target"
     betas = torch.tensor(aux["betas"], dtype=torch.float32, device=device).view(1, -1)
     camera_K = torch.tensor(aux["camera_K"], dtype=torch.float32, device=device).view(1, 3, 3)
     if hasattr(model, "set_hand_context"):
@@ -184,6 +187,8 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
                  .unsqueeze(0).to(device)) if need_lnes else None
             if use_raw:
                 ev5 = _window_events(events, offsets, tsub, int(end), win)
+                if oracle_assoc:
+                    model.xyz_target_override = torch.from_numpy(pos51[end].copy()).view(1, -1).to(device)
                 pred = model.forward_packet(make_eval_packet(ev5, prev_t, betas, camera_K,
                                                              win, device))
             else:
@@ -211,6 +216,8 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
             elapsed.append(int(end - a))
             run_ids.append(run_id)
 
+    if oracle_assoc:
+        model.xyz_target_override = None
     if not preds:
         return None
     preds, gts = np.stack(preds), np.stack(gts)

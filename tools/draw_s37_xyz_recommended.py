@@ -242,7 +242,7 @@ def main():
         print(path)
     manifest = {
         "status": "unimplemented_untrained_design",
-        "basis": "docs/S37_EXPERIMENT_RECORDS.md [XYZ-CANDIDATE]",
+        "basis": "docs/EXPERIMENT_RECORDS.md#s37-xyz-candidate [XYZ-CANDIDATE]",
         "state_contract": "S37 additive 51D state; raw prev[3:51] conditions the common readout",
         "nodes": [asdict(n) for n in NODES],
         "edges": [asdict(e) for e in EDGES],

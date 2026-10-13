@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DT round diagnostic D0d (docs/DT_RENDER_TRACK_PREREG.md section 1): structure of the translation error.
+"""DT round diagnostic D0d (docs/EXPERIMENT_RECORDS.md#dt-prereg section 1): structure of the translation error.
 
 The tracker's absolute translation is what separates its absolute MPJPE from its root-aligned MPJPE. From the
 per-step arrays every closed-loop evaluation saves (`evalx_val_core_last_tf_pert.npz`: keys

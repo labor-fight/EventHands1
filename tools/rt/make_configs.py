@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Root-tracking round (docs/S37_ROOT_TRACKING_VERDICT.md): write every arm's config from its parent.
+"""Root-tracking round (EXPERIMENT_RECORDS.md#root-tracking-verdict): write every arm's config from its parent.
 
 Each arm is its parent config plus the listed overrides and nothing else, so an arm differs from
 its control exactly where the table below says. Parents: `configs/semkine_recipes/s37.yaml` (S37 routed

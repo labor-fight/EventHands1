@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DT3 round: sched2 job JSON for the zero-training probes (docs/DT3_PREREG.md). Prints the job list to stdout and submits
+"""DT3 round: sched2 job JSON for the zero-training probes (EXPERIMENT_RECORDS.md#dt3-prereg). Prints the job list to stdout and submits
 nothing (a dry run by construction); fields as in tools/dt/jobs2.py / fa_jobs.py (id, kind, cwd, [after], prio, cores, mem_mib,
 cmd, [env]). Every id starts with `dt3_`, every path is absolute (cwd = the live repo, so the staged code must be deployed
 before a job runs; use `--after` for the deploy job).

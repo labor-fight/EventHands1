@@ -1,0 +1,10 @@
+{
+ "_template": true,
+ "_note": "Replace with YOUR DAVIS346 calibration (pixels of the 346x260 sensor, OpenCV convention), then delete _template. dist = [k1, k2, p1, p2, k3] or omit. count_scale / hotpix are written by calibrate_davis346.py. betas = your 10 MANO shape parameters (omit for the mean hand). rot180 = camera mounted upside down.",
+ "width": 346,
+ "height": 260,
+ "K": [[300.0, 0.0, 172.5], [0.0, 300.0, 129.5], [0.0, 0.0, 1.0]],
+ "dist": [0.0, 0.0, 0.0, 0.0, 0.0],
+ "count_scale": 3.41,
+ "rot180": false
+}

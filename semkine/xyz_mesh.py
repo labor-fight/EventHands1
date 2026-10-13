@@ -23,6 +23,18 @@ Every event's unit mass is split between vertices (w_ij = q_i A_ij) and the resi
 `geom=False` is the matched control (C0): the same association, records, weights, widths and
 parameter count, with the explicit 3D channels (dXYZ, z_prior, edge vectors) zero at the inputs of
 the learned modules.
+
+Opt-in variants (docs/EXPERIMENT_RECORDS.md#xyz-assoc-20261009; every default is the code above, bit for bit):
+
+* `associate_rays(mode="contour")`: the occluded-silhouette dual hypothesis. The near layer is always
+  computed (with a back-face filter) and an event whose ray hits the surface while a front layer of
+  vertices sits at least `gap` metres in front of the hit keeps both hypotheses: the hit face with
+  weight (1 - alpha) and the front vertices with weight alpha = q_near, in `2 * R_MAX` records, the
+  front ones flagged `ctr = 1`; the relation encoder gets that flag as one more input
+  (`XYZMeshNet(contour=True)`, +64 parameters).
+* `XYZMeshNet.forward(..., verts_geo=...)`: the association comes from another mesh (the oracle arm,
+  the window-end ground truth) while dXYZ, z_prior and the edge geometry are recomputed on `verts_geo`
+  (the arm's own prev mesh), so only the assignment (vid / A / q / valid / hit) is the oracle's.
 """
 from __future__ import annotations
 
@@ -33,6 +45,8 @@ from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn
+
+from .xyz_residual import RESIDUAL_MODES, XYZResidualBranch
 
 #: relation-encoder input: token7 + dXYZ (3) + z_prior (1) + valid (1) + hit (1)
 REL_IN = 7 + 3 + 1 + 1 + 1
@@ -49,6 +63,8 @@ ASSOC_CHUNK = 32768
 #: barycentric slack of the ray/triangle test (float32; covers the shared-edge crack)
 BARY_EPS = 1e-5
 N_JOINTS = 16
+#: values of MODEL.XYZ_ASSOC_MODE
+ASSOC_MODES = ("hit_first", "contour")
 
 
 # region agent log
@@ -116,6 +132,20 @@ def mesh_ring(faces: torch.Tensor, n_verts: int) -> Tuple[torch.Tensor, torch.Te
 
 # --------------------------------------------------------------------------- association
 @torch.no_grad()
+def vertex_normals(verts: torch.Tensor, faces: torch.Tensor) -> torch.Tensor:
+    """Unit vertex normals `(B, V, 3)` of `verts (B, V, 3)`: the area-weighted sum of the incident face
+    normals (the un-normalised cross product of two edges has length 2 * area), normalised. The MANO
+    faces wind counter-clockwise seen from outside, so the normals point out of the surface."""
+    vf = verts.float()
+    f = faces.long()
+    fn = torch.cross(vf[:, f[:, 1]] - vf[:, f[:, 0]], vf[:, f[:, 2]] - vf[:, f[:, 0]], dim=-1)   # (B, F, 3)
+    n = torch.zeros_like(vf)
+    for c in range(3):
+        n.index_add_(1, f[:, c], fn)
+    return n / n.norm(dim=-1, keepdim=True).clamp_min(1e-12)
+
+
+@torch.no_grad()
 def ray_triangle(d: torch.Tensor, p0: torch.Tensor, p1: torch.Tensor, p2: torch.Tensor,
                  eps: float = BARY_EPS) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Moeller-Trumbore for rays from the camera origin. `d (..., 3)`, `p* (..., 3)` broadcast.
@@ -139,7 +169,8 @@ def ray_triangle(d: torch.Tensor, p0: torch.Tensor, p1: torch.Tensor, p2: torch.
 @torch.no_grad()
 def associate_rays(d: torch.Tensor, mask: torch.Tensor, verts: torch.Tensor, faces: torch.Tensor,
                    vert_faces: torch.Tensor, band: torch.Tensor, front_tol: torch.Tensor,
-                   z_tol: float, k: int = 16, chunk: int = ASSOC_CHUNK) -> Dict[str, torch.Tensor]:
+                   z_tol: float, k: int = 16, chunk: int = ASSOC_CHUNK, mode: str = "hit_first",
+                   normals: Optional[torch.Tensor] = None, gap: float = 0.01) -> Dict[str, torch.Tensor]:
     """Event rays against the posed mesh, in camera space.
 
     d: `(B, N, 3)` rays with `d_z = 1`; mask: `(B, N)` live events; verts: `(B, V, 3)` metres;
@@ -156,17 +187,42 @@ def associate_rays(d: torch.Tensor, mask: torch.Tensor, verts: torch.Tensor, fac
     on `prev`, not a measurement.
 
     Returns a dict of `(B, N, R_MAX)` `vid` / `A` and `(B, N)` `q`, `z`, `valid`, `hit`.
+
+    `mode="hit_first"` (the default) is the rule above, unchanged. `mode="contour"` (XYZ-ASSOC
+    replacement rule, docs/EXPERIMENT_RECORDS.md#xyz-assoc-20261009 section 2) differs in three places:
+      1. the near layer is computed for every event, hit or not, over the candidates that are not
+         back-facing: a candidate vertex with `n . d > 0` (`normals (B, V, 3)`, see `vertex_normals`)
+         is dropped before the reference / same-set / front-layer selection;
+      2. an event with a hit, a non-empty near layer and `zfront <= t_hit - gap` (the front layer sits
+         at least `gap` metres in front of the hit surface: an occluding contour) keeps both
+         hypotheses: the hit face's three vertices with weight (1 - alpha) A_hit in records 0..3 and
+         the front vertices with weight alpha A_near in records 4..7, alpha = q_near; `q = 1`, `r = 0`,
+         `hit = valid = 1`;
+      3. every other event is as in `hit_first`: a hit takes the hit face (records 4..7 weigh 0), no hit
+         takes the (back-face filtered) near layer, neither is `none`.
+    The dict then has `R = 2 * R_MAX` records: `vid` / `A` / `z` are `(B, N, R)` (`z` per record: the hit
+    depth for the hit records, `z_near` for the front ones) and `ctr (B, N, R)` bool flags the front
+    records of a two-hypothesis event. Per live event the weights still sum to one with the residual.
     """
+    if mode not in ASSOC_MODES:
+        raise ValueError(f"associate_rays mode must be one of {ASSOC_MODES}, got {mode!r}")
+    contour = mode == "contour"
+    if contour and normals is None:
+        raise ValueError("associate_rays(mode='contour') needs the vertex normals")
     B, N, _ = d.shape
     V = verts.shape[1]
     dev = d.device
-    vid = torch.zeros(B, N, R_MAX, dtype=torch.long, device=dev)
-    A = torch.zeros(B, N, R_MAX, dtype=torch.float32, device=dev)
+    R = 2 * R_MAX if contour else R_MAX
+    vid = torch.zeros(B, N, R, dtype=torch.long, device=dev)
+    A = torch.zeros(B, N, R, dtype=torch.float32, device=dev)
     q = torch.zeros(B, N, dtype=torch.float32, device=dev)
-    z = torch.zeros(B, N, dtype=torch.float32, device=dev)
+    z = torch.zeros(B, N, R, dtype=torch.float32, device=dev) if contour else \
+        torch.zeros(B, N, dtype=torch.float32, device=dev)
     valid = torch.zeros(B, N, dtype=torch.bool, device=dev)
     hit = torch.zeros(B, N, dtype=torch.bool, device=dev)
     out = {"vid": vid, "A": A, "q": q, "z": z, "valid": valid, "hit": hit}
+    if contour:
+        out["ctr"] = torch.zeros(B, N, R, dtype=torch.bool, device=dev)
     flat = mask.reshape(-1).nonzero().squeeze(1)
     if flat.numel() == 0:
         return out
@@ -176,6 +232,7 @@ def associate_rays(d: torch.Tensor, mask: torch.Tensor, verts: torch.Tensor, fac
     vu = (Vf[..., 0] / zv.clamp_min(1e-6)).masked_fill(bad, 1e6)                   # (B, V)
     vv = (Vf[..., 1] / zv.clamp_min(1e-6)).masked_fill(bad, 1e6)
     faces = faces.long()
+    nrm = normals.float() if contour else None
     kk = max(1, min(int(k), V))
     col = torch.arange(kk, device=dev)
     parts = {key: [] for key in out}
@@ -210,8 +267,16 @@ def associate_rays(d: torch.Tensor, mask: torch.Tensor, verts: torch.Tensor, fac
         ftl = front_tol[b].float().unsqueeze(1)
         Vn = Vf[b.view(m, 1), nid]                                                   # (m, kk, 3)
         zj = (Vn * dd.unsqueeze(1)).sum(-1) / (dd * dd).sum(-1, keepdim=True)        # closest-point depth
-        inband = (nang <= bnd) & (zj > 1e-4)
-        same = inband & (nang <= nang[:, :1] + ftl)
+        if contour:
+            # back-facing candidates leave the near layer before the reference is picked
+            back = (nrm[b.view(m, 1), nid] * dd.unsqueeze(1)).sum(-1) > 0.0
+            nang_c = nang.masked_fill(back, float("inf"))
+            ref = nang_c.min(-1, keepdim=True).values
+        else:
+            nang_c = nang
+            ref = nang[:, :1]
+        inband = (nang_c <= bnd) & (zj > 1e-4)
+        same = inband & (nang_c <= ref + ftl)
         zfront = torch.where(same, zj, torch.full_like(zj, float("inf"))).min(-1).values
         layer = inband & (zj <= zfront.unsqueeze(1) + float(z_tol))
         rank = torch.where(layer, col.unsqueeze(0), col.unsqueeze(0) + kk)
@@ -226,10 +291,26 @@ def associate_rays(d: torch.Tensor, mask: torch.Tensor, verts: torch.Tensor, fac
         z_near = (A_near * zj.gather(1, cols)).sum(-1)
         vid_near = nid.gather(1, cols)
         ok = is_hit | is_near
-        parts["vid"].append(torch.where(is_hit[:, None], vid_hit, vid_near) * ok[:, None])
-        parts["A"].append(torch.where(is_hit[:, None], A_hit, A_near) * ok[:, None])
-        parts["q"].append(torch.where(is_hit, torch.ones_like(q_near), q_near) * ok)
-        parts["z"].append(torch.where(is_hit, tmin, z_near) * ok)
+        if contour:
+            near_ok = kept.any(-1)
+            occl = is_hit & near_ok & (zfront <= tmin - float(gap))                  # occluded contour
+            om = occl.unsqueeze(1)
+            alpha = q_near
+            a_front = torch.where(is_hit[:, None],
+                                  torch.where(om, (1.0 - alpha).unsqueeze(1) * A_hit, A_hit), A_near)
+            parts["vid"].append(torch.cat([torch.where(is_hit[:, None], vid_hit, vid_near),
+                                           vid_near * om], dim=1) * ok[:, None])
+            parts["A"].append(torch.cat([a_front, alpha.unsqueeze(1) * A_near * om], dim=1) * ok[:, None])
+            z_front = torch.where(is_hit, tmin, z_near) * ok
+            parts["z"].append(torch.cat([z_front.unsqueeze(1).expand(m, R_MAX),
+                                         (z_near * occl).unsqueeze(1).expand(m, R_MAX)], dim=1))
+            parts["q"].append(torch.where(is_hit, torch.ones_like(q_near), q_near) * ok)
+            parts["ctr"].append(torch.cat([torch.zeros_like(kept), om & kept], dim=1))
+        else:
+            parts["vid"].append(torch.where(is_hit[:, None], vid_hit, vid_near) * ok[:, None])
+            parts["A"].append(torch.where(is_hit[:, None], A_hit, A_near) * ok[:, None])
+            parts["q"].append(torch.where(is_hit, torch.ones_like(q_near), q_near) * ok)
+            parts["z"].append(torch.where(is_hit, tmin, z_near) * ok)
         parts["valid"].append(ok)
         parts["hit"].append(is_hit)
     for key, dst in out.items():
@@ -299,14 +380,21 @@ class XYZMeshNet(nn.Module):
 
     def __init__(self, lbs_weights: torch.Tensor, faces: torch.Tensor, hidden: int = 128,
                  n_layers: int = 3, rel_hidden: int = 64, slot_dim: int = 32,
-                 readout_hidden: int = 256, edge_dim: int = 32, geom: bool = True):
+                 readout_hidden: int = 256, edge_dim: int = 32, geom: bool = True, contour: bool = False,
+                 residual_mode: str = "legacy", residual_seed: int = 19073):
         super().__init__()
+        if residual_mode not in RESIDUAL_MODES:
+            raise ValueError(f"residual_mode must be one of {RESIDUAL_MODES}, got {residual_mode!r}")
+        self.residual_mode = residual_mode
         V = int(lbs_weights.shape[0])
         self.hidden = int(hidden)
         self.geom = bool(geom)
+        #: `associate_rays(mode="contour")` records: one more relation-encoder input, the `ctr` flag
+        self.contour = bool(contour)
+        self.rel_in = REL_IN + int(self.contour)
         self.slot_in = 2 * self.hidden + 2
         # (1) shared relation encoder
-        self.rel = nn.Sequential(nn.Linear(REL_IN, rel_hidden), nn.ReLU(inplace=True),
+        self.rel = nn.Sequential(nn.Linear(self.rel_in, rel_hidden), nn.ReLU(inplace=True),
                                  nn.Linear(rel_hidden, self.hidden))
         # (2) one MeshGNN: vertex input projection (no bias), shared edge embedding, L rounds
         self.vin = nn.Linear(2 * self.hidden + 1, self.hidden, bias=False)
@@ -315,7 +403,12 @@ class XYZMeshNet(nn.Module):
         # (3) one common readout: slot-specific compression (grouped 1x1 conv), then a joint MLP
         self.slot_proj = nn.Conv1d(self.N_SLOTS * self.slot_in, self.N_SLOTS * slot_dim, 1,
                                    groups=self.N_SLOTS)
-        self.fc1 = nn.Linear(self.N_SLOTS * slot_dim + 48, readout_hidden)
+        extra_dim = 0
+        if self.residual_mode != "legacy":
+            self.residual = XYZResidualBranch(self.residual_mode,
+                                              permutation_seed=residual_seed)
+            extra_dim = self.residual.out_dim
+        self.fc1 = nn.Linear(self.N_SLOTS * slot_dim + 48 + extra_dim, readout_hidden)
         self.fc2 = nn.Linear(readout_hidden, 51)
         nn.init.zeros_(self.fc2.weight)
         nn.init.zeros_(self.fc2.bias)
@@ -336,7 +429,11 @@ class XYZMeshNet(nn.Module):
         g = torch.cat([dv, dv.norm(dim=-1, keepdim=True)], dim=-1) / L_EDGE
         return g * self.ring_mask.view(1, V, K, 1)
 
-    def forward(self, tok, d, mask, verts, assoc, prev48, ablate: bool = False):
+    def forward(self, tok, d, mask, verts, assoc, prev48, ablate: bool = False, verts_geo=None):
+        """`verts_geo` (the oracle arm): when the association `assoc` was cast on another mesh, the
+        geometry the relation encoder and the mesh edges see comes from `verts_geo` alone: per record
+        `zj = V_geo[vid] . d / d . d`, per event `z_prior = sum_r w_r zj_r / sum_r w_r`, `X = z_prior d`,
+        `dXYZ = (X - V_geo[vid]) / L_REL`, `edge_geometry(verts_geo)`. `None`: `assoc["z"]` and `verts`."""
         B, N, _ = tok.shape
         V = verts.shape[1]
         C = self.hidden
@@ -353,15 +450,29 @@ class XYZMeshNet(nn.Module):
         rb, rn, rr = (w > 0).nonzero(as_tuple=True)
         vrec = assoc["vid"][rb, rn, rr]
         wrec = w[rb, rn, rr]
-        zrec = assoc["z"][rb, rn]
-        X = zrec.unsqueeze(-1) * d[rb, rn].float()
-        dxyz = (X - verts[rb, vrec].float()) / L_REL
+        drec = d[rb, rn].float()
+        if verts_geo is None:
+            zrec = assoc["z"][rb, rn] if assoc["z"].dim() == 2 else assoc["z"][rb, rn, rr]
+            vxyz = verts[rb, vrec].float()
+        else:
+            vxyz = verts_geo.float()[rb, vrec]
+            zj = (vxyz * drec).sum(-1) / (drec * drec).sum(-1)
+            ekey = rb * N + rn
+            wsum = torch.zeros(B * N, device=dev, dtype=torch.float32).index_add(0, ekey, wrec.float())
+            zsum = torch.zeros(B * N, device=dev, dtype=torch.float32).index_add(0, ekey, wrec.float() * zj)
+            zrec = (zsum / wsum.clamp_min(1e-12))[ekey]
+        X = zrec.unsqueeze(-1) * drec
+        dxyz = (X - vxyz) / L_REL
         zn = ((zrec - Z_REF) / Z_SCALE).unsqueeze(-1)
         if not self.geom:
             dxyz = torch.zeros_like(dxyz)
             zn = torch.zeros_like(zn)
-        feat = torch.cat([tok[rb, rn].float(), dxyz, zn, torch.ones_like(zn),
-                          assoc["hit"][rb, rn].float().unsqueeze(-1)], dim=-1)
+        cols = [tok[rb, rn].float(), dxyz, zn, torch.ones_like(zn), assoc["hit"][rb, rn].float().unsqueeze(-1)]
+        if self.contour:
+            if "ctr" not in assoc:
+                raise ValueError("XYZMeshNet(contour=True) needs associate_rays(mode='contour') records")
+            cols.append(assoc["ctr"][rb, rn, rr].float().unsqueeze(-1))
+        feat = torch.cat(cols, dim=-1)
         phi = self.rel(feat.to(wdt))                                                    # (R, C)
         key = rb * V + vrec
         mass = torch.zeros(B * V, device=dev, dtype=acc).index_add(0, key, wrec.to(acc))
@@ -376,7 +487,7 @@ class XYZMeshNet(nn.Module):
         O = has.view(B, V).to(torch.float32)
         H = self.vin(x.view(B, V, 2 * C + 1).to(wdt))
         # ---- MeshGNN on the fixed 1-ring
-        g = self.edge_geometry(verts)
+        g = self.edge_geometry(verts if verts_geo is None else verts_geo)
         if not self.geom:
             g = torch.zeros_like(g)
         gemb = torch.relu(self.edge(g.to(wdt)))
@@ -387,7 +498,7 @@ class XYZMeshNet(nn.Module):
         # ---- residual (unmatched / weakly matched) summary with the same phi
         eb, en = (r > 0).nonzero(as_tuple=True)
         tr = tok[eb, en].float()
-        feat_r = torch.cat([tr, torch.zeros(tr.shape[0], REL_IN - tr.shape[1], device=dev)], dim=-1)
+        feat_r = torch.cat([tr, torch.zeros(tr.shape[0], self.rel_in - tr.shape[1], device=dev)], dim=-1)
         phi_r = self.rel(feat_r.to(wdt))
         rw = r[eb, en]
         rs = torch.zeros(B, device=dev, dtype=acc).index_add(0, eb, rw.to(acc))
@@ -403,7 +514,12 @@ class XYZMeshNet(nn.Module):
         slots = torch.cat([e.to(torch.float32), bslot.unsqueeze(1)], dim=1)             # (B, 17, 2C+2)
         # ---- common readout
         zs = torch.relu(self.slot_proj(slots.reshape(B, -1, 1).to(wdt))).view(B, -1)
-        h = torch.relu(self.fc1(torch.cat([zs, prev48.to(zs.dtype)], dim=-1)))
+        readout = [zs, prev48.to(zs.dtype)]
+        residual_aux = {}
+        if self.residual_mode != "legacy":
+            extra, residual_aux = self.residual(tok, r, mask)
+            readout.append(extra.to(zs.dtype))
+        h = torch.relu(self.fc1(torch.cat(readout, dim=-1)))
         delta = self.fc2(h)
         n_live = mask_f.sum()
         stats = {
@@ -413,9 +529,19 @@ class XYZMeshNet(nn.Module):
             "xyz_verts_direct": O.sum(1).mean(),
             "xyz_verts_prop": S.sum(1).mean(),
         }
-        return delta, stats, {"slots": slots, "O": O, "S": S, "w": w, "r": r}
+        aux = {"slots": slots, "O": O, "S": S, "w": w, "r": r}
+        if self.residual_mode != "legacy":
+            aux.update(residual_aux)
+            for key, value in residual_aux.items():
+                if value.ndim == 0:
+                    stats["xyz_" + key] = value
+        if self.contour:
+            #: mass share of the foreground (ctr) records of the two-hypothesis events
+            stats["xyz_ctr_mass"] = (w * assoc["ctr"].to(w.dtype)).sum() / n_live.clamp_min(1.0)
+            aux["ctr"] = assoc["ctr"]
+        return delta, stats, aux
 
 
-__all__ = ["ASSOC_CHUNK", "L_EDGE", "L_REL", "REL_IN", "R_MAX", "XYZMeshLayer", "XYZMeshNet",
+__all__ = ["ASSOC_CHUNK", "ASSOC_MODES", "L_EDGE", "L_REL", "REL_IN", "R_MAX", "XYZMeshLayer", "XYZMeshNet",
            "agent_log", "associate_rays", "lbs_slot_pool", "mesh_ring", "ray_triangle",
-           "stride_sample", "vertex_face_table"]
+           "stride_sample", "vertex_face_table", "vertex_normals"]

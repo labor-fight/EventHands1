@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""DT2: build docs/DT2_VERDICT.md from its template and the generated tables (numbers are not copied by hand).
+"""DT2: rebuild its consolidated verdict section from generated tables.
 
-    python tools/dt/dt2_verdict_build.py --template outputs/dt2/reports/DT2_VERDICT.tmpl.md --out docs/DT2_VERDICT.md
+    python tools/dt/dt2_verdict_build.py --template outputs/dt2/reports/DT2_VERDICT.tmpl.md
+    python tools/dt/dt2_verdict_build.py --out /tmp/DT2_VERDICT.md  # standalone report
 """
 from __future__ import annotations
 
@@ -13,6 +14,10 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO))
+from tools.experiment_records import demote_headings, get_section, replace_section
+
+DOC = REPO / "docs" / "EXPERIMENT_RECORDS.md"
 REP = REPO / "outputs/dt2/reports"
 PY = sys.executable
 ARMS2 = ("dt_dz_l3_nfh dt_dz_l3_nfk dt_dz_l3_w50 dt_dz_l3_w100 dt_dz_l3_lf dt_dz_l3_nosw dt_dz_l3_ema dt_dz_l3_wd dt_dz_l3_reg "
@@ -51,8 +56,10 @@ def bench_table(path: Path, title: str) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--template", default=str(REP / "DT2_VERDICT.tmpl.md"))
-    ap.add_argument("--out", default=str(REPO / "docs/DT2_VERDICT.md"))
+    ap.add_argument("--out", default=str(DOC))
     a = ap.parse_args()
+    destination = Path(a.out)
+    snapshot = get_section(destination, "DT2-VERDICT") if destination.resolve() == DOC.resolve() else None
     rows = [(r, l) for r, l in MAIN if (REPO / "outputs/semkine" / f"{r}_main_row.json").exists()]
     main_tab = run("tools/report_table.py", *[f"--label={r}={l}" for r, l in rows], *[r for r, _ in rows])
     cmp2 = run("tools/dt/dt2_compare.py", "--base", "dt_dz_l3", "--arms", *ARMS2, "--seeds", "3407", "3408",
@@ -70,7 +77,10 @@ def main() -> None:
     left = [k for k in ("<<MAIN>>", "<<CMP2>>", "<<CMP3>>", "<<FILT>>", "<<BENCH>>", "<<BENCHW>>", "<<DATE>>") if k in s]
     if left:
         raise SystemExit(f"unfilled placeholders: {left}")
-    Path(a.out).write_text(s)
+    if snapshot is not None:
+        replace_section(destination, "DT2-VERDICT", demote_headings(s), expected=snapshot)
+    else:
+        destination.write_text(s)
     print(f"wrote {a.out} ({len(s.splitlines())} lines; main rows: {', '.join(r for r, _ in rows)})")
 
 

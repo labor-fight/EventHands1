@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """S38: S37 must stay bitwise reproducible. Re-evaluates rt_s37_s3407 (last step, GPU, protocol loop) and
-compares with the recorded 23.557357022200772 mm (docs/S37_ROOT_TRACKING_VERDICT.md section 9)."""
+compares with the recorded 23.557357022200772 mm (docs/EXPERIMENT_RECORDS.md#root-tracking-verdict section 9)."""
 import sys, json
 from pathlib import Path
 import numpy as np, torch

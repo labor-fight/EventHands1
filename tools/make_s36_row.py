@@ -21,6 +21,10 @@ script refuses runs configured otherwise rather than printing a silently wrong n
     CUDA_VISIBLE_DEVICES=0 python tools/make_s36_row.py --run <arm>          # any later arm
     CUDA_VISIBLE_DEVICES=0 python tools/make_s36_row.py --run <arm> --split test --subject zgz
         # score the selected checkpoint on another set for the record (val_core is zgz already)
+    CUDA_VISIBLE_DEVICES=0 python tools/make_s36_row.py --run xa_c1 --step last
+        # XYZ-ASSOC: the last step (step=6000 checkpoint, else the largest step) of every seed, no selection
+        # JSON, no drift assertion; written to <run>_main_row_last.json. `--step 3000` scores that step
+        # (<run>_main_row_step3000.json). The default `--step selection` is the behaviour above.
 
 The FLOPs column reports the whole `forward_packet` (thop, standard layers only) next to the
 frontend-only figure the S36 row used, so an arm whose conditioning path holds parameters
@@ -31,6 +35,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -60,14 +65,67 @@ def wmean(rows, key):
     return sum(r[key] * r["n_frames"] for r in rows) / max(n, 1)
 
 
-def eval_seed(run_name: str, seed: int, device, split: str = "val_core", subject: str | None = None):
+def step_policy_arg(text: str):
+    """`--step`: `selection` (the selection JSON's pick, the default), `last`, or an integer step."""
+    t = str(text).strip().lower()
+    if t in ("selection", "last"):
+        return t
+    try:
+        n = int(t)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"--step must be selection, last or an integer step, got {text!r}") from None
+    if n <= 0:
+        raise argparse.ArgumentTypeError(f"--step must be a positive step, got {n}")
+    return n
+
+
+def row_tag(split: str, subject: str | None, step_policy) -> str:
+    """Suffix of `<run>_main_row<tag>.json`: the split / subject tag of a non-default evaluation set, then
+    `_last` / `_step<n>` for a non-default checkpoint policy. The default (selection on val_core) is ''."""
+    tag = "" if (split == "val_core" and not subject) else f"_{split}_{subject or 'all'}"
+    if step_policy == "last":
+        tag += "_last"
+    elif step_policy != "selection":
+        tag += f"_step{step_policy}"
+    return tag
+
+
+def resolve_step_ckpt(run: Path, policy) -> tuple[int, Path]:
+    """`(step, checkpoint)` of the non-selection policies. `last`: the `*step=6000.ckpt` (the configured
+    MAX_STEPS) if the run has it, else the largest `step=<n>` checkpoint; an integer: that step. Two
+    checkpoints for one step (Lightning's `-v1` copies) are ambiguous and raise."""
+    grid: dict[int, list[Path]] = {}
+    for p in sorted(run.glob("*step=*.ckpt")):
+        m = re.search(r"step=(\d+)", p.name)
+        if m:
+            grid.setdefault(int(m.group(1)), []).append(p)
+    if not grid:
+        raise FileNotFoundError(f"no *step=<n>.ckpt in {run}")
+    step = (6000 if 6000 in grid else max(grid)) if policy == "last" else int(policy)
+    if step not in grid:
+        raise FileNotFoundError(f"no step={step} checkpoint in {run} (have {sorted(grid)})")
+    if len(grid[step]) > 1:
+        raise RuntimeError(f"several step={step} checkpoints in {run}: {[p.name for p in grid[step]]}")
+    if policy == "last" and step != 6000:
+        print(f"  WARNING {run.name}: no step=6000 checkpoint, 'last' = step {step}")
+    return step, grid[step][0]
+
+
+def eval_seed(run_name: str, seed: int, device, split: str = "val_core", subject: str | None = None,
+              step_policy="selection"):
     """Under the current protocol `val_core` *is* the held-out subject zgz (`zgz_global`,
     `zgz_local`), which is also what the main table reports on; `split`/`subject` remain for
-    scoring a selected checkpoint on some other set for the record."""
+    scoring a selected checkpoint on some other set for the record. `step_policy` other than
+    `selection` scores the run's last / a given step instead of the selection JSON's pick (no
+    selection file needed, no drift assertion)."""
     run = REPO / f"outputs/semkine/{run_name}_s{seed}"
-    sel_files = sorted(run.glob(f"selection_val_core_step{STEP_MS}*.json"))
-    assert sel_files, f"no selection file in {run}"
-    sel = json.loads(sel_files[0].read_text())["selected"]
+    if step_policy == "selection":
+        sel_files = sorted(run.glob(f"selection_val_core_step{STEP_MS}*.json"))
+        assert sel_files, f"no selection file in {run}"
+        sel = json.loads(sel_files[0].read_text())["selected"]
+    else:
+        step, ckpt = resolve_step_ckpt(run, step_policy)
+        sel = {"step": step, "ckpt": str(ckpt)}
     cfg = load_config(json.loads((run / "training_metadata.json").read_text())["config_path"])
     root = Path(cfg["DATA"]["ROOT"])
     mani = splits_manifest(cfg)
@@ -88,7 +146,7 @@ def eval_seed(run_name: str, seed: int, device, split: str = "val_core", subject
            "local": {k: wmean([r for r in res if LOCAL(r["seq"])], k) for k in METRICS},
            "global": {k: wmean([r for r in res if not LOCAL(r["seq"])], k) for k in METRICS},
            "per_seq": {r["seq"]: {k: r[k] for k in METRICS} for r in res}}
-    if split == "val_core" and not subject:
+    if step_policy == "selection" and split == "val_core" and not subject:
         drift = abs(agg["overall"]["mpjpe_ra_mm"] - sel["mpjpe_ra_mm"])
         print(f"  s{seed}: step={sel['step']} RA={agg['overall']['mpjpe_ra_mm']:.4f} "
               f"(selection said {sel['mpjpe_ra_mm']:.4f}, drift {drift:.4f} mm)")
@@ -138,24 +196,32 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
     betas = torch.tensor(aux["betas"], dtype=torch.float32, device=device).view(1, -1)
     K = torch.tensor(aux["camera_K"], dtype=torch.float32, device=device).view(1, 3, 3)
     model.set_hand_context(betas, K)
-    packets, counts = [], []
+    packets, counts, gts = [], [], []
+    #: XYZ-ASSOC oracle arm: its association needs the window-end ground truth for every packet
+    oracle = getattr(model, "xyz_assoc_prev", "self") == "target"
     for a, b in np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2):
         prev = torch.from_numpy(pos51[a].copy()).view(1, -1).to(device)
         for end in np.arange(a + STEP_MS - 1, b, STEP_MS, dtype=np.int64):
             ev5 = ET._window_events(events, offsets, tsub, int(end), STEP_MS)
             packets.append(ET.make_eval_packet(ev5, prev, betas, K, STEP_MS, device))
             counts.append(len(ev5))
+            if oracle:
+                gts.append(torch.from_numpy(pos51[end].copy()).view(1, -1).to(device))
             if len(packets) >= max_packets:
                 break
         if len(packets) >= max_packets:
             break
-    for b_ in packets[:100]:
+    for i, b_ in enumerate(packets[:100]):
+        if oracle:
+            model.xyz_target_override = gts[i]
         model.forward_packet(b_)
     torch.cuda.synchronize()
     means = []
     for _ in range(passes):
         t0 = time.perf_counter()
-        for b_ in packets:
+        for i, b_ in enumerate(packets):
+            if oracle:
+                model.xyz_target_override = gts[i]
             model.forward_packet(b_)
         torch.cuda.synchronize()
         means.append((time.perf_counter() - t0) / len(packets) * 1e3)
@@ -288,15 +354,21 @@ def main() -> None:
                          "for the main table's held-out pair")
     ap.add_argument("--seeds", default=",".join(str(s) for s in SEEDS),
                     help="comma-separated seeds; a single seed is a screen row, not an adoption row")
+    ap.add_argument("--step", type=step_policy_arg, default="selection", metavar="{selection|last|<int>}",
+                    help="which checkpoint of each seed to score: the selection JSON's pick (default), the last "
+                         "step (step=6000 checkpoint, else the largest step; no selection file, no drift "
+                         "assertion; row -> <run>_main_row_last.json) or a given step (-> _main_row_step<n>.json)")
     args = ap.parse_args()
     seeds = tuple(int(s) for s in args.seeds.split(","))
     device = torch.device("cuda")
-    tag = "" if (args.split == "val_core" and not args.subject) else f"_{args.split}_{args.subject or 'all'}"
+    tag = row_tag(args.split, args.subject, args.step)
+    ckpt_what = {"selection": "selected checkpoints", "last": "last-step checkpoints (no selection)"}.get(
+        args.step, f"step-{args.step} checkpoints (no selection)")
     print(f"== {args.run}: accuracy ({args.split}/{args.subject or 'all'}, "
-          f"50 ms recursive, selected checkpoints) ==")
+          f"50 ms recursive, {ckpt_what}) ==")
     per_seed, cfg, seqs, root = {}, None, None, None
     for seed in seeds:
-        agg, cfg, seqs, root = eval_seed(args.run, seed, device, args.split, args.subject)
+        agg, cfg, seqs, root = eval_seed(args.run, seed, device, args.split, args.subject, args.step)
         per_seed[seed] = agg
 
     mean2 = {blk: {k: float(np.mean([per_seed[s][blk][k] for s in seeds]))
@@ -326,6 +398,13 @@ def main() -> None:
                         "step_ms": STEP_MS, "sequences": per_seed[seeds[0]]["sequences"],
                         "note": ("accuracy = two-seed mean of each seed's selected step" if len(seeds) > 1
                                  else f"accuracy = seed {seeds[0]} only (screen row, not an adoption row)")}}
+    if args.step != "selection":
+        # the default row keeps its keys; a last-step / fixed-step row says which policy produced it
+        row["step_policy"] = "last" if args.step == "last" else f"step{args.step}"
+        row["protocol"]["step_policy"] = row["step_policy"]
+        row["protocol"]["note"] = (f"accuracy = {'two-seed mean' if len(seeds) > 1 else 'seed ' + str(seeds[0])}"
+                                   f" of each seed's {row['step_policy']} checkpoint, steps "
+                                   f"{[per_seed[s]['step'] for s in seeds]} (no checkpoint selection)")
     out = REPO / f"outputs/semkine/{args.run}_main_row{tag}.json"
     out.write_text(json.dumps(row, indent=2))
 

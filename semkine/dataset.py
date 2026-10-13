@@ -196,6 +196,9 @@ class SemKineDataset(Dataset):
         triplet_frac: float = 1.0 / 3.0,
         fast_pipe: Optional[bool] = None,
         prev_lag_ms: Optional[int] = None,
+        clip_k: int = 0,
+        clip_window: int = 200,
+        clip_frac: float = 0.5,
     ):
         if input_mode not in self.INPUT_MODES:
             raise ValueError(f"INPUT_MODE must be one of {self.INPUT_MODES}, got {input_mode!r}")
@@ -242,6 +245,23 @@ class SemKineDataset(Dataset):
                 raise ValueError(f"DATA.TRIPLET_FRAC must be a float in (0, 1], got {triplet_frac!r}")
             self.triplet_frac = frac
         self.event_channels = tuple(event_channels)
+        # S42 candidate B (docs/EXPERIMENT_RECORDS.md#s42-prereg), DATA.CLIP_K / CLIP_WINDOW / CLIP_FRAC: with probability
+        # CLIP_FRAC (a coin drawn after every draw of the plain sample, so the plain sample is unchanged) a training sample
+        # also carries a clip of the deployed loop -- CLIP_K consecutive 50 ms steps ending at the sample's own end, each
+        # step's evidence the CLIP_WINDOW ms before it clipped to the run start (the evaluation's W200 clip-run-start
+        # window), under the main window's domain randomisation -- plus the ground truth of every step, the protocol
+        # initial state GT(first end - 50) + the small prev noise, and each step's 50 ms event count (raw x keep). The
+        # model rolls the clip out on its own filtered states (`MNISTModel._maybe_self`). 0 (the default): off.
+        self.clip_k = int(clip_k or 0) if self.train else 0
+        self.clip_window = int(clip_window)
+        self.clip_frac = float(clip_frac)
+        if self.clip_k:
+            if self.clip_k < 2 or self.input_mode != "legacy_lnes" or self.triplet or self.unroll_pair:
+                raise ValueError("DATA.CLIP_K >= 2 needs INPUT_MODE legacy_lnes and no TRIPLET / UNROLL_PAIR")
+            if not (1 <= self.clip_window <= 255 and 0.0 < self.clip_frac <= 1.0):
+                raise ValueError("DATA.CLIP_WINDOW must lie in [1, 255] ms (uint8 LNES codes) and CLIP_FRAC in (0, 1]")
+            if tuple(event_channels) != ("last",):
+                raise ValueError("DATA.CLIP_K stores plain LNES codes; it needs DATA.EVENT_CHANNELS unset / ['last']")
         # DT2 deviation 7, DATA.PREV_LAG_MS: the conditioning state is the ground truth `lag` ms before the window's end
         # (`pos51[end - lag + 1]`, clipped to the run start) instead of the window's first ms, so the age of `prev` no
         # longer equals the evidence window. None (the default) is the recorded behaviour, bit for bit. Plain windows only.
@@ -502,6 +522,9 @@ class SemKineDataset(Dataset):
         if self.input_mode == "legacy_lnes":
             # Legacy 5-tuple so the existing training loop and model take this dataset as-is.
             main = self._legacy_tuple(packet)
+            if self.clip_k:
+                win = lambda e, w: self._triplet_window(si, h, e, w, run_a, dr, flip, swap_mask, rng)   # noqa: E731
+                return self._clip_sample(idx, h, end, dr, rng, main, win)
             if not self.triplet:
                 return main
             return self._triplet_sample(idx, si, h, end, window, dr, flip, swap_mask, rng, main)
@@ -522,6 +545,123 @@ class SemKineDataset(Dataset):
             torch.from_numpy(packet.betas),
             torch.from_numpy(packet.camera_K),
         )
+
+    #: step of the deployed loop (ms), the evaluation's
+    CLIP_STEP = 50
+
+    def _fast_clip_codes(self, h, ends, ws, dr, pol, rng):
+        """The uint8 LNES codes `(K, H, W, 2)` of the clip windows `[e_k - w_k + 1, e_k]` from ONE pass over the union of
+        their events (the fast path's pixel map, polarity table and keep rule, `_fast_render`), plus hot pixels at the
+        configured rate over the union. Overlapping windows share their events, their keep draws and their hot pixels
+        (a per-window build would redraw them). Code = ms of the slot's latest event relative to the window start (0 = no
+        event, as LNES), so `code / w` is the LNES value `events.splat_event_image` writes, bit for bit without
+        augmentation (tools/trk6/test_self.py)."""
+        H, W = self.height, self.width
+        hw = H * W
+        u0 = min(e - w + 1 for e, w in zip(ends, ws))
+        u1 = max(ends)
+        L = u1 - u0 + 1
+        off = h.offsets
+        a0, a1 = int(off[u0]), int(off[u1 + 1])
+        n = a1 - a0
+        nslot = hw * 2 + 4
+        last = np.full(nslot, -1, np.int32)
+        slot = ms = cum = None
+        if n > 0:
+            if h.tsub is not None:
+                ts = h.tsub[a0:a1]
+                if int(ts.max()) >= _TSUB_BOUND or (ts.dtype.kind != "u" and int(ts.min()) < 0):
+                    raise _FastFallback
+            ev = np.ascontiguousarray(h.events[a0:a1])
+            if ev.dtype != np.uint8 or ev.ndim != 2 or ev.shape[1] != 3:
+                raise _FastFallback
+            scr = self._fast_scratch()
+            key = np.ndarray((n,), dtype="<u2", buffer=ev, strides=(3,)).astype(np.intp)     # y * 256 + x
+            occ = scr.occ
+            occ[key] = True
+            src = occ.nonzero()[0]
+            occ.fill(False)
+            sx, sy = src & 255, src >> 8
+            if int(sx.max()) >= W or int(sy.max()) >= H:
+                raise _FastFallback
+            npx = DR.map_pixel_grid(sx, sy, dr, h.camera_K, self.render_scale, W, H)
+            scr.table[src] = (npx + 1) * 2 + pol[npx]
+            slot = scr.table[key]
+            np.bitwise_xor(slot, np.minimum(ev[:, 2], 1), out=slot)
+            if dr.keep < 1.0:
+                slot *= rng.random(n) < dr.keep
+            counts = np.diff(off[u0:u1 + 2])
+            ms = np.repeat(np.arange(L, dtype=np.int32), counts)
+            cum = np.cumsum(counts)
+        hot_slot = hot_ms = None
+        hlast = np.full(nslot, -1, np.int32)
+        if self.domrand.enabled and self.domrand.hot_pixel_rate > 0:
+            n_hot = int(rng.poisson(self.domrand.hot_pixel_rate * hw * 2 * L))
+            hot = DR.sample_hot_pixels(n_hot, L, W, H, rng)
+            if hot is not None:
+                order = np.argsort(hot[:, 0], kind="stable")
+                hm, hx, hy, hp = (hot[order, i] for i in range(4))
+                hpix = hy * W + hx
+                hot_slot = (hpix + 1) * 2 + (np.minimum(hp, 1) ^ pol[hpix])
+                hot_ms = hm.astype(np.int32)
+        codes = np.zeros((len(ends), H, W, 2), np.uint8)
+        i_prev = j_prev = 0
+        for k, (e, w) in enumerate(zip(ends, ws)):
+            upto = e - u0
+            if slot is not None:
+                i_k = int(cum[upto])
+                last[slot[i_prev:i_k]] = ms[i_prev:i_k]            # time-ordered: the last write is the latest
+                i_prev = i_k
+            if hot_slot is not None:
+                j_k = int(np.searchsorted(hot_ms, upto, side="right"))
+                hlast[hot_slot[j_prev:j_k]] = hot_ms[j_prev:j_k]
+                j_prev = j_k
+            m = np.maximum(last, hlast)[2:2 + hw * 2]
+            s_rel = e - w + 1 - u0
+            codes[k] = np.where(m >= s_rel, m - s_rel, 0).astype(np.uint8).reshape(H, W, 2)
+        return codes
+
+    def _clip_sample(self, idx, h, end, dr, rng, main, window_fn, pol=None):
+        """S42 candidate B: `{"main", "valid"[, "clip_codes", "clip_w", "clip_tgt", "clip_init", "clip_n50"]}`.
+
+        `main` is the plain sample bit for bit; the coin is the first draw after it. The clip's steps end at
+        `end - 50 (K - 1 - k)`, k = 0 .. K-1 (the last one is the plain sample's end); `window_fn(e, w)` builds the
+        legacy tuple of the window `[e - w + 1, e]` under the main sample's domain randomisation (its own keep mask and
+        hot pixels). LNES values are `ms / w` with integer ms (`events.splat_event_image`), so a window is stored as its
+        uint8 codes `round(lnes * w)` and `w`; `MNISTModel._maybe_self` decodes `codes / w`. Valid when the protocol
+        initial state GT(e_0 - 50) lies inside the run."""
+        run_a = int(self.index[idx][2])
+        K, step = self.clip_k, self.CLIP_STEP
+        coin = float(rng.random()) < self.clip_frac
+        if not (coin and end - step * K >= run_a):
+            return {"main": main, "valid": False}
+        ends = [int(end) - step * (K - 1 - k) for k in range(K)]
+        ws = [min(self.clip_window, e - run_a + 1) for e in ends]
+        keep = float(dr.keep) if self.domrand.enabled else 1.0
+        n50 = [float(h.offsets[e + 1] - h.offsets[e - step + 1]) * keep for e in ends]
+        if window_fn is None:                    # fast path: one pass over the union of the K windows
+            codes = list(torch.from_numpy(self._fast_clip_codes(h, ends, ws, dr, pol, rng)))
+            labels = np.stack([self._to_target(h.pos51[ends[0] - step])] + [self._to_target(h.pos51[e]) for e in ends])
+            if self.domrand.enabled:
+                labels, _ = DR.transform_labels(labels, dr, h.camera_K.copy(), h.j0, self.render_scale)
+            init = labels[0]
+            tgts = [torch.from_numpy(np.asarray(t, np.float32)) for t in labels[1:]]
+        else:                                    # legacy path: window by window
+            codes, tgts = [], []
+            for e, w in zip(ends, ws):
+                tup = window_fn(e, w)
+                codes.append(torch.round(tup[0] * w).to(torch.uint8))
+                tgts.append(tup[2])
+            init = self._to_target(h.pos51[ends[0] - step])
+            if self.domrand.enabled:
+                stacked, _ = DR.transform_labels(np.stack([init, init]), dr, h.camera_K.copy(), h.j0, self.render_scale)
+                init = stacked[0]
+        t, r, q = self.prev_noise
+        scale = np.concatenate([np.full(3, t), np.full(3, r), np.full(len(init) - 6, q)]).astype(np.float32)
+        init = (np.asarray(init, np.float32) + rng.standard_normal(len(init)).astype(np.float32) * scale)
+        return {"main": main, "valid": True, "clip_codes": torch.stack(codes), "clip_w": torch.tensor(ws, dtype=torch.float32),
+                "clip_tgt": torch.stack(tgts), "clip_init": torch.from_numpy(init.astype(np.float32)),
+                "clip_n50": torch.tensor(n50, dtype=torch.float64)}
 
     def _triplet_sample(self, idx, si, h, end, window, dr, flip, swap_mask, rng, main):
         """`{"w0", "w1", "w2", "valid"}` of the triplet training sample; `main` is window 2.
@@ -879,6 +1019,8 @@ class SemKineDataset(Dataset):
         pol = self._fast_polarity(flip, swap)
         main = self._fast_tuple(self._fast_render(events, window, dr, h.camera_K, pol),
                                 prev, target, h, camera_K)
+        if self.clip_k:
+            return self._clip_sample(idx, h, end, dr, rng, main, None, pol=pol)
         if not self.triplet:
             return main
         # `_triplet_sample`: the coin is the first draw after the plain sample's last one; the two
@@ -990,4 +1132,8 @@ def build_dataset(cfg: dict, split: str, components: np.ndarray,
         fast_pipe=True if fast else None,
         # DATA.PREV_LAG_MS (DT2 deviation 7): absent = the window's first ms, as recorded.
         prev_lag_ms=data.get("PREV_LAG_MS"),
+        # DATA.CLIP_* (S42 candidate B): absent = no clip, as recorded
+        clip_k=int(data.get("CLIP_K", 0) or 0) if train else 0,
+        clip_window=int(data.get("CLIP_WINDOW", 200)),
+        clip_frac=float(data.get("CLIP_FRAC", 0.5)),
     )

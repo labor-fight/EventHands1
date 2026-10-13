@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DT2 round: paired comparison of arms against a control under the rules of docs/DT2_PREREG.md section 3.
+"""DT2 round: paired comparison of arms against a control under the rules of docs/EXPERIMENT_RECORDS.md#dt2-prereg section 3.
 
 Reads outputs/semkine/<arm>_s<seed>/evalx_val_core_last_tf_pert.json (last step, no selection) for the arm and the
 control on the same seeds. Seeds missing for an arm are skipped and reported.
@@ -90,7 +90,7 @@ def main():
     ap.add_argument("--json", default=None)
     a = ap.parse_args()
     res = [compare(a.base, arm, a.seeds, a.name) for arm in a.arms]
-    print(f"control {a.base}; paired on available seeds; last step; rules docs/DT2_PREREG.md section 3\n")
+    print(f"control {a.base}; paired on available seeds; last step; rules docs/EXPERIMENT_RECORDS.md#dt2-prereg section 3\n")
     print("| arm | seeds | dRA per seed | dRA mean | RA (arm/base) | RA g / l (arm) | dRA g / l | rot deg | ABS | acc_err_ra | root speed g/l | finger speed | TF RA | amp | verdict | guardrails |")
     print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in res:

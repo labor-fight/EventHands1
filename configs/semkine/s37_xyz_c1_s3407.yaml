@@ -1,8 +1,8 @@
-# S37-XYZ budget-capped screen, arm C1 (2026-09-29, docs/S37_EXPERIMENT_RECORDS.md [XYZ-SCREEN]).
+# S37-XYZ budget-capped screen, arm C1 (2026-09-29, docs/EXPERIMENT_RECORDS.md#s37-xyz-screen [XYZ-SCREEN]).
 # Seed 3407 only; this is a mechanism screen, not an adoption run.
 #
 # Protocol note: trains on the nine-subject default split (splits_semkine.json) and validates,
-# selects and reports on the held-out subject zgz only (docs/FAILURE_AND_CLEANUP_LEDGER.md).
+# selects and reports on the held-out subject zgz only (EXPERIMENT_RECORDS.md#ledger-dense).
 #
 # The arm (`semkine/xyz_mesh.py`, the user's drawing): prev -> MANO FK -> 778 vertices in camera XYZ;
 # event rays K^-1 [u, v, 1] meet the mesh (surface hit / near-silhouette front layer / residual);

@@ -3,7 +3,7 @@
 # Protocol note (2026-09-05): every arm under configs/semkine trains on the nine-subject default
 # split (splits_semkine.json) and validates, selects and reports on the held-out subject zgz
 # only. The 5-subject / lr-lyq line these files were first run on was purged; its numbers in
-# docs/ are historical (docs/FAILURE_AND_CLEANUP_LEDGER.md).
+# docs/ are historical (EXPERIMENT_RECORDS.md#ledger-dense).
 #
 # The frontend is the only thing that changed. Everything the tracking recipe is made of --
 # PREDICT_DELTA, PREVPOS_EMBED, PREV_RENDER, ZERO_EVENT_GATE, the S10 active heads, the low

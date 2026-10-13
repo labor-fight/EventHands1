@@ -545,7 +545,7 @@ F0 流式合同修复
 - 所有一次性 probe 放在 `/tmp/eventhands_<plan>_*.py`；
 - 不新增 Gate JSON；结果追加到：
   - `docs/semkine/EXPERIMENT_LOG.md`
-  - `docs/FAILURE_AND_CLEANUP_LEDGER.md`
+  - `docs/EXPERIMENT_RECORDS.md#ledger-dense`
 - 每个训练臂只改变一个研究变量；
 - quick probe → 单种子 early-stop → 两种子 → 三种子 final；
 - checkpoint 依据 strict recursive metric 选，不依据 `val_loss`；
@@ -1690,7 +1690,7 @@ git status --short
 必须先阅读：
 - docs/EXPERIMENT_SYSTEMATIC_SUMMARY.md
 - docs/EVENT_KINEGRAPH_MASTER_PLAN.md
-- docs/FAILURE_AND_CLEANUP_LEDGER.md
+- docs/EXPERIMENT_RECORDS.md#ledger-dense
 - docs/debug_e55b_unroll_20260825.md（若存在）
 - docs/semkine/FINAL_REPORT.md（若存在）
 - docs/semkine/EXPERIMENT_LOG.md
@@ -1807,7 +1807,7 @@ PASS 需要：
 - 没有 silent config key。
 否则 FAIL/BLOCKED，并停止。
 
-最终把 F0 结论追加到 docs/semkine/EXPERIMENT_LOG.md；若发现历史结果可能被 packetizer bug 影响，追加到 docs/FAILURE_AND_CLEANUP_LEDGER.md，但不要篡改旧记录。
+最终把 F0 结论追加到 docs/semkine/EXPERIMENT_LOG.md；若发现历史结果可能被 packetizer bug 影响，追加到 docs/EXPERIMENT_RECORDS.md#ledger-dense，但不要篡改旧记录。
 ```
 
 

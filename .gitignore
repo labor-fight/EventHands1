@@ -5,6 +5,14 @@ logs/
 real_eval_data/
 synth_eval_data/
 
+# Local experiment and deployment artifacts
+/.experiments/**/*.log
+/.experiments/**/*.pt
+/.experiments/**/*.ndjson
+/deploy/*.zip
+/deploy/**/weights/
+/deploy/**/tests/*.npz
+
 # Python
 __pycache__/
 *.py[cod]

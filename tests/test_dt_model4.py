@@ -58,6 +58,8 @@ L3_CFG, ROLL_CFG, KD_CFG, W128_CFG = (DT / "dt_dz_l3.yaml", DT2 / "dt_dz_l3_roll
 DATA_ROOT = REPO / "data" / "hand_data51"
 H, W = 180, 240
 NEW_TRACK_KEYS = frozenset({"ROLLOUT_P", "ROLLOUT_RAMP"})
+#: DT3 round, arms_E (tests/test_dt3_arms.py): the MODEL keys the pre-package-E reference does not know
+DT3_MODEL_KEYS = frozenset({"EVIDENCE_COND", "RENDER_ROTJ"})
 
 pytestmark = pytest.mark.skipif(not DATA_ROOT.exists(), reason="hand_data51 not available")
 
@@ -251,9 +253,11 @@ def _find_seed(valid, p, B):
 
 # =============================================================================================== (a) rollout off
 def test_a_pristine_reference_is_the_file_before_the_edit(pre_e):
-    assert set(pre_e.MNISTModel.TRACK_KEYS) == set(MNISTModel.TRACK_KEYS) - NEW_TRACK_KEYS
+    s42_track = {"SELF_P", "SELF_RAMP", "SELF_FILTER"}                 # trk6 / S42 candidate B, opt-in
+    s42_model = {"GLIMPSE", "GLIMPSE_SPAN_M", "GLIMPSE_KAPPA"}        # trk6 / S42 candidate A, opt-in
+    assert set(pre_e.MNISTModel.TRACK_KEYS) == set(MNISTModel.TRACK_KEYS) - NEW_TRACK_KEYS - s42_track
     assert NEW_TRACK_KEYS <= set(MNISTModel.TRACK_KEYS) and not NEW_TRACK_KEYS & set(pre_e.MNISTModel.TRACK_KEYS)
-    assert set(pre_e.MNISTModel.MODEL_KEYS) == set(MNISTModel.MODEL_KEYS)
+    assert set(pre_e.MNISTModel.MODEL_KEYS) == set(MNISTModel.MODEL_KEYS) - DT3_MODEL_KEYS - s42_model
     assert not hasattr(pre_e.MNISTModel, "_maybe_rollout") and hasattr(MNISTModel, "_maybe_rollout")
     with pytest.raises(ValueError, match="unknown TRACK keys"):
         _build(pre_e.MNISTModel, _cfg(L3_CFG, track={"ROLLOUT_P": 0.5}))

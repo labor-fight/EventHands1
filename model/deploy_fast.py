@@ -86,6 +86,9 @@ def is_fast_render(model) -> bool:
 def _enable_one(m, cache: bool) -> None:
     if not m.prev_render or getattr(m, "encoder_name", "") or getattr(m, "active_head", False):
         raise NotImplementedError("enable_fast_render covers the dense PREV_RENDER arm only (no ENCODER, no ACTIVE_HEAD)")
+    if getattr(m, "evidence_cond", "none") != "none" or getattr(m, "render_rotj", False):
+        # DT3 round: neither the fast render nor `dense_forward` know the evidence modules / the Jacobian channels
+        raise NotImplementedError("enable_fast_render does not support MODEL.EVIDENCE_COND / MODEL.RENDER_ROTJ (DT3 round)")
     if is_fast_render(m):
         disable_fast_render(m)
     mano = m.mano

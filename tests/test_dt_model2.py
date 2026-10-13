@@ -1,5 +1,5 @@
 """Task `model-acc` of the DT round: two default-off features of the dense tracker `MNISTModel` and of
-`semkine/train.py` (docs/DT_RENDER_TRACK_PREREG.md sections 2 and 3):
+`semkine/train.py` (docs/EXPERIMENT_RECORDS.md#dt-prereg sections 2 and 3):
 
   LOSS.ACCEL_WEIGHT                  arm dt_acc: on a triplet batch (DATA.TRIPLET, `{"w0", "w1", "w2", "valid"}`) the
                                      acceleration error of the absolute FK joints over three consecutive windows is added
@@ -68,7 +68,15 @@ RT_CFG, BASE_CFG, ACC_CFG, W05_CFG = RT / "rt_cnntrack.yaml", DT / "dt_base.yaml
 S37_CFG = RT / "rt_s37_2k.yaml"
 #: DT2 round (tests/test_dt_model3.py): the MODEL keys the pre-edit reference does not know, and the LOSS / TRAIN keys the
 #: edited model reads and the reference ignores. Configs that carry any of them are not "existing blocks".
+#: DT3 arms_E were archived when restoring S39; their keys are no longer accepted by the active model.
 DT2_MODEL_KEYS = frozenset({"ROOT_HEAD", "RENDER_FP32"})
+S42_MODEL_KEYS = frozenset({"GLIMPSE", "GLIMPSE_SPAN_M", "GLIMPSE_KAPPA"})      # trk6 / S42, opt-in, default off
+S42_TRACK_KEYS = frozenset({"SELF_P", "SELF_RAMP", "SELF_FILTER"})                  # trk6 / S42 candidate B, opt-in
+
+
+def _uses_s42_keys(cfg):
+    """S42 configs (configs/trk6/) carry keys the pristine copy does not know; they are new features, not edits."""
+    return bool(S42_MODEL_KEYS & set(cfg.get("MODEL", {}))) or bool(S42_TRACK_KEYS & set(cfg.get("TRACK") or {}))
 DT2_OTHER_KEYS = {"LOSS": ("ROOT_ROT_WEIGHT",), "TRAIN": ("WEIGHT_DECAY", "EMA_DECAY"),
                   # DT2 package E (tests/test_dt_model4.py): the rollout keys of the TRACK block
                   "TRACK": ("ROLLOUT_P", "ROLLOUT_RAMP")}
@@ -270,9 +278,10 @@ def _stub_forward(m, out01):
 # ======================================================================================== (a) backward compatibility
 def test_a_pristine_copies_are_the_files_before_the_edit(orig):
     assert hashlib.sha256(ORIG_TRAIN.read_bytes()).hexdigest() == ORIG_TRAIN_SHA256
-    assert set(orig.MNISTModel.MODEL_KEYS) == set(MNISTModel.MODEL_KEYS) - DT2_MODEL_KEYS   # nothing else new: unknown ones still raise
+    # nothing else new besides the S42 glimpse keys (docs/EXPERIMENT_RECORDS.md#s42-prereg): unknown ones still raise
+    assert set(orig.MNISTModel.MODEL_KEYS) == set(MNISTModel.MODEL_KEYS) - DT2_MODEL_KEYS - S42_MODEL_KEYS
     assert DT2_MODEL_KEYS <= set(MNISTModel.MODEL_KEYS) and not DT2_MODEL_KEYS & set(orig.MNISTModel.MODEL_KEYS)
-    assert set(orig.MNISTModel.TRACK_KEYS) == set(MNISTModel.TRACK_KEYS) - NEW_TRACK_KEYS
+    assert set(orig.MNISTModel.TRACK_KEYS) == set(MNISTModel.TRACK_KEYS) - NEW_TRACK_KEYS - S42_TRACK_KEYS
     assert not hasattr(orig.MNISTModel, "_accel_loss") and hasattr(MNISTModel, "_accel_loss")
     with pytest.raises(ValueError, match="unknown MODEL keys"):
         MNISTModel(_cfg(BASE_CFG, model={"NOT_A_KEY": 1}))
@@ -315,6 +324,8 @@ def test_a_every_existing_model_block_builds_identically(orig):
     built, distill_raw = 0, []
     for p in paths:
         cfg = _load(p)
+        if _uses_s42_keys(cfg):
+            continue
         try:
             a = _build(orig.MNISTModel, cfg)
         except Exception as e:
@@ -767,7 +778,7 @@ def _student(teacher_ckpt, train_mod, seed=1234, model=None, loss=None):
 
 def test_c_teacher_config_drops_cnn_backbone_and_keeps_the_architecture_keys(train_mod):
     old_drop = ("ENCODER", "DISTILL_", "ACTIVE_")                      # semkine/train.py before the edit
-    assert train_mod.TEACHER_DROP == old_drop + ("CNN_BACKBONE",)
+    assert train_mod.TEACHER_DROP == old_drop + ("CNN_BACKBONE", "GLIMPSE")     # GLIMPSE*: S42, a cropping student
     cfg = _cfg(W05_CFG, model={"DISTILL_WEIGHT": 1.0, "DISTILL_CKPT": "x.ckpt", "CAM_PLANES": True, "ROOT_COMPOSE": "so3",
                                "PREV_MLP_TRANSL": False})
     before = copy.deepcopy(cfg)

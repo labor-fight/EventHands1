@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S38 formal runtime measurement (docs/S38_ROOT_TRACKING_PREREG.md section 5): the budget is S37's runtime in the
+"""S38 formal runtime measurement (docs/EXPERIMENT_RECORDS.md#s38-prereg section 5): the budget is S37's runtime in the
 same environment, measured interleaved, in isolation.
 
 Run on an idle machine, pinned to physical cores of one NUMA node, e.g.

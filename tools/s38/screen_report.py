@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S38 screening / full-budget report (docs/S38_ROOT_TRACKING_PREREG.md section 5).
+"""S38 screening / full-budget report (docs/EXPERIMENT_RECORDS.md#s38-prereg section 5).
 
 Every arm is compared with S37 at the same seeds, last step, GPU evaluation
 (`tools/tracking/evalx.py eval --ckpt last --controls --tf --perturb`). The registered gates:

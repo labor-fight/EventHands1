@@ -24,6 +24,7 @@ from pose_repr import (
     split_losses,
 )
 from backbones import build_backbone, resnet_forward_taps
+from sparse_trunk import input_mask
 
 
 class BaseModel(pl.LightningModule):
@@ -379,6 +380,78 @@ class BaseModel(pl.LightningModule):
         frac = min(max((int(self.global_step) - s0) / float(s1 - s0), 0.0), 1.0)
         return self.rollout_p * frac
 
+    def self_p_now(self) -> float:
+        """`TRACK.SELF_P` after its linear ramp `SELF_RAMP = [start, full]` at the current optimiser step."""
+        if self.self_p <= 0.0:
+            return 0.0
+        s0, s1 = self.self_ramp
+        return self.self_p * min(max((int(self.global_step) - s0) / float(s1 - s0), 0.0), 1.0)
+
+    def _self_filter(self, prev, z, n, x):
+        """The deployed count-gain filter (`semkine.anchored.AdaptiveFilter`, no velocity) on a batch, float64:
+        translation and fingers mixed linearly, the root along the geodesic, empty windows (or n <= 0) held."""
+        from semkine.anchored import _t_conj, _t_log, _t_qmul, _t_quat
+        g_root, g_rest, g_trans = self._self_gains
+        b = x.shape[0]
+        empty = (x.reshape(b, -1).abs().sum(dim=1, keepdim=True) <= 0) | (n.reshape(-1, 1) <= 0)
+        n = n.to(device=x.device, dtype=torch.float64).reshape(-1)
+        a_r, a_f, a_t = (g(n) if g.const is None else torch.full((b, 1), g.const, dtype=torch.float64, device=x.device)
+                         for g in (g_root, g_rest, g_trans))
+        p, zz = prev.detach().to(torch.float64), z.detach().to(torch.float64)
+        q_prev = _t_quat(p[:, 3:6])
+        rel = _t_log(_t_qmul(_t_conj(q_prev), _t_quat(zz[:, 3:6])))
+        r_new = _t_log(_t_qmul(q_prev, _t_quat(a_r * rel)))
+        out = torch.cat([(1.0 - a_t) * p[:, :3] + a_t * zz[:, :3], r_new, (1.0 - a_f) * p[:, 6:] + a_f * zz[:, 6:]], dim=1)
+        return torch.where(empty, p, out).to(prev.dtype)
+
+    def _maybe_self(self, batch):
+        """S42 candidate B: condition a share of a clip batch's rows on the tracker's OWN deployed closed loop.
+
+        `batch` is `{"main": legacy 5-tuple, "valid": (B,), "clip_*": clips of the valid rows}` (DATA.CLIP_K). For every
+        valid row with `rand < self_p_now()`, the clip is rolled out from its protocol initial state through steps
+        0 .. K-2 -- `z = f(LNES_k, s)`, `s = filter(s, z, n50_k)` with the deployed filter `TRACK.SELF_FILTER` -- under
+        `torch.no_grad()`, in eval mode (BatchNorm running statistics, as deployed) and float32; the row's main sample
+        then becomes the clip's last step: LNES_{K-1}, prev = the filtered state s, target = GT(e_{K-1}). The main
+        forward and the single-step loss run as always (DAgger: expert labels at the states the deployed loop visits),
+        so the number of supervised rows and of optimiser steps is the plain recipe's. Other rows keep their sample.
+        Returns the legacy 5-tuple. Anything else passes through."""
+        if not (isinstance(batch, dict) and "main" in batch):
+            return batch
+        main = batch["main"]
+        p = self.self_p_now() if self.training else 0.0
+        self._self_stats = {"p": p, "rows": 0}
+        if p <= 0.0 or "clip_codes" not in batch:
+            return main
+        x, prev, y, betas, cam = main
+        dev = x.device
+        valid_rows = batch["valid"].to(dev).bool().nonzero(as_tuple=False).reshape(-1)
+        take = torch.rand(valid_rows.numel(), device=dev) < p
+        if not bool(take.any()):
+            return main
+        rows, ci = valid_rows[take], take.nonzero(as_tuple=False).reshape(-1)
+        codes = batch["clip_codes"].to(dev)[ci]                                   # (n, K, H, W, C) uint8
+        w = batch["clip_w"].to(dev)[ci].float()                                  # (n, K)
+        K = codes.shape[1]
+        lnes = codes.float() / w.view(-1, K, 1, 1, 1)
+        n50 = batch["clip_n50"].to(dev)[ci]
+        b_r, k_r = betas[rows].float(), cam[rows].float()
+        was = self.training
+        self.eval()
+        try:
+            with torch.no_grad(), torch.autocast(device_type=dev.type, enabled=False):
+                s = batch["clip_init"].to(dev)[ci].float()
+                for k in range(K - 1):
+                    z = self(lnes[:, k], s, betas=b_r, camera_K=k_r)
+                    s = self._self_filter(s, z.float(), n50[:, k], lnes[:, k])
+        finally:
+            self.train(was)
+        x, prev, y = x.clone(), prev.clone(), y.clone()
+        x[rows] = lnes[:, K - 1].to(x.dtype)
+        prev[rows] = s.to(prev.dtype)
+        y[rows] = batch["clip_tgt"].to(dev)[ci, K - 1].to(y.dtype)
+        self._self_stats["rows"] = int(rows.numel())
+        return (x, prev, y, betas, cam)
+
     def _maybe_rollout(self, batch):
         """`TRACK.ROLLOUT_P` > 0: re-condition window 2 of a triplet batch on the tracker's own closed-loop estimate.
 
@@ -553,7 +626,7 @@ class BaseModel(pl.LightningModule):
         state this one saw: `_maybe_unroll` and the dataset's noise are both random, and
         re-unpacking would silently compare two different conditioning states.
         """
-        packed = self._unpack_batch(self._maybe_unroll(self._maybe_rollout(batch)))
+        packed = self._unpack_batch(self._maybe_unroll(self._maybe_rollout(self._maybe_self(batch))))
         if hasattr(packed, "events"):
             pred = self.forward_packet(packed)
             return pred, packed.target, packed.betas, packed
@@ -866,7 +939,11 @@ class BaseModel(pl.LightningModule):
     def training_step(self, batch, batch_nb):
         pred, y, betas, packed = self._predict_batch(batch)
         loss, parts = self._compute_loss(pred, y, betas)
-        loss, parts = self._maybe_distill(pred, batch, loss, parts)
+        # S42: a clip batch (DATA.CLIP_K) distils on the tuple the student actually saw (self-conditioned rows included)
+        loss, parts = self._maybe_distill(pred, packed if isinstance(batch, dict) and "main" in batch else batch, loss, parts)
+        if self.self_p > 0.0 and self._self_stats is not None:
+            self.log("train_self_p", self._self_stats["p"], prog_bar=False, sync_dist=True)
+            self.log("train_self_rows", float(self._self_stats["rows"]), prog_bar=False, sync_dist=True)
         if self.rollout_p > 0.0 and self._rollout_stats is not None:
             # TRACK.ROLLOUT_P: this step's probability and the number of rows whose prev became the rollout's
             self.log("train_rollout_p", self._rollout_stats["p"], prog_bar=True, sync_dist=True)
@@ -1179,6 +1256,10 @@ class MNISTModel(BaseModel):
             # S37-XYZ (docs/S37_XYZ_SCREEN_PREREG_20260929.md)
             "XYZ_BAND_PX", "XYZ_FRONT_PX", "XYZ_Z_TOL", "XYZ_K", "XYZ_GEOM", "XYZ_REL_HIDDEN",
             "XYZ_SLOT_DIM", "XYZ_READOUT_HIDDEN",
+            # XYZ-ASSOC (docs/EXPERIMENT_RECORDS.md#xyz-assoc-20261009)
+            "XYZ_ASSOC_MODE", "XYZ_CONTOUR_GAP", "XYZ_ASSOC_PREV",
+            # XB ABCD residual evidence study; defaults leave the XYZ/S39 paths unchanged.
+            "XYZ_RESIDUAL_MODE", "XYZ_RESIDUAL_SEED",
             "RENDER_CHANNELS", "RENDER_H", "RENDER_W", "RENDER_SCALE",
             "RENDER_CHUNK", "RENDER_DEPTH_TOL", "INIT_FROM",
             "ACTIVE_HEAD", "ACTIVE_FEAT_DIM", "ACTIVE_HIDDEN",
@@ -1195,6 +1276,10 @@ class MNISTModel(BaseModel):
             "CNN_BACKBONE", "CAM_PLANES", "ROOT_COMPOSE", "PREV_MLP_TRANSL",
             # DT2 round (docs/DT2_PREREG.md section 2): a second root readout, fp32 render
             "ROOT_HEAD", "RENDER_FP32",
+            # trk6 / S42 round (docs/EXPERIMENT_RECORDS.md#s42-prereg): hand-centric glimpse of the dense tracker
+            "GLIMPSE", "GLIMPSE_SPAN_M", "GLIMPSE_KAPPA",
+            # S43 (docs/EXPERIMENT_RECORDS.md#s43-prereg): decoupled translation head on the sparse trunk
+            "TRANSL_HEAD", "TRANSL_HEAD_HIDDEN", "SPARSE_NOISE",
         }
     )
     #: every TRACK key the model or the dataset understands. Whitelisted for the same reason
@@ -1209,6 +1294,8 @@ class MNISTModel(BaseModel):
             "GAIN_REG_W", "GAIN_REG_SCALE",
             # DT2 round, package E: closed-loop rollout of the conditioning state on triplet batches (`_maybe_rollout`)
             "ROLLOUT_P", "ROLLOUT_RAMP",
+            # S42 candidate B: deployed-loop self-conditioning on clip batches (`_maybe_self`)
+            "SELF_P", "SELF_RAMP", "SELF_FILTER",
         }
     )
     #: floor of the semsil value inside the mask, so the mask stays readable as a
@@ -1399,6 +1486,10 @@ class MNISTModel(BaseModel):
         if self.xyz_mesh and (self.prevpos_embed or bool(model_cfg.get("ACTIVE_HEAD", False))):
             raise ValueError("ENCODER=xyz_mesh has one common readout: set PREVPOS_EMBED and "
                              "ACTIVE_HEAD false")
+        if not self.xyz_mesh and any(k in model_cfg for k in ("XYZ_ASSOC_MODE", "XYZ_CONTOUR_GAP", "XYZ_ASSOC_PREV")):
+            raise ValueError("MODEL.XYZ_ASSOC_MODE / XYZ_CONTOUR_GAP / XYZ_ASSOC_PREV belong to ENCODER=xyz_mesh")
+        if not self.xyz_mesh and any(k in model_cfg for k in ("XYZ_RESIDUAL_MODE", "XYZ_RESIDUAL_SEED")):
+            raise ValueError("MODEL.XYZ_RESIDUAL_MODE / XYZ_RESIDUAL_SEED belong to ENCODER=xyz_mesh")
         # DT round (docs/DT_RENDER_TRACK_PREREG.md section 2). Four keys of the dense tracker. Every default builds the
         # same modules from the same random draws and runs the same forward ops as the earlier rounds, so the recorded
         # closed-loop numbers stay reproducible bit for bit; every impossible combination raises instead of being
@@ -1449,6 +1540,24 @@ class MNISTModel(BaseModel):
             if self.root_head_kind == "anchor" and not self.prev_render:
                 raise ValueError("MODEL.ROOT_HEAD anchor samples the features at the previous state's projected joints; "
                                  "it needs PREV_RENDER (MANO and the render intrinsics)")
+        # S42 GLIMPSE (docs/EXPERIMENT_RECORDS.md#s42-prereg). The dense trunk reads a square region of interest centred
+        # on the previous state's projected hand instead of the whole 240x180 frame: side kappa * f * span / Z pixels
+        # (Z the depth of the previous mesh's centroid, so the hand keeps one size in the crop whatever its depth),
+        # resampled to GLIMPSE x GLIMPSE (LNES: 2x super-sampled nearest, then 2x2 max), the previous state splatted straight into the
+        # crop's own intrinsics. 0 (the default): the whole frame, as every recorded run.
+        self.glimpse = int(model_cfg.get("GLIMPSE", 0) or 0)
+        self.glimpse_span = float(model_cfg.get("GLIMPSE_SPAN_M", 0.20))
+        self.glimpse_kappa = float(model_cfg.get("GLIMPSE_KAPPA", 1.5))
+        if self.glimpse:
+            if self.glimpse < 32 or not (self.prev_render and self.predict_delta and dense_trunk) or self.cam_planes \
+                    or self.root_head_kind != "none" or self.active_head or self.output_dim != 51 \
+                    or self.pose_repr != "mano_full_axis_angle":
+                raise ValueError("MODEL.GLIMPSE (>= 32) crops the input of the dense 51-d tracker; it needs PREV_RENDER, "
+                                 "PREDICT_DELTA and no ENCODER / CAM_PLANES / ROOT_HEAD / ACTIVE_HEAD")
+            if not (self.glimpse_span > 0.0 and self.glimpse_kappa > 0.0):
+                raise ValueError("MODEL.GLIMPSE_SPAN_M and MODEL.GLIMPSE_KAPPA must be positive")
+        elif "GLIMPSE_SPAN_M" in model_cfg or "GLIMPSE_KAPPA" in model_cfg:
+            raise ValueError("MODEL.GLIMPSE_SPAN_M / GLIMPSE_KAPPA without MODEL.GLIMPSE would silently do nothing")
         self.distill_weight = float(model_cfg.get("DISTILL_WEIGHT", 0.0))
         self.teacher = None
         # DT round. The two terms that need more than the model's own config refuse to build without it: a silently
@@ -1471,6 +1580,30 @@ class MNISTModel(BaseModel):
                                  "the dense tracker has with MODEL.PREV_RENDER")
         # DT2 round, package E: TRACK.ROLLOUT_P / ROLLOUT_RAMP (`_maybe_rollout`). Every impossible combination raises
         # instead of training a copy of the baseline under the name of the arm.
+        # S42 candidate B (docs/EXPERIMENT_RECORDS.md#s42-prereg): TRACK.SELF_P / SELF_RAMP / SELF_FILTER, see `_maybe_self`
+        self.self_p = self._number("TRACK.SELF_P", track_cfg.get("SELF_P", 0.0))
+        if not 0.0 <= self.self_p <= 1.0:
+            raise ValueError(f"TRACK.SELF_P must lie in [0, 1], got {self.self_p}")
+        _sr = track_cfg.get("SELF_RAMP") or (0, 1)
+        self.self_ramp = (int(_sr[0]), int(_sr[1]))
+        self._self_gains = None
+        self._self_stats = None
+        if self.self_p > 0.0:
+            if not int((self.cfg.get("DATA", {}) or {}).get("CLIP_K", 0) or 0):
+                raise ValueError("TRACK.SELF_P > 0 needs DATA.CLIP_K (the clips it rolls out); without them it would "
+                                 "silently train the plain recipe")
+            if not self.self_ramp[1] > self.self_ramp[0] >= 0:
+                raise ValueError(f"TRACK.SELF_RAMP must be [start, full] with full > start >= 0, got {_sr!r}")
+            spec_path = track_cfg.get("SELF_FILTER")
+            if not spec_path:
+                raise ValueError("TRACK.SELF_P > 0 needs TRACK.SELF_FILTER, the deployed filter spec (JSON path)")
+            import json as _json
+            from semkine.anchored import AdaptiveFilter as _AF, GainSchedule as _GS
+            spec = _AF.canonical_spec(_json.loads(open(spec_path).read()))
+            if spec["beta_root"] or spec["beta_trans"] or spec["host"]:
+                raise ValueError("TRACK.SELF_FILTER: the rollout filter is the count-gain filter without velocity")
+            # plain attributes, not submodules: nothing enters the state dict
+            object.__setattr__(self, "_self_gains", (_GS(spec["a_root"]), _GS(spec["a_rest"]), _GS(spec["a_trans"])))
         self.rollout_p = self._number("TRACK.ROLLOUT_P", track_cfg.get("ROLLOUT_P", 0.0))
         if not 0.0 <= self.rollout_p <= 1.0:
             raise ValueError(f"TRACK.ROLLOUT_P must be a probability in [0, 1] (0 = off), got {track_cfg.get('ROLLOUT_P')!r}")
@@ -1553,6 +1686,23 @@ class MNISTModel(BaseModel):
             self.xyz_z_tol = float(model_cfg.get("XYZ_Z_TOL", 0.01))
             self.xyz_k = int(model_cfg.get("XYZ_K", 16))
             self.xyz_max_nodes = int(model_cfg.get("ENCODER_MAX_NODES", 2048))
+            # XYZ-ASSOC, all opt-in. ASSOC_MODE: `hit_first` (the S37 rule) | `contour` (occluded-silhouette
+            # dual hypothesis + back-face filter, +1 relation input). ASSOC_PREV: `self` (the association is
+            # cast on prev's mesh) | `target` (oracle: on the window-end ground-truth mesh, geometry still
+            # prev's; diagnostic only, never deployable).
+            self.xyz_assoc_mode = str(model_cfg.get("XYZ_ASSOC_MODE", "hit_first"))
+            if self.xyz_assoc_mode not in ("hit_first", "contour"):
+                raise ValueError(f"MODEL.XYZ_ASSOC_MODE must be hit_first or contour, got {self.xyz_assoc_mode!r}")
+            self.xyz_assoc_prev = str(model_cfg.get("XYZ_ASSOC_PREV", "self"))
+            if self.xyz_assoc_prev not in ("self", "target"):
+                raise ValueError(f"MODEL.XYZ_ASSOC_PREV must be self or target, got {self.xyz_assoc_prev!r}")
+            self.xyz_contour_gap = float(model_cfg.get("XYZ_CONTOUR_GAP", 0.01))
+            if not (self.xyz_contour_gap >= 0.0 and self.xyz_contour_gap < float("inf")):
+                raise ValueError(f"MODEL.XYZ_CONTOUR_GAP must be a finite non-negative length in metres, "
+                                 f"got {model_cfg.get('XYZ_CONTOUR_GAP')!r}")
+            #: oracle arm only: the `(B, 51)` window-end ground truth the evaluation hands to the model
+            #: (`semkine.eval_track.track_sequence`); training and validation batches carry `batch.target`
+            self.xyz_target_override = None
             self.xyz = XYZMeshNet(
                 self.mano.weights, self.mano.f,
                 hidden=int(model_cfg.get("ENCODER_HIDDEN", 128)),
@@ -1560,7 +1710,10 @@ class MNISTModel(BaseModel):
                 rel_hidden=int(model_cfg.get("XYZ_REL_HIDDEN", 64)),
                 slot_dim=int(model_cfg.get("XYZ_SLOT_DIM", 32)),
                 readout_hidden=int(model_cfg.get("XYZ_READOUT_HIDDEN", 256)),
-                geom=bool(model_cfg.get("XYZ_GEOM", True)))
+                geom=bool(model_cfg.get("XYZ_GEOM", True)),
+                contour=self.xyz_assoc_mode == "contour",
+                residual_mode=str(model_cfg.get("XYZ_RESIDUAL_MODE", "legacy")),
+                residual_seed=int(model_cfg.get("XYZ_RESIDUAL_SEED", 19073)))
             self.conv1 = None
             self.rn = None
         elif self.encoder_name:
@@ -1680,6 +1833,33 @@ class MNISTModel(BaseModel):
         else:
             # `resnet18` (the default) is torchvision's resnet18(num_classes=OUTPUT_DIM) itself: same call, same draws
             self.rn = build_backbone(self.cnn_backbone, self.output_dim)
+        # S43 (docs/EXPERIMENT_RECORDS.md#s43-prereg): a `sparse_*` trunk (`sparse_trunk.SparseResNet`) is evaluated on
+        # the active sites of [LNES | render] only; `forward` hands it the input's active-site mask
+        self.sparse_trunk = bool(getattr(self.rn, "takes_mask", False))
+        # PREV_RENDER: false is the S43 ablation A1 (docs/EXPERIMENT_RECORDS.md#s43-ablation): the trunk sees the LNES alone
+        # and the previous state enters only through prev_mlp and the delta's skip connection
+        if self.sparse_trunk and not (self.predict_delta and not self.glimpse
+                                      and not self.cam_planes and self.root_head_kind == "none"):
+            raise ValueError("a sparse CNN_BACKBONE is the S43 trunk: it needs PREDICT_DELTA, and no GLIMPSE / CAM_PLANES "
+                             "/ ROOT_HEAD")
+        # S43 wave 2, MODEL.TRANSL_HEAD: the translation of the output is prev_t + head([pooled trunk features, detached |
+        # prev_t]); the head is the only thing the translation loss trains (the trunk gets no translation gradient)
+        # S43 deviation 5, MODEL.SPARSE_NOISE p: in training only, every inactive pixel inside an active 4 px (level-2) cell
+        # of the sparse trunk's input gets a random-polarity, random-time LNES event with probability p -- isolated noise
+        # events the trunk must learn to ignore (what hot pixels do for the dense trunk) without changing the active sets of
+        # levels 2..4 (hot pixels spread over the frame light up every coarse cell, deviation 3)
+        self.sparse_noise = self._number("MODEL.SPARSE_NOISE", model_cfg.get("SPARSE_NOISE", 0.0))
+        if self.sparse_noise and not (self.sparse_trunk and 0.0 < self.sparse_noise < 1.0):
+            raise ValueError("MODEL.SPARSE_NOISE is a probability in (0, 1) for the S43 sparse trunk")
+        self.transl_head = None
+        if model_cfg.get("TRANSL_HEAD", False):
+            if not self.sparse_trunk or self.output_dim != 51 or self.root_compose != "add":
+                raise ValueError("MODEL.TRANSL_HEAD reads the S43 sparse trunk's pooled features (51-d, additive root)")
+            th = int(model_cfg.get("TRANSL_HEAD_HIDDEN", 128))
+            self.transl_head = nn.Sequential(nn.Linear(self.rn.fc.in_features + 3, th), nn.ReLU(inplace=True),
+                                             nn.Linear(th, 3))
+            nn.init.zeros_(self.transl_head[2].weight)
+            nn.init.zeros_(self.transl_head[2].bias)
         if self.prevpos_embed:
             self.prev_mlp = nn.Sequential(
                 nn.Linear(self.output_dim, 64),
@@ -1697,7 +1877,8 @@ class MNISTModel(BaseModel):
                              "features into the active joint heads; they need that ENCODER and ACTIVE_HEAD")
         self._ctx_betas = None
         self._ctx_K = None
-        if self.prev_render or self.routed or self.mesh_query:
+        if self.prev_render or self.routed or self.mesh_query or (self.sparse_trunk and self.loss_type == "so3_trans_fk"):
+            # (S43 ablation A1: the SO3 + FK loss needs MANO even when nothing is rendered)
             self._build_mano(model_cfg)
         if self.prev_render:
             self._register_vertex_codes()
@@ -2083,6 +2264,130 @@ class MNISTModel(BaseModel):
 
         return torch.cat([faces[c] for c in self.render_channels], dim=-1)
 
+    def _splat(self, verts, fx, fy, cx, cy, h, w):
+        """`_render_chunk`'s point splat of `verts` (B, V, 3) with explicit per-row intrinsics into an h x w image:
+        (B, h, w, C) with the sil / inv faces of `render_channels` (S42 GLIMPSE renders into its crop with this)."""
+        x, y, z = verts.unbind(-1)
+        z_safe = z.clamp(min=1e-6)
+        u = fx[:, None] * x / z_safe + cx[:, None]
+        v = fy[:, None] * y / z_safe + cy[:, None]
+        ui = u.round().long()
+        vi = v.round().long()
+        B, n_v = ui.shape
+        valid = (z > 1e-6) & (ui >= 0) & (ui < w) & (vi >= 0) & (vi < h)
+        b_idx = torch.arange(B, device=verts.device)[:, None].expand(B, n_v)
+        pix = (b_idx * (h * w) + vi * w + ui)[valid]
+        z_valid = z_safe[valid].float()
+        depth_flat = torch.full((B * h * w,), 1.0e6, device=verts.device, dtype=torch.float32)
+        sil_flat = torch.zeros((B * h * w,), device=verts.device, dtype=torch.float32)
+        if pix.numel() > 0:
+            depth_flat.scatter_reduce_(0, pix, z_valid, reduce="amin", include_self=True)
+            sil_flat.scatter_(0, pix, torch.ones_like(z_valid))
+        sil = sil_flat.view(B, h, w).clamp(0, 1)
+        faces = []
+        for c in self.render_channels:
+            if c == "sil":
+                faces.append(sil.unsqueeze(-1))
+            elif c == "inv":
+                faces.append((((1.0 / depth_flat.view(B, h, w)).clamp(0.0, 5.0) / 5.0) * sil).unsqueeze(-1))
+            else:
+                raise ValueError(f"MODEL.GLIMPSE splats the sil / inv faces only, not {c!r}")
+        return torch.cat(faces, dim=-1)
+
+    def glimpse_geometry(self, verts, camera_K):
+        """S42: the crop of a previous mesh `verts` (B, V, 3): full-frame centre (uc, vc) = centre of the projected mesh box, side (px) and the crop's
+        intrinsics. A crop pixel (i, j) has its centre at full-frame (uc + (j - R/2) / sc, vc + (i - R/2) / sc)."""
+        R = self.glimpse
+        fx, fy, cx, cy = self._intrinsics(camera_K)
+        z = verts[..., 2].mean(dim=1).clamp(min=0.05)
+        zv = verts[..., 2].clamp(min=1e-3)
+        u = fx[:, None] * verts[..., 0] / zv + cx[:, None]
+        v = fy[:, None] * verts[..., 1] / zv + cy[:, None]
+        uc = 0.5 * (u.amin(dim=1) + u.amax(dim=1))            # centre of the projected mesh box
+        vc = 0.5 * (v.amin(dim=1) + v.amax(dim=1))
+        side = (self.glimpse_kappa * fx * self.glimpse_span / z).clamp(min=16.0, max=960.0)
+        sc = R / side
+        return {"uc": uc, "vc": vc, "side": side, "sc": sc,
+                "K": (fx * sc, fy * sc, (cx - uc) * sc + R / 2, (cy - vc) * sc + R / 2)}
+
+    def _glimpse_chunk(self, prevpos, betas, camera_K):
+        """S42: (render in the crop (B, R, R, C), grid (B, R, R, 2) for `F.grid_sample` of the full-frame LNES)."""
+        R = self.glimpse
+        verts, _ = self._fk(prevpos, betas)
+        verts = verts.float()
+        g = self.glimpse_geometry(verts, camera_K.float())
+        rend = self._splat(verts, *g["K"], R, R)
+        # 2x super-sampled grid: crop sub-pixel j2 in [0, 2R) has its centre at crop coordinate (j2 + 0.5) / 2 - 0.5;
+        # `glimpse_lnes` takes nearest samples there and max-pools 2x2, so a crop pixel keeps the most recent event of
+        # its footprint whenever the crop is no more than 2x down-sampled (side <= 2R)
+        j = (torch.arange(2 * R, device=verts.device, dtype=torch.float32) + 0.5) / 2.0 - 0.5 - R / 2
+        u = g["uc"][:, None] + j[None, :] / g["sc"][:, None]
+        v = g["vc"][:, None] + j[None, :] / g["sc"][:, None]
+        gx = (2.0 * u + 1.0) / self.render_w - 1.0                     # align_corners=False pixel centres
+        gy = (2.0 * v + 1.0) / self.render_h - 1.0
+        grid = torch.stack([gx[:, None, :].expand(-1, 2 * R, -1), gy[:, :, None].expand(-1, -1, 2 * R)], dim=-1)
+        return rend, grid
+
+    @staticmethod
+    def glimpse_lnes(lnes, grid):
+        """S42: the (B, C, R, R) crop of the full-frame LNES `lnes` (B, H, W, C) on the 2x super-sampled `grid`."""
+        ev = F.grid_sample(lnes.permute(0, 3, 1, 2).float(), grid, mode="nearest", padding_mode="zeros",
+                           align_corners=False)
+        return F.max_pool2d(ev, 2)
+
+    def _glimpse_inputs(self, prevpos, betas, camera_K):
+        chunk = max(int(self.render_chunk), 1)
+        parts = [self._glimpse_chunk(prevpos[i0:i0 + chunk], betas[i0:i0 + chunk], camera_K[i0:i0 + chunk])
+                 for i0 in range(0, prevpos.shape[0], chunk)]
+        return torch.cat([p[0] for p in parts]), torch.cat([p[1] for p in parts])
+
+    def _forward_glimpse(self, lnes, prevpos, betas=None, camera_K=None):
+        """S42 GLIMPSE forward: the dense tracker's `forward` with the trunk on the hand-centric crop. Everything after
+        the trunk (prev_mlp, the zero-event gate on the WHOLE window, prev + delta, root composition) is unchanged."""
+        B = lnes.shape[0]
+        betas_f, k_f = self._resolve_betas_K(prevpos, betas, camera_K)
+        with torch.no_grad():
+            if self.render_fp32:
+                with torch.autocast(device_type=prevpos.device.type, enabled=False):
+                    rend, grid = self._glimpse_inputs(prevpos.float(), betas_f, k_f)
+            else:
+                rend, grid = self._glimpse_inputs(prevpos.float(), betas_f, k_f)
+            ev = self.glimpse_lnes(lnes, grid)
+        x = torch.cat([ev.to(lnes.dtype), rend.permute(0, 3, 1, 2).to(dtype=lnes.dtype)], dim=1).contiguous()
+        out = self.rn(self.conv1(x))
+        if self.prevpos_embed:
+            pm = self.prev_mlp(prevpos.to(out.dtype))
+            if not self.prev_mlp_transl:
+                t = self.slices.transl
+                pm = torch.cat([pm[:, : t.start], torch.zeros_like(pm[:, t]), pm[:, t.stop:]], dim=-1)
+            out = out + pm
+        delta = out
+        empty = None
+        if self.zero_event_gate:
+            empty = lnes.reshape(B, -1).abs().sum(dim=1, keepdim=True) <= 0
+            delta = torch.where(empty, torch.zeros_like(delta), delta)
+        out = delta + prevpos.to(out.dtype)
+        if self.root_compose == "so3":
+            out = self._compose_root_so3(out, delta, prevpos)
+            if empty is not None:
+                out = torch.where(empty, prevpos.to(out.dtype), out)
+        return out
+
+    @torch.no_grad()
+    def _sparse_noise(self, x):
+        """MODEL.SPARSE_NOISE: (B, C, H, W) input with isolated LNES noise inside active level-2 cells (see __init__)."""
+        from sparse_trunk import cell_mask
+        ne = 2 * len(self.event_channels)
+        m = input_mask(x)
+        h, w = x.shape[2], x.shape[3]
+        c2 = F.interpolate(cell_mask(cell_mask(m)), scale_factor=4, mode="nearest")[:, :, :h, :w]
+        hit = (c2 > 0) & (m == 0) & (torch.rand_like(m) < self.sparse_noise)                 # (B, 1, H, W)
+        pol = torch.randint(0, 2, m.shape, device=x.device)
+        val = torch.rand_like(m).clamp_(min=1.0 / 300.0)
+        noise = torch.cat([torch.where(hit & (pol == 0), val, torch.zeros_like(val)),
+                           torch.where(hit & (pol == 1), val, torch.zeros_like(val))], dim=1).to(x.dtype)
+        return torch.cat([x[:, :2] + noise, x[:, 2:]], dim=1) if ne >= 2 else x
+
     def _render_prev(self, prevpos, betas, camera_K):
         if self.render_fp32:
             # MODEL.RENDER_FP32: the whole render (MANO FK, projection, z-buffer) in plain float32 under any autocast
@@ -2235,7 +2540,7 @@ class MNISTModel(BaseModel):
         association, then the three learned modules of `semkine.xyz_mesh`. Returns the 51D delta."""
         from semkine.encoder import event_tokens
         from semkine.events import EV_X, EV_Y
-        from semkine.xyz_mesh import associate_rays, stride_sample
+        from semkine.xyz_mesh import associate_rays, stride_sample, vertex_normals
         events, ptr = batch.events, batch.ptr
         B = int(ptr.numel() - 1)
         if events.shape[0] == 0:
@@ -2255,16 +2560,32 @@ class MNISTModel(BaseModel):
             d = torch.stack([(px - cx[:, None]) / fx[:, None], (py - cy[:, None]) / fy[:, None],
                              torch.ones_like(px)], dim=-1)
             f_px = (fx * fy).sqrt()
-            assoc = associate_rays(d, mask, verts, self.mano.f, self.xyz.vert_faces,
+            verts_assoc, geo_kw, assoc_kw = verts, {}, {}
+            if self.xyz_assoc_prev == "target":
+                # oracle: the assignment (vid / A / q / valid / hit) comes from the window-end ground-truth
+                # mesh; dXYZ, z_prior and the edge geometry stay on prev's own mesh (`verts_geo`)
+                tgt = self.xyz_target_override if self.xyz_target_override is not None else batch.target
+                if tgt is None or not bool((tgt.abs().sum(-1) > 0).all()):
+                    raise RuntimeError("MODEL.XYZ_ASSOC_PREV=target needs the window-end ground truth: set "
+                                       "model.xyz_target_override (track_sequence does) or pass a batch with a "
+                                       "real target; an all-zero target would silently build the mesh at the origin")
+                verts_assoc, _ = self._fk(tgt.to(prev_geo.device).float(), betas_f)
+                geo_kw = {"verts_geo": verts}
+            if self.xyz_assoc_mode == "contour":
+                assoc_kw = {"mode": "contour", "normals": vertex_normals(verts_assoc, self.mano.f),
+                            "gap": self.xyz_contour_gap}
+            assoc = associate_rays(d, mask, verts_assoc, self.mano.f, self.xyz.vert_faces,
                                    band=self.xyz_band_px / f_px, front_tol=self.xyz_front_px / f_px,
-                                   z_tol=self.xyz_z_tol, k=self.xyz_k)
+                                   z_tol=self.xyz_z_tol, k=self.xyz_k, **assoc_kw)
         delta, stats, aux = self.xyz(tok, d, mask, verts, assoc, prev[:, 3:51],
-                                     ablate=self.ablate_evidence)
+                                     ablate=self.ablate_evidence, **geo_kw)
         self.route_stats = stats
         if getattr(self, "xyz_keep_aux", False):
             #: probe-only: the association and the pooled slots of the last packet batch
             self.xyz_last = {"assoc": assoc, "d": d, "mask": mask, "verts": verts, "tok": tok,
                              "delta": delta.detach(), **{k: v.detach() for k, v in aux.items()}}
+            if geo_kw:
+                self.xyz_last["verts_assoc"] = verts_assoc
         # region agent log
         if self.training and self._agent_should_log():
             from semkine.xyz_mesh import agent_log
@@ -2578,6 +2899,8 @@ class MNISTModel(BaseModel):
             raise RuntimeError("this model reads raw events; call forward_packet")
         lnes = x
         B = lnes.shape[0]
+        if self.glimpse:
+            return self._forward_glimpse(lnes, prevpos, betas, camera_K)
         if self.prev_render:
             betas_f, k_f = self._resolve_betas_K(prevpos, betas, camera_K)
             with torch.no_grad():
@@ -2590,7 +2913,13 @@ class MNISTModel(BaseModel):
                     planes = self._cam_planes(k_f).to(dtype=lnes.dtype, device=lnes.device)
                 x = torch.cat([x, planes], dim=-1)
         x = x.permute(0, 3, 1, 2).contiguous()
-        if self.root_head_kind == "none":
+        if self.sparse_trunk:
+            if self.training and self.sparse_noise:
+                x = self._sparse_noise(x)
+            m0 = input_mask(x)
+            feats, _ = self.rn.pooled(self.conv1(x) * m0, m0)
+            out = self.rn.fc(feats)
+        elif self.root_head_kind == "none":
             out = self.rn(self.conv1(x))
         else:
             if not self.prev_render:                       # `spatial` reads the trunk only; `anchor` requires PREV_RENDER
@@ -2618,4 +2947,10 @@ class MNISTModel(BaseModel):
                 if empty is not None:
                     # Log(Exp(prev)) is prev only up to float error (and to the pi seam): hold it exactly
                     out = torch.where(empty, prevpos.to(out.dtype), out)
+            if self.transl_head is not None:
+                p_t = prevpos[:, :3].to(out.dtype)
+                t = p_t + self.transl_head(torch.cat([feats.detach().to(out.dtype), p_t], dim=1))
+                if empty is not None:
+                    t = torch.where(empty, p_t, t)
+                out = torch.cat([t, out[:, 3:]], dim=1)
         return out

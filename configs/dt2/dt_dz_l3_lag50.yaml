@@ -1,6 +1,6 @@
 # dt_dz_l3_lag50: DT2 deviation 7: the conditioning state is the GT 50 ms before the window end (DATA.PREV_LAG_MS 50) while the
 # evidence window stays log-U[30, 300] ms, so a 50 ms-step tracker can use a longer evidence window at test time in distribution.
-# = configs/dt/dt_dz_l3.yaml + {'DATA': {'PREV_LAG_MS': 50}} (docs/DT2_PREREG.md, deviation 7). Seeds and output paths on the command line.
+# = configs/dt/dt_dz_l3.yaml + {'DATA': {'PREV_LAG_MS': 50}} (docs/EXPERIMENT_RECORDS.md#dt2-prereg, deviation 7). Seeds and output paths on the command line.
 SEED: 3407
 DATA:
   ROOT: /data1/lyq/code/mesh/EventHands/data/hand_data51

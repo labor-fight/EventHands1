@@ -1,5 +1,5 @@
 # dt_dz_l3_aug2: DT2 deviation 1: stronger geometric DomRand (roll 30 deg, depth-consistent scale 0.7-1.4), cross-subject generalization.
-# = configs/dt/dt_dz_l3.yaml + {'AUG': {'DOMRAND': {'ROLL_DEG': 30.0, 'SCALE_MIN': 0.7, 'SCALE_MAX': 1.4}}} (docs/DT2_PREREG.md, deviation 1). Seeds and output paths on the command line.
+# = configs/dt/dt_dz_l3.yaml + {'AUG': {'DOMRAND': {'ROLL_DEG': 30.0, 'SCALE_MIN': 0.7, 'SCALE_MAX': 1.4}}} (docs/EXPERIMENT_RECORDS.md#dt2-prereg, deviation 1). Seeds and output paths on the command line.
 SEED: 3407
 DATA:
   ROOT: /data1/lyq/code/mesh/EventHands/data/hand_data51

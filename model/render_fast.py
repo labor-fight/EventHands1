@@ -302,6 +302,7 @@ class RenderFast:
     def __init__(self, model, raster: bool = True, fk: bool = True, cache: bool = False):
         if cache and not fk:
             raise ValueError("the sequence cache lives in FastMano; use fk=True")
+        _check_dt3_options(model, "RenderFast")
         self.model = model
         self.raster, self.fk, self.cache = bool(raster), bool(fk), bool(cache)
         self.fmano = FastMano(model.mano) if fk else None
@@ -377,6 +378,14 @@ def _check_dense_arm(model, what: str) -> None:
     """The arms `dense_forward` replicates: the dense PREV_RENDER forward (no raw-event encoder, no active head)."""
     if getattr(model, "encoder_name", "") or getattr(model, "active_head", False) or not model.prev_render:
         raise NotImplementedError(f"{what} covers the dense PREV_RENDER arm only (no ENCODER, no ACTIVE_HEAD)")
+    _check_dt3_options(model, what)
+
+
+def _check_dt3_options(model, what: str) -> None:
+    """DT3 round: MODEL.EVIDENCE_COND and MODEL.RENDER_ROTJ change the forward / the render; this replica and the fast
+    render know neither, so they refuse instead of silently dropping the evidence modules or the Jacobian channels."""
+    if getattr(model, "evidence_cond", "none") != "none" or getattr(model, "render_rotj", False):
+        raise NotImplementedError(f"{what} does not support MODEL.EVIDENCE_COND / MODEL.RENDER_ROTJ (DT3 round)")
 
 
 def dense_forward(model, x, prevpos, betas=None, camera_K=None, render=None):
@@ -385,7 +394,8 @@ def dense_forward(model, x, prevpos, betas=None, camera_K=None, render=None):
     Every forward option of the DT rounds is replicated, through the model's own helper where there is one:
     CAM_PLANES (`_cam_planes`), MODEL.ROOT_HEAD spatial / anchor (`_trunk_with_root_head`), PREV_MLP_TRANSL false,
     ZERO_EVENT_GATE, ROOT_COMPOSE so3 (`_compose_root_so3`). An arm outside the dense one raises NotImplementedError:
-    a replica that quietly dropped a head would be a different network. `tests/test_dt_render.py` pins it bitwise to
+    a replica that quietly dropped a head would be a different network; so do the DT3 options MODEL.EVIDENCE_COND and
+    MODEL.RENDER_ROTJ (`_check_dt3_options`). `tests/test_dt_render.py` pins it bitwise to
     the live `forward` for each option, so a drift in the model shows up there; `GraphedForward` records the model's
     own `forward` by default and does not depend on this replica."""
     _check_dense_arm(model, "dense_forward")

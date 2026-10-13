@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 r"""S38. A sparse multi-scale event encoder: submanifold sparse convolutions on the packet's active sites.
 
-Why (docs/S38_ROOT_TRACKING_VERDICT.md, diagnosis)
+Why (docs/EXPERIMENT_RECORDS.md#s38-verdict, diagnosis)
 --------------------------------------------------
 The S37 event graph does not measure absolute hand orientation: its pooled feature decodes the root
 rotation no better than an event histogram (13-15 deg), and trained end to end on the absolute target
 (absolute EventGNN control) it still reaches only 13-14 deg, where ResNet18 on LNES reaches 9-10 deg on the same
-budget (docs/S37_ROOT_TRACKING_VERDICT.md section 2.1). Two properties of `EventGNN` explain that
+budget (docs/EXPERIMENT_RECORDS.md#root-tracking-verdict section 2.1). Two properties of `EventGNN` explain that
 without invoking capacity:
 
 * every node sees the 8 nearest of the 32 *temporally* preceding sampled events (three hops span

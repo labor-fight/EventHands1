@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-r"""S37 root innovation (2026-09-29, `docs/S37_EXPERIMENT_RECORDS.md` [ROOTINNOV]).
+r"""S37 root innovation (2026-09-29, `docs/EXPERIMENT_RECORDS.md#s37-rootinnov` [ROOTINNOV]).
 
 The S37 root update is additively separable, `Δr = F(events; a(prev)) + G(prev)`: the linear root
 head never sees the previous root, and `prev_mlp` never sees the events, so the blend between the
-two is one constant gain for every sample (`docs/S37_ROUTED_READOUT_PREREG.md` §9.1). This module
+two is one constant gain for every sample (`docs/EXPERIMENT_RECORDS.md#s37-routed-prereg` §9.1). This module
 gives the root a second path whose input is the *innovation measured in the image* -- where the
 events sit relative to the previous state's projected silhouette -- and whose geometry only
 multiplies that measurement:

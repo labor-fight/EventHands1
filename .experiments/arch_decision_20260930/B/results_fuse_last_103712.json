@@ -1,0 +1,126 @@
+{
+ "alpha": 0.5,
+ "cnn_ckpt": "last.ckpt",
+ "heads": {
+  "s37diag_cnnabs_s3407": {
+   "lambda": 0.1,
+   "holdout_rot_deg": 8.6068,
+   "zgz_rot_deg": {
+    "zgz_global": 8.7854,
+    "zgz_local": 9.8368
+   }
+  },
+  "s37diag_cnnabs_s3408": {
+   "lambda": 0.1,
+   "holdout_rot_deg": 8.7142,
+   "zgz_rot_deg": {
+    "zgz_global": 8.2858,
+    "zgz_local": 10.7918
+   }
+  }
+ },
+ "loops": {
+  "s37_routed_s3407:selected": {
+   "ckpt": "outputs/semkine/s37_routed_s3407/s37_routed_s3407-step=2500.ckpt",
+   "base": {
+    "zgz_global": {
+     "ra": 15.6321,
+     "ra_art": 8.7663,
+     "ra_rot": 14.8131,
+     "rot_deg": 11.2882,
+     "abs": 35.0955
+    },
+    "zgz_local": {
+     "ra": 23.3935,
+     "ra_art": 16.7942,
+     "ra_rot": 14.8749,
+     "rot_deg": 11.092,
+     "abs": 110.1368
+    },
+    "frame_weighted_ra": 19.2401
+   },
+   "cnn_last_fuse": {
+    "zgz_global": {
+     "ra": 12.3304,
+     "ra_art": 8.3118,
+     "ra_rot": 9.5294,
+     "rot_deg": 8.5961,
+     "abs": 35.0561
+    },
+    "zgz_local": {
+     "ra": 22.5266,
+     "ra_art": 17.185,
+     "ra_rot": 11.8748,
+     "rot_deg": 8.2162,
+     "abs": 106.4194
+    },
+    "frame_weighted_ra": 17.0703
+   },
+   "mechanism": {
+    "zgz_global": {
+     "cnn_head_rot_deg": 8.7854,
+     "s37_closed_rot_deg": 11.2882,
+     "err_vector_cos_mean": 0.653,
+     "err_norm_corr": 0.4182
+    },
+    "zgz_local": {
+     "cnn_head_rot_deg": 9.8369,
+     "s37_closed_rot_deg": 11.092,
+     "err_vector_cos_mean": 0.1712,
+     "err_norm_corr": 0.182
+    }
+   }
+  },
+  "s37_routed_s3408:selected": {
+   "ckpt": "outputs/semkine/s37_routed_s3408/s37_routed_s3408-step=5000.ckpt",
+   "base": {
+    "zgz_global": {
+     "ra": 15.9722,
+     "ra_art": 5.9647,
+     "ra_rot": 16.9763,
+     "rot_deg": 11.6328,
+     "abs": 75.3879
+    },
+    "zgz_local": {
+     "ra": 29.5071,
+     "ra_art": 17.2403,
+     "ra_rot": 18.903,
+     "rot_deg": 12.85,
+     "abs": 89.1188
+    },
+    "frame_weighted_ra": 22.2641
+   },
+   "cnn_last_fuse": {
+    "zgz_global": {
+     "ra": 10.5833,
+     "ra_art": 5.8126,
+     "ra_rot": 10.4837,
+     "rot_deg": 8.5067,
+     "abs": 82.8503
+    },
+    "zgz_local": {
+     "ra": 24.6709,
+     "ra_art": 17.5328,
+     "ra_rot": 14.2174,
+     "rot_deg": 9.94,
+     "abs": 76.4241
+    },
+    "frame_weighted_ra": 17.1321
+   },
+   "mechanism": {
+    "zgz_global": {
+     "cnn_head_rot_deg": 8.2858,
+     "s37_closed_rot_deg": 11.6328,
+     "err_vector_cos_mean": 0.5695,
+     "err_norm_corr": 0.182
+    },
+    "zgz_local": {
+     "cnn_head_rot_deg": 10.7918,
+     "s37_closed_rot_deg": 12.85,
+     "err_vector_cos_mean": 0.438,
+     "err_norm_corr": 0.0403
+    }
+   }
+  }
+ }
+}

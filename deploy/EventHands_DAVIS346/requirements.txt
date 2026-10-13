@@ -1,0 +1,6 @@
+# PyTorch: install the build matching your CUDA driver from https://pytorch.org (CPU build also works)
+torch>=1.13
+numpy>=1.21
+opencv-python>=4.5
+# DAVIS346 camera and AEDAT4 files (Python >= 3.9 for 2.x wheels; 1.7.x also supported)
+dv-processing>=1.7

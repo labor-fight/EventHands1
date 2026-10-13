@@ -231,6 +231,8 @@ def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fix
     # `takes_event_count` is also handed the packet's raw event count. Bare models and FilteredTracker have none of these.
     stateful = hasattr(model, "get_state")
     with_count = bool(getattr(model, "takes_event_count", False))
+    # S43: a model with `takes_window` (semkine.kinematic_gate) is also handed the step's evidence window `window_ms=w`
+    wkw = (lambda w_: {"window_ms": int(w_)}) if getattr(model, "takes_window", False) else (lambda w_: {})
     preds, gts, ends_all, runs_all, elapsed, counts, prevs, fstate = [], [], [], [], [], [], [], []
     wins, counts_f = [], []
     for run_id, (a, b) in enumerate(runs):
@@ -269,9 +271,9 @@ def run_sequence(model, cfg, root, d, seq, device, rng, mode="model", wmode="fix
                 if mode == "noevents":
                     x = torch.zeros_like(x)
                 if with_count:
-                    pred = model(x, prev_t, n_events=0 if mode == "noevents" else n_cnt)
+                    pred = model(x, prev_t, n_events=0 if mode == "noevents" else n_cnt, **wkw(w))
                 else:
-                    pred = model(x, prev_t)
+                    pred = model(x, prev_t, **wkw(w))
             prev_t = pred if mode != "tf" else torch.from_numpy(pos51[int(end)].copy()).view(1, -1).to(device)
             preds.append(pred.cpu().numpy()[0])
             gts.append(pos51[end])
@@ -407,7 +409,7 @@ def _rot_second_diff_deg(aa):
 
 
 def jitter_decomp(mano, r, device, static_mm=STATIC_MM):
-    """Where the output's frame-to-frame motion comes from (DT round, docs/DT_RENDER_TRACK_PREREG.md).
+    """Where the output's frame-to-frame motion comes from (DT round, docs/EXPERIMENT_RECORDS.md#dt-prereg).
 
     On the absolute (non-aligned) MANO joints of the prediction, the ground truth and counterfactual
     mixes -- the ground truth with one block of the state taken from the prediction (`only_<block>`), and
@@ -532,7 +534,8 @@ def evaluate(model, cfg, mano, root, seqs, device, a, label=""):
     out, t0 = {}, time.time()
     arrays = {}
     for mode in modes:
-        rng = np.random.default_rng(0)
+        # S43: `a.init_seed` (absent = 0, the protocol) draws another realisation of the segments' noisy initial states
+        rng = np.random.default_rng(int(getattr(a, "init_seed", 0)))
         res = {}
         for s, d in seqs:
             r = run_sequence(model, cfg, root, d, s, device, rng, mode, a.window_mode, a.window_ms,

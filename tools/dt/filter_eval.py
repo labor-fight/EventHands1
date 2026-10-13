@@ -916,7 +916,7 @@ def _law_markdown(rep):
          "Rotation vectors add as vectors, not as magnitudes, hence |g| / theta <= (1 - a_root) + a_root * rho (triangle inequality), with equality only "
          "when f is parallel to e. Consequences:", "",
          "- A tracker with no response (f = 0) keeps exactly 1 - a_root at step 1 and (1 - a_root)^k at step k. This is the debug-gate law of the "
-         "pre-registration (`docs/DT_RENDER_TRACK_PREREG.md` section 3, 'retention follows (1 - g)^k'). It is a property of the filter module and is "
+         "pre-registration (`docs/EXPERIMENT_RECORDS.md#dt-prereg` section 3, 'retention follows (1 - g)^k'). It is a property of the filter module and is "
          "tested as such with a response-free stand-in (`tests/test_dt_filter.py`).",
          "- A tracker whose response is parallel to the perturbation with strength rho gives ((1 - a_root) + a_root * rho)^k (also tested).",
          f"- The real tracker responds (rho = {_rng(rho_all, 2, False)} here) and its response is not parallel to the perturbation, so the measured k1 "
@@ -993,7 +993,7 @@ def _law_markdown(rep):
 def _criteria_markdown(rep):
     """Section 5: the registered criteria that concern the filter, as they read on this model (information, no verdict)."""
     base_t, prim_t = gain_tag(rep["base"]), gain_tag(rep["primary_preregistered"])
-    L = ["## 5. The registered criteria for the filter (`docs/DT_RENDER_TRACK_PREREG.md`), as they read on rt_cnntrack", "",
+    L = ["## 5. The registered criteria for the filter (`docs/EXPERIMENT_RECORDS.md#dt-prereg`), as they read on rt_cnntrack", "",
          "Information for the registration's owner; no verdict is drawn here.", "",
          "| criterion (section) | registered | on rt_cnntrack |", "|---|---|---|",
          f"| gains fixed a priori (2) | root 0.5, fingers 1.0, translation 0.5 | run as the primary {_gtxt(rep['primary_preregistered'])}; the other triples are descriptive only |"]
@@ -1191,6 +1191,11 @@ def render_markdown(rep: dict) -> str:
 
 
 def cmd_report(a):
+    consolidated = (REPO / "docs/EXPERIMENT_RECORDS.md").resolve()
+    if Path(a.report_out).with_suffix(".md").resolve() == consolidated or (
+        a.docs_copy and Path(a.docs_copy).resolve() == consolidated
+    ):
+        raise ValueError("write a standalone report under outputs/; update only the corresponding experiment-record section")
     runs = [Path(r).name for r in a.runs]
     gains = parse_gains(a.gains) if a.gains else [BASE, PRIMARY, *SENSITIVITY]
     base, primary = parse_gains(a.base)[0], parse_gains(a.primary)[0]
@@ -1250,7 +1255,7 @@ def main(argv=None):
     ap.add_argument("--in-dir", default=None, help="report: directory holding <run>/<tag>.json; law-check: the run's own directory "
                                                    "holding <tag>.json / .npz")
     ap.add_argument("--report-out", default=None, help="report: output path without extension (.json and .md are written)")
-    ap.add_argument("--docs-copy", default=None, help="report: also write the markdown to this path (e.g. docs/DT_FILTER_CNNTRACK_RESULT.md)")
+    ap.add_argument("--docs-copy", default=None, help="report: also write standalone markdown (e.g. outputs/dt/reports/filter_copy.md)")
     ap.add_argument("--semkine-dir", default=str(REPO / "outputs" / "semkine"), help="report: where the recorded evaluations live")
     ap.add_argument("--base", default="1,1,1", help="report: the reference triple")
     ap.add_argument("--primary", default="0.5,1,0.5", help="report: the pre-registered primary")

@@ -1,4 +1,4 @@
-"""DT2 round, package C: five default-off features of the dense tracker (docs/DT2_PREREG.md section 2) and their arms.
+"""DT2 round, package C: five default-off features of the dense tracker (docs/EXPERIMENT_RECORDS.md#dt2-prereg section 2) and their arms.
 
   LOSS.ROOT_ROT_WEIGHT  w: so3_trans_fk's L_rot = (w d_root + sum of the 15 finger d) / (w + 15); w == 1 is the original path
   TRAIN.WEIGHT_DECAY    wd > 0: torch.optim.AdamW, Conv / Linear weights decay, BatchNorm parameters and every bias do not

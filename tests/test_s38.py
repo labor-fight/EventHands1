@@ -1,4 +1,4 @@
-"""S38 contracts (docs/S38_ROOT_TRACKING_VERDICT.md): the sparse pyramid's operators against dense references,
+"""S38 contracts (EXPERIMENT_RECORDS.md#s38-verdict): the sparse pyramid's operators against dense references,
 its packet independence and empty-packet identity; the absolute root measurement's rotation convention,
 loss, train / inference agreement and constant-gain filter; S37 left untouched.
 

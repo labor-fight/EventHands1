@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S38 (docs/S38_ROOT_TRACKING_PREREG.md): scheduler jobs for a set of arms x seeds.
+"""S38 (EXPERIMENT_RECORDS.md#s38-prereg): scheduler jobs for a set of arms x seeds.
 
 Per run: training (`semkine/train.py`, one GPU), then on a GPU the evaluation of the *last* checkpoint
 (`tools/tracking/evalx.py eval --ckpt last --controls --tf --perturb`; S38 reports no selected step), then

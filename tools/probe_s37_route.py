@@ -3,7 +3,7 @@
 
 Everything is measured on the held-out subject's sequences (val_core = zgz) with the trained
 checkpoints; nothing here trains. For each run the tool reports, in the order of the hypotheses
-in docs/S37_ROUTED_READOUT_PREREG.md section 5:
+in docs/EXPERIMENT_RECORDS.md#s37-routed-prereg section 5:
 
   H1  routing quality (recall = share of nodes inside the 16 px band, purity = share of routed
       nodes whose argmax joint agrees with the routing under the ground-truth prev) with the

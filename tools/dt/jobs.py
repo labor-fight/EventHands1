@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DT round (docs/DT_RENDER_TRACK_PREREG.md): scheduler jobs for a set of arms x seeds.
+"""DT round (EXPERIMENT_RECORDS.md#dt-prereg): scheduler jobs for a set of arms x seeds.
 
 Per run: training (`semkine/train.py`, one GPU), then on a GPU the evaluation of the *last* checkpoint
 (`tools/tracking/evalx.py eval --ckpt last --controls --tf --perturb`; the round reports no selected step), then

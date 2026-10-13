@@ -11,6 +11,10 @@ table starts from.
 
     python tools/report_table.py s36_eventgnn s37_routed s37_fkgraph s37_meshgraph
     python tools/report_table.py --label s37_routed="S37 路由读出（当前臂）" s37_routed
+    python tools/report_table.py --tag last xa_c1 xa_orc      # <run>_main_row_last.json (make_s36_row --step last)
+
+`--tag <suffix>` (default empty) reads `<run>_main_row<tag>.json`; a leading underscore is added when
+missing, so `--tag last` and `--tag _last` both read `<run>_main_row_last.json`.
 """
 from __future__ import annotations
 
@@ -28,8 +32,8 @@ RULE = "|---|---|---|---|---|---|---|---|---|"
 BASELINE = "| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |"
 
 
-def row(run: str, label: str | None = None, seeds: bool = True) -> str:
-    p = OUT / f"{run}_main_row.json"
+def row(run: str, label: str | None = None, seeds: bool = True, tag: str = "") -> str:
+    p = OUT / f"{run}_main_row{tag}.json"
     r = json.loads(p.read_text())
     m = r["two_seed_mean"]
     ra = f"{m['overall']['mpjpe_ra_mm']:.2f}"
@@ -48,12 +52,16 @@ def main() -> None:
                     help="display name for a run (default: the run name)")
     ap.add_argument("--no-seeds", action="store_true", help="RA cell without the per-seed values")
     ap.add_argument("--no-baseline", action="store_true", help="omit the EventHands-PCA6 row")
+    ap.add_argument("--tag", default="",
+                    help="suffix of the main-row file, <run>_main_row<tag>.json (e.g. `last` for "
+                         "`make_s36_row.py --step last`); default: the selected-step row")
     a = ap.parse_args()
+    tag = a.tag if (not a.tag or a.tag.startswith("_")) else "_" + a.tag
     labels = dict(kv.split("=", 1) for kv in a.label)
     lines = [HEADER, RULE]
     if not a.no_baseline:
         lines.append(BASELINE)
-    lines += [row(run, labels.get(run), seeds=not a.no_seeds) for run in a.runs]
+    lines += [row(run, labels.get(run), seeds=not a.no_seeds, tag=tag) for run in a.runs]
     print("\n".join(lines))
 
 

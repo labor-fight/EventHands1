@@ -723,7 +723,7 @@ def render_md(res: dict, headline, detail) -> str:
     if var_rows:
         L += ["## 7. Other recorded evaluations of the same runs (`--variants`)", "",
               "`last_tf_pert_gpu`: a second evaluation of the same last checkpoint (a GPU re-evaluation, "
-              "docs/S38_ROOT_TRACKING_VERDICT.md); the closed loop is chaotic, so primary vs `_gpu` shows how much a re-run moves "
+              "docs/EXPERIMENT_RECORDS.md#s38-verdict); the closed loop is chaotic, so primary vs `_gpu` shows how much a re-run moves "
               "every number above: " + noise_floor_line(res) + " `selected`: the checkpoint chosen by the selection step. "
               "`*_gain1`: the same checkpoint with the filter gains set to 1 (`configs/s38/*_gain1.yaml`: no filtering).", ""]
         L += [_table(["run", "evaluation", "RA", "jit_gt", "jit_pred", "jit_pred/jit_gt", "acc_gt", "acc_pred", "acc_err",
@@ -833,6 +833,9 @@ def run(args) -> dict:
 
 
 def write_outputs(res: dict, prefix: Path, headline, detail, doc=None):
+    consolidated = (REPO / "docs/EXPERIMENT_RECORDS.md").resolve()
+    if Path(f"{prefix}.md").resolve() == consolidated or (doc and Path(doc).resolve() == consolidated):
+        raise ValueError("write a standalone report under outputs/; update only the corresponding experiment-record section")
     prefix.parent.mkdir(parents=True, exist_ok=True)
     jp, mp_ = Path(f"{prefix}.json"), Path(f"{prefix}.md")
     jp.write_text(json.dumps(_clean(res), indent=1, allow_nan=False))
@@ -857,7 +860,7 @@ def main(argv=None) -> dict:
     ap.add_argument("--jobs", type=int, default=1, help="worker processes (each with --threads torch threads)")
     ap.add_argument("--threads", type=int, default=1)
     ap.add_argument("--static-mm", type=float, default=EX.STATIC_MM)
-    ap.add_argument("--doc", default=None, help="also write a compact markdown for docs/ to this path")
+    ap.add_argument("--doc", default=None, help="also write standalone compact markdown (e.g. outputs/dt/reports/jitter_doc.md)")
     ap.add_argument("--verbose", action="store_true", help="print every key of every sequence")
     args = ap.parse_args(argv)
     res = run(args)

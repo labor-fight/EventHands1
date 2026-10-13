@@ -153,11 +153,31 @@ BACKBONES: Dict[str, Callable[[int], nn.Module]] = {
     "resnet18_l3w128": lambda out_dim: ScaledResNet(out_dim, layers=(2, 2, 2, 0), stage_widths=(64, 128, 128)),
     "resnet18_l3w128s48": lambda out_dim: ScaledResNet(out_dim, layers=(2, 2, 2, 0), stage_widths=(48, 96, 128)),
     "resnet18_l3w128b1": lambda out_dim: ScaledResNet(out_dim, layers=(1, 1, 1, 0), stage_widths=(64, 128, 128)),
+    # S42 (trk6): layer3 192 wide, between l3 (256) and l3w128
+    "resnet18_l3w192": lambda out_dim: ScaledResNet(out_dim, layers=(2, 2, 2, 0), stage_widths=(64, 128, 192)),
 }
+
+#: S43: the l3 trunk as a sparse function of the active sites (`sparse_trunk.SparseResNet`, called `rn(x, mask)`); kept
+#: out of BACKBONES, whose entries are dense (B, 3, H, W) -> (B, out_dim) trunks with measured parameter / MAC ranges
+SPARSE_BACKBONES: Dict[str, Callable[[int], nn.Module]] = {
+    "sparse_resnet18_l3": lambda out_dim: _sparse(out_dim),
+    "sparse_resnet18_l3_nocoord": lambda out_dim: _sparse(out_dim, coord=False),
+    "sparse_resnet18_l3w192": lambda out_dim: _sparse(out_dim, widths=(64, 128, 192)),
+    "sparse_resnet18_l3_d1": lambda out_dim: _sparse(out_dim, dilate=1),
+}
+
+
+def _sparse(out_dim: int, **kw) -> nn.Module:
+    from sparse_trunk import SparseResNet
+    return SparseResNet(out_dim, **kw)
 
 
 def build_backbone(name: str, out_dim: int) -> nn.Module:
     """Trunk `name` mapping (B, 3, H, W) to (B, out_dim); `name` is a key of BACKBONES, else ValueError."""
+    if isinstance(name, str) and name in SPARSE_BACKBONES:
+        if int(out_dim) < 1:
+            raise ValueError(f"out_dim must be a positive integer, got {out_dim!r}")
+        return SPARSE_BACKBONES[name](int(out_dim))
     if not isinstance(name, str) or name not in BACKBONES:
         raise ValueError(f"unknown backbone {name!r}; available: {', '.join(BACKBONES)}")
     if int(out_dim) < 1:

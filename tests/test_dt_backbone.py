@@ -48,6 +48,8 @@ MEASURED = {
     # DT2 deviation 4 (arms dt_dz_l3w128s48 / dt_dz_l3w128b1), measured the same way on the server
     "resnet18_l3w128s48": (959_459, 605_394_048, 611_350_016),
     "resnet18_l3w128b1": (632_307, 514_981_248, 520_487_936),
+    # S42 (trk6): layer3 at 192 channels, measured the same way on the server
+    "resnet18_l3w192": (1_935_923, 1_084_901_952, 1_092_923_904),
 }
 TOL = 0.01                                              # relative band around every measured count except resnet18
 

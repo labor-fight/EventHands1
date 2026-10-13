@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DT round: the result tables of docs/DT_RENDER_TRACK_VERDICT.md, generated from the evaluation jsons (nothing typed by hand).
+"""DT round: the result tables of docs/EXPERIMENT_RECORDS.md#dt-verdict, generated from the evaluation jsons (nothing typed by hand).
 
     python tools/dt/verdict_tables.py > /tmp/tables.md        # all arms that have an evaluation
     python tools/dt/verdict_tables.py --arms dt_base dt_dz     # a subset

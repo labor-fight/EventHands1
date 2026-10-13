@@ -4,9 +4,9 @@
 # numbering restarts here; the earlier "S37 FK-direct" no longer exists in the tree.
 #
 # Protocol note: trains on the nine-subject default split (splits_semkine.json) and validates,
-# selects and reports on the held-out subject zgz only (docs/FAILURE_AND_CLEANUP_LEDGER.md).
+# selects and reports on the held-out subject zgz only (EXPERIMENT_RECORDS.md#ledger-dense).
 #
-# The arm under test (docs/S37_ROUTED_READOUT_PREREG.md): the graph never sees the previous
+# The arm under test (EXPERIMENT_RECORDS.md#s37-routed-prereg): the graph never sees the previous
 # state -- no rendered `sil`/`inv` node channels, nodes are the 7-dim event tokens alone
 # (PREV_RENDER: false). The previous state's MANO FK is projected and each sampled node is given
 # the LBS row of the front-most nearest vertex within 16 px (`semkine.routed_readout`), i.e. the

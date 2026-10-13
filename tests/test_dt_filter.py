@@ -261,7 +261,7 @@ def _retention_curve(a, rho, theta_deg, steps=6):
 @pytest.mark.parametrize("a", [0.25, 0.5, 0.75])
 @pytest.mark.parametrize("theta", [10.0, 20.0, 90.0])
 def test_response_free_tracker_retention_is_one_minus_a_to_the_k(a, theta):
-    """The pre-registered debug-gate law (docs/DT_RENDER_TRACK_PREREG.md section 3): with a tracker that does not respond
+    """The pre-registered debug-gate law (docs/EXPERIMENT_RECORDS.md#dt-prereg section 3): with a tracker that does not respond
     to the state the filter alone keeps (1 - a)^k of an injected root rotation after k steps."""
     ret = _retention_curve(a, 0.0, theta)
     assert np.allclose(ret, (1.0 - a) ** np.arange(1, 7), atol=2e-5)

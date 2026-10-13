@@ -1,5 +1,5 @@
 # dt_dz_l3_nzlo: DT2 deviation 3: fewer large prev-noise draws (mix 0.8/0.1/0.1 instead of 0.5/0.3/0.2).
-# = configs/dt/dt_dz_l3.yaml + {'TRACK': {'PREV_NOISE_P_SMALL': 0.8, 'PREV_NOISE_P_LARGE': 0.1, 'PREV_NOISE_P_CORR': 0.1}} (docs/DT2_PREREG.md, deviation 3). Seeds and output paths on the command line.
+# = configs/dt/dt_dz_l3.yaml + {'TRACK': {'PREV_NOISE_P_SMALL': 0.8, 'PREV_NOISE_P_LARGE': 0.1, 'PREV_NOISE_P_CORR': 0.1}} (docs/EXPERIMENT_RECORDS.md#dt2-prereg, deviation 3). Seeds and output paths on the command line.
 SEED: 3407
 DATA:
   ROOT: /data1/lyq/code/mesh/EventHands/data/hand_data51

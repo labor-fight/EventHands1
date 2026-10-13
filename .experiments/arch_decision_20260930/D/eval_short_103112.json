@@ -1,0 +1,38 @@
+{
+ "arch0930_w32_s3407@400": {
+  "window": 32,
+  "zgz_global": {
+   "ra": 18.8342,
+   "ra_art": 7.6985,
+   "ra_rot": 16.2337,
+   "rot_deg": 14.0277,
+   "abs": 62.4565
+  },
+  "zgz_local": {
+   "ra": 43.2132,
+   "ra_art": 23.253,
+   "ra_rot": 30.9105,
+   "rot_deg": 25.2471,
+   "abs": 156.721
+  },
+  "frame_weighted_ra": 30.1672
+ },
+ "arch0930_w256_s3407@400": {
+  "window": 256,
+  "zgz_global": {
+   "ra": 22.438,
+   "ra_art": 8.6432,
+   "ra_rot": 23.0166,
+   "rot_deg": 18.0282,
+   "abs": 36.3947
+  },
+  "zgz_local": {
+   "ra": 36.2175,
+   "ra_art": 23.393,
+   "ra_rot": 23.1847,
+   "rot_deg": 16.4408,
+   "abs": 78.5484
+  },
+  "frame_weighted_ra": 28.8436
+ }
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DT round diagnostic D0e (docs/DT_RENDER_TRACK_PREREG.md): inference-time ablation of the event-blind `prev_mlp`.
+"""DT round diagnostic D0e (EXPERIMENT_RECORDS.md#dt-prereg): inference-time ablation of the event-blind `prev_mlp`.
 
 Hypothesis (registered with the translation-structure diagnostic): `prev_mlp` (51 -> 64 -> 51, reads the raw previous
 state, zero-initialised last layer) learned a regression-to-the-mean pull on the depth, because the training prev noise

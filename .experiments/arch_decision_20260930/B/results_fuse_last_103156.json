@@ -1,0 +1,172 @@
+{
+ "alpha": 0.5,
+ "cnn_ckpt": "last.ckpt",
+ "heads": {
+  "s37diag_cnnabs_s3407": {
+   "lambda": 0.1,
+   "holdout_rot_deg": 8.6068,
+   "zgz_rot_deg": {
+    "zgz_global": 8.7854,
+    "zgz_local": 9.8368
+   }
+  },
+  "s37diag_cnnabs_s3408": {
+   "lambda": 0.1,
+   "holdout_rot_deg": 8.7142,
+   "zgz_rot_deg": {
+    "zgz_global": 8.2858,
+    "zgz_local": 10.7918
+   }
+  }
+ },
+ "loops": {
+  "s37_routed_s3407:selected": {
+   "ckpt": "outputs/semkine/s37_routed_s3407/s37_routed_s3407-step=2500.ckpt",
+   "base": {
+    "zgz_global": {
+     "ra": 15.6321,
+     "ra_art": 8.7663,
+     "ra_rot": 14.8131,
+     "rot_deg": 11.2882,
+     "abs": 35.0955
+    },
+    "zgz_local": {
+     "ra": 23.3935,
+     "ra_art": 16.7942,
+     "ra_rot": 14.8749,
+     "rot_deg": 11.092,
+     "abs": 110.1368
+    },
+    "frame_weighted_ra": 19.2401
+   },
+   "cnn_last_fuse": {
+    "zgz_global": {
+     "ra": 12.3304,
+     "ra_art": 8.3118,
+     "ra_rot": 9.5294,
+     "rot_deg": 8.5961,
+     "abs": 35.0561
+    },
+    "zgz_local": {
+     "ra": 22.5266,
+     "ra_art": 17.185,
+     "ra_rot": 11.8748,
+     "rot_deg": 8.2162,
+     "abs": 106.4194
+    },
+    "frame_weighted_ra": 17.0703
+   }
+  },
+  "s37_routed_s3407:last": {
+   "ckpt": "/data1/lyq/code/mesh/EventHands1/outputs/semkine/s37_routed_s3407/last.ckpt",
+   "base": {
+    "zgz_global": {
+     "ra": 18.3254,
+     "ra_art": 7.2338,
+     "ra_rot": 17.1123,
+     "rot_deg": 11.551,
+     "abs": 35.5243
+    },
+    "zgz_local": {
+     "ra": 33.357,
+     "ra_art": 19.7719,
+     "ra_rot": 22.4537,
+     "rot_deg": 15.3373,
+     "abs": 105.3802
+    },
+    "frame_weighted_ra": 25.3131
+   },
+   "cnn_last_fuse": {
+    "zgz_global": {
+     "ra": 12.0827,
+     "ra_art": 6.8944,
+     "ra_rot": 9.8155,
+     "rot_deg": 8.4345,
+     "abs": 34.6035
+    },
+    "zgz_local": {
+     "ra": 27.4789,
+     "ra_art": 20.3656,
+     "ra_rot": 14.9804,
+     "rot_deg": 10.0262,
+     "abs": 102.5585
+    },
+    "frame_weighted_ra": 19.2399
+   }
+  },
+  "s37_routed_s3408:selected": {
+   "ckpt": "outputs/semkine/s37_routed_s3408/s37_routed_s3408-step=5000.ckpt",
+   "base": {
+    "zgz_global": {
+     "ra": 15.9722,
+     "ra_art": 5.9647,
+     "ra_rot": 16.9763,
+     "rot_deg": 11.6328,
+     "abs": 75.3879
+    },
+    "zgz_local": {
+     "ra": 29.5071,
+     "ra_art": 17.2403,
+     "ra_rot": 18.903,
+     "rot_deg": 12.85,
+     "abs": 89.1188
+    },
+    "frame_weighted_ra": 22.2641
+   },
+   "cnn_last_fuse": {
+    "zgz_global": {
+     "ra": 10.5833,
+     "ra_art": 5.8126,
+     "ra_rot": 10.4837,
+     "rot_deg": 8.5067,
+     "abs": 82.8503
+    },
+    "zgz_local": {
+     "ra": 24.6709,
+     "ra_art": 17.5328,
+     "ra_rot": 14.2174,
+     "rot_deg": 9.94,
+     "abs": 76.4241
+    },
+    "frame_weighted_ra": 17.1321
+   }
+  },
+  "s37_routed_s3408:last": {
+   "ckpt": "/data1/lyq/code/mesh/EventHands1/outputs/semkine/s37_routed_s3408/last.ckpt",
+   "base": {
+    "zgz_global": {
+     "ra": 16.7791,
+     "ra_art": 6.7052,
+     "ra_rot": 16.3848,
+     "rot_deg": 10.1243,
+     "abs": 34.5909
+    },
+    "zgz_local": {
+     "ra": 29.7274,
+     "ra_art": 17.8085,
+     "ra_rot": 17.8703,
+     "rot_deg": 12.6226,
+     "abs": 113.974
+    },
+    "frame_weighted_ra": 22.7983
+   },
+   "cnn_last_fuse": {
+    "zgz_global": {
+     "ra": 11.7017,
+     "ra_art": 6.2749,
+     "ra_rot": 10.0824,
+     "rot_deg": 7.2662,
+     "abs": 32.2259
+    },
+    "zgz_local": {
+     "ra": 25.7181,
+     "ra_art": 18.2253,
+     "ra_rot": 13.471,
+     "rot_deg": 9.7171,
+     "abs": 108.3222
+    },
+    "frame_weighted_ra": 18.2174
+   }
+  }
+ }
+}

@@ -16,7 +16,7 @@ Each check prints PASS / FAIL with the number behind it; the exit status is 1 if
                       `--ckpt` this runs the untrained weights (a plumbing check); with it, the real one
   7 runtime           batch-1 latency per packet on real packets (evalx.latency_model), raw and anchored;
                       with `--budget CONFIG` also the budget arm's latency and both arms' MACs in the same process
-S38 additions (docs/S38_ROOT_TRACKING_VERDICT.md):
+S38 additions (EXPERIMENT_RECORDS.md#s38-verdict):
   8 rotation          `ROOT_MEAS: abs`: ROOT_REF is the training split's mean root; a zero head output measures
                       R_ref exactly; the training (GPU, float32) and inference (host, float64) compositions agree;
                       the root loss is zero at the target

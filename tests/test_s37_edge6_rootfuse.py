@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S37 variants (docs/S37_EXPERIMENT_RECORDS.md [EDGE6]): deeper EdgeConv and per-joint root fusion.
+"""S37 variants (docs/EXPERIMENT_RECORDS.md#s37-edge6 [EDGE6]): deeper EdgeConv and per-joint root fusion.
 
 What must hold:
 

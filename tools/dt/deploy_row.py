@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DT2: the "deployment form" main-table row (docs/DT2_PREREG.md section 6).
+"""DT2: the "deployment form" main-table row (docs/EXPERIMENT_RECORDS.md#dt2-prereg section 6).
 
 Accuracy cells = the adaptive-filter row (outputs/semkine/dt2_dz_l3_dt2afilt_main_row.json); the deployment form is
 bit-identical to it (outputs/dt2/reports/deploy_check.json: DeployTracker steps == the recorded filter_eval steps, every

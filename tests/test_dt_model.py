@@ -1,5 +1,5 @@
 """Task `model-core` of the DT round: four default-off features of the dense tracker `MNISTModel`
-(docs/DT_RENDER_TRACK_PREREG.md sections 2 and 3):
+(docs/EXPERIMENT_RECORDS.md#dt-prereg sections 2 and 3):
 
   MODEL.CNN_BACKBONE     the trunk `rn` by name (model/backbones.py); default `resnet18` = torchvision's resnet18
   MODEL.CAM_PLANES       two input channels, the camera-ray slopes of every render pixel under the sample's own K
@@ -55,12 +55,17 @@ ORIG_SHA256 = "0521bd0ae87839a3529cf7a3b3ee05ad20b47a63d6595008fc3e4ac6fd70a7c2"
 RT_CFG = REPO / "configs" / "rt" / "rt_cnntrack.yaml"
 DT = REPO / "configs" / "dt"
 DATA_ROOT = REPO / "data" / "hand_data51"
-#: MODEL keys the pristine reference (outputs/dt/ref/model_orig.py) does not know. The DT2 round added the last two
-#: (ROOT_HEAD, RENDER_FP32; tests/test_dt_model3.py pins them): configs that carry any of them are not "existing blocks".
+#: MODEL keys the pristine reference (outputs/dt/ref/model_orig.py) does not know. The DT2 round added ROOT_HEAD and
+#: RENDER_FP32 (tests/test_dt_model3.py pins them): configs that carry any of them are not "existing blocks".
+#: DT3 arms_E were archived when restoring S39; their keys are no longer accepted by the active model.
 NEW_KEYS = ("CNN_BACKBONE", "CAM_PLANES", "ROOT_COMPOSE", "PREV_MLP_TRANSL", "ROOT_HEAD", "RENDER_FP32")
 #: TRACK keys the pristine reference does not know (DT2 package E, tests/test_dt_model4.py pins them); configs that carry
 #: any of them are not "existing blocks" either (the reference refuses them as unknown TRACK keys)
 NEW_TRACK_KEYS = ("ROLLOUT_P", "ROLLOUT_RAMP")
+#: MODEL keys added after the reference copy was taken, by later rounds (XYZ-ASSOC 2026-10-09: tests/test_xa_assoc.py pins
+#: them); configs that carry any of them are not "existing blocks" either (the reference refuses them as unknown keys)
+POST_REF_KEYS = ("XYZ_ASSOC_MODE", "XYZ_CONTOUR_GAP", "XYZ_ASSOC_PREV",
+                 "XYZ_RESIDUAL_MODE", "XYZ_RESIDUAL_SEED")
 H, W = 180, 240
 BASE_K = torch.tensor([[603.4507, 0.0, 325.09183], [0.0, 602.95654, 242.09796], [0.0, 0.0, 1.0]])
 
@@ -241,7 +246,7 @@ def _model_blocks():
             cfg = load_config(p)
         except Exception:                                         # not a model config
             continue
-        if "MODEL" not in cfg or any(k in cfg["MODEL"] for k in NEW_KEYS) \
+        if "MODEL" not in cfg or any(k in cfg["MODEL"] for k in NEW_KEYS + POST_REF_KEYS) \
                 or any(k in (cfg.get("TRACK") or {}) for k in NEW_TRACK_KEYS):
             continue
         key = json.dumps({k: cfg.get(k) for k in ("MODEL", "TRACK", "LOSS", "DATA", "MANO")}, sort_keys=True,
@@ -327,7 +332,8 @@ def test_pristine_reference_is_the_file_before_the_edit(orig):
     assert not set(NEW_KEYS) & set(orig.MNISTModel.MODEL_KEYS)
     assert set(NEW_KEYS) <= set(MNISTModel.MODEL_KEYS)
     assert set(orig.MNISTModel.MODEL_KEYS) <= set(MNISTModel.MODEL_KEYS)
-    assert set(orig.MNISTModel.TRACK_KEYS) == set(MNISTModel.TRACK_KEYS) - set(NEW_TRACK_KEYS)
+    s42_track = {"SELF_P", "SELF_RAMP", "SELF_FILTER"}                 # trk6 / S42 candidate B, opt-in
+    assert set(orig.MNISTModel.TRACK_KEYS) == set(MNISTModel.TRACK_KEYS) - set(NEW_TRACK_KEYS) - s42_track
     assert set(NEW_TRACK_KEYS) <= set(MNISTModel.TRACK_KEYS) and not set(NEW_TRACK_KEYS) & set(orig.MNISTModel.TRACK_KEYS)
 
 

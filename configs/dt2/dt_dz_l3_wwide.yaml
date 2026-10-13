@@ -1,5 +1,5 @@
 # dt_dz_l3_wwide: DT2 deviation 1: wider log-uniform window 20-500 ms (w50/w100 showed narrower windows raise closed-loop amplification).
-# = configs/dt/dt_dz_l3.yaml + {'DATA': {'WINDOW_MIN': 20, 'WINDOW_MAX': 500}} (docs/DT2_PREREG.md, deviation 1). Seeds and output paths on the command line.
+# = configs/dt/dt_dz_l3.yaml + {'DATA': {'WINDOW_MIN': 20, 'WINDOW_MAX': 500}} (docs/EXPERIMENT_RECORDS.md#dt2-prereg, deviation 1). Seeds and output paths on the command line.
 SEED: 3407
 DATA:
   ROOT: /data1/lyq/code/mesh/EventHands/data/hand_data51
