@@ -1,0 +1,42 @@
+{
+  "protocol": "W50 raw; 50-ms window and update interval",
+  "canvas_mm": [
+    190,
+    108
+  ],
+  "raster_dpi": 600,
+  "illustration_note": "Actual MANO mesh in a schematic pose; not a measured event sample.",
+  "config": "configs/s43/s43n_sp.yaml",
+  "files": [
+    {
+      "path": "s43_w50_zh.svg",
+      "sha256": "efa31e5eadc57dc33362e82b249394aecb1a18614fa96d3ab5a330aebd7a9bd5"
+    },
+    {
+      "path": "s43_w50_zh.pdf",
+      "sha256": "9824b70d57c8a9086b2535ccafafd7c8c98aec4f3bebf17265405ac7744e5fcc"
+    },
+    {
+      "path": "s43_w50_zh.png",
+      "sha256": "2ddaa488e6af1be31699576ed0c2bfb377ba9b8511bf56ce6ff6bc6a150674b2"
+    },
+    {
+      "path": "s43_w50_zh.tiff"
+    },
+    {
+      "path": "s43_w50_en.svg",
+      "sha256": "a00a32efad22afe3afba54cc3acb060ecf677432fcb80ac4ef3977d136ae1c93"
+    },
+    {
+      "path": "s43_w50_en.pdf",
+      "sha256": "5f177fd3e0ded5c9c595090eba3ac3e13837c176af1e0d2ce7f07e82242d6250"
+    },
+    {
+      "path": "s43_w50_en.png",
+      "sha256": "37e25128cf8bf52d3253409eba3b723fb5bed3ad5214e0df69bb67945cc8b7c5"
+    },
+    {
+      "path": "s43_w50_en.tiff"
+    }
+  ]
+}

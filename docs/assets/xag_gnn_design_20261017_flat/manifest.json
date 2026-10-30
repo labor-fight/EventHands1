@@ -1,0 +1,37 @@
+{
+  "created_at_utc": "2026-10-17T03:26:56.003637+00:00",
+  "request": "Flatter horizontal diagram; more detailed changes and explicit purposes",
+  "sources": {
+    "semkine/xag.py": "306b905d64b35e5cd0eef70fe825eff4b1e3359a164bf60ee8807736712088a8",
+    "semkine/xyz_mesh.py": "869412d7bdc9acb7d58821e2a314dab17906889272e986fae407ea5c65224ee1",
+    "configs/xag/xag_a0f1_s3407.yaml": "b1deb91147f974853a038dbeea59f1944fa6efcfddbd96ebfe245bed6beb7fff"
+  },
+  "artifacts": {
+    "generate.py": "a99c1e66b8e41896e80ed60e0048bf9c3ee6681ef824236cbcf497e47113e386",
+    "new_block_flat.png": "210e9b60181685bc10fc2b33466c213ba89e557238f619e1fec29a0eca9e5a8a",
+    "new_block_flat.svg": "72f0abda4dd700524cb8bb5fd88b99750fefc75c3bd17b156f3dbeb3ed00eb3b",
+    "overview_flat.png": "438a94d21af8165ff2ef9f9ca278c094b81b475a7a16ec09928e789e15d88aca",
+    "overview_flat.svg": "3dbe579b0f9f9afce16958ba20e8f0c7306f4a171eeb58bf2c00875cfa53173c"
+  },
+  "figures": {
+    "overview_flat.png": {
+      "width": 3920,
+      "height": 560,
+      "aspect_ratio": 7.0
+    },
+    "new_block_flat.png": {
+      "width": 3920,
+      "height": 686,
+      "aspect_ratio": 5.714285714285714
+    }
+  },
+  "generation_command": "/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python docs/assets/xag_gnn_design_20261017_flat/generate.py",
+  "verified": [
+    "Both PNGs visually inspected; FFN wrapped to prevent text overflow",
+    "Original/new layers and seven inserted operations labelled",
+    "Part identity directly enters only Q/K; V input Z",
+    "Residual1 carries U; residual2 carries H1",
+    "Masks block unsupported keys and clear unsupported outputs; support S remains unchanged by added block",
+    "Documentation-only changes, no training/source/protocol changes"
+  ]
+}

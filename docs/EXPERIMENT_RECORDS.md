@@ -1,10 +1,22 @@
 # EventHands1 全部实验记录
 
+**本轮进展（2026-10-28，S43第三轮）**：[REL失败归因](#s43-revisit-stage1-results-20261028)、三案与100格交叉审查、[B原型](#s43-witness-results-20261028)、[A原型](#s43-field-query-results-20261028)、[训练制度修正](#s43-field-reader-r1-results-20261028)及[74份MANO读出实验](#s43-field-mano-reader-results-20261028)已完成；尚未证明关节语义查询优于强简单控制。[五臂小训练已全部完成并验收，完整训练于06:30正式启动](#s43-field-full-start-20261028)，每臂6144000个实际监督输出，末权重后自动接120条回放、评分及52项资源case。首尝试几何失败、[R1修正](#s43-field-full-r1-20261028)和[实际线程身份勘误](#s43-field-thread-erratum-20261028)均保留。目前没有新完整mesh精度主行，旧REL和S43/S39裁决保持；不把启动、工程通过或代理收益写成方法成功。
+
+**S43 文档并入（2026-10-28，用户要求）**：原 `docs/` 下四份 S43 文件已并入并删除：`S43_REL_实现训练与流式结果_20261027.md` 全文并入本账本 [S43-REL：实现、完整配对训练与流式结果](#s43-rel-doc-20261027)；`S43表征调研.md`（十二编）、`S43_三种表征方案与主方案定义_第二轮重设计_20261027.md`、`S43_100单元交叉审查_第二轮重设计_20261027.md` 分别并入《网络结构与可观测性诊断研究》的 [附录 N](网络结构与可观测性诊断研究.md#s43-representation-survey)、[附录 O](网络结构与可观测性诊断研究.md#s43-redesign-20261027)、[附录 P](网络结构与可观测性诊断研究.md#s43-battle100-20261027)。只下移标题层级、改写跨文件链接，原锚点（`s43-part-01`–`12`、`s43-third-round-*`、`d01q01`–`d10q10`）不改名；旧链接 `S43表征调研.md#<锚点>` 对应研究稿 `#<锚点>`。原字节备份、逐行可逆记录与校验在 `outputs/s43_docs_merge_20261028/`。正在运行的五臂完整前端自动链末尾的 `report_full_field.py --write-docs` 改为写入研究稿附录 N 末尾的占位标记与本账本末尾；`validate_records.py`（缺失原路径时回退到备份核对冻结 SHA）、`report_attribution.py`、`compile_battle.py` 与两份 README 的路径同步改写；`tools/s43_rel/protocol.py`、`tools/s43_rel/delivery.py`、`tools/s43_revisit/freeze.py`、`tools/s43_revisit/representation_audit.py`、`tools/s43_br/carrier.py` 中的原路径属已冻结或一次性协议的历史出处，不改。
+
+**最新实验归档（2026-10-27，S43-REL）**：[最终记录与裁决](#s43-rel-results-20261027)已集中整理四组6000步配对微调、54条最终完整流回放、107项测试及成本/失败证据。结论为不替换原S43：精度大体保持，独特任务价值未建立，软件整mesh服务成本约增至5.9倍。19.2万输出/臂是历史预算的1/32；β0部署结果与给定手形β的条件诊断分开。快速入口：[预注册](#s43-rel-prereg-20261027) · [唯一R1修正](#s43-rel-r1-prereg-20261027) · [β0补充登记](#s43-rel-mean-shape-extension-20261027) · [复现命令](#s43-rel-reproduction-20261027) · [证据与权重](#s43-rel-artifacts-20261027)。下列较早日期的“当前/最新”措辞按历史时点读取。
+
+**全部结果收拢（2026-10-20）**：按用户要求，原独立的 `docs/S37_XYZ_ASSOC_DIAGNOSIS.md`（S37 XYZ 统一诊断、XA–XDF 结果、XAG 入口与 E01–E51 逐项登记）全文并入本文件的 [S37 XYZ 统一诊断](#s37-xyz-diagnosis)，原 96 个锚点不改名；《网络结构分析》开头的 2026-10-12 ABCD 裁决解读移到 [ABCD 执行记录之后](#xyz-abcd-verdict-20261012)。此前只在 `outputs/` 里有产物、账本没有写到的结果按产物补登记：[S43 结果与裁决](#s43-result)、[XKF R3 的配对统计验证与终态](#xkf-fusion-r3-20261015)、[XRF](#xrf-20261015)、[XAG 六格终态](#xag-single-seed-final-20261020)、[XAG 严格配对终态](#xag-paired-final-20261020)、[XCL 训练回执](#xcl-training-receipts-20261019) 与 [XCL 最终结果明细](#xcl-result-20261019)，另补 S44 的产物时间与勘误、S42 已删主行的说明。补登记各段都注明是 2026-10-20 按产物写入。原有正文的数字与措辞不改；改动只有三类：XKF R3 与 S44 小标题里过时的状态和时间占位（原文记在各节补注中），过时的“当前”“进行中”段落末尾加带日期的短注，以及导航、目录和链接。每条实验线的时间、问题、结局与入口见 [全部实验总览](#all-experiments-index)。现在 `docs/` 下只有本账本和《网络结构分析》两份文档，后者只保留文献与结构分析。并入前各文件的原字节与 SHA256 见 `outputs/docs_consolidation_20261020/manifest.json`。
+
+**最新执行范围（2026-10-17，XAG）**：用户将本轮18项改为六个方案各一次训练，统一seed3407，不执行第二seed或同seed复跑。六格及原fresh step6000、双卡2×512、数据划分、训练配方、完整zgz评价合同保留；原协议与186文件源码冻结不改，旧训练、OOM和末点审查证据保留。现行范围与单seed描述性解释见[修订账本](#xag-single-seed-20261017)及[单seed协议](../outputs/xag/single_seed/protocol.json)，执行切换与实时完成数见[六项状态](../outputs/xag/single_seed/status.json)。下列旧“当前状态”及18项记录均按原日期读取。
+
+**状态补注（2026-10-20）**：上段“最新执行范围（2026-10-17，XAG）”及其所指`outputs/xag/single_seed/status.json`是10-17时点；该目录已于10-19随旧XAG/XA清理归档删除（见[删除登记](#xag-xa-deletion-20261019)）。此后的终态：XAG严格配对线停在`FAILED_PRESERVED`（[终态补注](#xag-paired-final-20261020)）；其四个已完权重与新训A2F0等共十模型的统一评价见[XCL最终结果](#xcl-result-20261019)，`scientific_review.json`状态`COMPLETE_SCIENTIFIC_REVIEWED`；旧XAG六格的终态与证据迁移见[补登](#xag-single-seed-final-20261020)。全部为单seed3407描述性比较，oracle不可部署，S39不变。
+
 2026-10-05 按用户要求统一实验文档入口。原 `S37_EXPERIMENT_RECORDS.md` 更名并扩展为本文件；现存 18 份实验预注册、结果裁决、实测归档、架构决策及失败/清理账本全文归并，另迁入《网络结构分析》中的独立实验审计、运行时探针、内部实验索引与历史创新切分记录。
 
 记录按**证据编码器及实验主体**分成两部分：LNES + CNN 的稠密卷积；event + 类图神经网络的异步稀疏网络分析。CNN 主干后加图头仍归稠密路线；图编码器与 CNN 根观测混合的实验保留完整证据链并交叉引用。第二部分也收录事件点网络、网格图与稀疏卷积；目录类别不表示所有实现都具备逐事件异步运行时，是否实现必须以各记录的原文为准。
 
-**当前状态（2026-10-13，XDL）**：F0/Q0/F1/Q1/N1 五臂均完成 seed3407 的 fresh step6000 训练及完整评价，旧五权重诊断也已完成；第二 seed 未执行。最终主表、固定比较、恢复与运动护栏、配置身份修正及证据边界见 [XDL 最终结果](#xdl-final-results-20261013)，跨轮整理见 [S37 系列与 XYZ 关联诊断](S37_XYZ_ASSOC_DIAGNOSIS.md)。本轮单 seed 的描述性结果未满足完整恢复与保护要求，**S39 仍为正式默认方案**。正式图表及来源快照见 [已提交的文档附件](assets/xdl_20261013/README.md)；CPU 复核命令见 [复算入口](S37_XYZ_ASSOC_DIAGNOSIS.md#xdl-reproduction)。
+**当前状态（2026-10-13，XDL）**：F0/Q0/F1/Q1/N1 五臂均完成 seed3407 的 fresh step6000 训练及完整评价，旧五权重诊断也已完成；第二 seed 未执行。最终主表、固定比较、恢复与运动护栏、配置身份修正及证据边界见 [XDL 最终结果](#xdl-final-results-20261013)，跨轮整理见 [S37 系列与 XYZ 关联诊断](#s37-xyz-diagnosis)。本轮单 seed 的描述性结果未满足完整恢复与保护要求，**S39 仍为正式默认方案**。正式图表及来源快照见 [已提交的文档附件](assets/xdl_20261013/README.md)；CPU 复核命令见 [复算入口](#xdl-reproduction)。
 
 **S42 裁决（2026-10-06 晚）**：用户重新授权以 S39 为唯一基线的新一轮（诊断—实现—消融—闭环验证）。三个候选（A 手部 ROI、B 部署环路自身前态训练、C 集成蒸馏）中只有 B 带来可靠的闭环改进；最好的组合 S42（S39 配方 + B + l3w192 主干）三种子 local MPJPE 9.90（每个种子 < 10）、MPVPE 8.69、global 7.28、参数 −31%、MAC −12%，但按预注册门可靠性（第三种子 +0.02）、local 滞后（+0.13 步）与端到端时延（持平）未过，**不采纳，S39 仍为正式基线**。见 [S42 结论](#s42-verdict) 与 [S42 预注册](#s42-prereg)。
 
@@ -20,7 +32,7 @@
 
 **S37 证据复核（2026-10-07，只读）**：对历史 S37（`s37_routed`）与统一配方重训（`rt_s37`）做了一次只读诊断（无训练、无新评测、无新主行）。完整记录、分格 tracking 判定、瓶颈与竞争解释、失败证据审查、稀疏异步可行性、尚缺机制与最小验证设计见 [S37 证据复核与瓶颈诊断](#s37-diagnosis-20261007)；其 §10 列出本文件中关于 S37 的旧读法与数字的更正，各处原文保留。此项不改变当前正式起点 S39。
 
-导航：[XDL 最终结果（10-13）](#xdl-final-results-20261013) · [XDL 执行合同](#xdl-execution-20261013) · [S37/XA/XB/XC/XDL 综合诊断](S37_XYZ_ASSOC_DIAGNOSIS.md) · [S42 结论](#s42-verdict) · [S42 预注册](#s42-prereg) · [暂停与S39恢复](#tracking-stop-s39-20261006) · [第一部分：稠密卷积](#dense-cnn) · [第二部分：异步稀疏与图网络](#sparse-event-graph) · [共用协议与工程账本](#ledger-dense) · [稀疏路线账本](#ledger-sparse) · [S37 证据复核（10-07）](#s37-diagnosis-20261007) · [S43 预注册（10-07）](#s43-prereg) · [S43 消融（10-08）](#s43-ablation) · [副本目录清理（10-07）](#ledger-dense--2026-10-07-variant-dirs)
+导航：[全部实验总览](#all-experiments-index) · [S44（10-19）](#s44-prereg-20261019) · [XCL 最终结果（10-19）](#xcl-result-20261019) · [XAG 与 C1 复现（10-17—18）](#xag-single-seed-20261017) · [XKF（10-14—15）](#xkf-20261014) · [XDL 最终结果（10-13）](#xdl-final-results-20261013) · [XDL 执行合同](#xdl-execution-20261013) · [S37/XA/XB/XC/XDL 综合诊断](#s37-xyz-diagnosis) · [S42 结论](#s42-verdict) · [S42 预注册](#s42-prereg) · [暂停与S39恢复](#tracking-stop-s39-20261006) · [第一部分：稠密卷积](#dense-cnn) · [第二部分：异步稀疏与图网络](#sparse-event-graph) · [共用协议与工程账本](#ledger-dense) · [稀疏路线账本](#ledger-sparse) · [S37 证据复核（10-07）](#s37-diagnosis-20261007) · [S43 预注册（10-07）](#s43-prereg) · [S43 结果（10-07）](#s43-result) · [S43 消融（10-08）](#s43-ablation) · [副本目录清理（10-07）](#ledger-dense--2026-10-07-variant-dirs)
 
 迁移索引（原文件名仅用于溯源，正文均在本文件）：
 
@@ -44,10 +56,86 @@
 | `U1A_SHARED_MEASUREMENT_PREREG.md` | [对应记录](#u1a-prereg) |
 | `U1A_SHARED_MEASUREMENT_VERDICT.md` | [对应记录](#u1a-verdict) |
 | `S40_EVENT_GRAPH_TRACKING_PREREG.md` | [对应记录](#s40-prereg) |
+| `S37_XYZ_ASSOC_DIAGNOSIS.md`（2026-10-20 并入；它在 10-14 已吸收 `S37_XYZ_EVIDENCE_PLAN_20261014.md` 与 `S37_XDE_FAST_RESULTS_20261014.md`） | [S37 XYZ 统一诊断](#s37-xyz-diagnosis)；旧链接 `S37_XYZ_ASSOC_DIAGNOSIS.md#<锚点>` 对应本文件 `#<锚点>` |
+| `S43表征调研.md`（2026-10-28 并入研究稿） | [研究稿附录 N](网络结构与可观测性诊断研究.md#s43-representation-survey)；旧链接 `S43表征调研.md#<锚点>` 对应研究稿 `#<锚点>` |
+| `S43_三种表征方案与主方案定义_第二轮重设计_20261027.md`（2026-10-28 并入研究稿） | [研究稿附录 O](网络结构与可观测性诊断研究.md#s43-redesign-20261027) |
+| `S43_100单元交叉审查_第二轮重设计_20261027.md`（2026-10-28 并入研究稿） | [研究稿附录 P](网络结构与可观测性诊断研究.md#s43-battle100-20261027) |
+| `S43_REL_实现训练与流式结果_20261027.md`（2026-10-28 并入本账本） | [S43-REL：实现、完整配对训练与流式结果](#s43-rel-doc-20261027) |
 
-《网络结构分析》的实验审计：[结论审查](#audit-conclusions)、[零训练运行时证据](#probe-runtime-20260929)、[B5](#audit-b5)、[B6](#audit-b6)、[B7](#audit-b7)、[B8](#audit-b8)、[内部实验索引](#internal-arm-index)、[历史 E-3DPSM 创新切分](#positioning-e3dpsm)。
+《网络结构分析》的实验审计：[结论审查](#audit-conclusions)、[零训练运行时证据](#probe-runtime-20260929)、[B5](#audit-b5)、[B6](#audit-b6)、[B7](#audit-b7)、[B8](#audit-b8)、[内部实验索引](#internal-arm-index)、[历史 E-3DPSM 创新切分](#positioning-e3dpsm)、[2026-10-12 ABCD 裁决解读](#xyz-abcd-verdict-20261012)（2026-10-20 移入）。
 
 U1a 历史预注册的原字节快照保留在 [U1a 预注册](#u1a-prereg) 章节之后，用于核对旧来源 SHA。
+
+<a id="all-experiments-index"></a>
+<!-- EXPERIMENT_RECORD:ALL-EXPERIMENTS-INDEX:BEGIN -->
+## 全部实验总览（2026-10-20整理，2026-10-27补记）
+
+一行一条实验线，按开始日期排序。“结局”只写各记录里的定性裁决，不抄数字；数字以各记录正文和 `tools/report_table.py` 生成的主表为准。旧 5 人 / 8 人划分下的数字不能与现行 zgz 主行比较。S37 系列的逐项细目见 [E01–E51 索引](#inventory)。截至本表，正式默认方案始终是 2026-10-04 起的 S39，后续各线均未替换它。
+
+| 日期 | 实验线 | 检验什么 | 结局 | 记录 |
+|---|---|---|---|---|
+| 2026-08-25—28 | 旧稀疏/图前端 KEG、CellGNN、EventGNN（旧划分） | 图算子、容量、事件采样是不是瓶颈 | 三者均被实测排除，瓶颈定位到全局池化读出；各臂已删，只留数字 | [GNN-ARMS](#gnn-arms) |
+| 2026-08-27 | S27 保持率干预（旧划分） | 保持率能否当控制变量压低递推误差 | 能给误差排序，不能被干预；`GAIN_REG` 线关闭 | [S27](#archived-s27) |
+| 2026-09-06 | S36 zgz 协议首批重训；清除 S38–S46 | 新 zgz 协议下的第一批数字 | S36 成为 zgz 参照；S37 之后的实验按用户指令清除 | [稀疏路线账本](#ledger-sparse) |
+| 2026-09-07 | S37 路由读出 `s37_routed` | 状态无关事件图 + FK 路由逐关节读出 | 过预注册门，成为当时的采用臂 | [S37 路由](#s37-routed-prereg) |
+| 2026-09-07 | FKGRAPH | FK 本身作图、事件作观测 | 两种子方向相反，打平 | [FKGRAPH](#s37-fkgraph) |
+| 2026-09-07 | MESHQ | prev 只以 FK 网格进入的网格查询 | 只有设计与门，结果一栏原文为“待填”，未执行 | [MESHQ](#s37-meshq) |
+| 2026-09-18 | MESHGRAPH | 整张 MANO mesh 作图、LBS pooling 到关节 | 两种子分裂，不采纳 | [MESHGRAPH](#s37-meshgraph) |
+| 2026-09-28—29 | S37 重新分析与误差归因（零训练） | S37 是在跟踪运动还是逐包重估 | 逐包重估姿态；最大单因是根旋转，local 另有手指一项 | [S37 路由 §8–9](#s37-routed-prereg) |
+| 2026-09-29 | 结构问题审计与运行时探针（B5–B8） | 已有实验结论是否站得住 | 部分结论降级为相关或证据不足 | [结论审查](#audit-conclusions)、[运行时证据](#probe-runtime-20260929) |
+| 2026-09-29 | ROOTINNOV | 冻结骨干、只训根新息 | 不过 | [ROOTINNOV](#s37-rootinnov) |
+| 2026-09-29 | ROTW 与绝对 CNN 根 | 加大旋转损失权重；把绝对 CNN 根接入 S37 | 加权打平；绝对 CNN 根的零训练接入有效 | [ROTW](#s37-rotw) |
+| 2026-09-29—30 | EDGE6 / ROOTFUSE | EdgeConv 加深到 6 层；根头逐关节融合 | 两臂均打平，不采纳 | [EDGE6](#s37-edge6) |
+| 2026-09-29—30 | S37 XYZ 候选、1500 步筛选、C1 完整双种子 | 显式三维射线–网格关系 | 筛选未过追加资源门；完整 C1 打平，未过采纳门 | [候选](#s37-xyz-candidate)、[筛选](#s37-xyz-screen)、[完整训练](#s37-xyz-full) |
+| 2026-09-30 | 网络结构决策 | 研究窗内选结构 | 保持 `s37_routed`；下一候选 S37-AbsRoot 只有诊断支持 | [决策](#architecture-decision) |
+| 2026-10-01 | x1001 | 8 人划分下的根旋转筛选 | 用户叫停，划分作废，改为 rt 轮重跑 | [x1001](#x1001-20261001) |
+| 2026-10-01—02 | RT 根旋转与闭环跟踪 | 根旋转瓶颈在编码器、根测量还是时序状态 | 编码器与根测量方式两处都是瓶颈；稠密 CNN 绝对跟踪是最小有效结构 | [RT 结论](#root-tracking-verdict) |
+| 2026-10-02 | S38 稀疏编码器 × 根测量 | 稀疏、可异步约束下能否超过 S37 | v2 `s38_spmeas` 优于 S37 | [预注册](#s38-prereg)、[结论](#s38-verdict) |
+| 2026-10-02—03 | U1a 共享测量接口 | 共享节点头是否损伤测量 | 共享门通过，但两种接口都未过 S38 可用守护，不采用 | [预注册](#u1a-prereg)、[裁决](#u1a-verdict) |
+| 2026-10-03 | TrackingLab | U1a 之后的六阶段路线 | 各阶段失败，副本仓库已删 | [TrackingLab](#tracking-lab-20261003) |
+| 2026-10-03 | DT | render + SO3 + FK + DomRand 的误差、抖动与参数量 | 目标架构优于同网络 MSE 版；去 layer4 的 `dt_l3` 按偏离采纳；深度尺度增强只改善绝对指标 | [预注册](#dt-prereg)、[结论](#dt-verdict) |
+| 2026-10-04 | DT2 | `dt_dz_l3` + 滤波的缺陷修复 | 训练侧改动全部打平；零训练的自适应滤波与部署形态有收益 | [预注册](#dt2-prereg)、[结论](#dt2-verdict) |
+| 2026-10-04 | DT3 | 证据窗口与推理期探针 | W200 + 自适应滤波 + 证据门组成 S39，成为正式基线；local 误差主要是新受试者泛化差距 | [预注册](#dt3-prereg)、[结论](#dt3-verdict) |
+| 2026-10-05 | S41 阶段 0 | 冻结特征能否支持状态相对跟踪 | P0-a、P0-b 主门未过，未训练 | [S41](#s41-prereg) |
+| 2026-10-05 | G1/G2 | S39 接口、状态、几何与记忆诊断 | 只作诊断，未取代 S39 | [G1/G2](#tracking-diagnostics-20261005) |
+| 2026-10-05 | S40 事件图跟踪 | 层级事件图 + 16 节点共享测量 | 2k 筛选全部不过，不进下一阶段 | [S40](#s40-prereg) |
+| 2026-10-05—06 | 连续研究线 State / Observation / D / E 与 F 至 Y | 持续实验直到 local < 10 mm | 各候选未过学习或采纳门；用户暂停该目标，代码回退并保留 S39 | [前半](#tracking-goal-20261005)、[终态](#tracking-stop-s39-20261006) |
+| 2026-10-05 | 记录审计 | 历史分析与产物是否一致 | 列出勘误与尚缺的机制证据 | [审计](#record-audit-20261005) |
+| 2026-10-06 | S42 | 以 S39 为唯一基线的稀疏、轻量跟踪 | 部署环路自身前态训练有闭环改进，但可靠性、local 滞后与时延门未过，不采纳 | [预注册](#s42-prereg)、[结论](#s42-verdict) |
+| 2026-10-07 | S37 证据复核（只读） | S37 是否真在跟踪、瓶颈在哪 | 分格 tracking 判定与瓶颈排序，并列出旧读法的更正 | [复核](#s37-diagnosis-20261007) |
+| 2026-10-07—08 | S43 稀疏渲染–比对跟踪 | LNES 稀疏主干 + 前态渲染比对 + SO3/FK 目标 | W50 原始协议下明显优于 S37；套 S39 推理栈后三种子同种子配对均差于 S39，G1、G3、G4、G7 未过；算量约为 S39 的十分之一 | [预注册与执行](#s43-prereg)、[结果与裁决](#s43-result)、[图件](#s43-figures)、[补记（10-21）](#s43-addendum-20261021) |
+| 2026-10-08 | S43 → S37 逐步消融 | S43 的提升来自哪一步 | 用户终止，四臂停在 2500–3000 步，无评测、无结论 | [消融](#s43-ablation) |
+| 2026-10-09—10 | XA：S37 XYZ 关联三层验证 | 射线–网格关联有没有问题 | 关联规则是次要缺陷；主瓶颈是闭环前态误差与关联互相放大 | [预注册](#xyz-assoc-20261009)、[结论](#xyz-assoc-verdict-20261010) |
+| 2026-10-11—12 | XB：ABCD 局部残差 | 剩余事件的局部结构是否有用 | 主效用门通过，内容绑定与恢复门未过，停止扩网 | [预注册](#xyz-residual-abcd-20261011)、[执行](#xyz-residual-abcd-execution-20261011)、[裁决解读](#xyz-abcd-verdict-20261012) |
+| 2026-10-12—13 | XC：显式 3D × 因果时间关联 | 几何与时间关联各自的作用 | 预注册门下没有受支持的效应 | [预注册](#xyz-geometry-causal-time-20261012)、[结果](#xyz-geometry-causal-time-result-20261012) |
+| 2026-10-13 | XD / XD-V2 / XDL | 错误前态下的单步响应与自身递推恢复 | 单 seed；MANO 条件查询与自身前态训练有条件收益，local 恢复与正常运动跟随不足 | [设计](#xd-recovery-20261013)、[执行](#xdl-execution-20261013)、[结果](#xdl-final-results-20261013) |
+| 2026-10-13—19 | S37 XYZ 统一诊断（跨轮整理） | XA 至 XAG 的结构、原因与计划 | 诊断与整理，不是新实验；含 E01–E51 逐项登记 | [统一诊断](#s37-xyz-diagnosis) |
+| 2026-10-14 | XDE | 深度偏置与信息在哪个接口丢失 | 确认 local 首步负深度偏置；替头未采纳，深度增强未过前置门 | [预注册](#xde-prereg-20261014)、[结果](#xde-results-20261014) |
+| 2026-10-14 | XDF | 完整读出、深度曝光、z 监督权重 | 完整接口有用，可靠更新尚未建立 | [预注册](#xdf-prereg-20261014)、[结果](#xdf-results-20261014) |
+| 2026-10-14 | XDG | 显式绝对平移 × 训练深度支持 | 机制门通过，local 深度偏置基本消除；±50 mm 纠回仍弱，主表没有可靠改善 | [XDG](#xdg-20261014) |
+| 2026-10-14 | XDI | 无参数事件→轮廓新息更新 | Phase 0 零训练可行性失败，按停止规则未训练 | [XDI](#xdi-20261014) |
+| 2026-10-14—15 | XKF：预注册、debug、local 恢复排查、R2、R3 | 不读前态的直接测量 + XYZ 运动分支 + 统计增益融合 | 各 debug 门未过，从未启动全量；R3 的配对统计候选被训练集留出验证拒绝，停于 debug | [预注册](#xkf-20261014)、[debug](#xkf-debug-20261015)、[恢复排查](#xkf-local-recovery-20261015)、[R2](#xkf-repair-r2-20261015)、[R3](#xkf-fusion-r3-20261015) |
+| 2026-10-15 | XRF | 把 XYZ 当作直接测量的精修器 | 只跑过一次未训练的工具测试，没有训练，无效果结论 | [XRF](#xrf-20261015) |
+| 2026-10-17 | XAG：关联 × MeshGNN（18 项缩为 6 项单 seed） | 改对应、改 GNN 及其交互 | 六格训练与完整评价完成，只作单 seed 描述性比较，没有可靠性门与主因裁决；对照 A0F0 明显弱于历史 C1 | [原 18 项](#xag-20261017)、[范围修订](#xag-single-seed-20261017)、[六格终态](#xag-single-seed-final-20261020)、[C1 差距勘误](#xag-c1-baseline-discrepancy-20261017) |
+| 2026-10-17—18 | XYZ C1 可复现基线 | 历史 C1 差距与可复现基线 | 新 C1 完整复现并发布为研究基线；历史 local 退化不能简单归因于采样 | [登记](#xyz-c1-repro-20261018)、[结果](#xyz-c1-repro-result-20261018)、[指标重核](#xag-metrics-reconfirmed-20261018)、[退化排查](#xag-c1-deep-audit-20261017) |
+| 2026-10-18 | XAG 与新 C1 严格配对 | 五格各 fresh 重训一次 | 最后一臂因主机共享内存故障失败并按协议保留，未评估、未发布；其余四个完成的权重后来由 XCL 复用 | [登记](#xag-paired-c1-20261018)、[终态补注](#xag-paired-final-20261020) |
+| 2026-10-19 | XCL 阶梯控制 | 关联、特征与读出逐级控制 | 十模型完成并经科学复核；九个固定对比中 local RA 有 4 项达到描述性方向门，其中增强 GNN 在原关联上是变差；单 seed 描述性比较，oracle 不可部署 | [预注册](#xcl-20261019)、[训练回执](#xcl-training-receipts-20261019)、[最终结果](#xcl-result-20261019) |
+| 2026-10-19—20 | S44 EvTree | 位姿无关事件运动证据 + 可观测性门控的子树提交 | 核心假设被否定；S44-D 自身前态训练未过门 | [预注册](#s44-prereg-20261019)、[结果](#s44-d-result-20261020) |
+| 2026-10-21 | XVM：顶点锚定的事件运动测量 | 逐顶点事件测量 + 运动学传输能否取代 XYZ 的记录通路与 GNN | 信息上限允许，但学到的测量 local 不足；P4、P5、C1+sign 不过，未启动完整训练；与 S39 朴素融合有害。S39 不变 | [分析](#xvm-analysis-20261021)、[预注册](#xvm-prereg-20261021)、[S1](#xvm-s1-results-20261021)、[S2–S3](#xvm-s2-results-20261021)、[裁决](#xvm-verdict-20261021) |
+| 2026-10-22 | SBA：扫掠边界对齐（把 MANO 当事件生成器） | 遮挡轮廓沿轨迹扫过的面积 + 负证据 Poisson 似然 + 精确运动学求解，零训练 | 合成对照与训练充分性通过；整手平移 / 根可识别（0.92–0.97）；手指不可识别（0.58–0.68），zgz_local 深度偏 +45 mm，P0 否定 → 按预注册停止，无主行 | [预注册](#sba-prereg-20261022)、[S0](#sba-s0-results-20261022)、[P0](#sba-p0-results-20261022)、[裁决](#sba-verdict-20261022)、[D 轮](#sba-d-results-20261022)、[P4](#sba-p4-results-20261022)、[Q0](#sba-q0-results-20261022)、[第二轮裁决](#sba-r2-verdict-20261022)、[停止原因复核](#sba-why-20261022)、[第三轮预注册](#sba-r3-prereg-20261022)、[第三轮前置门](#sba-r3-pregate-20261022)、[第三轮结果](#sba-r3-results-20261022)、[第三轮裁决](#sba-r3-verdict-20261022) |
+| 2026-10-24 | AGG778：XYZ-C1「聚合 778」隔离检验 | 事件→778 顶点聚合本身有无实现缺陷、信息损失、学习不足、系统内影响 | A 通过（实现正确）；R1 的 B 有效性前提部分不过 → 停止，未进 D；R2 修正测量工具后有效性全过：H-F 可忽略（池化形式不丢任务信息），H-T、H-B 未支持（R1 的迁移缺口不复现，扇出无增益）→ 不进 D；A0 与 A3 之差指向关联而非聚合 | [预注册](#agg778-prereg-20261024)、[结果](#agg778-results-20261024)、[R2 预注册](#agg778-r2-prereg-20261024)、[R2 结果](#agg778-r2-results-20261025) |
+| 2026-10-24 | AURA：XYZ-C1「关联」（事件射线 × 手部外包围）隔离检验 | 关联的实现、检测 / 对应 / 捕获范围、占据与绑定的任务信息、外包围设计（带宽 / 度量 / Aura Mesh 式度量壳 / 壳节点 / 可见性）、oracle 余量、系统内去掉 / 打乱关联 | A 通过（第一次运行 A3 有 2 个 float32 次序平局未覆盖，按用户决定修审计重跑）；B（描述）：c1 E3 部位一致 0.81 / 0.88，闭环降到 0.48 / 0.65，外包围的选择性只来自距离，local 的内 / 外占据几乎不编码运动方向（AUC 0.53），度量壳把跨指串扰从 12–15 % 降到约 2 %；C：两体制有效，任务价值几乎全在占据（global 实质），绑定 global 实质，3D 几何与部位级错派可忽略，噪声前态下 C1 像素外包围带在 zgz_local 优于只用表面（+7.4 mm）与度量壳（+4.9 mm）；无可部署变体触发；D none / shuffle 单 seed 噪声带内（none 闭环绝对腕点发散，描述）；C1 / S39 不变 | [预注册](#aura-prereg-20261024)、[A 第一次](#aura-a-result-20261024)、[修订](#aura-a-amendment-20261024)、[A 重跑](#aura-a2-result-20261024)、[B](#aura-b-result-20261024)、[等待条件修订](#aura-wait-amendment-20261024)、[C / D 结果](#aura-results-20261025) |
+| 2026-10-24 | MRF：XYZ-C1「提升感受野」（MeshGNN）隔离检验 | 三轮面 1 环消息传递 + 支持扩张的实现、有效感受野、消息传递 / 外推 / 尺寸 / 能力、系统内去掉或换成 4 跳 / 局部注意力 | A 通过（实现正确；有记录顶点的有效感受野约 1 跳）；B 有效性全过：消息传递、外推、4 跳尺寸均可忽略，能力格中 L3 ≈ N0d，外推顶点的逐顶点信息不如无参数近邻；注意力两臂在真实特征上 8 / 12 种子塌缩，不可解读；D 只触发 self3；C（描述）：冻结模块离不开自己的消息与外推（共适应），重学探针不需要，稀疏度不放大消息传递；D（单 seed3407，self3 on C1）：RA global 方向支持（E1 −9.3 mm，主要是闭环效应，E2 / E3 只 −1.65 / −0.15），local 与腕部噪声带内（腕部绝对误差变差）；裁决：功能上是逐顶点变换，有效感受野约 1 跳，消息传递 / 外推 / 尺寸无实质作用，结构上不会利用邻域；S39 不变 | [预注册](#mrf-prereg-20261024)、[A](#mrf-a-result-20261024)、[B](#mrf-b-result-20261025)、[C](#mrf-c-result-20261025)、[D 与裁决](#mrf-d-result-20261025) |
+| 2026-10-25 | K-Battle 与 K★：MANO 顶点/关节算子方向 | 用户方向「顶点/关节卷积 + FK 点溅射逆深度」能否成为主创新；十方案 K1–K10 与 K★ 的 60 + 12 专家两轮评审；K★ 剩余部分（K7 顶点锚定测量）的 CPU 零训练杀死阶梯 | 用户方向两轮全票不能作主创新；K★ 整包第二轮 no-go，只授权 KS0–KS5 CPU 阶梯。阶梯结果：KS1 杀 B（r\* 质量增量在 S39 上只省 0.16 mm，理想增量 2.4 / 1.1 mm）、KS2 过（头在测当前运动）、KS3 local 死（r\*\_E3 中位 0.959）、KS4 信息受限（14 mm 偏移无位置信息）→ K★ 终止，不开 GPU；两处判读工具键路径修订已登记；S39 不变。用户随后改为重设计十方案（v2） | [预注册](#kstar-prereg-20261025)、[结果与裁决](#kstar-results-20261025)、[Battle 综合](网络结构分析.md#k-battle-20261025) |
+| 2026-10-25 | 十方案 v2：专用于 MANO 表面 / 运动学树的事件卷积网络 | 把十方案重新包装为 mesh / MANO 专用创新点（机制 M1 / M3 / M4 / M5、因子 M2 / M8、诊断 M6、证据 M7 / M9 / M10），R3 两轮生成式 battle，Stage 0 来源闭合 | 计划已批准；用户决定已登记（EvRealHands 只作测试、A1 只读核查授权）；R3 完成：M2 → RGQ·MSCN、M6 → KSCS·GSCD、M9 探针重写、M1 附 60 条条件；计划 v2.1 已覆盖写回；Stage 0 完成（部分闭合：6 % 不是标签—RGB-D 尺度、K、并格相位或光栅；是事件侧 σ\* 相对标签的录制级缺口，手尺寸是唯一量级够的敏感度但未识别，runtime 缺件不可闭合）；2026-10-26 执行 Stage 1–6：预注册冻结、20 个零训练探针、M1 SLR 6000 步配对（local 10.32 对 S39 seed 3407 的 10.68、global 7.78 对 7.38，方向门未过）、RGQ 与 M5 臂被 S3 停止 → 终止，S39 不变 | [决定登记](#mv2-decisions-20261025)、[R3 结果](#mv2-r3-result-20261025)、[Stage 0](#mv2-stage0-20261025)、[预注册](#mv2-prereg-20261026)、[探针结果](#mv2-results-20261026)、[M1 主表](#mv2-m1-s4-20261026)、[总裁决](#mv2-verdict-20261026)、[调研](网络结构分析.md#mesh-v2-research-20261025)、[附录 M](网络结构分析.md#r3-battle-20261025) |
+| 2026-10-26 | OBS：事件—标签时间对齐审计 + 个体标定上界 + 诊断研究 | 方案 1：事件时间戳落在真实帧时钟还是均匀帧时钟（v2e 时间层判别 + S39 时移拟合 + 时间错位地板）；方案 2：已知尺度 / 根 / 手指常数时 S39 误差能降多少（σ 环内 + 输出侧偏置，Cal-A / Cal-B / Oracle）；方案 4：诊断研究草稿 | 完成：时钟审计判全部流在真实帧时钟上（时基疑点关闭）；个体标定上界"中间"——σ 无效、录制级常偏 local 约 0.5 / global 约 1.1 mm、zgz_local 段级常偏约 2 mm、跨录制标定变差 | [预注册](#obs-prereg-20261026)、[OBS-A](#obs-a-result-20261026)、[OA1-R2](#obs-a1r2-result-20261026)、[OBS-C](#obs-c-result-20261026)、[总裁决](#obs-verdict-20261026)、[为什么十方案无效](#why-ten-schemes-20261026)、[基线重定位到 S43](#why-s43-baseline-20261026) |
+| 2026-10-28 | KA：运动学图册等变性检验（第一步） | 用户要求"关节卷积与整图 LNES 卷积分开、为 mesh 重建设计的新方法"；第一步零训练检验：事件提升到前态 MANO 运动学图册后，是否比相似变换归一化手框对动作身份更不受深度 / 根旋转 / 关节角干扰（合成 + 18 条训练录制，CPU，不读 zgz） | inconsistent：G1 合成不过（+0.008，余量不足的设计缺陷已披露），G2 真实 +0.058、G3 关节 +0.026 过；扰动前态下关节优势消失；只作描述，待用户决定 | [预注册](#ka-prereg-20261028) · [结果](#ka-results-20261028) |
+| 2026-10-27 | S43 B-R 最小原型 | 生成式候选/共享phase表示能否超出LNES及简单增强 | 原型与一轮修正完成；额外时间信息必要性未建立，不扩大训练 | [预注册](#s43-br-prereg-20261027)、[结果](#s43-br-results-20261027) |
+| 2026-10-27 | S43 B-R 隔离接入 | 共用训练/在线核心、必要适配、短程训练及完整流回放 | 工程接入完成，长闭环退化；保留legacy默认与失败证据 | [预注册](#s43-integration-prereg-20261027)、[结果](#s43-integration-results-20261027) |
+| 2026-10-27 | S43 第二轮三案与交叉审查 | 重新定义三种事件驱动MANO表征，按专业视角/问题交叉反驳 | 选A进入原型，仅设计选型；不构成效果证据 | [设计登记](#s43-rethink-design-20261027) |
+| 2026-10-27 | S43-REL 有向关系记忆与MANO后绑定 | 表示契约、三个核心实验、四组配对微调与无GT手形输入部署 | 注册执行完成；精度大体保持，独特价值未建立且整链成本增加，不替换S43/S39 | [预注册](#s43-rel-prereg-20261027)、[R1](#s43-rel-r1-prereg-20261027)、[β0补充](#s43-rel-mean-shape-extension-20261027)、[最终裁决](#s43-rel-results-20261027) |
+
+<!-- EXPERIMENT_RECORD:ALL-EXPERIMENTS-INDEX:END -->
 
 <a id="dense-cnn"></a>
 
@@ -2417,7 +2505,7 @@ CUDA_VISIBLE_DEVICES=4 /data1/lyq/miniconda3/envs/EventHandsTrain/bin/python \
 
 #### 0. S39 复现（逐位）
 
-`tools/dt/filter_eval.py --ckpt step=6000 --window-ms 200 --clip-run-start --count-mode last50 --filter-spec outputs/dt3/gate_specs/ramp1000.json`，GPU4–6：RA 8.9115 / 8.5271 / 8.6899，与主行 8.91 / 8.53 / 8.69 一致（`outputs/trk6/s39_repro/`）。加入 GLIMPSE 代码后（默认关）复评 s3407 的 overall 字典与复现逐位相同（`outputs/trk6/s39_bitcheck/`）。
+`tools/dt/filter_eval.py --ckpt step=6000 --window-ms 200 --clip-run-start --count-mode last50 --filter-spec outputs/dt3/gate_specs/ramp1000.json`，GPU4–6：RA 8.9115 / 8.5271 / 8.6899，与主行 8.91 / 8.53 / 8.69 一致（`outputs/trk6/s39_repro/`）。加入 GLIMPSE 代码后（默认关）复评 s3407 的 overall 字典与复现逐位相同（`outputs/trk6/s39_bitcheck/`）。（2026-10-20 补注：加入 B（SELF）代码后的第二次复评在 `outputs/trk6/s39_bitcheck2/`（10-06 16:37）；两次复评的 npz 对 `s39_repro` 全部数组逐位相同。）
 
 #### 1. 诊断（零训练，只读已存轨迹 + 一次 `--raw --controls --tf` 复评，`outputs/trk6/s39_ctl/`，工具 `tools/trk6/{diag_traj,lag_scan,gain_scan}.py`）
 
@@ -2583,6 +2671,8 @@ B 在 2k 上对全帧 S39 结构同样有效（`trk6_dzl3self_2k` 相对 `dt_dz_
 | 消融：GLIMPSE 112 + B * | 11.06 | 7.95 | 9.49 | 6.46 | 9.39（9.42 / 9.41 / 9.34） | 4.80 ms | 0.354 G | 2.80 M |
 
 \* 同 S39：W、滤波与证据门在 zgz 上选定；S42 各臂沿用该 spec 原样，未在 zgz 上重调任何参数。Latency 为主表口径（eager、批 1、只前向、×1.75 / 锚点）。S42 候选主行：`outputs/semkine/trk6_dzl3w192self_6k_w200cfg_main_row.json`。
+
+2026-10-20 补注：上表 “S39（同卡同时复测时延）” 行的主行是 `outputs/semkine/trk6_s39ref_w200cfg_main_row.json`（ckpt 为 S39 的 `dt_dz_l3_s340{7,8,9}` step6000）。本节引用的 S42 候选主行 `outputs/semkine/trk6_dzl3w192self_6k_w200cfg_main_row.json` 及其他 `trk6_*` 主行已在 10-08 00:00 的清理中删除（`outputs/cleanup/outputs_failed_20261007.json`），表中这些行只能以本文数字为准，不能再由 `tools/report_table.py` 重新生成。
 
 #### 2. §5 采纳门（`tools/trk6/gate_check.py`，`outputs/trk6/reports/gates_dzl3w192self_6k.json`）
 
@@ -2916,6 +3006,8 @@ docs/EXPERIMENT_RECORDS.md#dt-prereg / docs/EXPERIMENT_RECORDS.md#dt-verdict    
 docs/EXPERIMENT_RECORDS.md#architecture-decision               # 2026-09-30 网络结构决策
 docs/网络结构分析.md                          # S37 结构问题、文献对照（两轮）；附录 A–D 是文献调研汇总，附录 E 是与 E-3DPSM 的创新切分
 ```
+
+2026-10-20 再收敛：`docs/S37_XYZ_ASSOC_DIAGNOSIS.md` 全文并入 `docs/EXPERIMENT_RECORDS.md#s37-xyz-diagnosis`（原锚点不变），《网络结构分析》的 2026-10-12 ABCD 裁决解读移到 `docs/EXPERIMENT_RECORDS.md#xyz-abcd-verdict-20261012`；`docs/` 只剩本账本与 `docs/网络结构分析.md`。全部实验线的入口见 `docs/EXPERIMENT_RECORDS.md#all-experiments-index`。
 
 2026-10-03 合并进来的旧文档（原文原样保留；旧文件名与小节编号的对照在各合并文件的开头）：
 
@@ -3264,10 +3356,12 @@ FK 在 1 / 17 / 2049 个姿态上输出逐位一致，覆盖 2048 的分块边�
 - S39：`semkine/dt_dz_l3_s3407`、`_s3408`、`_s3409`（step6000 权重）及主行 `dt3_dz_l3_w200cfg_{main_row,extended}.json`。
 - S39 推理配置的选型与评测证据：`dt2/wscan`、`dt2/filter_sweep`、`dt/filter/dt_dz_l3_*`、`dt3/{fsweep_w200,filter_apply,gate_eval,gate_specs,gates,reports}`、`trk6/s39_*` 与 S39 时延测量；S39 run 目录里的评测链接全部可解析。
 - 测试用参照文件：`dt/ref`、`dt2/ref`、`dt3/ref`（含恢复 `model/model.py` 用的 `model_pre_arms_E.py`）及 `dt/reports` 中被测试读取的五个文件。
-- 尚未下结论的 S43：`s43/` 与 `semkine/s43*`。
+- 尚未下结论的 S43：`s43/` 与 `semkine/s43*`。（2026-10-20：结论已补登记，见 [S43 结果](#s43-result)。）
 - 文档审计快照 `record_audit_*` 与 `cleanup/`。
 
 清理后 `tools/report_table.py` 重新生成的 S39 主行与清理前一致，outputs 中无失效符号链接。本文其他章节引用的已删产物路径不再可用，数字以本文为准。读取 `outputs/` 的 CPU 测试 576 项通过；S37 / S36 的四项参数集回归测试因所需 checkpoint 已删而无法运行；`test_dt_model2` / `test_dt_model4` 的三项失败来自模型配置键集合与参照不一致，与本次清理无关。
+
+2026-10-20 补注（只作指针，裁决已在对应章节）：保留但此前未逐项点名的 DT 线产物有 `outputs/dt/reports/backbones.{md,json}`（十个主干的参数 / MAC 调研，无精度）、`outputs/dt3/reports/t4_cmp.json`（滤波变体配对表）、`outputs/dt3/gates/B_*`（B 包部署检查与测速），以及 `outputs/cleanup/variant_dirs_20261007/EXPERIMENT_RECORDS.before.md`（副本目录清理前的账本原字节）。
 <!-- EXPERIMENT_RECORD:LEDGER-DENSE:END -->
 
 ---
@@ -3542,6 +3636,19 @@ LNES 臂的绝对误差变差（28.97 → 35.05）。这些都要写进正文，
 - [B7：时间 / 闭环与手指相关实验审查（2026-09-29）](#audit-b7)
 - [B8：历史证据与已删记录的重叠检查（2026-09-29）](#audit-b8)
 - [本项目内部对照臂与已删实验记录（非外部文献，仅保留出处索引）](#internal-arm-index)
+
+2026-10-07 之后追加的记录（按正文顺序，2026-10-20 补入本目录）：
+
+- [S43 预注册：事件驱动的稀疏异步渲染–比对跟踪（2026-10-07）](#s43-prereg) · [S43 结果与裁决（补登记）](#s43-result) · [S43 消融预注册（2026-10-08，用户终止）](#s43-ablation) · [S43 图件索引](#s43-figures) · [S43 补记（2026-10-21）](#s43-addendum-20261021)
+- [[XYZ-RESIDUAL-ABCD] 预注册（2026-10-11）](#xyz-residual-abcd-20261011) · [执行记录](#xyz-residual-abcd-execution-20261011) · [ABCD 裁决解读（2026-10-12，原《网络结构分析》）](#xyz-abcd-verdict-20261012)
+- [[XC] 显式3D通道 × 事件时刻关联：预注册](#xyz-geometry-causal-time-20261012) · [结果](#xyz-geometry-causal-time-result-20261012)
+- [[XD] 完整实验设计](#xd-recovery-20261013) · [[XD-V2] 降成本方案](#xd-recovery-cost-v2-20261013) · [[XDL] 执行记录](#xdl-execution-20261013) · [旧权重阶段结果](#xdl-legacy-results-20261013) · [五臂结果](#xdl-final-results-20261013)
+- [[XDE] 预注册](#xde-prereg-20261014) · [结果](#xde-results-20261014) · [[XDF] 预注册](#xdf-prereg-20261014) · [结果](#xdf-results-20261014) · [[XDG]](#xdg-20261014) · [[XDI]](#xdi-20261014)
+- [[XKF] 预注册](#xkf-20261014) · [debug 修订](#xkf-debug-20261015) · [local 恢复排查](#xkf-local-recovery-20261015) · [R2](#xkf-repair-r2-20261015) · [R3](#xkf-fusion-r3-20261015) · [XRF（未训练）](#xrf-20261015)
+- [S37 XYZ：统一诊断、实验计划与执行结果（原 `S37_XYZ_ASSOC_DIAGNOSIS.md`）](#s37-xyz-diagnosis)
+- [XAG 范围修订（2026-10-17）](#xag-single-seed-20261017) · [六格终态（补登记）](#xag-single-seed-final-20261020) · [C1 差距勘误](#xag-c1-baseline-discrepancy-20261017) · [C1 可复现基线](#xyz-c1-repro-20261018) · [XAG 严格配对](#xag-paired-c1-20261018) · [配对终态补注](#xag-paired-final-20261020) · [C1 退化排查](#xag-c1-deep-audit-20261017) · [XAG 原 18 项](#xag-20261017)
+- [XCL 预注册（2026-10-19）](#xcl-20261019) · [训练回执（补登记）](#xcl-training-receipts-20261019) · [旧 XAG/XA 删除的归档范围](#xag-xa-deletion-20261019) · [XCL 最终结果](#xcl-result-20261019)
+- [S44 · EvTree 预注册（2026-10-19）](#s44-prereg-20261019) · [阶段 0 结果](#s44-phase0-results-20261020) · [P0.5 / P0b](#s44-p0b-results-20261020) · [S44-D 预注册](#s44-d-prereg-20261020) · [S44-D 结果与总结论](#s44-d-result-20261020)
 
 ---
 
@@ -6505,6 +6612,91 @@ python tools/report_table.py dt3_dz_l3_w200cfg s37_routed rt_s37_sel rt_s37_3see
 **结论。** eager 下 8.4 ms 的延迟是发射开销，静态化 + graph 把主干压到 0.75–0.91 ms（4.5–5.4 倍）、整步 1.3 ms；但在 L20 这种 GPU 上，稠密 graph 仍略快（0.60 ms）——分辨率 180×240 的稠密主干在大 GPU 上本来就不到 1 ms，稀疏省下的 10 倍乘加换不成延迟。稀疏的优势体现在算量（0.127 G 对 1.252 G）和算力受限的平台上（CPU 1.8–4.3 倍）。主表 Latency 列沿用 eager 口径，不改。
 <!-- EXPERIMENT_RECORD:S43-PREREG:END -->
 
+<!-- EXPERIMENT_RECORD:S43-RESULT:BEGIN -->
+<a id="s43-result"></a>
+
+### S43 结果与裁决（补登记 2026-10-20；产物时间 2026-10-07 02:07—12:03，主行 07:01 / 09:09 / 09:12）
+
+按 [S43 预注册](#s43-prereg) §4 的门逐条读数。预注册与偏离 1–9 只记了过程和单项数字，没有写 G1–G7 汇总与对 S39 的裁决；本节据 `outputs/s43/` 现存产物补记，门与阈值不改，不重新选点。三种子 3407 / 3408 / 3409 同种子配对，最后一步；zgz 为开发集 = 测试集，W200、滤波 spec 与证据门沿用 S39 在 zgz 上的选择，G4 的 n0 与死区在 zgz 上选，带 \*。门读数的汇总文件是 `outputs/s43/reports/verdict_partial.json`（`tools/s43/verdict.py` 生成；目录里没有非 partial 的 `verdict.json`）。
+
+#### 1. 主表（`tools/report_table.py`，主行 `outputs/semkine/s43n_sp_{tf_pert,w200cfg,w200cfgdb}_main_row.json`）
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S43：稀疏渲染–比对事件跟踪（W50 原始协议，同 S37 口径） | 12.80 | 8.01 | 10.77 | 6.65 | 10.24（10.29 / 10.23 / 10.20） | 7.80 ms | 0.101 G | 2.82 M |
+| S43：稀疏渲染–比对（S39 栈）* | 10.60 | 7.99 | 9.37 | 6.60 | 9.21（9.29 / 8.97 / 9.35） | 8.39 ms | 0.127 G | 2.82 M |
+| S43：稀疏渲染–比对（S39 栈 + 更新死区 ε_f 1° / ε_r 0.5°）* | 10.66 | 8.00 | 9.38 | 6.60 | 9.24（9.31 / 9.02 / 9.38） | 8.30 ms | 0.127 G | 2.82 M |
+
+\* 同 S39：W、滤波与证据门在 zgz 上选定，S43 原样沿用；死区取偏离 7 的值 ε_f = 1°、ε_r = 0.5°。W50 原始行（无滤波）与 S39 W200 栈行不是同一评测口径；S39 在 W50 原始口径的历史行 12.46 / 8.00 / 10.25 / 6.71 / 10.07（10.04 / 10.10，两种子、训练带热像素）见 DT 裁决（`#dt-verdict`），其三种子主行已在 10-08 清理中删除。Latency 为 eager、批 1、×1.75 / 锚点的主表口径；FLOPs 为稀疏执行器在 zgz 上每查询活跃位点 MAC 的中位数（W50 101,010,180；S39 栈 126,509,742，`outputs/s43/async/s43n_sp_s3407_off_h50_fp32.json`；`tools/s43/macs_w.py` 的 W200 中位数为 124,478,306，`outputs/s43/reports/macs_w200_s43n_sp_s3407.json`）。
+
+#### 2. 门读数
+
+- **G1 稀疏的代价：未过。** `s43n_sp` 三种子 S39 栈 RA 9.206（门 ≤ 9.01），local 10.603（门 ≤ 10.77，过）。
+- **G2 S37 的问题是否被解决（W50 原始口径，对 rt_s37 三种子最后一步）：四条全过。** `s43n_sp`：RA 10.237（门 ≤ 13.827）、闭环根旋转 6.990°（门 ≤ 8°）、local 平移 34.53 mm（门 ≤ 50）、global 平移 26.88 mm（门 ≤ 40）；rt_s37 参照 RA 23.827（23.557 / 22.947 / 24.977）、根旋转 11.900°、local 平移 96.34、global 平移 40.76。偏离 8 规则选出的候选 `s43n_spcn10` 同样四条全过（11.192 / 7.340° / 34.27 / 33.79）。
+- **G3 部署环路前态训练：未过。** `s43n_spself` 对 `s43n_sp` 同种子配对 S39 栈 overall +0.181 / +0.205 / −0.133（均值 +0.084，仅 1/3 为负；门 ≤ −0.2 且 3/3 为负）；local +0.449 / +0.059 / +0.191（均值 +0.233）。候选取 sp。
+- **G4 运动学子树证据门：未过。** S43：6 次选择 out-of-fold 均值 −0.010，3 次为正、1 次为 0（`outputs/s43/reports/g4_s43n_sp.json`）；S39：均值 +0.023，5 次为正、1 次为 0（`g4_s39.json`）。两份网格都含偏离 1 的掌部根门（36 组）。
+- **G5 稀疏度：过。** 候选主干在真实 zgz 包上的实际 MAC 中位数 0.127 G，门 ≤ 0.5 × 1.252 G = 0.626 G（W50 0.101 G）。
+- **G6 异步等价：RA 差过，逐步 1e-4 一项只对全量 FK 渲染成立。** 严格 fp32、按 50 ms 节拍的闭环：对包评测 RA 差 +0.0094 / −0.0033 / +0.0069（门 ≤ 0.01），逐步最大输出差 0.127 / 0.067 / 0.087（闭环放大的浮点差）。开环（`--replay-ref`，每步把状态与 mesh 缓存置为参照输出）：增量 mesh 缓存渲染最大逐步差 3.6e-3 / 1.1e-3 / 1.2e-3，RA 差 −6.4e-6 / −9.8e-6 / −1.6e-5；渲染改用全量 FK 为 8.0e-7 / 8.3e-7 / 5.5e-7，RA 差 +3.8e-7 / +3.8e-7 / 0；`mesh.max_err_m`（缓存 mesh 对全量 FK，51 次检查）≤ 7.5e-8 m（`outputs/s43/async/s43n_sp_s340{7,8,9}_off_h50_fp32{,_replay,_replay_fullfk}.json`）。其它节拍（s3407，主机态、eager、稀疏执行器）：RA h50 9.308 / h25 9.382 / h10 9.444，查询 p50 24.17 / 18.46 / 14.62 ms；`n0 = 4` 的 h50 为 9.316（`*_off_h{50,25,10}_host.json`、`*_n04_h50_host.json`）。CUDA graph 形态见偏离 9。
+- **G7 解耦平移头：两个臂都未过。** `s43n_sptr` 对 `s43n_sp`：平移误差比 1.202 / 1.724 / 1.276（均值 1.401，门 ≤ 0.8 且全 < 1），RA +0.173 / +0.795 / +0.316（均值 +0.428，门 ≤ +0.2），global 平移 +14.08 mm、local +8.94 mm（均变差）；`s43n_spselftr` 对 `s43n_spself`：比值均值 1.470（1.366 / 1.442 / 1.603），RA 均值 +0.198，global 平移 +13.71、local +11.48 mm。
+- **对 S39 的裁决：更差。** `s43n_sp` 对 S39 同种子配对（S39 栈）overall +0.383 / +0.443 / +0.665（均值 +0.497，0/3 为负；规则：≤ −0.2 且 3/3 为负为"优于"，±0.3 内为"持平"）；local +0.335（−0.118 / +0.434 / +0.691）、global +0.637。候选 `s43n_spcn10` 对 S39：+0.134 / +1.089 / +0.814（均值 +0.679，0/3 为负）。初始化噪声种子 0–10 × 三模型种子的 33 格重评中，s43n_sp 对 S39 overall 均值 +0.502（+0.408 / +0.434 / +0.664），0/33 格为负；global +0.639（0/33 为负）；local +0.345（9/33 格为负）；同一模型在 11 个初始化种子上的 sd：S39 0.050 / 0.036 / 0.033，S43 0.035 / 0.032 / 0.030（`outputs/s43/reports/initseed_partial.json`，08:26:13）。**S43 在精度上不优于 S39，也不与 S39 持平**；S43 的资产是算量（0.127 G 对 1.252 G）、事件驱动 / 可异步语义，以及 W50 原始口径下相对 S37 的 −13.6 mm（23.827 → 10.237）。S39 保持正式基线。
+- 候选口径：偏离 8 的规则（spcn20 / spcn40 不比 spcn10 的 3407 单种子再低 ≥ 0.1）落在 `s43n_spcn10`（`verdict_partial.json` 的 `candidate`），但 spcn10 三种子（见 §3）比无噪声 `s43n_sp` 更差，三个主行与上列各门（G1 / G3–G5 / G7 / 对 S39 的 sp 读数）均用 `s43n_sp`。
+
+#### 3. 各臂读数（`verdict_partial.json`；种子 3407 / 3408 / 3409，括号为均值）
+
+- S39 栈 RA：`s43n_sp` 9.294 / 8.970 / 9.355（9.206）；`s43n_spself` 9.475 / 9.175 / 9.222（9.290）；`s43n_sptr` 9.467 / 9.765 / 9.671（9.634）；`s43n_spselftr` 9.504 / 9.437 / 9.525（9.489）；`s43n_spcn10` 9.046 / 9.616 / 9.504（9.389）；`s43n_spcn20` 3407：9.259；`s43n_spcn40` 3407：9.600；`s43n_densenh`（3407 / 3408）9.694 / 9.196（9.445）；S39 `dt_dz_l3` 8.911 / 8.527 / 8.690（8.710）。
+- W50 原始口径 RA：`s43n_sp` 10.287 / 10.226 / 10.198（10.237）；`s43n_spself` 10.814 / 10.315 / 10.459（10.529）；`s43n_sptr` 10.859 / 11.129 / 11.238（11.075）；`s43n_spselftr` 10.887 / 10.820 / 11.342（11.016）；`s43n_spcn10` 10.980 / 11.369 / 11.227（11.192）；`s43n_spcn20` 3407：11.504；`s43n_spcn40` 3407：12.406；`s43n_densenh` 10.423 / 10.062（10.242）；rt_s37 23.557 / 22.947 / 24.977（23.827）。
+- 单种子 3407 诊断臂（偏离 4–6）的 W50 原始 RA：`s43n_spnc` 10.497、`s43n_spreg` 10.334、`s43n_spcn`（0.02）10.535（3408：10.669）、`s43n_spcn05` 10.965、`s43n_spd1cn05` 10.612；对应 S39 栈数字已在偏离 4–8 给出。
+- 偏离 8 的结局：噪声率 0.20 / 0.40 比 0.10 的 3407 单种子（9.046）更差（9.259 / 9.600），候选不换；0.10 的三种子均值 9.389 比无噪声 9.206 更差（对 `s43n_sp` 同种子配对 −0.248 / +0.646 / +0.149，均值 +0.182），W50 原始口径更差（均值 11.192 对 10.237）。噪声正则在稀疏主干上不取代稠密的热像素正则。
+- 3500 步中间点（只作调试，不选点，S39 栈 s3407）：`s43n_sp` 10.567，`dt_dz_l3` 9.680（`outputs/s43/dbg/*_3500/off.json`）。
+
+#### 4. 更新死区网格（偏离 7 的结果；`outputs/s43/reports/dev7_deadband_s43n_sp.json`，`tools/s43/dead_table.py`）
+
+ε_f ∈ {0, 0.25°, 0.5°, 1°, 2°} × ε_r ∈ {0, 0.1°, 0.25°, 0.5°} 共 20 格（三种子 S39 栈）。选择规则的 6 次 out-of-fold 均值 +0.037，5 次为正、1 次为 0，不满足"全负"，不并入精度；按规则取 out-of-fold 不劣于 +0.05 的最稀疏格：ε_f = 1°、ε_r = 0.5° 的 ΔRA +0.029（+0.018 / +0.046 / +0.024），每步被写手指关节 local 8.16 / global 8.76（共 15），根被写比例 local 0.51 / global 0.89；ε_f = 2° 的 ΔRA 为 +0.061 至 +0.064（每步手指写入 5.38 / 3.91），超出 +0.05。主行 `s43n_sp_w200cfgdb`（9.235，对 9.206 为 +0.029）。运行时（s3407，主机态异步）：每查询变更关节 local 8.30 / global 8.60，重蒙皮顶点 481.5 / 600.9（无死区 725），local 查询中手指无变化占 20.4%（`outputs/s43/async/s43n_sp_s3407_df1_dr05_h50_host.json`）。结论：精度中性、稀疏度为每步约 8.2 / 15 个手指关节。
+
+#### 5. 早期测速迭代（偏离 9 之前；L20，1200 次查询，s3407，`outputs/s43/reports/bench_*.json`）
+
+整步查询 p50（均含 LNES、渲染、主干、头、mesh 阶段）：`bench_gpu_s43n_sp_s3407.json` 17.76 ms（主干阶段均值 8.82 ms）；`bench_gpu_s43n_sp_s3407_v2.json` 12.99 ms（6.86 ms）；`bench_gpu_host_s43n_sp_s3407.json`（状态与 mesh 缓存在主机）9.66 ms（5.67 ms）；`bench_cpu8_s43n_sp_s3407.json`（CPU 8 线程）13.41 ms（8.95 ms）。三个 GPU 文件的先后与改动内容未在产物里记录，只按文件名与 mtime（05:47:11 / 05:50:22 / 05:53:34）排序。偏离 9 的静态形状 + CUDA graph 把整步压到 1.32 ms。
+
+#### 6. 第一波（带热像素）失败臂补记
+
+`s43_sp` 三种子训满 6000 步但未评测；`s43_spself` 三种子停在 4500 步；`s43_spnc` 两种子评测：S39 栈 RA 39.664 / 40.372，W50 原始 RA 51.737 / 32.307（`outputs/semkine/s43_spnc_s340{7,8}/`，`outputs/s43/full/s43_spnc_s340{7,8}/`）；`s43_sp_s3407` 的 500 步检查点 S39 栈 RA 95.449、异步 131.733（`outputs/s43/dbg/`）。原因与处理见偏离 3；这些臂不出主行。
+
+#### 7. 边界
+
+- 单受试者开发 = 测试集；G1 / G3 / G7 与对 S39 的裁决只用三种子同种子配对，没有跨受试者可靠性。
+- rt_s37 的 npz、主行与权重已在 10-08 清理中删除，G2 的参照只剩 `verdict_partial.json` 的数字，不能再对 S37 做逐步分解。
+- 稀疏的延迟优势只在算力受限平台成立（偏离 9）；主表 Latency 列沿用 eager 口径 8.39 ms，对 S39 的 4.09 ms 更慢。
+
+<a id="s43-addendum-20261021"></a>
+
+#### 8. 补记（2026-10-21，按产物写入）：未执行的预注册项、未入账的产物与后续复用
+
+逐项对照 `outputs/s43/`、`tools/s43/`、`tests/test_s43_*.py` 与本账本后补记；上文数字与措辞不改，没有新训练、新评测或重算。
+
+- **B6 轨迹未产出。** 预注册 §1 序 6 写了"报告 2k / 4k / 6k 检查点的轨迹（描述，不选点）"，实际没有做。`s43n_sp` 三种子每 500 步的检查点（500–6000，各 12 个）都在 `outputs/semkine/s43n_sp_s340{7,8,9}/`，但只评过 6000 步，外加 s3407 的 3500 步调试点（§3）。
+- **已引用数字的来源文件**（数字见上文，这里只补路径）：
+  - G6 严格 fp32 整包参照：`outputs/s43/gate_fp32/s43n_sp_s340{7,8,9}/off.{json,npz}`。`outputs/s43/g6.sh` 先跑 `tools/s43/gate_eval.py eval --n0 inf --strict-fp32`，再以它为 `--ref` 跑 `async_eval.py` 的闭环与 `--replay-ref` 开环。
+  - G4 与偏离 1 网格的逐格评测：`outputs/s43/gate/{dt_dz_l3,s43n_sp}_s340{7,8,9}/`（`gate_eval.py eval`；`select` 生成 `g4_*.json`）。
+  - 初始化噪声种子 1–10 的重评：`outputs/s43/initseed/{dt_dz_l3,s43n_sp}_s340{7,8,9}/`（`outputs/s43/initseeds.sh`；`tools/s43/initseed_table.py` 汇总成 `initseed_partial.json`）。
+  - 偏离 9 的主干延迟表取自 `outputs/s43/reports/static_trunk_s43n_sp_s3407_fp32.json`；同名不带 `_fp32` 的是非严格 fp32 版本，静态对掩码稠密最大差 6.2e-4。2590 步中只需档 0 / 1 / 2 的分别 1357 / 563 / 670 步，溢出 0。整步 graph 链：`outputs/s43/async/s43n_sp_s3407_graph_h{50,10}_fp32*.json`（`_nomesh` 为不含主机 mesh 缓存，`_nomesh_db` 为加死区，`_replay` 为开环）。h50 回放 2605 次、超档 15 次，h10 回放 12988 次、超档 38 次。日志在 `outputs/s43/logs/{static_fp32,graph_evals}.log`；事件写入耗时来自 `outputs/s43/ingest_bench.py`。
+  - 主表 W50 行的 MAC：`outputs/s43/reports/macs_w50_s43n_sp_s3407.json`（中位 101,010,180，A0 中位 1213 个位点）。
+  - §5 的 `bench_*.json` 由 `tools/s43/bench_runtime.py` 生成（逐阶段同步计时）。
+  - 两口径评测入口 `tools/s43/post_eval.sh`：S39 栈写到 `outputs/s43/full/<run>/`，W50 原始口径写到 `outputs/semkine/<run>/evalx_val_core_last_tf_pert.json`。逐 npz 汇总用 `tools/s43/summ.py`；`docs/assets/s43_sparse_simple.png` 由 `tools/make_s43_figure_simple.py` 生成。
+  - 测试：`tests/test_s43_async.py` 断言 SAE 生成的 LNES 与评测器逐位相同、增量 mesh 缓存等于全量 MANO 前向、死区下的小更新逐位保持；`tests/test_s43_sparse.py` 另有偏离 9 的静态主干等价测试与消融 A1 的无渲染主干测试。
+- **只打印、未存结果的零训练探针**：`outputs/s43/rootbias.py` 算闭环根旋转误差在 GT 根坐标系下的均值偏置，以及 1 s 滑动平均的慢分量与高频分量；`outputs/s43/noise_stats.py` 统计 W50 / W200 LNES 中孤立事件像素的比例（每序列 60 步）；`outputs/s43/decomp.py` 对 S39 栈闭环 RA 做零训练分解（根取 GT 只剩手指误差、手指取 GT 只剩根误差）。三者都只输出到终端，`outputs/s43/logs/` 里没有记录，读数不可考；账本正文也没有引用它们的数字。
+- **备份目录** `outputs/s43/backup_20261007/`：S43 改代码前的 `model/model.py`、`model/backbones.py`，两者哈希记在 `SHA256`（本次复算相符）；另有 `evalx.py.bak`、账本 `EXPERIMENT_RECORDS.md.bak`（10-07 01:21），以及消融前副本 `model.py.before_ablation`（10-07 05:45）、`test_s43_sparse.py.before_ablation`（10-07 12:00）、`EXPERIMENT_RECORDS.md.before_ablation`（10-08 00:08）。这些只是回退凭据，不是结果。
+- **后续复用**（冻结 `s43n_sp` 三种子 6000 步权重，均为零训练；详见 [S44 阶段 0 结果](#s44-phase0-results-20261020) 与 [P0b 结果](#s44-p0b-results-20261020)）：
+  - S44 P0.3（`outputs/s44/p03_render.json`）：S39 与 S43 各三种子上，渲染路 / prev_mlp 路的输出变化比为手指 0.13–0.16、根 0.30–0.45、平移 7.3–15.7。即手指可去耦，平移由渲染路承担。
+  - S44 P0.4（`outputs/s44/p04/`）：在 S43 的 A4 特征上按前态网格归属逐指池化，用岭回归读出手指 Δ，闭环 local 均值 10.94，比原 fc（10.56 / 10.62 / 10.63）更差，未过 ≤ 10.0 的门。
+  - S44 P0.5（`outputs/s44/p05/`）：本节 G6 的多速率退化在原 sliding50 计数下为 h10 − h50 = +0.135 / +0.225 / +0.145 mm，计数改为"自上次查询以来"后为 +0.165 / +0.194 / +0.188 mm（数字按 S44 勘误），两种都超过 0.08，所以不是重复计数造成的；退化原因仍未定位。
+  - S44 P0.10（`outputs/s44/p10/s43_*`）：S43 对照臂逐步复现本节 S39 栈 RA 9.2940 / 8.9698 / 9.3548。以 S43 为慢干线、快路径只写手指时，local +0.044 / −0.005 / +0.004，global ≈ 0，快路径不起作用。
+  - [XVM 复盘](#xvm-analysis-20261021) Q5 据既有记录给出判断：S43 作为异步执行模型（SAE O(1) 写入 + 独立查询）保留，渲染–比对观测模型在精度上不优于 S39。XVM 没有再加载 S43 权重。
+- **同名的旧 S43**：2026-09 初 5 受试者退役协议线上的网格关联臂 `s43_meshassoc_s3407`（S36 基座，`docs/S43_MESH_ASSOC_PREREG.md`），与本轮无关。它的代码、配置、探针与文档已于 09-06 按用户指令不留快照删除，不可恢复，只在 [清除记录](#ledger-sparse--清除-s37-之后的全部实验s38s46s37-的-zgz-重跑随后也作废清除2026-09-06用户指令) 中留有文件名。
+<!-- EXPERIMENT_RECORD:S43-RESULT:END -->
+
+
 <!-- EXPERIMENT_RECORD:S43-ABLATION:BEGIN -->
 <a id="s43-ablation"></a>
 
@@ -6531,6 +6723,21 @@ python tools/report_table.py dt3_dz_l3_w200cfg s37_routed rt_s37_sel rt_s37_3see
 
 **终止（2026-10-08 21:15，用户）**：用户认为这组消融没有意义，要求停止。四个臂的种子 3407 训练到第 2500–3000 步（共 6000）时全部停止，没有任何评测结果，本节不产生结论。部分训练的检查点留在 `outputs/semkine/s43a_{norender,mse,focal,s37recipe}_s3407/`（未评测、不使用）。为 A1 加的代码（稀疏主干允许 `PREV_RENDER: false`）是 opt-in，默认路径不变，保留。
 <!-- EXPERIMENT_RECORD:S43-ABLATION:END -->
+
+<!-- EXPERIMENT_RECORD:S43-FIGURES:BEGIN -->
+<a id="s43-figures"></a>
+
+### S43 结构图与图件包索引（2026-10-08—19；示意图，不含结果读数）
+
+- `docs/assets/s43_sparse_simple.png`（10-08 21:05，已入 git）：W50 原始协议版结构图；图内标注 RA 10.24 mm（local 12.80 / global 8.01）、2.82 M、0.101 G MAC/步，与 `outputs/semkine/s43n_sp_tf_pert_main_row.json` 一致（见 [S43 结果](#s43-result)）。
+- `docs/assets/s43_sparse_tracker_20261009.{png,svg}`（10-09 09:15，已入 git，`tools/s43/draw_s43_figure.py`）：S39 栈部署形态图，图内标注三种子递推 RA 9.21、MAC 0.127 G、整步查询 p50 1.32 ms、更新死区后 local 每步写 8.2 / 15 个手指关节（代价 +0.03 mm）；数字来源同 [S43 结果](#s43-result) 与偏离 9。
+- 2026-10-19 16:03—16:42 的四个 W50 原始流程图包，均为方法示意（mesh、事件点与活跃图不是实验样例），不含滤波或更新死区；`tools/s43/draw_s43_publication.py`、`draw_s43_template_polished.py`、`draw_s43_template_clean.py`、`figure_geometry.py`：
+  - `docs/assets/s43_w50_publication_20261019/`：中 / 英文出版图（190 × 108 mm、600 dpi；SVG / PDF / PNG / TIFF + `s43_w50_figure_pack.zip`），`manifest.json` 记 `configs/s43/s43n_sp.yaml` 与 6 个文件的 SHA256（本次复算相符），`caption_zh.txt` / `caption_en.txt`。
+  - `docs/assets/s43_w50_original_template_20261019/`：旧横向主链模板（248:66）重绘的 polished 版，`manifest.json`、`figure_note.txt`。
+  - `docs/assets/s43_w50_sae_complete_20261019/`：同模板，加入"异步事件流 → 逐像素时间面 SAE（S[y,x,p] ← max(S[y,x,p], t_i)）→ 查询时刻 LNES"支路；W50 原始采样 t_k = t_s + 49 + 50k ms，窗宽 w_k = min(50, t_k − t_s + 1)，L_k = (S − t_0)/w_k（窗内），正式 50 ms 节拍 w_k 均为 50 ms；定义由 `semkine/async_tracker.py` 的 ingest / lnes 与 `semkine/eval_track.py` 的 W50 采样核实，`tools/s43/async_eval.py` 当前 W200 默认入口不作 W50 实测依据（`figure_note.txt`）。
+  - `docs/assets/s43_w50_clean_20261019/`：同模板去说明文字的 clean 版（SVG / PDF / PNG / TIFF + `s43_w50_clean_pack.zip`），无 manifest。
+<!-- EXPERIMENT_RECORD:S43-FIGURES:END -->
+
 
 ---
 
@@ -9567,10 +9774,51 @@ C 的 near 分层可能同时改变内容与质量绑定；严格 r=1 子集保�
 
 <!-- EXPERIMENT_RECORD:XYZ-RESIDUAL-ABCD-EXECUTION-20261011:END -->
 
+<a id="xyz-abcd-verdict-20261012"></a>
+<!-- EXPERIMENT_RECORD:XYZ-ABCD-VERDICT-20261012:BEGIN -->
+### 2026-10-12：ABCD 全步骤验证与研究取舍
+
+> **2026-10-20 并入说明：** 本节原为《网络结构分析》开头的“2026-10-12：ABCD 全步骤验证与研究取舍”，是上方 ABCD 执行记录的裁决解读，按用户要求移入本账本（原节 SHA256 `837155997962725d4078be334fb0f15829379945c18ad818679e9e193c5017f2`）。只把标题降一级、把指向本账本的链接改为文内锚点；文中“下方 10-11 原文”指《网络结构分析》的 [2026-10-11 专题](网络结构分析.md#xyz-reassessment-20261011)。原文件的修改前副本见 `outputs/docs_consolidation_20261020/pre_merge/docs/网络结构分析.md`。
+
+完成时间 2026-10-12T10:41:41.658414+08:00。8 个轻量探针（两 seed、step1500）、13 个完整训练（ABCD 三 seed及 A 的同种子独立复跑、step6000）和五组恢复／运动／同权重诊断均已执行；没有挑选中间检查点。正式主表由 `tools/report_table.py` 生成，以下直接读取 `outputs/xb/TABLE_full.md`。预注册和完整执行记录见 [实验账本](#xyz-residual-abcd-execution-20261011)，机器裁决见 `outputs/xb/verdict.json`；必需证据无 pending。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| 旧匹配 C0（两 seed，末步参考） | 25.43 | 14.56 | 22.72 | 11.23 | 19.62（19.20 / 20.03） | 9.55 ms | 0.231 G | 0.46 M |
+| A：全包容量对照 | 35.74 | 17.69 | 29.07 | 12.90 | 26.08（21.56 / 27.27 / 29.41） | 11.60 ms | 0.232 G | 0.48 M |
+| B：4×4局部残差 | 26.14 | 15.32 | 21.57 | 11.51 | 20.35（19.68 / 22.73 / 18.64） | 11.26 ms | 0.232 G | 0.48 M |
+| C：局部内容置乱 | 28.63 | 17.71 | 23.53 | 13.83 | 22.79（23.72 / 19.72 / 24.93） | 11.86 ms | 0.232 G | 0.48 M |
+| D：仅空间占用/质量 | 28.27 | 18.97 | 23.80 | 14.57 | 23.29（19.92 / 24.31 / 25.65） | 11.62 ms | 0.232 G | 0.48 M |
+| A：同种子独立复跑 | 24.67 | 15.23 | 20.70 | 12.81 | 19.62 | 11.41 ms | 0.232 G | 0.48 M |
+| S39：W200 + 自适应滤波 + 证据门（完整栈参考） | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+
+**裁决：当前 4×4 局部残差候选不通过研究采纳门，停止扩网；整个 XYZ 研究方向仍保留为有待辨识的支线。** B 的完整递推效用门通过，但空间内容绑定门及恢复门未通过，正常运动护栏通过。旧 C0 仅两 seed、S39 包含 W200 完整栈，均为参考；本轮没有证明 B 超过旧 C0，也没有用跨配方差距代替匹配因果比较。
+
+#### 哪些证据成立，哪些主张仍不能成立
+
+1. **局部残差信息值得注意，但不等于已证明局部重关联。** B 相对等容量 A 的三个 overall 配对差均为改善，平均 5.726 mm，高于预注册工程噪声门 3.871 mm。这个门来自一次同种子独立复跑，并非置信区间；local 的复跑波动较大，且 seed3407 的 global 指标退化，不能宣称所有种子、所有场景均受益。C 的内容置乱只移除 42.55% 增益，未达到冻结的 50% 门。控制审计确认置乱不是恒等操作；near 的质量分层、空间跨格可行上界和粗时间分层限制了纯绑定解释，不能把未过门推广成所有局部信息都无用。
+2. **占用解释也未达到采纳条件。** D 与 B 在 global 的差超过该列噪声门，不能说仅占用／质量已经解释全部 B 增益；同时 D 自身效用门失败，不能将研究结论自动降级为已经有效的占用工程方案。D 的实验合同通过，与 D 能否解释收益是两件事。
+3. **错误前态恢复没有跨种子成立。** 从固定 C0 公共前态开始、48 个相同片段、natural 与 large 两种条件、实际推进10个 W50步的真值误差曲线显示：seed3407 的 B 在两种条件都比 A 更差，另两个 seed 更好。原门要求每个 seed 两种条件分别通过，因此恢复门失败；完整长轨迹平均误差改善不能替代这个检验。
+4. **正常响应在容差内仍有代价。** clean/small、local/global 的三 seed 均值均通过原速度增益、方向和滞后护栏；global clean 的方向相似度和 global small 的滞后出现三 seed 同向的小幅损失。故只能称工程护栏通过，不能称运动代价为零，也不是显著性检验。
+
+八个轻量探针的完整自身递推出现非有限数值，均按 FAIL 保留；缓存前态下的有限训练损失没有建立闭环稳定性。完整从零训练及正式三 seed 诊断的必需数值均有限。诊断期间默认 GPU 浮点归约使相同 B 重复运行的 mass/metadata 不逐位相等；这是一次真实执行中断，原证据未删除。后续只对公共输入审计启用确定性算法，保留全部原严格检查，退出即恢复标志；cuBLAS 工作区在进程级配置，不宣称其他计算逐位等价。此修复发生在主评分之后，登记和历史源码见 `outputs/xb/runtime_audit_fix.json`，没有修改模型、权重、预算或门。
+
+#### 对下一阶段研究的约束
+
+本轮只检验固定 W50 包内的空间残差表示，原第17残差槽仍保留；没有实现逐事件状态更新、事件时刻 MANO 关联、持久顶点记忆或候选状态重绑定。因此不能把 B 的效用门通过写成异步 MANO 建图问题已解决，也没有建立创新性。Xue 等的轮廓 EM、EvHandPose 的时序 mesh 约束及既有 S43 写入／查询分离仍构成最近邻限制，文献事实沿用下方 10-11 原文核验。
+
+下一次若重启这条支线，优先辨识“同一局部观测能否在错误前态下提供独立、方向正确的状态修正”，并覆盖 seed3407 的恢复失败；不能只增加残差节点、mesh 深度或把更多弱证据强制分配给 MANO。需要单独冻结新的机制和恢复检验，不下调本轮 50% 门、不选有利 seed，也不把补充 r=1 分布外交换纳入正式成功条件。本轮停止条件已经触发，不继续自动派发更大候选。
+
+<!-- EXPERIMENT_RECORD:XYZ-ABCD-VERDICT-20261012:END -->
+
+
 <!-- EXPERIMENT_RECORD:XYZ-GEOMETRY-CAUSAL-TIME-20261012:BEGIN -->
 <a id="xyz-geometry-causal-time-20261012"></a>
 
 ### [XC] 显式3D通道 × 可部署事件时刻关联：正式预注册（2026-10-12）
+
+> **2026-10-20 补注（立项依据，按产物补登记）：** 本预注册之前有一次只读的事后证据审查 `outputs/xb/direction_review/explicit3d_async_decision.json`（2026-10-12 11:49，无新训练或推理）。它判定 ABCD 各臂都是 `XYZ_GEOM=false` 与静态单次 FK 关联，因此不直接检验显式 3D 或事件时刻关联。已成立的只有匹配 C0/C1 重训中原 dXYZ/z_prior/edge 整组在登记范围内损害 local；单通道原因、可部署的时间几何收益及二者交互均未测量。审查的结论是值得做一次有边界的几何 × 时间判别验证，尚无扩大网络或增量缓存投入的依据。附表 `explicit3d_async_table.md` 只复用 XA 已有的 C1、C0 与 S39 主行，没有新结果。
 
 本节在正式训练和候选主评价前审定；仅在真实GPU预检通过、全部输入SHA冻结后启动正式训练。单独smoke只验收实现，不用于选方案或调优。
 
@@ -9877,6 +10125,7 @@ flowchart LR
 <!-- EXPERIMENT_RECORD:XDL-EXECUTION-20261013:END -->
 
 <!-- EXPERIMENT_RECORD:XDL-LEGACY-RESULTS-20261013:BEGIN -->
+<a id="xdl-legacy-results-20261013"></a>
 
 #### XDL 零训练旧权重阶段：正式结果
 
@@ -9980,3 +10229,9727 @@ local每臂24个natural片段中8个initially_satisfied，余下16个全部右�
 **证据边界与方法归属。** 所有固定比较及交互完整保留。这里只有一个fresh训练seed，zgz仍一人两序列且开发/测试重合；不能靠事件、片段或probe数制造受试者/seed独立性，不给p/CI、复跑δ、跨seed稳定或普遍因果声明。本轮使用 `research-experiment-workflow`、`statistical-analysis`、`scientific-critical-thinking`、TDD与完成验收，文献角色沿用XD第21项的关联/观测区分和运动启发，没有新Jev调用。方法归属：[Kassis, T., Agarwal, V., He, Y., Patel, D., & Brueckner, A. M. (2026), Scientific Agent Skills: A Library of Procedural Knowledge for Research Agents](https://doi.org/10.48550/arXiv.2609.00065)，当前官方arXiv元数据已核对，引用无版本后缀；它是程序性方法来源，不是本模型有效性的证据。
 
 <!-- EXPERIMENT_RECORD:XDL-FINAL-RESULTS-20261013:END -->
+
+<!-- EXPERIMENT_RECORD:XDE-PREREG-20261014:BEGIN -->
+<a id="xde-prereg-20261014"></a>
+
+### [XDE] XYZ决定性证据快实验：执行预注册
+
+用户2026-10-14明确授权执行此前诊断计划，并指定物理GPU2–7六卡。当前先执行[三项计划](#xde-plan)中无需完整重训的工作；GPU0/1不使用。固定九人72序列和原只读split，不改S39、生产模型、既有权重与历史原始产物。
+
+- E1（GPU2/3）：全local正确前态的真实窗末GT偏差、hold及各轴分解；Q1自身natural错误的同态真实／强时间破坏事件控制与独立递推。优先复用bank/recovery/motion。预算≤2 GPU·h，batch1。
+- E2（GPU4/5）：冻结Q1，优先银行34→4截面；相同state99、相同真实GT修正目标、同头尺寸比较state-only／真实压缩前／真实压缩后／错内容。仅训练身份内部按非重叠时间段拟合与留出，zgz只评价；两初始化与128/512宽度预声明。预算≤6 GPU·h。
+- E3前置（GPU6）：固定1000训练状态核验focal→depth投影残差、候选身份与训练曝光支持，另验证旧Q1身份可复用性。投影p95≤3事件像素、候选身份改变≤5%的具体计数合同在运行前冻结。完整重训仍以E1/E2支持及几何门通过为条件，不为占满GPU而提前启动。
+- 共同成本核验（GPU7）：既有Q1在zgz两序列自身递推，测原始事件切窗→packet/传输→完整forward→MANO输出→CPU可用结果的软件链p50/p95/p99。包含预测反馈，不沿用预置GPU包时延；离线回放不冒称实测传感器采集或排队时延。
+
+详细固定样本、随机种子、输入SHA、命令及预算分别先写入`outputs/xde/{e1,e2,e3_preflight,pipeline}/protocol.json`；快实验结果保留全部分母、失败和undefined。并行执行E1、E2特征提取及E3几何核验不改变E3完整训练的条件决策顺序。当前尚无新实验结果，不把此前24包CPU发现计为全量验证。
+
+E3若启动，唯一因子仍为`SCALE_MODE focal→depth`，最多5个新run且须可复用既有Q1；不能复用则不按原预算启动。各成功门与保护门沿用前述计划，不根据本轮结果回改。仅末层探针阳性不等于可部署更新器，需自身递推验证；几何近似前置门失败只停止该实现，不能否定扩大深度支持的假设。
+
+<!-- EXPERIMENT_RECORD:XDE-PREREG-20261014:END -->
+
+<!-- EXPERIMENT_RECORD:XDE-RESULTS-20261014:BEGIN -->
+<a id="xde-results-20261014"></a>
+
+### [XDE] 首批快实验完成：保留深度外推／更新耦合，未采纳替头
+
+完整结果、规范参考主表、图、源码与原始证据见 [S37统一诊断：XDE快实验结果](#xde-results)。本轮无新的正式主行，无完整编码器重训；20个小头仅为诊断，S39不变。
+
+- **E1全量偏置确认：** local1204包逐包GT前态，Q1平均signed z−64.670mm、腕66.319mm，共同hold2.685mm，0/1204更新更好；Q0/N1同类偏置均通过预注册筛选门。四模型预测全有限，旧24包逐状态回放一致。Q1自身natural片段local新持续恢复0/24；global为4/20（另4段初始已满足）。强时间破坏并未建立local总体净纠错，其采样support变化单独披露。
+- **E2有可解码信息但未通过闭环：** 7680特征行，20个固定小头；pre34/post4都通过selected-check门且local有相对state/wrong的增量，排名随seed/宽度改变。13440次自身递推全部有限；local新增持续恢复仍0/24，global替头误差与lag退化。不能锁定34→4为主瓶颈，也不能把probe阳性等同部署纠错。check同时用于选点，主干见过训练身份。
+- **E3前置失败，完整重训未启动：** 1000状态投影p95=1.538px通过，128000查询候选面集合任一改变45.166%超5%门；最终支持集合变化26.361%。参照是逐顶点仿射诊断网格，离散身份变化不是精度损失证据。深度支持假设仍未被匹配重训裁决。
+- **深度坐标修正：** zgz实际腕深需在平移参数z上加J0_z=6.197364mm；local真实腕深705.546–749.371mm。固定1000训练曝光落入此区间focal0次、depth50次。原699–742/710.2跨口径字段保留溯源，不用于实际腕深覆盖结论。
+- **完整软件链补测：** Q1全2590包自身递推，含输出MANO和host-ready结果，local/global p95=13.765/15.503ms；不含传感器、实时排队和显示，不与旧归一化主表Latency直接比较。全部卡时、输入SHA、正常运动／lag／粗糙度代理与defined分母见[执行附件](assets/xde_20261014/README.md)。
+
+当前优先缺口是深度支持／外推与更新目标／读出偏置的匹配分离。新证据降低“直接加宽银行压缩”的优先级，没有排除早期候选、mesh→LBS、根和手指的问题。按原几何前置门停止E3实现是一次预注册裁决，不等于否定depth覆盖或完成全部诊断。
+
+<!-- EXPERIMENT_RECORD:XDE-RESULTS-20261014:END -->
+
+<!-- EXPERIMENT_RECORD:XDF-PREREG-20261014:BEGIN -->
+<a id="xdf-prereg-20261014"></a>
+
+### [XDF] 分离完整读出、深度曝光与z监督权重：新预注册V1
+
+2026-10-14执行前登记，**该快照登记时模型实验尚未启动；后续执行见下方XDF结果登记**。完整合同、预设判据、条件分支和共同验收门见[S37统一诊断13.5节](#xdf-prereg)，冻结副本及来源身份为`outputs/xdf/preregistration_v1.md`、`preregistration_v1.json`。保留XDE全部原门与裁决：E3候选门仍FAIL、完整重训未启动；本合同不是看结果后放宽旧门。
+
+登记依据：原Q1最终接口为legacy544+bank64+state99，E2探针漏掉legacy；原Q1已监督真实平移endpoint，固定incoming／β下真实delta MSE与腕endpoint MSE等价。新CPU复算发现E2训练身份check clean的z-MAE：Q1为4.546mm、pre128为16.270/15.641mm、post128为15.475/15.881mm、hold为1.470mm；probe fit实际目标腕深437.891–680.577mm，local128包707.448–748.074mm全部越界。域内探针泛化与local额外域偏置应分开，probe范围不是原Q1全部训练范围。[审查](#post-xde-causal-audit)、[CPU原件与SHA](assets/s37_next_controls_20261014/e2_domain_clean_audit.json)
+
+- **XDF-1先行，≤2 GPU·h：** 完整707与legacy544清零的匹配头、内容控制和状态支路反事实；先≤0.5 GPU·h完整接口阶段，必要时补候选／H3→LBS→slot_proj、固定腕的root/finger和自由反馈。冻结主干，完整接口复现原头后再拟合；原check不再选epoch。
+- **XDF-2，≤1 GPU·h＋CPU≤2小时：** 原生训练目标实际腕深全量统计，固定观测／相机／标签／loss，用训练内部高深截断vs覆盖检验读出支持；同时审计真实focal/depth数据流与连续投影、质量加权关联差异。跨语义总效应不能称纯coverage，不自动启动昂贵完整重训。
+- **XDF-3，≤2 GPU·h：** 同一完整接口和冻结clean／扰动／Q1 own缓存，只将平移MSE中z项权重1→2、分母仍3；原任务权重、log聚合、AA合成及depth分布固定。只训最终两层，两个数据顺序seed与每臂一次repeat，不将小头seed冒充完整模型seed。
+
+三项快速预算合计≤5 GPU·h，含启动、缓存、拟合和评价，仅物理GPU2–7。评估保留clean真实运动、正负扰动、E1固定own24×20步、21状态实际时间AUC、持续恢复、global绝对位置／RA／root／finger、lag／抖动与完整软件链。接口阳性不能替代净纠错，偏置门通过不能替代恢复；完整模型至少两seed与repeat及全部护栏通过后，才考虑结束该瓶颈诊断。此次仅完成源码审查和CPU复算，没有新模型成绩、未更改S39。
+
+<!-- EXPERIMENT_RECORD:XDF-PREREG-20261014:END -->
+
+<!-- EXPERIMENT_RECORD:XDF-RESULTS-20261014:BEGIN -->
+<a id="xdf-results-20261014"></a>
+
+### [XDF] GPU2–7快速判别结果：完整接口有用，可靠更新尚未建立
+
+2026-10-14，按用户六卡／CPU授权执行三项冻结主干诊断。完整结果、读数、失败及决策统一在[S37 §13.6](#xdf-results)，不新增另一个S37文件。原S39、完整模型checkpoint、E1–E3历史门和XDF执行前快照均保留。这些是32个小头的机制实验，不发布新模型九列主行。
+
+- **XDF-1：内容门PASS、保护／恢复FAIL。** 707完整接口逐值重放原Q1，legacy内容相对清零／wrong控制在check clean改善5.5–6.6mm，但仍差于原Q1。16个root/finger探针均未建立各自的预注册事件增量门。local own仍0/24持续恢复，global退化；GT腕钳位未消除local角度错误。候选内排序与H3→LBS层间正向定位未完成。[接口](../outputs/xdf/interface/summary.json)、[角度](../outputs/xdf/angles/summary.json)、[反馈](../outputs/xdf/interface/rollout/summary.json)
+- **XDF-2：普查／实际流审计完成；D0/D1按支持门停止。** 4549824合法训练endpoint仅1176落入local深度范围，且来自同一人的同一短片段及版本副本；高深check只有1身份／2块，未达3／20门，不拟合。1000counter真实focal/depth及burn路径显示候选／质量／读出耦合，不等于depth匹配重训效果。旧E3仍FAIL。[支持](../outputs/xdf/depth/support.json)、[数据流](../outputs/xdf/depth/flow_result.json)
+- **XDF-3：z权重主门FAIL。** 同14400缓存行、2seed×2臂及repeat，local clean仅改善1.45／1.77mm，偏置未减半；fit改善而check/global退化。local own仍0/24恢复，global角度／运动／角速度护栏失败；repeat参数及短轨迹逐值一致，不代表整网seed不确定性为零。[目标裁决](../outputs/xdf/objective/result.json)、[补充护栏](../outputs/xdf/objective/supplemental_guardrails.json)
+- **全长失败保留。** 三遍全序列own中预固定L0_1701在local第803次、L1_1701在第839次查询非有限，短20步片段有限不能覆盖这项失败；F1701全长虽然有限，腕均值也漂移至local4918.46／global12787.44mm。原Q1 local时延基准复测波动>5%，F global自身波动>5%，相对时延未定，不用最快一次通过。[全软件链](../outputs/xdf/pipeline/result.json)
+
+已测0.68095 GPU·h，另列未测启动预留0.05；114388次完整模型调用、32个小头。CPU审计、调用数、源码／协议身份及复现入口见[执行清单](../outputs/xdf/execution_summary.json)。本轮未启动完整encoder重训、未采纳新模型。下一次优先验证保留原Q1角度／共享特征后的平移读出边界，再在支持充分时单改深度曝光；没有净纠错阳性前不把故障单归闭环训练。
+
+<!-- EXPERIMENT_RECORD:XDF-RESULTS-20261014:END -->
+
+<!-- EXPERIMENT_RECORD:XDG-20261014:BEGIN -->
+<a id="xdg-20261014"></a>
+
+### [XDG] 显式绝对平移 × 训练深度支持：local 深度钳位的因果检验
+
+2026-10-14，用户授权 GPU2–7 六卡训练与全部 CPU。机制假设来自零训练审计：XDL 系列（Q1/Q0/N1）在全部 1204 个 local GT 前态包上输出的腕深中位数为 661/675/677 mm、最大约 721 mm，都在训练标签上限 718.5 mm（p99 671.9 mm）以内；local 真值为 705–749 mm。读出不接 t 的旧 C0 输出中位数为 734 mm，没有钳位。只用训练原生深度分布和 mixed 前态噪声算出的一维状态去噪器，预测 local 偏置 −60 mm；实测为 −52 到 −65 mm，在训练范围内预测约为 0。复现见 `tools/xdg/clamp_audit.py` 与 `outputs/xdg/clamp_audit.json`。
+
+- **XDG-0（冻结特征头重拟合，CPU，已完成）：主门 PASS。** 预注册 `outputs/xdg/head/protocol.json` 在拟合前冻结。L0 头在 CPU 上原样重拟合（与 XDF-3 的 GPU L0 只差 0.04 mm），唯一改动是把 full707 中的 t 三列（608:611）置零。local clean 平均 signed z 从 −90.9/−90.6 mm 降到 −7.5/−3.7 mm，输出腕深 p95 从 657/658 mm 升到 755/757 mm，两个 seed 都过了 G1（偏置减半）和 G2（p95 > 718.46 mm）。local 腕误差从 91.6 mm 降到 18–20 mm，仍远差于 hold 的 2.7 mm。global clean 从 22.1/23.0 mm 降到 17.4/20.2 mm。训练身份 check clean 从 10.6 mm 升到 14.8 mm，说明显式 t 在支持内提供有用先验、在支持外造成钳位。再去掉 UV32（noTUV）结果与 noT 相当，没有证据表明 UV 尺度在替代 t。repeat 逐位一致。[结果](../outputs/xdg/head/result.json)、[评估](../outputs/xdg/head/eval.json)
+- **XDG-1（完整重训，2026-10-14 完成）：机制门两臂均 PASS。** 从 Q1 配置各只改一个因素，fresh seed3407、exact step6000、2 卡 × 512，用户在沙箱外以 `tools/xdg/launch_retrain.sh` 于 GPU2–7 启动（约 0.28–0.32 步/秒，三臂各约 5.9 h），三臂均无非有限值。预注册见[协议](../outputs/xdg/retrain/protocol.json)，裁决见[结果](../outputs/xdg/retrain/result.json)。
+  - 有效性：`xdg_q1r`（Q1 原样复跑）复现钳位，local clean 偏置 −72.8 mm、输出腕深 p95 674 mm（Q1 为 −64.7 / 680）。
+  - `xdg_q1t0`（state99 去掉 t）：偏置 +3.8 mm、p95 748 mm，G1/G2 PASS；`xdg_q1dz`（depth 尺度语义）：偏置 +2.6 mm、p95 751 mm，G1/G2 PASS。去掉显式 t 或补上深度曝光任一项，端到端训练的钳位都消失，机制成立。
+  - 主表由 `tools/report_table.py` 生成：
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XDL Q1：MANO查询／自身前态，单seed3407 | 23.91 | 10.93 | 19.37 | 8.33 | 16.96 | 16.09 ms | 0.268 G | 0.49 M |
+| XDG q1r：Q1 同配置复跑（噪声底） | 25.86 | 13.11 | 21.22 | 9.34 | 19.04 | 15.54 ms | 0.268 G | 0.49 M |
+| XDG q1t0：state99 去掉 t | 28.81 | 11.62 | 23.30 | 9.67 | 19.61 | 20.59 ms | 0.268 G | 0.49 M |
+| XDG q1dz：DOMRAND depth 尺度 | 19.54 | 14.41 | 16.71 | 10.76 | 16.79 | 16.45 ms | 0.268 G | 0.49 M |
+
+  - 读法：Q1 与 q1r 同配置的差（local +1.95、global +2.18、RA +2.08 mm）是本轮工程噪声底，单 seed、非置信区间。主表 MPJPE 减腕点，不计平移，所以钳位消除本身不直接体现在主表上。q1t0 的主表没有改善（local 28.81、RA 19.61，与 q1r 相当或更差）。q1dz 的 local 比 q1r 好 6.3 mm、RA 好 2.25 mm，超过噪声底，但 global 差 1.3 mm（比 Q1 差 3.5 mm）；它同时改变了尺度语义，只能称语义总效应。
+  - 描述性（GT 前态单步，CPU 评估）：local clean 腕误差 Q1 66.3 / q1r 75.2 → q1t0 13.9 / q1dz 14.0 mm，但仍远高于 hold 2.7 mm（优于 hold 的包 50 / 35 个，共 1204 个）；±50 mm 输入下，输出对输入深度的斜率 q1t0 0.88、q1dz 0.78（1 = hold），local z±50 腕误差仍 39–50 mm。训练身份 check 上，q1t0/q1dz 的 ±50 纠回反而比 Q1 弱（34–40 mm 对 23–30 mm）。也就是说，钳位来自"显式 t × 训练深度支持"这一点已证实；但去掉先验之后，事件对注入深度误差的纠正仍然很弱，与"事件几乎不提供独立测量"的主问题一致。[评估](../outputs/xdg/retrain/eval/)
+  - 新键 `MODEL.XDL_STATE_T` 默认 true，默认路径在 20 个 Q1 包上与 HEAD 逐位相同。
+
+本轮不替换 S39；q1dz 的 local 收益是单 seed、语义总效应，采纳前需要至少两个 seed 与 repeat。zgz 只有一个受试者。
+
+<!-- EXPERIMENT_RECORD:XDG-20261014:END -->
+
+<!-- EXPERIMENT_RECORD:XDI-20261014:BEGIN -->
+<a id="xdi-20261014"></a>
+
+### [XDI] 测量新息更新：Phase 0 零训练可行性 FAIL，按停止规则不训练
+
+2026-10-14，用户批准计划（不改 `stride_sample` / `associate_rays` / `XYZMeshNet`，在关联之外并行算无参数观测模型，让状态只能沿事件残差移动）。观测模型为 `semkine/xyz_innovation.py`：事件到前态网格可见遮挡轮廓的点到线残差，软 EM 对应（k=8，尺度 16→3 px 退火），边缘方向一致性权重，可见性用现有射线求交过滤，LM 一步并在最细尺度鲁棒代价上做接受检验；雅可比为 51 维加性参数的有限差分。思路来源：Xue 等 IJCV 2024（事件→MANO 轮廓 EM）、KalmanNet（只学新息增益）、经典点到线边缘跟踪。
+
+- **配置只在合成数据上选定**：事件取自 GT 可见轮廓、0.7 px 噪声、0/7%/20% 手框内离群；7% 离群下 GT 前态漂移约 2 mm、z±50 纠回约 0.7/0.3–0.4。冻结前看过两项真实数据：GT 轮廓附近事件占比（local 2/4 px 内 63%/90%，global 35%/67%），以及每序列 3 包的调试试跑（local 漂移约 50 mm）；看过后配置未改，已写入协议的 disclosure。[协议](../outputs/xdi/feasibility/protocol.json)
+- **全量结果（3166 包，CPU，纯 LM 一步、增益 1）：四门在 local 全部 FAIL，global 只有 P0d 过。** GT 前态下 local 腕误差 2.7 → 47.5 mm、global 6.1 → 29.1 mm、check 3.9 → 35.7 mm（P0a 门 ≤ +3 mm）；local z+50 纠回 −0.41、z−50 0.44，global 0.15 / 0.41（门 ≥ 0.5）；根 ±10° 纠回中位数 local 0.01、global −0.11（门 ≥ 0.5）；local 用错内容事件时 z−50 仍“纠回” 0.26，说明移动来自代价偏置而非事件内容。D=6 与 D=51 结论相同。[结果](../outputs/xdi/feasibility/result.json)
+- **原因（调试试跑已直接看到）：真实事件下 GT 不是该轮廓代价的最小点。** 把手推远 25–47 mm 代价反而更低：事件框比 MANO 手投影高 10–15 px（前臂、手腕边缘），另有 20–30% 事件在轮廓 2 px 以外（内部边缘）；事件只出现在运动边缘，local 手掌静止时单个 W50 窗口几乎不约束整手绝对位姿。这正是 Xue 等提醒的深度伪奖励。
+
+按冻结停止规则（P0b 或 P0c 不过），**不把新息接入模型、不启动 Phase 1 训练**；`semkine/xyz_innovation.py` 与 `tools/xdi/feasibility.py` 保留为诊断工具，生产代码与 S39 不变。结论：在不改关联的前提下，用无参数轮廓几何作“独立测量”不成立；要让事件提供可用的绝对测量，需要能解释非手部与内部事件的生成式事件模型、更长的证据窗口（如 S39 的 W200），或依赖 XDG-1 检验的“去掉 t 先验后由网络学测量”。
+
+<!-- EXPERIMENT_RECORD:XDI-20261014:END -->
+
+<!-- EXPERIMENT_RECORD:XKF-20261014:BEGIN -->
+<a id="xkf-20261014"></a>
+
+### [XKF] 不读前态的事件直接测量 + XYZ 运动分支 + 统计增益融合：预注册（训练前）
+
+2026-10-14，用户授权 GPU4–7 四卡训练与全部 CPU；会话沙箱看不到 GPU，训练由用户运行 `tools/xkf/launch.sh`。协议与源码身份在训练前冻结于 [protocol](../outputs/xkf/protocol.json) 与 [manifest](../outputs/xkf/frozen_manifest.json)。
+
+- **动机（前三轮的证据链）：** XDG 消除了 local 深度钳位（local 绝对 MPJPE 112 → 36–41 mm），但 ±50 mm 仍纠不回，主表 RA 不变；local 每步抖动 13.6–16.4 mm（真实运动 3.8 mm），从 GT 前态一步注入 6–9° 根误差；XDI 的无参数轮廓测量在真实事件上不成立。结论是需要一个**学习得到、完全不读前态**的事件测量，以及一个不承担去噪的运动模型。
+- **结构：**
+  - 直接分支 D（`semkine/xkf_direct.py`）：独立的 ResNet18-l3，输入为长窗口 LNES（训练 30–300 ms，评估 W200 截段首）、相机射线平面和 log W；输出根 6D、45 维手指轴角，以及 21 个关键点热图（1/4 分辨率 soft-argmax）。平移用 HandDGP（ECCV 2024）的闭式全局定位求得。
+  - XYZ 分支（关联、MANO 图、bank 均不变，state96）：改训成运动模型，前态只加小噪声。
+  - 融合（`semkine/xkf.py`）：输入 detach，按组用残差二阶矩的滑动平均（0.99）计算 K = (V_I−C)/(V_I+V_D−2C)；根在 SO(3) 上融合，新息限幅 60°；空包保持前态。思路来自 E-3DPSM（CVPR 2026）的"直接 + 增量 + 常数 Kalman"。
+  - 损失为 log10(L_I) + log10(L_D)。
+  - 新代码全部 opt-in：`EventPacketBatch.lnes_window_ms` 为可选字段，XDL 的 burn 抽成 `_burn_main`，默认路径逐位不变（`tests/test_xkf.py` 8 项通过）。
+- **Stage 0（CPU）：**
+  - DGP 几何：zgz_local 深度在 1/2/3 px 关键点噪声下 RMSE 为 10.8/30.1/52.3 mm，预设的"2 px ≤ 20 mm"在 local 上 FAIL，在 global 和训练身份深度上 PASS。
+  - 现有 XYZ 分支从 GT 前态出发比原地不动更差：腕 9.0–9.3 对 5.5 mm，根 4.0–4.9 对 2.3°。
+  - 预注册的预期：如果重训后的运动分支仍比原地不动差，融合会退化成"D + 零运动平滑"，G5 不过，主张只落在 G1–G4 上。[Stage 0](../outputs/xkf/stage0/result.json)
+- **冒烟测试：** CPU 真实数据单步训练，两路梯度有限；评估链路在 zgz_local 1204 个查询上跑通，W50/100/150/200 截段首，LNES 与 `build_lnes` 逐位一致。
+- **门（两个 seed、exact step6000、不在 zgz 上选点）：**
+  - G0 结构；
+  - G1 D 是真测量：深度斜率 0.8–1.2，local |偏置| ≤ 15 mm，根 ≤ 10°，错内容误差 ≥ 2 倍；
+  - G2 一步深度斜率 ≤ 0.6，±20° 根误差一步减半；
+  - G3 41 个 local 起点和 24 个 global 起点、6 种扰动下，≥ 90% 的试次在 10 步内恢复；
+  - G4 从 GT 前态一步根误差 ≤ 4°，local 抖动 ≤ 2 倍真实运动；
+  - G5 融合比 K=0、K=1 和 d_zero 都好 ≥ 2 mm；
+  - G6 主表。
+  只有 G1–G4 在两个 seed 上都通过，才算问题已解决。不替换 S39。
+
+<!-- EXPERIMENT_RECORD:XKF-20261014:END -->
+
+<!-- EXPERIMENT_RECORD:XKF-DEBUG-20261015:BEGIN -->
+<a id="xkf-debug-20261015"></a>
+
+### [XKF] 六卡执行前调试修订（2026-10-15）
+
+用户要求现在由 agent 使用 GPU2–7 六卡执行，先 debug 到效果足够好，再全量训练。本轮沿用每臂两卡、每卡512、无梯度累积；三组 seed3407/3408/3409 分别使用 GPU2–3/4–5/6–7。先做200步非正式调试，若效果门不通过则继续修正/短训，不自动启动 step6000。正式训练另从随机初始化开始，正式 G1–G6 和原 Stage0 记录保留。
+
+训练前发现并修复：原 D 损失缺少方案中的热图和 FK 根相对关节监督，现加入 Gaussian KL（sigma6 px，权重30）与根相对关节 MSE（权重30000），坐标 L1 权重300不变；纯 D 模式直接返回测量，不再经过60°融合新息限幅；self课程启动后统计只使用非空self行，空rank以零权重参与跨卡归约；DGP暴露条件解协方差作诊断，融合仍使用常数残差统计。长窗口复用四个已增强的W50事件包，只对更早历史增加随机流；评估采用增量时间面，并验证与完整重建逐位一致。
+
+验证：`tests/test_xkf.py tests/test_xkf_data_debug.py tests/test_xdl_runner.py tests/test_xdl_data.py` 共39项通过；真实数据batch16、强制三段self burn与反传通过，全部可训练参数梯度有限；zgz全部2590端点的增量LNES与`ET.build_lnes`逐位一致。原Stage0 F1 local在2 px噪声下30.13 mm、未达到20 mm，仍记为FAIL。
+
+调试效果门在训练前冻结：固定训练包D损失相对初始化降低；固定训练身份check上D的关键点、根、RA和腕误差均优于初始化，且平均关键点误差<3 px、根误差<20°、RA<25 mm、正深度比例≥99%；两路梯度有限且非零；zgz固定扰动短轨迹融合平均绝对误差不高于hold、末端腕误差优于hold；预测与损失全部有限。这些是启动全量前的短程学习检查，不能当作正式机制门或主表结果。具体数据写入本轮debug JSON，不向主表混入短训检查点。
+
+
+补充冻结前审计：200步尚未进入self课程（第500步后开始），因此全量启动门另要求至少600步并记录非零self burn暴露。正式G3原定义存在可判定性问题：41个local查询段中15段仅1包、2段仅2包，无法证明连续3步恢复；若全部390个试次保留为分母，理论最高仅288/390=73.85%，低于90%。正式诊断将保留原定义与分母，标注协议不可判定，并另列满足观察长度试次的描述性恢复率，不静默修改门或宣称解决。
+
+
+持久执行安排（首轮200步结束前记录）：控制器`tools/xkf/run_pipeline.py`按200→800→1600→2000累计步数继续非正式debug，保留每阶段的配置、权重身份、暴露记录和评估。每阶段源码一致且数值健康才可继续；三种子效果门全部PASS才生成匹配源码清单的readiness记录，并从头启动正式三组step6000。2000步仍FAIL时停止，不启动全量，不静默放宽标准。控制器有互斥锁、进程身份记录和失败传播；只终止自己创建的进程组。正式完成后自动生成fused及三项增益消融主行、统一表和CPU机制诊断；原S39不替换。
+
+正式诊断已补齐：`tools/xkf/diagnostics.py`和19项测试通过，拒绝非正式或伪装step6000的权重；全部推理target为零；保留完整2590包、错时事件对照、390个恢复试次和额外C0自然起态描述性结果。
+
+
+首轮执行状态（2026-10-15 01:13，Asia/Shanghai）：三种子均完成exact step200非正式短训，保存checkpoint与rank暴露记录，无非有限loss/gradient，rank0显存峰值约20 GiB。固定初始/终点比较均显示D学习，但三种子readiness均FAIL，未启动全量；继续到800步以覆盖self课程。以下为诊断记录，非正式主表数字。
+- seed3407：训练身份check（16包）D关键点 7.89 px、根 11.83°、RA 25.18 mm，正深度比例 100%；未过项：check_direct_kp_mean_px_lt, check_direct_ra_mpjpe_mm_lt, minimum_optimizer_step, observed_self_and_burn_exposure_all_ranks, zgz_local_loop_fused_not_worse_than_hold。
+- seed3408：训练身份check（16包）D关键点 7.89 px、根 23.21°、RA 35.79 mm，正深度比例 100%；未过项：check_direct_kp_mean_px_lt, check_direct_root_mean_deg_lt, check_direct_ra_mpjpe_mm_lt, minimum_optimizer_step, observed_self_and_burn_exposure_all_ranks, zgz_local_loop_fused_not_worse_than_hold, zgz_local_endpoint_wrist_recovers。
+- seed3409：训练身份check（16包）D关键点 6.60 px、根 12.89°、RA 25.47 mm，正深度比例 100%；未过项：check_direct_kp_mean_px_lt, check_direct_ra_mpjpe_mm_lt, minimum_optimizer_step, observed_self_and_burn_exposure_all_ranks, zgz_local_loop_fused_not_worse_than_hold, zgz_local_endpoint_wrist_recovers。
+200步主要不足是关键点精度与local扰动恢复；深度/根常数增益仍小。各组数值与梯度健康，所以继续既定debug，而非更改效果门。固定评估输入、原始轨迹与逐项门见`outputs/xkf/debug_20261015_r1/pipeline/evaluations/`；当前执行状态见`pipeline/status.json`。
+
+<!-- XKF-DEBUG-2000-STATUS-20261015 -->
+
+**执行结果更新（2026-10-15）：** 三组均依次完成200/800/1600/2000步非正式debug，控制器于北京时间03:12:25以`STOPPED_DEBUG_GATE_FAIL`正常结束；未启动正式6000步。10:02检查无XKF训练/控制器进程，GPU2–7空闲。所有冻结检查中，仅`zgz_local_loop_fused_not_worse_than_hold`在三种子仍为false。训练身份check的D精度门、初始对比、正深度、两路梯度、self暴露，以及global短片段和local末端腕误差恢复门均通过。
+
+失败范围严格限定为默认调试采样的1个local片段`zgz_local:0:1049`、10步，起态同时加+50 mm深度与camera-x根旋转+20°；这不是整个zgz_local正式主行，也不能据此断定所有local序列均退化。以下只作debug证据记录：
+
+- seed3407：check的D关键点 1.70 px、根 4.94°、RA 8.30 mm；local固定片段融合绝对MPJPE 62.15 对hold 26.66 mm；末端腕误差 44.37 对hold 49.91 mm。
+- seed3408：check的D关键点 1.99 px、根 5.75°、RA 9.34 mm；local固定片段融合绝对MPJPE 31.77 对hold 26.66 mm；末端腕误差 18.10 对hold 49.91 mm。
+- seed3409：check的D关键点 1.82 px、根 4.67°、RA 7.43 mm；local固定片段融合绝对MPJPE 75.62 对hold 26.66 mm；末端腕误差 48.89 对hold 49.91 mm。
+
+下一项诊断应扩大local片段并分开平移、根旋转与联合扰动，核对直接测量的深度偏置和各融合块贡献；不能把单片段门改松后直接宣称全量条件已满足。冻结门及原始结果保持不变。
+
+<!-- EXPERIMENT_RECORD:XKF-DEBUG-20261015:END -->
+
+<!-- EXPERIMENT_RECORD:XKF-LOCAL-RECOVERY-20261015:BEGIN -->
+<a id="xkf-local-recovery-20261015"></a>
+
+### [XKF] local 递推恢复排查：直接测量、增量漂移与评分耦合（2026-10-15）
+
+用户要求立即排查 local 递推恢复。使用冻结的三种子 debug step2000 权重，GPU2/4/6 做扩大递推，GPU3/5/7 做直接测量分解，随后对完整两条 zgz 序列生成单独标记的非正式诊断行；未训练、未修改模型、增益、原门或正式主行。训练控制器仍为 `STOPPED_DEBUG_GATE_FAIL`，S39 保留。以下统一表由 `tools/report_table.py` 从新产物生成，**XKF 行仅为 step2000 的完整序列诊断，不能当作 step6000 的正式结果或全量启动凭据**。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39（正式，原结果） | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XKF debug2000（三种子，非正式） | 15.52 | 9.66 | 12.64 | 8.22 | 12.38（12.12 / 12.05 / 12.98） | 25.82 ms | 1.644 G | 3.36 M |
+
+本表S39与XKF递推行精度遵循既有工具的根对齐口径；baseline保留原`eval_abs`固定参照口径，并非同批zgz配对评价。不能靠该表判断绝对深度恢复。XKF为三种子均值，括号按3407/3408/3409排列；沿用产物字段名`two_seed_mean`不表示只有两个seed。时延实测完整`forward_packet`，包括两路、FK、DGP和融合，排除LNES构建；本次FP32、TF32关闭，未做执行路径优化。MAC为THOP标准层下界，不含原生FK/DGP等算术。完整2590包、W50输入、D的因果W200裁段首、RNG0带噪初始化与自身前态递推均保留。
+
+**裁决：local 确有测量偏差和递推退化；旧联合扰动的误差抵消又使单片段 hold 比较难以解释。不能仅放宽旧门，也不能把“末端腕误差下降”解释为稳定恢复。当前没有修复完成或全量训练依据。**
+
+#### 预先定义的诊断范围与验证
+
+- 直接分支：每seed全local1204包、全global1386包，训练身份`lyq_local`和`ch_global`各固定128包；同一端点分别W50/100/150/200，窗口裁段首。每seed11384次D推理，每行保存预测/真值2D与姿态的四种组合，分别使用学习置信度和均匀置信度。三seed均0失败，保留全分母。
+- 递推：每seed112片段，包含全部41个可查询local段首、23个后移3包起点、冻结的24个local及24个global片段。每片段最多10步，保留短段：cold有24段不足10步，warm有6段不足10步；另外49个无W50端点的local段、18个无warm端点的段明确列在排除清单。四组每条件分别231/191/240/240帧；重叠采样组分开汇总，不能当作独立的全local样本。
+- 递推条件：正确前态、z±50 mm、camera-x/camera-y根旋转各±20°，以及z+50/rx+20、z−50/rx−20联合扰动。每条件比较I、D、fused、d_zero、hold和`fused_keep_t`，各模式独立维护前态。总计18144条轨迹、146124个被评分帧。
+- `fused_keep_t`整段冻结传入t，同时禁止I和D的平移更新，只用融合更新根/手指；它不是“仅关闭D平移”的消融。warm3在较晚起点初始化GT+扰动，窗口包含合法历史，因此cold/warm对比是描述性的，不能单独归因于窗口长度。
+- 所有部署路径推理target为零；GT仅用于一次初始化、评分及明确标注的DGP真值替换干预。真值替换不可部署，其差值也不是可独立相加的因果贡献。
+- 旧CPU轨迹重新运行逐位复现；关闭cuDNN TF32后，原GPU实现与缓存D/批量I实现最大平移差小于0.0006 mm、姿态差小于7.2e−7 rad。CPU与GPU仍有最高0.82 mm状态差，但平均绝对误差差不超过0.107 mm；保留初始失败预检，之后在扩大推理前记录为后端敏感性，并冻结“CPU原样复现+同GPU实现一致”检查。未利用扩大结果调整一致性标准。
+- 新增恢复采样/评分测试3项通过；冻结清单全部源码hash不变，检查点hash与旧step2000记录一致。最终核验见`outputs/xkf/local_recovery_20261015/final_audit.json`。
+
+#### 直接测量：二维几何误差通过DGP变成深度误差
+
+以下数值顺序均为seed3407/3408/3409，属于机制诊断，单位另标。
+
+完整local W200的D平移RMSE为 **34.76/43.84/35.47 mm**；global为10.69/32.09/21.83，训练身份lyq_local为20.27/16.73/9.52，ch_global为10.89/13.86/9.86。local可见2D关节平均误差2.77/2.65/3.38 px，GT关节全部在视野内。先前16包训练身份check过门，不能说明整个zgz_local的直接测量已足够准确。
+
+| W200全local的DGP输入干预 | seed3407平移RMSE | seed3408平移RMSE | seed3409平移RMSE |
+|---|---:|---:|---:|
+| 预测姿态+预测2D | 34.76 | 43.84 | 35.47 |
+| GT姿态+预测2D | 33.95 | 34.70 | 33.38 |
+| 预测姿态+GT 2D | 15.92 | 15.79 | 28.35 |
+
+两个输入都换为GT后，local最大平移坐标残差小于0.0061 mm。结合普通法方程条件数中位约182/194/193，未发现DGP符号、相机缩放或数值求解错误。证据支持优先检查2D测量几何，同时保留3409的三维姿态缺口；不能把全部误差归于单一热图尺度。
+
+原失败片段`zgz_local:0:1049`的D平移RMSE为116.48/24.11/132.80 mm，深度偏置−95.15/+15.62/−112.62 mm，明显不能代表全local。该片段十步均已具备完整W200，并非段首截短；前六个W50包只有35/16/10/26/24/44个事件。3407/3409的加权2D半径比GT为1.102/1.066，而预测3D半径比为0.939/0.815，二者共同对应偏近的深度。全local的3408则呈加权2D尺寸偏小（比值0.961）、3D尺寸基本正确（1.007）和+36.28 mm深度偏置。不同seed及片段的偏差方向不同。
+
+窗口由W50增至W200，3407的RMSE从48.27降至34.76、3409从42.59降至35.47，3408从43.57到43.84；并非继续增窗就能解决。去掉每段前三包后，1113个成熟W200包仍为34.41/44.56/35.61 mm，故不是冷启动单因。均匀置信度得到35.65/46.03/38.30 mm，三seed全local都更差，不能据坏片段改为均匀权重。坏片段事件占用和运动较低，但密度与误差的关系跨seed不一致，保留为相关性证据。
+
+#### 扩大递推：可减小单项扰动，同时会损伤正确前态
+
+下面是固定24个local片段、每片段10步的平均绝对MPJPE（mm），每格按三seed排列；同一行是预定义条件，不是选点结果。
+
+| 初始条件 | hold | I | fused | d_zero |
+|---|---|---|---|---|
+| 正确前态 | 11.36 | 14.64 / 19.46 / 17.30 | 17.85 / 29.22 / 19.52 | 16.65 / 26.79 / 19.20 |
+| z+50 mm | 52.34 | 46.21 / 59.70 / 55.22 | 30.80 / 41.43 / 40.85 | 35.99 / 39.57 / 41.59 |
+| z−50 mm | 52.57 | 58.22 / 47.69 / 51.03 | 39.16 / 26.14 / 29.56 | 36.20 / 24.65 / 31.42 |
+| rx+20° | 35.03 | 39.76 / 29.49 / 30.90 | 18.19 / 28.87 / 19.41 | 16.93 / 26.62 / 19.25 |
+| z+50 mm及rx+20° | 37.33 | 31.14 / 37.25 / 33.44 | 30.04 / 40.87 / 40.04 | 35.22 / 39.17 / 40.50 |
+
+**正确前态被拉偏是真实缺陷。** local-bank中I、fused、d_zero均在三个seed比hold更差；全41个cold起点、23个warm起点也观察到相同方向。原坏片段正确前态的fused绝对误差为81.94/22.43/97.71 mm，hold仅2.97 mm，这一条件没有人为+50 mm/+20°联合误差可供抵消。
+
+**I不是可靠的纠回模型，D也不是可靠锚点。** I在local正确前态引入漂移；z+50时只有3407明显往回，z−50时3407反而更差，不能把运动预测等同于绝对状态纠错。融合可减小正负深度扰动和rx扰动的总体误差，但seed3408在ry+20°下反而由hold23.55增至29.13 mm。相比d_zero，融合在部分seed/方向改善、另一些退化，没有跨条件稳定优势；两者使用不同增益且各自递推，其差值不能单独归因于I。
+
+冻结t后，local-bank正确前态误差为14.82/14.23/17.60 mm，特别是3408显著低于fused29.22，说明该对照中的平移更新有害；但仍高于hold11.36，根/手指也有缺口。这个冻结对照不能纠正已有的±50 mm平移误差，不能当作修复方案。global-bank正确前态的I为9.14/13.28/11.22、fused为10.48/25.53/13.71、hold34.78 mm，说明I有真实运动跟踪作用，但D融合也会损伤已较好的I；“比hold好”不足以证明融合最优。
+
+短段不改变上述总体方向：仅看完整10步的17个cold片段，三seed平均fused/hold为19.27/16.68；17个warm片段为18.73/10.10。全条件矩阵、逐seed例外、所有观察长度与完整10步的分别汇总见`rollout/analysis.txt`及`combined_summary.json`，不将被截短的末帧称为“第10步恢复”。
+
+#### 旧联合扰动为何会低估hold的真实状态错误
+
+坐标审计确认物理腕点为`J0(beta)+t`，与根/手指旋转无关；绝对坐标不等于t，但同beta下误差相等。164个干预状态的数值残差最大2.84e−5 mm，因此原`wrist_rmse`命名不是本次失败原因。
+
+对每个关节，`e_j = Δwrist + ΔRA_j`，所以关节均方误差精确分解为腕误差平方、相对关节误差平方与交叉项。旧local hold为 **2522.56 + 1426.71 − 3105.28 = 843.99 mm²**，负交叉项抵消未耦合误差的78.63%。离线仅把hold根旋转换为GT，绝对MPJPE从26.66升至50.96 mm；仅换t升至34.85；同时换两者才降至2.47。这是保存状态的真值替换评分，不是可部署模型收益。
+
+全41个local段首同一时刻也全部存在负交叉项：z单扰动50.00 mm、rx单扰动32.53、联合34.21，抵消65.63%的未耦合MSE。保持最多12步、保留41段265帧后，41段平均交叉项仍为负。旧3407/3408融合同时减少腕及相对关节均方误差，绝对误差却因抵消减弱而上升；3409相对关节误差本身也变差。**因此旧绝对门确实FAIL，但单个联合条件无法独立判定每个状态块是否恢复；不能称为“假失败”。**
+
+#### 后续debug优先级与停止边界
+
+1. 先验证D的二维几何和深度误差能否在独立短训中下降：固定当前全local、训练身份对照、各窗口与原坏片段，继续记录DGP真值替换分解。不能只看训练loss或平均关键点误差，必须同时检查深度偏置及尾部片段；3409保留姿态检查。
+2. I需保护正确前态下的local缓慢/近静止运动，并检查正负扰动下的漂移方向。修订训练时应把这两项分开验收，不能依赖有偏D替I兜底。
+3. 测量和I稳定后再评估融合，保留clean、独立正负扰动和联合扰动，也保留短段观察边界。现有分块常数增益优化的状态残差，不保证含t/root交叉项的绝对关节误差最优；本轮尚未证明联合增益或动态增益可以解决。
+
+本次未实施上述训练修改。旧readiness和正式G1–G6保持不变，原Stage0 F1与G3可判定性问题仍保留；不能因本诊断而自动放行全量。诊断后GPU2–7已释放。
+
+![XKF local直接测量分解与旧片段轨迹](assets/xkf_local_recovery_20261015/diagnosis.png)
+
+复现与产物：
+
+- [完整诊断行](../outputs/xkf/local_recovery_20261015/main_table.txt)，生产脚本`tools/xkf/debug_row.py`、`merge_debug_rows.py`；新行名`xkf_debug2000`，正式生产器`tools/xkf/make_row.py`仍严格限定step6000。
+- [直接测量分析](../outputs/xkf/local_recovery_20261015/direct_analysis.txt)及同目录`direct_summary.json`、`direct_s*/`下全部NPZ/JSON；脚本`tools/xkf/direct_probe.py`。
+- [恢复分析](../outputs/xkf/local_recovery_20261015/rollout/analysis.txt)、[恢复协议](../outputs/xkf/local_recovery_20261015/rollout/protocol.json)及`rollout/s*/summary.json`、`per_clip.jsonl`和全部轨迹；脚本`tools/xkf/recovery_probe.py`。
+- [评分分解](../outputs/xkf/local_recovery_20261015/scoring/analysis.txt)及`score_audit.json`、`scored_states.npz`；脚本`tools/xkf/score_probe.py`。
+- 图由`tools/xkf/plot_local_probe.py`从保留的NPZ/JSON生成，另存同名SVG。
+
+<!-- EXPERIMENT_RECORD:XKF-LOCAL-RECOVERY-20261015:END -->
+
+<!-- EXPERIMENT_RECORD:XKF-REPAIR-R2-20261015:BEGIN -->
+<a id="xkf-repair-r2-20261015"></a>
+
+### [XKF R2] 真实运动监督与D几何监督修复，配对短训（2026-10-15）
+
+用户在local诊断完成后要求现在修复。新代码全部位于`semkine/xkf_repair*.py`、`tools/xkf_repair/`与`configs/xkf_repair/`，旧XKF冻结源码和原S39路径不变。训练前协议与56个文件的源码快照冻结于`outputs/xkf/repair_20261015_r2/protocol.json`、`frozen_manifest.json`、`source_snapshot/`；本节跟随该协议记录，不能替代训练前JSON时间戳。
+
+**已确认并修正的实现契约：** 原I损失用当前GT监督`noisy/self_prev + delta`，所以最优目标包含纠正前态误差，并非原计划的纯运动。新数据流从同一训练样本、相同增强下的前后GT端点构建`motion_delta`，只进入训练字典；I监督自身预测增量，self burn改变前态也不改变标签，融合EMA仍对实际当前GT计算。第二处是原bf16路径先将前态降精度再加增量，非空零增量也会改变状态；新路径保留FP32前态与累加，原XYZ关联、观测库和MANO图不动。
+
+**D的受控修复候选：** 保留原DGP推理、可学习置信度、网络和原损失，另外分别监督`DGP(GT三维姿态,预测2D,detach权重)`和`DGP(预测三维姿态,GT 2D,detach权重)`的平移误差，各系数为`0.5 × LOSS.LAMBDA_T`，沿用原normalizer。两项用训练标签将几何输入分开约束，避免仅由联合平移损失允许输入误差互相补偿；它们的实际泛化效果需由配对实验判定。推理不读target或真实前态，D仍独立于模型前态。
+
+**配对设计：** control/repair各seed3407/3408/3409，从各自真实step2000检查点完整恢复权重、Adam状态、调度器和数据计数时钟、融合统计；每臂两卡×512，不累积梯度，卡对2–3/4–5/6–7。两臂都显式将学习率从0.004降至0.0004；在Lightning恢复优化器之后的`on_train_start`实施，并在每批检查实际LR，避免配置被checkpoint覆盖。两臂数据包、随机流和增强一致；control关闭全部修复键，repair启用上述三项。先统一评估step2200（各追加200步），不逐seed挑最好点；若继续短训，保留本阶段并依据全部种子证据登记下一阶段。本轮包装器禁止正式训练。
+
+**启动前验证：** 25项新增测试通过：默认关闭与旧路径一致、参数/buffer及顺序不变、严格加载旧权重、活跃及空行的bf16零增量保持、亚毫米更新梯度、motion标签不随带噪前态变化、训练GT不进入推理包、D的两项梯度隔离与准确权重、真实增强数据packet/LNES逐位一致、LR覆盖保留Adam/时钟、禁止把step2000伪造为随机初始。真实训练数据4样本、旧2000权重、bf16完整前向/反向通过，I的36个及D的60个梯度张量均有限且非零。两个配置的实际训练CLI数据检查通过，首四包hash一致。六个初始评估使用真实归档随机step0权重，在各自新配置下重算，另保留原step2000起点，二者不混淆。
+
+**效果验证与全量边界：** 原readiness公式与阈值不变；同时复用固定112片段×9初态×6模式及完整2590包D分解、标准递推表，保留短段。全量还要求每seed的local-bank及完整10步cold片段在正确前态下fused绝对误差不高于hold，global-bank正确前态fused不超过同LR对照的1.1倍。测试通过、loss下降或某片段变好都不能单独放行全量；新包装器不会自动启动6000步。
+
+**本轮未混入的变量：** depth增强仅腕点精确，存在非腕关节投影残差；训练热像素/事件保留分布仍弱覆盖原坏片段的极稀疏证据。两者是明确的后续对照方向，本轮不同时修改后归因于损失修复。原Stage0 F1失败及G3短段不可判定性保留。
+
+**执行审计：** 两臂各rank前三批的样本索引、main/prefix事件与标签hash完全相同；实际恢复后LR和最终Adam/调度器时钟另存各run的审计JSON。相同旧2000权重在两套配置下的FP32评分指标与snippet预测完全一致（`zero_update_inference_parity.json`）；训练目标不同，不能要求损失相同，也不能将该检查扩展成bf16路径一致。新增分析器以原始NPZ重算摘要并逐seed检查门，20项失败导向测试通过；自身及输入哈希写入`assessment.json`。
+
+CPU基础debug评估完成后，完整rollout实测速率过低，主动停止并保留三seed各8片段的部分输出到`evaluations/cpu_partial/`，子进程退出码−15及原因保留于`cpu_evaluation_device_change.json`。这些部分结果不进入完整评分；待对照训练结束后，两臂统一使用GPU重跑完整rollout/D/主表。该调度变化不改权重、样本范围、评估源码或阈值。评估编排、分析、绘图脚本的独立哈希保留在`analysis_sources.json`，不将其事后加入训练前56文件冻结清单。
+
+#### R2固定2200步结果
+
+以下统一表由`tools/report_table.py`读取原始主行生成，三个XKF行均为非正式debug；同LR对照和修复各含三个seed、每seed完整2590帧。`two_seed_mean`为兼容旧工具保留的字段名，实际为三个seed等权均值。主表MPJPE减腕点、MPVPE减第0顶点，不能用RA改善替代绝对状态恢复；baseline仍是历史PCA6口径，S39是独立完整配方参照。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XKF 原debug（2000步，非正式） | 15.52 | 9.66 | 12.64 | 8.22 | 12.38（12.12 / 12.05 / 12.98） | 25.82 ms | 1.644 G | 3.36 M |
+| XKF 同LR对照（2200步，非正式） | 14.72 | 8.07 | 12.04 | 6.89 | 11.16（11.55 / 10.68 / 11.26） | 25.56 ms | 1.644 G | 3.36 M |
+| XKF 修复短训（2200步，非正式） | 14.78 | 8.09 | 12.04 | 6.92 | 11.20（11.68 / 10.78 / 11.15） | 25.86 ms | 1.644 G | 3.36 M |
+
+**裁决：实现契约已修正，但local递推恢复未解决，停止本轮debug，不启动全量。** 状态为`STOPPED_DEBUG_GATE_FAIL`，两个训练臂均固定停在2200，六份完整评估全部完成。修复相对同LR对照的主表local为14.78对14.72、overall RA为11.20对11.16；相对原2000的主表改善同时出现在对照中，不能归因于修复包。两处实现修正保留为opt-in代码，不将当前D辅助损失候选或其checkpoint提升为正式模型，不替换S39。
+
+| 机制量（mm；顺序3407 / 3408 / 3409） | 原2000 | 同LR对照2200 | 修复2200 |
+|---|---|---|---|
+| local-bank正确前态：I绝对MPJPE | 14.64 / 19.46 / 17.30 | 12.51 / 16.07 / 14.01 | 9.47 / 11.97 / 10.43 |
+| local-bank正确前态：fused绝对MPJPE | 17.85 / 29.22 / 19.52 | 29.09 / 21.38 / 23.52 | 27.81 / 20.68 / 22.95 |
+| local-cold完整10步正确前态：fused绝对MPJPE | 15.14 / 25.80 / 16.88 | 27.19 / 19.69 / 21.76 | 26.10 / 19.11 / 20.95 |
+| global-bank正确前态：fused绝对MPJPE | 10.48 / 25.53 / 13.71 | 17.88 / 14.63 / 15.54 | 16.72 / 14.98 / 14.91 |
+| 全local W200：D平移RMSE | 34.76 / 43.84 / 35.47 | 53.84 / 49.11 / 45.92 | 55.07 / 51.40 / 46.48 |
+
+**I正确前态稳定性有一致收益，但并不负责绝对纠错。** 相比同LR对照，local-bank的I绝对误差三个seed都下降约3–4mm；修复后3407/3409低于hold11.36，3408仍略高。完整10步cold条件的I为13.73/15.79/14.14，均低于hold16.68。然而I在±50mm深度扰动下的平移误差仍约50mm，不能把少漂移称为从错态恢复。这一结果属于三项一起启用的修复包，未分离FP32、运动监督和D辅助的单项因果效应。
+
+**D辅助没有修好真实local测量，融合仍被带偏。** 全local1204包W200的D平移RMSE在修复与对照之间三个seed均变差；偏置从对照+44.36/+42.29/+34.58变为+45.76/+44.77/+35.42mm。GT三维配预测二维的RMSE也从42.32/35.28/40.41变为44.66/38.63/41.99，预测三维配GT二维为16.30/16.00/19.88，说明剩余二维几何问题仍明显；GT两项都给定时约0.003mm，DGP求解本身仍精确。对照本身也比原2000差，因此不能把全部退化都归因于新增辅助。
+
+完整序列自身递推也未提供反例：修复相对对照的local绝对MPJPE三个seed分别增加1.166/1.289/2.254mm。这一指标保留于机制记录，不加入统一主表的新列；它与正确前态短片段的I改善属于不同范围，不能互相替代。
+
+修复的local-bank正确前态fused三个seed都比hold11.36差；完整10步cold的fused也全部比hold16.68差。独立z+50条件下fused全程绝对误差从对照46.86/44.17/42.83变为49.03/46.31/45.39，三个seed均退化；z−50并非同向，其末端平移RMSE三个seed均改善。这个符号不对称和D正深度偏置一致，不能宣称正负扰动都能恢复。
+
+**global护栏与旧单片段结论分开。** global-bank正确前态fused相对对照两seed改善、一seed小退，三个seed均通过1.1倍护栏；I自身有两seed退化。原debug的global联合+50mm/+20°片段fused却三个seed都退化，不能把该单片段现象写成全global正确前态的普遍结论。
+
+**验收逐seed判定：** 原readiness修复为FAIL/PASS/FAIL（对照三个均FAIL）；新增local-bank clean及cold完整10步clean门三个均FAIL，global clean护栏三个均PASS。完整性审计为`ASSESSED`、缺失0、校验错误0；这表示证据齐全，不表示效果门PASS。原Stage0 F1失败、正式G3短段可判定性限制与G1–G6仍按原协议保留，未用本轮debug替代正式评价。
+
+**执行和复现：** 两波三seed分别使用GPU2–3/4–5/6–7，每波追加200步；修复耗时911秒、对照920秒，六卡预留口径约3.05 GPU·h（不含评估）。随后六卡评估耗时218秒，CPU基础debug与归档部分另计。六份checkpoint、全部优化器和数据流的独立审计136项PASS；25项实现测试和20项分析器测试通过。评估包含每权重112片段×9条件×6模式、D四种窗口的11384条完整查询及2590帧主行，保留所有短片段与原始NPZ。任务结束时训练/评估进程均已退出。
+
+- [机器裁决](../outputs/xkf/repair_20261015_r2/decision.json)、[完整评估与原始输入哈希](../outputs/xkf/repair_20261015_r2/assessment.json)、[配对机制分析](../outputs/xkf/repair_20261015_r2/paired_analysis.txt)。
+- [生成的统一表](../outputs/xkf/repair_20261015_r2/main_table.txt)、[独立训练审计](../outputs/xkf/repair_20261015_r2/independent_training_audit.json)。
+- 实现：`semkine/xkf_repair.py`、`semkine/xkf_repair_losses.py`、`tools/xkf_repair/data.py`；固定训练编排`train_round.py`，完整评估编排`eval_round.py`，裁决读取器`assess.py`，绘图`plot_assessment.py`。
+- `python tools/xkf_repair/assess.py`重算裁决并合并主行，随后`python tools/xkf_repair/plot_assessment.py`生成图；训练编排拒绝覆盖已有run，不能直接重跑覆盖本次证据。
+
+![XKF修复与同LR对照的三seed配对结果](assets/xkf_repair_20261015_r2/assessment.png)
+
+**下一步边界：** 当前证据不支持原样增加该辅助损失候选的训练步数。后续需为D建立新的、独立登记的修复假设，优先检验稀疏事件训练覆盖与depth增强几何一致性，并继续使用相同的全local、双向扰动和global护栏；不能靠冻结平移、挑seed或改门把本轮失败改写为恢复成功。
+
+<!-- EXPERIMENT_RECORD:XKF-REPAIR-R2-20261015:END -->
+
+<a id="xkf-fusion-r3-20261015"></a>
+<!-- EXPERIMENT_RECORD:XKF-FUSION-R3-20261015:BEGIN -->
+## XKF R3：继续修复 local 融合（2026-10-15；最后执行14:24，未放行全量）
+
+用户再次明确要求“local 融合修好”，沿用 GPU2–7、先 debug 后全量授权。R2 的失败记录保留，不能把单个候选失败视为本任务结束。新证据目录为 `outputs/xkf/fusion_20261015_r3/`；父权重为三 seed 的 R2 repair 精确 step2200，旧冻结源码与权重不变。
+
+**事先登记的验证边界：** `protocol.json` 保留原 readiness、local clean 相对 hold 和 global 相对同 LR control 的护栏，额外要求 z±50、rx±20、ry±20 在 local bank/cold/warm3 完整10步上的逐 seed、逐方向改善；新增的最小方向检查不代替原恢复门。所有112片段、9初态、短片段均保留，每候选独立用自己的前态执行 I；不以旧轨迹离线加权冒充闭环，不允许推理读取 GT、用序列名选择 local 专用标定或用冻结平移宣称恢复。
+
+**并行修复假设：** ① D 热图读出温度；② local/global 共同低维测量标定；③ 只用 canonical 9人72序列原始事件重新估计 D 的 BN 统计量；④ 在上述测量修正上验证统一融合增益与最新W50事件量门。标定属于既定 zgz 开发集调参，明确不声称新身份泛化。交叉验证按时间块留出，并额外排除当前 clip 接触的全部块及200ms邻近输入，每个完整 clip 使用一组固定参数；完整序列留出则一次排除整个 valid run，global 唯一 run 留出后只能在 local 上拟合，该限制如实保留。全开发集重拟合参数与交叉验证参数分开记录。
+
+新增代码位于 `semkine/xkf_fusion.py`、`semkine/xkf_centroid.py`、`tools/xkf_fusion/`，通过显式外部 policy 启用。以下均为 debug；当前未启动全量，只有实际闭环与匹配证据支持后才推进。
+
+**截至 2026-10-15 12:18 的已完成证据：**
+
+- 直接提高热图读出温度不成立：三个 seed 的完整 W200 测量均未解决 local 深度误差。共同 affine 的开发集分块交叉验证改善 D，但不能把这种拟合当成训练外泛化；完整 valid-run 留出尤其暴露了单一 global run 留出后只用 local 拟合的外推失败。三个完整2590包行已保存在 `fullrow_leave_run/` 与 `outputs/semkine/xkf_r3_leave_run_step2200_main_row.json`，global 的逐 seed 绝对关节误差为 216.77 / 153.94 / 192.22 mm，此方案不用于部署。
+- 用 canonical 9人72序列固定2304个原始事件窗口重估 D 的 BN、再以同一训练集合拟合一个共同 affine，也没有消除 local 的分布外深度偏差。完整原始数据、全部候选与未通过情况保留在 `bn/`，不按 seed 选 BN 或标定。
+- 发现平移与姿态融合的坐标耦合：分别混合 MANO 状态平移和姿态，会改变关节质心。新增 `joint_centroid` 策略先融合姿态，再令 `t_f=(1-K_t)(t_i+c(q_i))+K_t(t_d+c(q_d))-c(q_f)`，其中 `c(q)` 是同一 shape、零状态平移下21关节质心；包括真实 MANO 腕点偏移，不读 GT。原状态平移策略保持默认，空事件严格 hold，零增益严格 I。
+- 三 seed、两个 BN 设置、全部112片段×9初态的 centroid 验证完整。原 BN + 训练集合 affine + `[0.5,0.25,0.5]` + ramp1000 的 local bank clean 为 10.688 / 10.864 / 10.287 mm，三个 clean 护栏和54项最小方向检查均过；但原1049片段的联合扰动关节误差为 26.132 / 31.826 / 28.495 mm，对照 hold 为26.657 mm，后两个 seed 仍未过原门。因此这是真实的局部改善，**不是 local 已修好**。`centroid/paired_analysis.json` 和 `assess_centroid.py` 的独立重算保存了每个失败项。
+- 单纯把平移增益调成0.375也不能替代修复：两个 BN 设置均过新增最小检查，但原联合扰动门仍失败。早期 batch18 对 batch27 的 identity parity 失败产物完整保留，补齐候选使 batch27 一致只用于公平比较，没有视为部署安全证明。
+
+**新的配对训练假设（已在首个更新前登记）：** `direct_finetune/paired200_protocol.json` 与 `evaluation_policy_declaration.json` 固定三 seed 的 raw/aug 两臂，从各自 R2 repair2200 继续200步到2400，仅更新 D；raw 关闭 domrand、polarity flip 与 pixel polarity swap，aug 保留原增强。两臂同学习率0.0004、同样本身份/窗口/顺序、相同 batch2×512，保留完整 prefix 数据构造以保持原随机流。I 的所有参数、全部 BN/EMA buffer、I 的 Adam 矩均冻结；96项原 Adam 参数顺序及其状态完整恢复，I 的参数时钟2200、D和调度器时钟2400，不能声称全模型均训练到2400。源文件和输入配置冻结在 `direct_finetune/frozen_manifest.json`。
+
+机制门要求 raw 的全 local 平移及深度 RMSE 在每个 seed 都优于父2200和同 LR aug2400，两项 global 指标对两个参考均不超过1.1倍；这仍不代替闭环恢复。六个评估候选预先固定，两臂全部执行，每个新 D 都重新用2304个训练窗口拟合共同 affine。原 readiness 与正式 G1–G4 不改，不自动启动全量。
+
+截至本记录时间，三组 raw 均精确2400并完成双 rank 冻结审计，三组 aug 在 GPU2–7 训练中。raw3408/3409 第一次启动在首个更新前遇到 NCCL P2P 通信停滞，零样本/零更新记录已保存，按原正式启动设置禁用 P2P 后重启；各 seed 的 aug 使用与 raw 相同传输设置。raw3407 新的完整测量已齐：local D 平移 RMSE 从55.075降到22.513 mm、深度从54.367降到21.007 mm，global 分别从21.725/21.072降到21.221/20.371 mm；同 LR aug 和另两 seed 尚未齐，**不据此宣布机制门通过**。原1049冷启动片段的 D 深度负偏仍在，闭环结果必须单独核验。
+
+**部署批大小问题已定位，修复中：** `bn/batch_gpu_failure_s3408/failure_location.json` 及 seed3407 对应文件保存同 incoming state 的 GPU 重放。MANO 顶点只有约 `5.96e-5 mm` 浮点差，却改变离散关联的顶点记录，随后 I 和递推姿态产生可见差异；3408 clip0 第5帧、3407 clip86 第3帧超过原 identity 容差。CPU 未复现该差异。不能提高容差或只 padding 隐藏问题；最终候选还需实际 batch1/batch9 与完整2590包闭环验证。历史关联源码不修改，稳定几何路径另行 opt-in 验证。
+
+**六端点与测量机制验证完成：** raw/aug 三 seed 均精确完成200次更新至 D2400。`direct_finetune/independent_training_audit.json` 对六个实际 checkpoint、96项 Adam、冻结参数/buffer、源码与配置，以及每个 seed 的全部204800条配对样本身份独立核验 PASS。六份新的训练集合标定与外部测量均为完整2304+2590+256行，无 partial，无数值失败。`direct_finetune/paired_effect.json` 从原始 NPZ 重算：12个 seed×序列×指标单元，对父2200和同 LR aug2400共24项预注册比较全部 PASS。未标定的 raw local 平移 RMSE 为22.513 / 22.881 / 25.493 mm，对应 aug 为49.455 / 56.345 / 49.025 mm；raw global 为21.221 / 20.954 / 21.422 mm。这里的 PASS 只说明 D 原始事件训练假设成立，**不等于融合恢复通过**；六候选×两臂×三 seed 的完整112×9自身前态闭环验证正在执行。
+
+最终主行使用实际 policy 的 `make_row_centroid.py`，实际时延包含质心 FK。原主表的 THOP 标准层计数会漏掉函数型 MANO/SO3/scatter，不能把相同 MAC 数值理解为质心修正免费；新增独立记录额外三个 pose FK 的矩阵算子 MAC 1,767,114（其余逐元素与索引算术仍未计），保留主表既有可比口径，具体执行行数、范围和来源写入 `mac_profile_audit`。`debug_gates.py` 可在显式 D2400/I2200 权重上运行原 G1–G4 数学公式，保持全2590包和全部65恢复起点的分母，明确标记 debug，不能冒充正式6000裁决。
+
+**完整闭环与主行补充：** `assessment_raw.json`、`assessment_aug.json` 均为 ASSESSED、0缺失/0错误。raw 的无标定 state-t、无标定 centroid、训练 affine state-t 三个保守候选均通过三个 seed 的 clean 护栏及54项最小方向检查；但所有候选均仍有原1049片段 seed3408/3409 的反例。raw 无标定 centroid 的该片段均值为24.282 / 30.009 / 27.613 mm，末步腕误差为24.924 / 26.487 / 24.602 mm；相应 hold 为26.657 / 49.911 mm。腕位置恢复不等于联合关节均值门通过，后两 seed 不改判。训练 affine centroid 还有 seed3408 local_cold z−50 的0.901802比例，超过0.9门，不能四舍五入成通过。质心修正相对 state-t 也会使三 seed cold clean 分别增加0.172 / 0.847 / 0.790 mm，虽然仍低于 hold，不能写成所有 cohort 全面改善。详细配对见 `paired_loop_analysis.json`。
+
+原始事件 D 的全2590包 G1 数学检查三 seed 均通过（debug 补充 `direct_g1_supplement.json`，不是正式6000）：pooled depth slope 为0.873109 / 0.813921 / 0.818632，local bias 为−1.2796 / −11.9512 / −10.4767 mm，root 为9.0025 / 8.9338 / 9.2440度，wrong-time / current wrist error 为3.03243 / 3.05766 / 2.98350。对应 aug 三 seed 仍有正深度偏差。当前 D-only 的真实训练曝光和祖先0→2200的累计曝光在 `readiness_summary.json` 分开记录；双分支 backward 能力 probe 不是本轮 I 参数更新的证明。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：W200 + 自适应滤波 + ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XKF R2（debug，2200步） | 14.78 | 8.09 | 12.04 | 6.92 | 11.20（11.68 / 10.78 / 11.15） | 25.86 ms | 1.644 G | 3.36 M |
+| XKF R3：原始事件D + 质心融合（debug，I2200/D2400） | 14.32 | 9.37 | 11.76 | 7.54 | 11.67（11.30 / 11.91 / 11.81） | 21.39 ms | 1.644 G | 3.36 M |
+
+无标定 centroid 的三 seed 完整2590包 batch1主行已生成：`outputs/semkine/xkf_r3_raw_centroid_step2400_main_row.json`。本行只是现有候选的实测记录，整体 RA 不优于 R2，也未过原联合扰动门，继续修复。三 seed 全112片段的 actual forward1 / off9 / 稳定逐样本 forward9 核验正在运行，两个已知失败点的短验证已逐位一致。
+
+**下一处可定位实现缺陷：** 原1049片段的 D 输入始终是成熟W200，但前六个最新W50包仅35 / 16 / 10 / 26 / 24 / 44个事件；原 ramp1000 只减弱 D 校正，却放任 I 完整外推。seed3408 的 I-only 联合扰动均值37.08、末步41.26 mm，明显差于 hold。新增候选将同一最新事件量门应用到 I 的真实增量，保留当前 D 门与质心融合；事件量0严格保持前态、达到1000时严格保持原 I，不截断原 I 的根旋转新息。先用独立 opt-in 路径验证全部112×9及正常运动滞后，旧源码与失败产物不改。
+**12:43 补充：实际批大小修复已验证，I 事件量门继续验证。** `direct_finetune/actual_forward_raw_s{seed}/` 三份完整112片段×9条件的真实 forward 已完成，每 seed 保留8118个实际状态；无 D 缓存。`per_sample_model` 的 batch9 与实际 batch1 全部逐位一致，所有参数与 buffer 不变。旧批大小差异及其失败产物保留；这是执行一致性修复，不能代替恢复效果。
+
+`motion_gate/assessment.json` 独立重算已完成，0缺失/0校验错误。I 增量门候选在三 seed 均通过 clean 护栏与54项方向检查；原1049联合扰动均值为24.222620 / 25.031046 / 26.894312 mm，相应 hold 为26.657239 mm。它修复了3408的原反例，3409仍失败，未通过四舍五入改变裁决。全更新门的3409也为26.845737 mm，仍失败。后续使用训练身份中的真实运动残差决定是否校准 I 门，不从1049选择阈值。
+
+`trajectory1049_analysis/` 保存逐帧分解：3409最后四步 I 平移预测沿相机 x 轴持续向右，GT并非同向，正确前态下也有这一误差；不是单纯深度偏置。固定旧轨迹的移除 I 平移反事实只用于定位，未作为可部署冻结平移候选。完整112片段按事件量分层也发现中等事件量区间 I 外推过大，但这些开发集统计不进入训练限定门参数拟合。
+
+新的 `train_i_motion_s{seed}/` 正在 GPU2–4 读取同一 canonical 9人72序列2304个包，逐包执行10种已声明初态的真实单样本 I，推理 target=0、D调用0、无优化器更新。所有初态只用于单步诊断，不能当成自身递推；真实运动标签为相邻GT之差，不含初态扰动。2304包中2016属于原K4 main可采样范围，288为训练身份的cold/truncated包，分层保留，不能将后者错误称为原训练main拟合失败。GPU5–7 同时执行当前 I ramp1000 的完整2590包主行，以核验正常运动与长序列误差。当前仍未启动全量。
+
+**I ramp1000 完整主行：** 三 seed 均完成完整2590包、实际逐样本部署路径，`fullrow_motion_ramp_step2400/` 及 `xkf_r3_raw_motion_ramp_step2400_main_row.json` 保留全部原始状态、参数时钟、实际时延和额外质心FK计数。下表由报告工具生成，未将不完整训练探针混入。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XKF R2（debug，2200步） | 14.78 | 8.09 | 12.04 | 6.92 | 11.20（11.68 / 10.78 / 11.15） | 25.86 ms | 1.644 G | 3.36 M |
+| XKF 原始事件D + 质心融合（debug） | 14.32 | 9.37 | 11.76 | 7.54 | 11.67（11.30 / 11.91 / 11.81） | 21.39 ms | 1.644 G | 3.36 M |
+| XKF 加I事件量门（debug，I2200/D2400） | 14.02 | 9.29 | 11.54 | 7.47 | 11.49（11.26 / 11.44 / 11.76） | 21.59 ms | 1.644 G | 3.36 M |
+
+相对相同 rawD+centroid 的前一候选，local 和 global 均有改善，但原1049的3409仍未过；此行仍是debug记录，不能据此宣称最终机制门通过。正在使用同一权重与实际policy运行原 G1–G4 公式作为补充，正式门仍要求完整训练端点。
+**原机制门补充与下一处修复（12:54）：** 当前 rawD+centroid+I ramp1000 的三个 seed 已实际跑完2590包单步与全部65个恢复起点，`fullrow_motion_ramp_step2400/s{seed}_original_gates.json` 均无数值失败。沿用原公式，G1、G4三个 seed 均 PASS；G2仍 FAIL，depth斜率约0.96、根扰动剩余比例约0.89，说明当前保守融合纠错过慢。G3保留原短片段造成的 `UNASSESSABLE_PROTOCOL`，未删除分母；缺少配套消融主行的G5为 `MISSING_ARTIFACT`。这些都是debug权重上的补充，未冒充正式6000裁决。
+
+训练集I探针已全部完成，三 seed各2304×10真实I调用，D调用0。限定2016个原K4 main可曝光端点，local clean平移增量RMSE为2.680 / 3.041 / 2.604 mm，高于零运动2.435 mm；small Gaussian仅小幅加重。local事件数≥5000的371包也有该问题，而global事件数≥5000的894包中I显著优于零运动。这说明剩余问题不只在大扰动或极少事件，不能通过全局关闭I解决。
+
+`train_i_ramp_calibration/` 严格只用9训练身份/72序列，预先登记9身份和72序列留出、共同/逐seed单参数N、真实SO3/FK复核及逐seed高运动保护。解析拟合能减小总体误差，却损伤高运动跟随，所有新N候选均未通过预登记保护，选择回fixed1000，**未导出runtime、未做开发集阈值搜索**。`independent_review.json` 从折外raw独立重算保护判定一致。大姿态扰动下“incoming+真实51D增量”的关节运动不等于GT物理关节运动，这一几何差异单列，未混同为网络训练误差。
+
+下一步按训练证据修复 I 本身：`finetune_motion.py` 与 `motion_data.py` 准备从每 seed 的 rawD2400/I2200 出发做固定200次I-only更新，比较raw与原aug两臂。D参数、全部BN/EMA及D Adam矩固定；I继续使用真实GT增量目标和原小Gaussian/自身burn规则。唯一对照变量是原事件增强流程；aug包含几何变换，因此只要求原始GT端点与采样身份配对，不能声称增强后的标签数值相同。全部96项Adam保序恢复，端点global/scheduler2600、I2400、D2400；当前仅准备debug，不是全量训练。完整112×9、固定I1000政策、原readiness与所有护栏保留，父2400的真实逐样本闭环另跑，不使用旧批量分岔结果冒充对照。
+**13:17 实际 I 修复进度：** 固定三组 `raw` 的 I-only 200 更新已全部完成，端点为 global2600、I/D Adam 均2400。`incremental_finetune/independent_raw_endpoint_audit.json` 独立检查了完整96个Adam槽位、实际LR、参数/保存buffer冻结、原初始权重谱系及双rank实际main/self/burn；状态为 `ENDPOINTS_VERIFIED_PAIRS_PENDING`，增强对照和完整逐行配对仍待结束。三个 `readiness_round/raw_s{seed}/result.json` 均已按原固定短验收公式得到 PASS，使用实际新融合 forward 与原始step0对比；这只是原短验收，不代替完整112片段、全2590包或正式G1–G6。此前原1049失败记录保留，最终判断等待同设备完整实际闭环。
+
+三组 `aug` 在各自原GPU对继续固定200更新，未经中间loss选择端点。后续各卡执行六端点的完整112×9和canonical2304×10；CPU原验收与独立训练审计并行。完整主行、实际时延和同配方三seed选择完成前，不自动启动全量。
+
+**统计修复准备，尚未启用：** 新增 `semkine/xkf_paired_statistics.py`，提供同一组paired残差的19组不去偏二阶矩、带当前事件量门的闭式有效系数及明确的固定系数部署接口。保留bias、不得将旧C与新V混用，物理平移必须用21关节质心；root切空间拟合并不等于SO(3)精确最优。系数直接替换旧有效增益，不再次乘旧 `[.5,.25,.5]`。10项独立数值/边界检查通过；实际非空包×9初态的CPU单样本/稳定batch9在填入原有效系数时与旧路径逐位一致，见 `paired_statistics_runtime_smoke.json`。目前没有拟合、导出或部署任何新增益；是否启用仍取决于当前六端点的完整裁决。
+
+**13:55 六端点裁决：短验收通过，完整序列未改善，不放行全量。** 三seed raw/aug六个I-only端点、全部实际112×9递推、canonical2304×10运动探针、完整2590包主行和时延均完成。独立训练审计复核614400条配对原始样本、所有96项Adam、真实self/burn曝光与全部冻结buffer，0错误/0缺失。所有112闭环摘要已从真实状态独立重算，0错误/0缺失。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XKF 修复前（I2200/D2400） | 14.02 | 9.29 | 11.54 | 7.47 | 11.49（11.26 / 11.44 / 11.76） | 21.59 ms | 1.644 G | 3.36 M |
+| XKF 原始事件I修复（debug，I2400/D2400） | 14.47 | 9.31 | 11.84 | 7.55 | 11.71（11.61 / 11.73 / 11.78） | 21.24 ms | 1.644 G | 3.36 M |
+| XKF 增强事件I对照（debug，I2400/D2400） | 14.24 | 9.23 | 11.69 | 7.42 | 11.56（11.39 / 11.53 / 11.75） | 21.23 ms | 1.644 G | 3.36 M |
+
+raw与aug都通过原1049联合扰动门、clean护栏及54项逐方向检查；raw三seed的原readiness也PASS。但raw主表local由父14.02变为14.47、overall RA由11.49变为11.71；aug也未优于父。因此不把局部片段过门升级为“融合已修好”。raw的训练集local真实平移运动RMSE为2.504/2.782/2.497 mm，三个seed都改善且都优于aug，但仍差于零运动2.435 mm；global的正常运动与尾部根姿态还有负例。完整配对见 `incremental_finetune/paired_evaluation_analysis.txt`、`motion_assessment_all/result.json`。
+
+原G1–G4六端点补充完成，G1/G4均PASS、G2均FAIL、G3仍为保留390分母的UNASSESSABLE_PROTOCOL。独立逐packet去均值排除跨packet GT深度差后，raw深度敏感度仍为0.958983/0.970240/0.962855；不是pooled OLS误判。原融合沿用2200残差矩和保守系数，两分支已变化而统计未更新；这是下一项实际修复对象，不能仅增加训练步数。
+
+**配对统计修复已预先登记，尚未输出效果：** `paired_statistics/declaration_v2.json` 固定同一raw2600策略三seed，仅用canonical训练2016个合法main端点，独立固定Gaussian seed2026101502及全部2304×51 draws先于推理落盘。每anchor实际运行三个prefix再main，配对记录gate后I与D的物理21关节质心、GT根切空间和15组手指AA残差；保留不去偏二阶矩和bias，重新求19个有效系数，不再乘旧手工缩放。冻结网络、BN、Adam及旧矩，只修改单独命名的推理策略。
+
+72条训练序列中，每个身份/动作类别的四个版本共有完全相同的完整GT轨迹，独立全量核验18/18组成立。因此secondary从“留一版本”纠正为18个动作家族整组留出，primary仍为9身份留出；训练划分和全部2016拟合点不变。此修订发生在任何新统计采集前，v1与纠正证据保留。验证片段仍是事先从每trial原顺序选定的第15个full200端点，全部72片段、10初态、690真实步/初态及5个短尾保留。baseline、身份留出及家族留出各自执行真实闭环，不能离线混合旧轨迹。主判据为Gaussian条件main后真实joint MSE的身份配对改善超过1SE、各seed非劣；另保持逐seed clean与高运动护栏。训练验证接受只允许新的开发集检查，不等于全量训练放行。
+
+联合续训实现已通过真实CPU联合一步与14项实现测试，入口暂不执行。若后续确实放行，完整参数训练6000应对应global6200（本轮曾分别D-only/I-only各200），不会把global6000/参数5800冒称参数6000。
+
+**2026-10-20 按产物补登记（原账本止于上方13:55段及其后两段准备说明）：** 以下各段按 `outputs/xkf/fusion_20261015_r3/` 的实际产物与时间戳补写，不是当时的实时记录；R3 目录中没有 decision/status/verdict 文件，“终态”指最后一个产物之后再无执行。本节标题原为“（2026-10-15，进行中）”，同日改为上述实际状态。
+
+**13:56–14:11 配对统计的采集与训练限定验证：被拒绝，不部署新增益，不放行全量。** `paired_statistics/declaration_v2.json` 固定的同一raw2600策略三seed全部执行完毕。采集在GPU2/4/6各一个seed（13:56–14:00，三个实际exit 0，`collection_run_status.json`为COMPLETE）：每seed 2016个合法main端点、8064次实际前向（`collection_s3407/summary.json`），权重与全部65个buffer前后不变。`independent_collection_fit_audit.json`独立复核PASS（每seed 2016行、8064次独立融合重放、28折=9身份+18动作家族重算、整动作家族同排除、59个命名checkpoint buffer核验）。训练限定验证在GPU2–7按seed×条件分片运行六个分片（14:04–14:10，全部exit 0）：每seed 72个训练clip×10种初态×3种模式（baseline／身份留出／动作家族留出），每条件690个观测步，实际完整B1前向共62100次另加12次基线parity，每seed保留5个短尾片段，分片间输入与D预测逐位一致、未读开发集（`validation_execution_result.json`）。
+
+**14:10 裁决：`REJECTED_TRAIN_VALIDATION`**（`assessment/result.json`，accepted_for_dev=false、automatic_full_training=false、formal=false；`assessment.log`末行failures=6）。原预注册判据逐项如下：
+- 主判据通过：身份留出平均实际joint-MSE改善59.128966 mm²（配对SE 12.048688，9个独立身份），三seed分别为62.345242 / 49.134522 / 65.907136，逐seed非劣均过；单seed×身份的改善除3408/ycy为−18.293793外均为正。
+- clean护栏全过：3 seed×2种留出×3个范围共18格，候选平均物理关节误差均不高于baseline；身份留出all_observed的baseline→候选为3407 6.650984→5.873660、3408 7.170003→7.123996、3409 6.919879→6.220828 mm。
+- **高运动护栏6/6失败**（3 seed×2种留出，候选joint-motion RMSE超过baseline的1.05倍上限；投影项均过）：身份留出3407 4.718941→5.403311、3408 4.729058→5.771435、3409 4.780413→5.501069 mm；家族留出3407 4.682552→5.364284、3408 4.690358→5.727059、3409 4.743950→5.461799 mm。
+- 按声明`if_rejected`：不部署sidecar、不在开发集上搜索新增益、未生成runtime；原G1–G4/readiness与八个大扰动条件的原始约简（`assessment/raw_reduced_cells.json`）原样保留。此判定只涉及训练集留出验证，不是开发集结果，也不能反过来改判之前的六端点结论。
+
+**拒绝后的描述性诊断（14:12–14:23；不拟合、不新增门、不改判；全部CPU，无神经前向）：**
+- `assessment/flow_error_decomposition.json`：六个留出格的候选投影都更接近1（身份留出3407 0.868830→0.915504），与真实运动平行的误差下降而正交残差上升（3407身份留出：total MSE 22.268402→29.195769、平行 2.707018→1.123285、正交 19.561384→28.072484 mm²）。所以拒绝不是运动被过度收缩造成的。
+- `flow_stratification/`（702格，COMPLETE）与`flow_components_v2/analysis.txt`（三seed CPU FK分解，旧目录`flow_components/`因复核算术把float32存储残差直接转float64、与冻结assessor相差约2e−9而断言失败，门与输入未改，修正后v2三seed exit 0，旧目录保留）：global高运动main3+的退化持续存在，该层I事件量门均为1，不能用调计数门解释；3407身份留出（global高运动137帧）fused RMSE 3.199055→4.318740 mm、校正RMS 2.188000→5.118434 mm，D跨帧误差变化RMS 5.623550 mm；global首步（GT初始化）fused RMSE 4.675144→6.685214 mm，说明有首次绝对测量误差注入，但main仍退化；local高运动（17帧）fused RMSE 11.577971→10.674355 mm，finger校正仍有净收益。三seed同向。解释限于：较大增益把D的跨帧误差变化（尤其物理质心方向）带入输出；该变化不等于随机噪声，也可能含确定性事件几何偏差、窗口时延和姿态误差，不能把所有D通道统一压低。`direct_temporal_characterization.json`仅作描述，不是拟合滞后。
+- 诊断给出的下一项最小实修建议（`analysis.txt`）：D的双时刻真实物理关节位移监督，保留原绝对测量损失，control与temporal两臂有相同双端绝对监督与样本流，唯一差异是ΔJ_D−ΔJ_GT辅助项；训练前固定权重/数据/终点，不从失败片段选系数。该建议只有时序误差证据支持，没有改善结论。
+
+**14:24 双时刻D监督两臂配对debug入口：仅准备，训练从未启动。** 已实现`tools/xkf_temporal/{model,train,independent_cpu_review}.py`（14:24:03–14:24:30），13项模型测试通过（`temporal_preparation/model_tests.xml`）；独立CPU两臂BF16两步更新（内存中丢弃，不写checkpoint，`temporal_preparation/independent_cpu_review/result.json`）PASS：两臂I梯度逐位一致、更新前D预测一致，loss control −2.364143 / temporal −2.349297（`temporal_independent_cpu_review.log`）。`temporal_joint/control_s{3407,3408,3409}/`只有`config_resolved.yaml`与`prepare.json`（14:24:33，`PREPARED_NO_TRAINING`；global 2600→2800、I/D Adam 2400→2600、LR 0.0004、2×512、BF16、temporal_weight=0，`full_training_supported=false`、`release=null`）；没有temporal臂目录、没有checkpoint、没有训练日志。此前13:23–13:39准备的联合I+D续训入口（`joint_preparation/preparation_status.json`、`joint_continuation/{debug,full}_s*/prepare.json`）同样全为`PREPARED_NO_TRAINING`，14项CPU测试通过；全量对应global 2600→6200（I/D Adam 2400→6000，3600次更新），`full_execution_blocked_without_new_release=true`，未签发release。
+
+**终态（截至最后产物2026-10-15 14:24:33）：** R3没有启动任何全量训练，也没有后续debug训练；最后一个新checkpoint是13:29的aug I-only global2600，`fusion_20261015_r3/`与`outputs/xkf/`下没有decision/status/verdict文件，核查时（2026-10-20）无XKF进程、GPU0–7空闲。R3全部主行的`protocol.formal`均为false。local融合没有修好：短片段clean与方向检查可过，但完整2590包主表RA没有优于R2，原G2仍FAIL、G3仍为UNASSESSABLE_PROTOCOL、G5缺配套消融主行，配对统计候选又被训练限定验证拒绝；双时刻D监督为已准备但未执行的后续假设。S39仍为默认，XKF任何臂均未替换它。下表由报告工具生成（全部为debug主行，非正式）：
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XKF R2（debug，2200步） | 14.78 | 8.09 | 12.04 | 6.92 | 11.20（11.68 / 10.78 / 11.15） | 25.86 ms | 1.644 G | 3.36 M |
+| XKF R3 整序列留出 affine（debug，step2200，不部署） | 13.43 | 26.95 | 11.35 | 19.73 | 20.66（30.41 / 12.53 / 19.04） | 25.75 ms | 1.644 G | 3.36 M |
+| XKF R3 原始事件D + 质心融合（debug，I2200/D2400） | 14.32 | 9.37 | 11.76 | 7.54 | 11.67（11.30 / 11.91 / 11.81） | 21.39 ms | 1.644 G | 3.36 M |
+| XKF R3 加I事件量门（debug，I2200/D2400） | 14.02 | 9.29 | 11.54 | 7.47 | 11.49（11.26 / 11.44 / 11.76） | 21.59 ms | 1.644 G | 3.36 M |
+| XKF R3 原始事件I修复（debug，I2400/D2400） | 14.47 | 9.31 | 11.84 | 7.55 | 11.71（11.61 / 11.73 / 11.78） | 21.24 ms | 1.644 G | 3.36 M |
+| XKF R3 增强事件I对照（debug，I2400/D2400） | 14.24 | 9.23 | 11.69 | 7.42 | 11.56（11.39 / 11.53 / 11.75） | 21.23 ms | 1.644 G | 3.36 M |
+
+<!-- EXPERIMENT_RECORD:XKF-FUSION-R3-20261015:END -->
+
+<a id="xrf-20261015"></a>
+<!-- EXPERIMENT_RECORD:XRF-20261015:BEGIN -->
+## XRF：XYZ 作为不读前态事件测量的精修器 + 常数增益滤波（2026-10-15，仅未训练工具测试，未训练，无效果结论）
+
+**状态：** 2026-10-15 00:19–00:31 起草并只跑通了一次**未训练**（step0）评估链工具测试；三个计划变体的配置已生成，但没有任何训练、没有任何预期（E1–E3）评估、没有主行。没有书面的停止原因；同夜01:13起XKF三seed debug接续进行（见[XKF debug](#xkf-debug-20261015)），XRF此后没有任何产物。不报告为结果；S39不变。
+
+**设计（`semkine/xrf.py` 文件头）：** `XRFModel`继承`XKFModel`，把S37的XYZ路径改成“不读前态的事件测量”的精修器，再接常数增益滤波。
+- z_D = Direct(长窗口LNES，相机)，不读前态（复用`semkine/xkf_direct.py`的HandDGP平移）。
+- z_R = XYZ(W50事件，假设=z_D)：关联、MANO图、bank、state96读出均不变，假设取代前态。
+- x = prev ⊕ K·(z_R ⊖ prev)：按组（平移三轴、根在SO(3)上、15个手指关节）的常数增益，计划训练后只用训练身份的留出块标定（不用zgz）：随机游走稳态Kalman增益 K=P/(P+R)，P=(Q+√(Q²+4QR))/2，Q为每步GT运动方差，R为测量残差方差。
+- 动机：围绕假设精修时关联可靠——[P2-a](#xyz-assoc-20261009) 中 local 精确部位一致率GT前态80.6%对闭环前态41.9%；参照PyMAF、WiLoR（CVPR 2025）的网格对齐精修思路。
+- 训练：逐包、无burn（`XDL_SELF=false`）；精修器的假设以概率p(step)取GT+噪声（1→`XRF_HYP_GT_END`=0.25，`XRF_HYP_RAMP`=2000步），否则取detach的直接估计+小噪声（`XRF_HYP_NOISE`=(0.01, 0.05, 0.05)）；损失 log10(L_R)+log10(L_D)；空W50包严格保持前态。评估模式`XRF_KMODE`：fused／r（K=1取z_R，无滤波）／d（K=1取z_D，无精修）／d_fused（滤波作用于z_D）。
+- 配置由`configs/xkf/xkf_s3407.yaml`派生（XDL Q1、state96、depth尺度增强、小前态噪声），`tools/xrf/train.py`复用`tools/xdl/train.py`并重绑长窗口数据集（`tools/xkf/data.py`的`prefix_lnes=False`，只给main包长窗口）与`XRFModel`。
+
+**计划（`outputs/xrf/debug_round1_plan.json`，00:21:52，`frozen_before_any_debug_result=true`）：**
+- 三个变体：`xrf_dbg_a`（默认，直接分支从零初始化、精修×1）、`xrf_dbg_b`（直接分支主干用S39 `dt_dz_l3_s3407` step6000的`rn.*`及LNES适配通道热启动）、`xrf_dbg_c`（精修×2）；每个`--preflight --max-steps 1500`，2卡×512，GPU2–3／4–5／6–7，逐包无burn。
+- 评估：`tools/xrf/debug_eval.py`在CPU上做check（576个训练身份留出包）与zgz_local/zgz_global的无前态单步测量、仅在check上标定增益、zgz闭环（fused／r／d_fused）、6种扰动×（41个local+24个global起点）的恢复。
+- 预期（1500步）：E1直接测量——check上D根≤15°、腕≤40 mm、|D有符号z|≤20 mm；zgz D深度斜率∈[0.7,1.3]；zgz_local |D有符号z|≤25 mm。E2精修有效——check与zgz_local上R的根和腕各≤0.9×D。E3闭环——zgz fused整体RA≤16.96（XDL Q1）且zgz_local mpjpe_abs≤40 mm，恢复率≥0.8。
+- 全量规则：只有满足E1–E3的变体才用GPU2–7全量，否则先debug失败项；增益从不使用zgz，凡使用zgz数字选变体须披露。
+
+**实际执行：**
+- 只有`outputs/semkine/xrf_untrained_tooltest/xrf_untrained_tooltest-step=0.ckpt`（step0，未训练）一次CPU评估，00:24–00:31产出`outputs/xrf/debug/xrf_untrained_tooltest/{single_step,calibration,closed_loop,recovery,summary}.json`，`wall_seconds`=574.882848。目的只是验证单步、标定、闭环、恢复四段代码能跑通，数值不是效果：check上D的腕误差206.911435 mm、根70.322758°；未训练精修器的R与D逐位相同（零增量）；标定出的R增益t=(0.102941, 0.061937, 0.180475)、根0.143988；zgz fused/r/d_fused整体RA为66.100322 / 69.555693 / 66.100322 mm；恢复率246/246=1.0，该比例**无信息**——判据是与同一模型自身GT起点轨迹相对（≤2×+1 mm/°），未训练网络同样满足（这是对`debug_eval.py::recovery`代码的解读）。
+- `xrf_dbg_a/b/c`三个配置（`configs/xrf/*.yaml`，00:19:01）已生成，但`outputs/semkine/`下无`xrf_dbg_*`目录、无checkpoint、无训练日志，`outputs/xrf/debug/`下也只有工具测试目录；E1–E3全部未评估，三变体未训练，也就没有任何主行。
+
+**结论与边界：** XRF没有训练，也就没有“XRF成立/不成立”的证据；不能把未训练工具测试的RA或恢复率当作结果。未启动全量、未占用GPU训练、S39保持默认且不被替换。后续若重启，需要新的登记：补`tools/xrf/calibrate.py`（`xrf.py`文件头引用，实际标定函数在`debug_eval.py::calibrate`）、`make_configs.py`的`formal`分支（文件头提及，现只支持`debug`）及XRF单元测试（`tests/`下无`test_xrf*`）。XRF源码均为git未跟踪文件。
+<!-- EXPERIMENT_RECORD:XRF-20261015:END -->
+
+---
+
+
+<a id="s37-xyz-diagnosis"></a>
+<!-- EXPERIMENT_RECORD:S37-XYZ-DIAGNOSIS:BEGIN -->
+## S37 XYZ：统一诊断、实验计划与执行结果
+
+> **2026-10-20 并入说明：** 按用户要求把全部实验结果收拢到本账本，本章是原 `docs/S37_XYZ_ASSOC_DIAGNOSIS.md` 的全文（并入前 266739 字节，SHA256 `c5460ea478801d6ea3cb8f3f87684ee8b6d84c64bbc477414ac4235efe017c2a`），原文件已删除。它本身是 2026-10-14 由三份 S37 文档合并而成，见[该次合并清单](../outputs/s37_doc_merge_20261014/manifest.json)。本次只做三处机械改动：标题整体降一级；指向本账本的链接改成文内锚点，原 96 个显式锚点不改名；原文首行的 10-19 注记移到本标题之下。数字、表格、时间戳、判定和“当前”“下一步”等措辞均按原写入时点保留，章内“本文”“本节”仍指原文件及其原编号。并入前原件按字节留档于 `outputs/docs_consolidation_20261020/pre_merge/docs/S37_XYZ_ASSOC_DIAGNOSIS.md`，旧链接 `S37_XYZ_ASSOC_DIAGNOSIS.md#<锚点>` 对应本文件的 `#<锚点>`。
+
+> 2026-10-19：XCL新实验见`docs/EXPERIMENT_RECORDS.md#xcl-20261019`；旧XAG/XA产物已按清单归档删除，数字与原出处SHA保留于删除归档。原节数字与历史身份保留。
+
+**当前阻塞（2026-10-18 16:02）：** 后续评估仅用GPU4–7的资源接管已落实；随后查明最后A2F0因主机`/dev/shm`挂载消失、worker权限错误丢失批次，早于接管就已停在1437批。按原协议停止并保留失败，四个6000步已完训练保留、五主行仍0、旧指标未切换，当前本任务进程均退出。需管理员恢复共享内存，不能用缺完整RNG/worker状态的step1000检查点冒称严格续训。完整证据与后续资源约束见[本轮登记](#xag-paired-c1-20261018)。下段保留此前启动/接管范围，不代表当前仍在训练。 [2026-10-20补注：本段为10-18 16:02时点。此后`/dev/shm`于10-19恢复，paired线仍停在`FAILED_PRESERVED`（[终态补注](#xag-paired-final-20261020)），四个已完权重与新训A2F0由[XCL](#xcl-result-20261019)评价。]
+
+**2026-10-18追加授权执行中：** 用户已要求其余五格各fresh重训一次seed3407，与已发布新C1形成严格配对比较。五组真实双卡50步、两次完整验证及返回训练的独立1999项核验已全部通过；新协议与926文件冻结及873份文本源码归档完成，原213/186文件冻结保持。五次正式6000步采用4组首发、A2F0待同一GPU6–7的A1F0结束后启动的队列。用户另指定后续统一评估仅在GPU4–7四卡执行，等待最后训练及全五格训练验收完成，每卡同时一个任务；训练及评分合同不变。实时进度见[status.json](../outputs/xag_paired/20261018/status.json)，[执行前登记及封版身份](#xag-paired-c1-20261018)保留。新结果全部验收后再更新当前指标入口，旧六格重核行及旧权重完整保留。 [2026-10-20补注：paired结果从未发布，指标pointer未切换；`outputs/xag/current_metrics.json`已于10-19归档删除（[删除登记](#xag-xa-deletion-20261019)），现无XAG指标pointer。]
+
+**2026-10-18更新：** 新C1指定基线已发布：两次seed3407 fresh6000的完整训练状态、输入记录及全部2590包递推输出逐位一致，最终独立实物审查与NumPy评分均PASS。身份入口为[baseline.json](../outputs/xyz_c1_repro/baseline.json)，[完整结果、采样对照及复现命令](#xyz-c1-repro-result-20261018)已更新。本轮受控结果不支持将历史local退化简单归因于采样；数值分叉入口与闭环放大已证实，历史原权重缺失仍限制唯一归因。新基线是可复现的新参考，不是宣称恢复历史全部精度。
+
+既有六格已统一严格评估，各两次完整2590包输入与预测逐位一致，另经独立NumPy解码复核全部72项精度，见[指标重核表](#xag-metrics-reconfirmed-20261018)；当前指标从[current_metrics.json](../outputs/xag/current_metrics.json)读取。五个旧训练权重与新None基线没有成为严格配对重训，旧矩阵内仍以同合同A0F0作参考。原默认F+评估的固定输入数值分叉及旧行均保留。[执行前协议](#xyz-c1-repro-20261018)原文保留。 [2026-10-20补注：paired结果从未发布，指标pointer未切换；`outputs/xag/current_metrics.json`已于10-19归档删除（[删除登记](#xag-xa-deletion-20261019)），现无XAG指标pointer。]
+
+**阶段进度（2026-10-17 16:23，北京时间）：** 六项训练、六主行、共同前态及自由递推全量评价均已完成；[原始轨迹审计](../outputs/xag/single_seed/matrix_diagnostics_audit.json)为COMPLETE/PASS，504/504份完整，缺失、实现错误和数值失败产物均为0。执行代次UTC`03:30:52.002661`于`08:22:25.432638`达到完整评价终态。[r2覆盖队列](../outputs/xag/reviews/association_coverage_single_seed_r2_20261017/queue_status.json)已开始补证；正式比较、完整方向表及恢复图件继续等待其完成，不作最终效果裁决。 [2026-10-20补注：10-17 16:23之后的覆盖补证/恢复图件/费用结算/解释备忘产物已生成并于10-19随清理删除，账本无其数值，见[XAG单seed六格终态](#xag-single-seed-final-20261020)；该线无最终主因裁决。]
+
+**基线可比性勘误及继续排查（2026-10-17）：** 本轮A0F0显著弱于历史C1，不能声称历史基线已严格复现。继续诊断已确认三检查点完整2590包旧/新XYZ核心逐位一致，隔离出训练FP32 CUDA聚合非确定性；既有同seed复跑、真值前态和分量干预进一步确认闭环平移/姿态反馈会放大训练终点差异。采样随机流改变仍是独立因素，尚未唯一归因全部历史差距；DDP构造后重置seed，因此撤回“模型初始化消耗随机数改变采样”的解释。本轮六格只作新注册训练流下的单seed描述性比较，原结果均保留。见[原勘误](#xag-c1-baseline-discrepancy-20261017)及[继续排查证据](#xag-c1-deep-audit-20261017)。
+
+**阶段进度（2026-10-17 14:37，北京时间）：** 六项正式fresh step6000训练均完成，已进入完整序列主评价。最后A1F+经[独立CPU核验](../outputs/xag/reviews/single_seed_fresh_completion_r2_20261017/xag_a1f1_s3407.json)通过，真实exit0及64项Adam/增强分支/数据合同一致；[六项配对审计](../outputs/xag/single_seed/paired_training_audit.json)PASS。三项重跑最终权重均独立一次CPU读取验收。主行、共同前态/自由递推与覆盖补证仍须全部完成后才能比较效果。
+
+**阶段进度（2026-10-17 13:50，北京时间）：** 训练完成5/6；A2F+正式step6000经[独立CPU核验](../outputs/xag/reviews/single_seed_fresh_completion_r2_20261017/xag_a2f1_s3407.json)通过，真实exit0、64项Adam状态及增强模块键集/形状、配对合同一致。仅A1F+继续训练；完整六格评价与覆盖补证尚未完成，不作效果裁决。
+
+**阶段进度（2026-10-17 13:32，北京时间）：** 训练完成4/6；新增A2F0的正式step6000经[独立CPU核验](../outputs/xag/reviews/single_seed_fresh_completion_r2_20261017/xag_a2f0_s3407.json)通过，真实退出码0、25项Adam状态及配对合同一致。A1F+与A2F+继续训练，完整六格评价尚未开始；实时状态见[六项状态](../outputs/xag/single_seed/status.json)。
+
+**最新授权（2026-10-17）：XAG 从18项收缩为6项，六个实验方案各只训练一次，统一 seed3407，不再执行 seed3408 或同 seed 独立复跑。** A0/A1/A2 × F0/F+ 六格全部保留；fresh step6000、双卡2×512、数据划分、模型和训练配方以及完整zgz评价合同不变。已完成及正在执行的保留项沿用原训练身份；旧18项协议、186文件源码冻结、检查点、OOM及完成审查证据均保留。当前范围以[单seed范围协议](../outputs/xag/single_seed/protocol.json)和[修订账本](#xag-single-seed-20261017)为准，执行切换与实时进度见[六项状态](../outputs/xag/single_seed/status.json)。单seed结果仅作描述性比较，不再套用双seed同向条件或同seed复跑噪声门，不据此声称可靠性PASS。
+
+**恢复执行（2026-10-17 11:31，北京时间）：** 训练完成 **3/6**。A1F0已完成step6000；其退出阶段触发控制器读取`/proc/.../environ`的瞬时权限错误，连带停止三项部分训练。58项[失败现场](../outputs/xag/single_seed/attempts/adopted_proc_permission_20261017T031905/manifest.json)完整保留；A1F0的检查点、25项Adam状态、配对初始化/前三批及绑定经[独立CPU核验](../outputs/xag/reviews/single_seed_adopted_completion_review_20261017/recovery/review.json)通过，进程组已全部退出，真实OS退出码仍不可观测。沿用同一封版源码，按原完整训练验收路径接纳A1F0；A1F+、A2F0、A2F+归档部分产物后从空目录重新fresh训练，未续训。新执行代次UTC`2026-10-17T03:30:52.002661+00:00`，见[恢复回执](../outputs/xag/single_seed/recovery_r2.json)和[启动回执](../outputs/xag/single_seed/launch_r2.json)；尚无六格效果裁决。原控制层退出竞态未修改，旧失败证据不覆盖。
+
+**此前执行切换（2026-10-17 10:46，北京时间）：** 六项调度已经启动，当时训练完成 **2/6**，其余四项正在执行。A0F0、A0F+的seed3407末点通过原身份校验并直接复用；A1F0保留原训练进程，未重置或续接部分检查点；A1F+、A2F0、A2F+按原配置从头启动。旧18项派发器已退出，多余在跑任务已停止、产物保留。新调度与单seed评估代码单独[登记哈希](../outputs/xag/single_seed/code_manifest.json)，[15项范围检查及原冻结复核](../outputs/xag/single_seed/prelaunch_checks.json)通过。主行仍未生成；实际动态进度读取上方六项状态。
+
+**以下至XAG入口前的18项阶段记录为范围修订前的历史快照，原时间戳和当时完成数保留，不代表当前队列。** 本轮以原 XYZ-C1 为基底，用“原关联／部位受限 GT 对应／细粒度 GT 表面对应 × 原 MeshGNN／增强 MeshGNN”的六格实验，区分对应干预、GNN 提取及其交互。实现、冻结诊断和资源修订验收已经完成；GT对应只替换 vid/A，原深度与质量保持，F★仅作固定读出的目标辅助可达性诊断。原[18项历史合同](#xag-20261017)及[冻结前协议](../outputs/xag/protocol.json)保留其来源身份，尚无六格效果裁决。
+
+**历史阶段（2026-10-17 08:35，北京时间）：** 正式训练完成 **4/18**，主行为 **0/12**。新增完成的A0F+ seed3407通过[CPU独立末点核验](../outputs/xag/reviews/first_a0f1_step6000_20261017/receipt.json)：三层增强分支确实进入检查点，39个新增及25个原参数张量的Adam状态全部step6000且有限；共享结构、fresh2×512及版本绑定吻合。其余14个run继续执行，当前没有关联/GNN效果裁决。资源观察器的终态字段误判已[单独修复并保留采样缺口](#xag-20261017)，正式训练及冻结源码未改变。
+
+**此前阶段（2026-10-17 08:09:10，北京时间）：** [只读快照](../outputs/xag/reviews/formal_stage_first_three_20261017T000910/stage.json)确认，A0F0的3407、3408及3407独立复跑均完成正式step6000，完成数为 **3/18**，固定末点主行为 **0/12**。[独立检查点审查](../outputs/xag/reviews/first_a0f0_step6000_20261017/review.json)及[最终身份复核](../outputs/xag/reviews/first_a0f0_step6000_finalcheck_20261017/receipt.json)通过；F+首run继续训练，A0F+的另一seed与复跑、A1F0的3407已从头启动。这里只确认首3个run的训练合同，不表示其余15个run、正式评价或科学裁决完成。
+
+**此前阶段（2026-10-17 06:27:54，北京时间）：** [只读阶段快照](../outputs/xag/reviews/formal_stage_2000_20261017_222754/stage.json)确认，首批4个run均完成step2000后的完整验证（`val`标签1999）；三个F0 run已到2400–2450步，F+已恢复训练至2050步。正式step6000完成仍为 **0/18**，固定末点主行为 **0/12**。本执行代次的`oom_kill`保持21，尚无新增OOM；首、二周期与第三轮F0的资源及验证后I/O压力已[单独归档](#xag-20261017)。这些有限窗口不证明长时资源稳定，也不是关联/GNN效果或主因裁决；05:24启动及此前失败记录继续保留。
+
+**历史执行（10-17 05:24）：** 新版157项回归、完整冻结诊断审计、默认路径逐位一致性、两卡DDP和六格真实数据验收均PASS，186个实际文件已冻结，冻结后独立复核通过。四组两卡正式从头执行18个step6000 run，执行起点为UTC `2026-10-16T21:24:20.762291+00:00`；当前尚无完整run结果。新冻结SHA `22f2fdcf0fa7de36f2230f413d0f08abbe38acbba4c44952613d2f53554ae701`，动态进度见[新执行状态](../outputs/xag/execution.json)。前两次工程失败保留，不续用其部分权重。
+
+新版[源码归档](../outputs/xag/reviews/source_archive_v2/xag_frozen_22f2fdcf0fa7de36.tar.gz)保存全部186个冻结文件；194个归档成员的[独立SHA复核](../outputs/xag/reviews/source_archive_v2/independent_verification.json)通过。[环境快照](../outputs/xag/reviews/source_archive_v2/environment_snapshot.json)记录75个软件包版本和4个实际训练任务的允许列表环境项；[47份迁移证明副本](../outputs/xag/reviews/source_archive_v2/revision_evidence_manifest.json)保留资源修订来源、旧接受报告与独立审计，旧归档未覆盖。
+
+关联覆盖补证已按[v2协议](../outputs/xag/reviews/association_coverage_v2/protocol.json)绑定新协议、新源码冻结及上述精确执行代次，[注册时执行快照](../outputs/xag/reviews/association_coverage_v2/execution_generation_at_registration.json)单独保存。当前[队列](../outputs/xag/reviews/association_coverage_v2/queue_status.json)仅等待同一代次达到 `COMPLETE_EVIDENCE_READY_FOR_REVIEW`，之后才可使用闲置GPU；尚未完成覆盖计数，不能据此报告覆盖率或科学结论。
+
+**资源故障补记（10-17 04:17）：** 原单卡/短窗口验收未覆盖四组训练跨完整验证时的主存峰值，实际发生OOM；所有4个未完成run已停止并保存在[失败归档](../outputs/xag/attempts/host_oom_20261017/failure.json)，不计正式结果、不从step500续训。拟仅将训练预取深度2→1，保持96个训练worker及2×512，先用独立四组F+资源测试覆盖完整step500验证及返回训练，再发布新资源版本冻结并从头执行18个run。旧科学诊断及原失败证据保留。
+
+**XAG 工程进度（10-17 03:54，正式训练启动）：** 全74序列逐事件来源、148份四层特征、48个固定300轮探针、35840条F★及84份完整冻结递推均完成；独立全量审计PASS。每份旧C1检查点覆盖2590包，冻结递推数值失败为0。最终141项测试、默认路径逐位一致性、两卡DDP及六格batch512真实数据资源验收全部通过，183个实际文件已冻结并归档。GPU0–7已按四组两卡启动首批4个run，18个注册run仍须全部完成step6000及全序列评价；当前不作效果裁决。动态进度见[执行状态](../outputs/xag/execution.json)和[冻结诊断状态](../outputs/xag/diagnostics_v2/frozen_execution_journal.json)；`python tools/xag/status.py` 可读取同一状态。
+
+**2026-10-15继续执行：local融合仍在修复，未放行全量。** D原始事件训练、质心耦合、I事件量门和稳定逐样本执行已验证；I-only三seed配对短训全部完成，短恢复门通过但完整序列未改善，原G2仍失败。当前用训练2016个合法main端点采集自身递推后的成对误差，重新估计固定融合系数；留出验证按9身份及18动作家族分组，同动作四版本一起排除。不能将代码测试或单个片段改善当作最终修复。见[R3实验账本](#xkf-fusion-r3-20261015)。
+
+**2026-10-15修复执行：XKF R2配对短训与完整验收已完成。** opt-in修正了I的真实运动监督和FP32状态累加，并试验D分离几何辅助。相同2000权重、相同LR与数据顺序下，三seed修复和原模型对照均训练到2200并完成全序列评估；I在local正确前态的漂移减少，但D深度和local融合恢复仍未通过。当前候选停在debug，未启动全量。统一表与逐seed裁决见[修复实验账本](#xkf-repair-r2-20261015)。
+
+**2026-10-15补充：XKF local恢复排查已完成。** 三种子debug2000的全序列直接测量分解、112片段×9初态×6模式递推及坐标审计表明：D的二维几何/姿态误差造成实际深度偏差，I在local正确前态也会产生漂移；联合扰动中t/root误差抵消影响旧hold比较，但不能解释正确前态下的真实退化。未发现腕点坐标或DGP求解错误；未修改旧门、未启动全量、未替换S39。新非正式统一表、原始轨迹、验证和后续debug重点见[实验账本：local恢复排查](#xkf-local-recovery-20261015)。以下XDF历史结论保留其原范围。
+
+更新：2026-10-14。本文件整合原S37历史诊断、执行前证据／计划和XDE／XDF快实验结果，作为S37文档的唯一入口；原三份文件已按字节留档，见[合并清单](../outputs/s37_doc_merge_20261014/manifest.json)。实验账本仍为[EXPERIMENT_RECORDS.md](EXPERIMENT_RECORDS.md)，架构背景见[网络结构分析](网络结构分析.md)。合并操作保留历史原始结果；随后用户授权GPU2–7及CPU，执行了[13.6节XDF快速判别](#xdf-results)。
+
+**阅读口径：本轮关联/GNN问题以[XAG入口](#xag-current)及其完整账本为准，尚无正式裁决；第1、11、13节是此前XDE/XDF证据。第5–10节及附录保留历史实验合同；第13.4节保留历史执行前计划，并明确标记已完成、部分完成和未启动。** 24包CPU复算、全local1204包回放、共同C0 natural和Q1 own-natural各自保留分母；计划预算不混同实际费用，小头seed不混同完整模型seed。
+
+**历史执行结论（2026-10-14，XDF）：** 完整707接口的正确legacy内容通过判别门，但clean保护和持续恢复未成立；训练原生深度与local仅有极稀薄重叠，深区配对检验因支持门不足未拟合；只加倍z损失未通过偏置门，重拟合头还在全长local反馈中出现非有限输出。历史E1–E3门和结果均保留。见[三项预注册](#xdf-prereg)、[XDF结果与决策](#xdf-results)。
+
+### 阅读导航
+
+- [XAG：本轮关联 × GNN 实验及证据入口](#xag-current)
+- [1. 历史XDE/XDF结论与执行状态](#current-verdict)
+- [2. 固定协议与证据等级](#scope)
+- [3. 全部历史实验索引](#inventory)
+- [4. 结构、信息流与逐事件增量缺口](#architecture)
+- [5. 早期S37实验及历史失败](#early)
+- [6. XA关联来源与配对训练](#xa) · [7. 整手2D对齐](#align)
+- [8. XB局部残差](#xb) · [9. XC时间关联](#xc)
+- [10. XDL五臂结果与恢复边界](#xdl)
+- [11. XDE快实验实际结果](#xde-results)：[E1](#xde-e1) · [E2](#xde-e2) · [E3前置](#xde-e3) · [软件时延](#xde-pipeline)
+- [12. 原因分析、偏置分解与剩余假设](#causes)
+- [13. 当前下一步、原计划与结诊条件](#repair)：[执行前合同](#xde-plan) · [决策树](#decision-tree)
+- [后续审查：深度、完整读出与反馈](#post-xde-causal-audit) · [XDF三项新实验，先做XDF-1](#xdf-prereg)
+- [13.6 XDF执行结果：接口、深度、监督与长轨迹](#xdf-results)
+- [14. 量测定义与共同验收合同](#measurement)
+- [15. 文献、原件与复现](#sources)：[2023—2026论文筛选](#literature) · [XDL复算](#xdl-reproduction) · [XDE复现](#xde-reproduction)
+- [附录A：E01–E51逐项历史登记](#inventory-detail)
+
+<a id="xag-current"></a>
+### XAG：本轮关联 × GNN 实验
+
+**要回答的是：在原XYZ-C1的数据、训练预算和固定接口内，改对应、改GNN或联合修改，各自呈现怎样的效果及交互。** 现行六项为单seed描述性比较；可靠性、跨seed稳定性和主因裁决不由本轮六次训练建立。这里的A1/A2只提供GT辅助对应，F+是指定的可学习增强，不把它们叫作完整物理关联上界或最优提取器。
+
+六格为A0/A1/A2分别搭配F0/F+，每格仅seed3407一次，全部保持原从头训练至step6000的合同。原18项中的3408及3407独立复跑已退出当前范围，其已有产物保留作历史证据；已完成和正在执行的3407保留项沿用原身份，不重训。关联仅改变`vid/A`及其自然引起的`dXYZ`变化；F+只改变三轮MeshGNN。顶点聚合、LBS、17槽、槽压缩和最终读出结构均保持。冻结诊断还固定这些模块的权重；匹配重训允许共享模块适应干预，因此得到的是整条已训练系统的干预总效应。
+
+下图仅说明本轮干预位置；实线是数据流，虚线标出干预入口。LBS产生16个关节槽，第17槽来自绕过GNN的残差分支。
+
+```mermaid
+flowchart TD
+    E["抽样事件 tokens / rays"] -->|rays| A["原前态网格关联"]
+    P["incoming prev51"] -->|MANO FK| A
+    OR["A1 / A2：GT辅助对应<br/>仅替换 vid / A<br/>保留 q / z / valid / hit"] -.-> A
+    A -->|dXYZ 随路由自然变化| H0["关系编码＋顶点聚合/投影<br/>H0：778 × 128"]
+    E -->|tokens| H0
+    H0 --> G["三层 MeshGNN<br/>F+ 仅在每层加入全局残差增强"]
+    G --> H3["H3：778 × 128"]
+    FS["F★：目标辅助优化 H3<br/>模型权重、O/S、bslot、prev48 固定"] -.-> H3
+    H3 --> L["LBS池化：16 × 258"]
+    E --> B["同一关系编码器的残差分支<br/>bslot：258，绕过 GNN"]
+    A -->|原 q 决定残差权重 1-q| B
+    L --> S["拼接残差槽：17 × 258 slots"]
+    B --> S
+    S --> Z["逐槽压缩：17 × 32<br/>展平为 544 维槽特征"]
+    Z --> R["原读出 MLP<br/>592 → 256 → 51D 增量"]
+    P -->|prev48：根旋转＋手指姿态| R
+    R --> O["输出状态 = prev51 + 增量"]
+    P --> O
+```
+
+F★回放固定原支持集O/S、残差槽和prev48，经同一LBS、槽压缩及读出计算输出；它不优化这些旁路或模型参数。图示依据为[关联入口](../model/model.py)、[路由替换](../semkine/xag.py)及[特征、槽与固定读出实现](../semkine/xyz_mesh.py)，不新增实验结论或判据。
+
+<a id="xag-gnn-design"></a>
+#### 增强GNN F+：实际设计与横向新增位置图（2026-10-17）
+
+F+的实现名是`MODEL.XAG_GNN=global_residual`，对照F0是`legacy`。设计目标是在保留原MANO网格局部传播的基础上，让已有证据支持的远距离顶点直接交换信息。原三层局部GNN依次经过三个1-ring邻域；新增全局注意力允许当前支持集内跨掌部、跨手指的交互。这是本轮指定增强方案的设计动机，不是已验证的效果结论。
+
+**为什么采用这组改动：**
+
+- **局部几何与全局交流交替。** 原局部层利用相邻网格顶点和三维边几何，保留手表面的局部组织；但三轮顶点消息只跨三跳，远处部位较晚才在读出头会合。每层后接注意力，是让已获得支持的远处顶点当轮就能交流，再交回下一轮局部传播。原读出头本来会融合各部位，因此这里增强的是顶点特征阶段的跨部位交互，不宣称原模型完全没有全局信息。
+- **保持128通道和三个局部层。** 固定前后接口与原局部传播范围，便于将本轮比较解释为指定后端增强方案及其匹配适应的总效应。三处插入使每轮局部特征均可与全局信息交替；没有进行“只加最后一处”的位置消融，不能声称三处是最优插法。
+- **四头与FFN两倍扩张。** 四头把128维分为四组32维子空间，允许学习不同的读取关系；没有预设某头负责某个手指或根运动。FFN的`128→256→128`在维持接口下提供通道重组与非线性。四头、256宽是本轮预算选择，并非经比较证明的最优超参数。注意力负责跨顶点信息组合，FFN负责逐顶点通道变换，二者职责不同。[多头注意力与逐位置FFN的原始说明](https://papers.neurips.cc/paper/7181-attention-is-all-you-need.pdf)
+- **静态LBS身份只进入Q/K。** 单靠事件特征相似度难以表达顶点属于哪一类手部区域；LBS软权重提供固定的解剖部位提示，用于调节“谁读取谁”。不把身份直接加入V，是让新增身份分支参与选择读取位置，而不直接充当被搬运的事件内容。这不消除模型偏置，也不是唯一顶点ID或姿态真值。
+- **Pre-LN与两条残差。** 每次变换前做LayerNorm、变换后加回原特征，目的是改善优化条件并保留局部特征的直通路径；采用Pre-LN有Transformer梯度分析作为一般依据，但这不是本任务上已验证最优的归一化结论。新增分支不是零初始化，不能将残差连接等同于初始严格恒等。[Pre-LN研究](https://proceedings.mlr.press/v119/xiong20b/xiong20b.pdf)
+- **保持支持边界。** 新增模块只在已有直接或局部传播支持的顶点之间交换，防止仅因全局连边就扩大“有证据区域”的计数。掩码只表示支持资格，不估计可靠性；当前仍对778顶点执行稠密注意力，也不构成稀疏计算优化。
+
+F+同时增加注意力、FFN、归一化、身份投影及参数容量，且没有容量匹配消融。因此，本轮比较只能评价这一整套增强是否有用，不能把后续差异唯一归给“全局注意力”；它也不能直接修补原事件关联、深度假设或未匹配事件。
+
+**总览细化版：保留用户认可的双行横向对照，并展开橙色块及目的。** 上半部标出三处插入位置，右侧保留共同读出；下半部把任意一个新增块展开为①—⑦，显示部位编码只入Q/K、两条残差和两次支持掩码。新增块之间不共享参数。
+
+![增强GNN细化横向总览：每项新增操作与目的](assets/xag_gnn_design_20261017_expanded/overview_expanded_horizontal.png)
+
+[可缩放SVG](assets/xag_gnn_design_20261017_expanded/overview_expanded_horizontal.svg) · [生成脚本](assets/xag_gnn_design_20261017_expanded/generate.py)
+
+这组改动要检验的具体假设是：原关联已经送上网格的事件证据，是否因为局部传播范围和槽压缩时机而没有被充分组织。原读出头确实会融合整手，但它接收的是逐关节均值、最大值及支持统计压缩后的槽；新增注意力在压缩前，让顶点先以远处证据为上下文重新形成表示。它增加的是已有观测的处理能力，不提供额外传感观测，也不能恢复此前聚合已不可逆丢失的信息。
+
+例如，某食指顶点已有少量事件或邻域传播支持，而远处掌部也有支持：③让这个食指顶点本轮就能按内容和②部位提示读取掌部特征；④把所得补充加到原局部表示上；⑥再重组本地与远处信息，形成供下一层使用的通道。①⑤分别规整两次变换的输入尺度，⑦保留注意力融合表示的直通路径。这样安排的目的，是让远处上下文在后续局部传播和槽压缩之前参与特征形成，而非仅在最终姿态头才会合。此例说明可表达的计算路径，不声称注意力已经学到该关系。
+
+支持约束的目的与信息交流不同：`M=1[S>0]`只决定谁可被读取、哪些输出保留；支持资格来自原关联及局部传播，不判断来源是否正确。一个仍无支持的顶点输出为零；一个因错关联而获得支持的顶点，也可能把错误信息传到其他位置。因此，“更远的信息通路”可以帮助组织证据，也有放大错误的可能；这正需要六格正式比较检验。
+
+**图一：更扁的整体插入位置图（按用户要求更新）。** 蓝色为原模块，橙色并带“新增”字样的模块只在F+出现。右侧原读出改为横向串联，避免原图的大型竖框；图中省略batch维，顶点数778、特征宽128保持，第17个残差槽绕过GNN，`prev48`在原读出前拼接。
+
+![更扁的F0与F+横向对比，橙色标明三处新增模块](assets/xag_gnn_design_20261017_flat/overview_flat.png)
+
+[可缩放SVG](assets/xag_gnn_design_20261017_flat/overview_flat.svg)
+
+实际顺序为：`原局部层1 → 新增全局块1 → 原局部层2 → 新增全局块2 → 原局部层3 → 新增全局块3`。三块的结构相同、参数各自独立；既没有把128通道加宽，也没有在最后只补一次全局池化。[执行位置](../semkine/xyz_mesh.py#L530)
+
+**图二：放大一轮，七项新增操作及目的从左向右展开。** 原局部层先完成邻域传播并得到本轮支持`S`，橙色部分再处理它的输出。编号对应LN1、LBS身份映射、四头注意力、第一条残差及掩码、LN2、FFN、第二条残差及掩码。两条跨线分别接回局部层输出U和注意力融合后H1；两次LayerNorm均位于各自变换之前。上方LBS为旁路输入，支持约束为控制虚线。
+
+![扁平单轮增强图，标明七项新增操作、Q/K/V、LBS、两条残差及各步目的](assets/xag_gnn_design_20261017_flat/new_block_flat.png)
+
+[可缩放SVG](assets/xag_gnn_design_20261017_flat/new_block_flat.svg)
+
+**七项改动的具体目的：** ①LN1对每个顶点的128维通道归一化，使注意力比较不单受整体幅值支配；它本身不交换顶点信息。②固定LBS经新线性层得到P，提示顶点与关节的软归属，辅助选择读取关系；P只直接加在Q/K输入。③注意力在同一包内跨已有支持顶点读取，让远处部位在槽压缩前就能互相参考；四头提供不同的可学习投影子空间，但不预先指定部位职责。④第一条残差保留局部输出U，注意力学习补充更新A，掩码保持支持范围。⑤LN2归一化注意力融合后的H1，再送入FFN。⑥FFN通过两倍通道扩张、GELU和压回128维，对收到的信息作非线性重组；参数逐顶点共享，它自身不跨顶点。⑦第二条残差保留H1并加入FFN输出F，再次清零无支持位置，把融合状态交给下一轮原局部层。
+
+例如某个食指顶点只有少量直接事件、或仅有相邻网格传播来的支持：原三层消息受到网格距离限制；新增块允许该顶点在当前轮读取远处已有支持的掌部或其他手指特征，下一层再将融合后的特征用于局部传播。这是为不均匀事件分布增加上下文利用能力的动机，不预设注意力一定学到正确运动关系。若该食指顶点本轮完全没有支持，新增块仍将其输出清零；若其支持来自错误关联，掩码也不会自动识别错误。
+
+三轮交替的目的，是让“局部整理→全局补充→下一轮局部再整理”在不同深度发生。各轮独立参数允许学到不同变换，但没有逐轮语义监督，不能把第一轮、第二轮、第三轮分别指认为某种确定功能。保持128宽和原三轮局部传播，使输入输出与支持扩张边界可比较；四头和FFN256是本轮预算选择，不是已证明的最优配置。F+仍按完整778顶点执行稠密注意力；这是增强表达能力的尝试，并非省计算的改造。
+
+新图的[生成脚本](assets/xag_gnn_design_20261017_flat/generate.py)及来源/产物哈希同目录保存；[原版整体图](assets/xag_gnn_design_20261017/overview_horizontal.svg)和[原版模块图](assets/xag_gnn_design_20261017/global_residual_detail_horizontal.svg)保留。修改仅涉及图件与说明。
+
+具体计算如下（`B`为batch大小）：
+
+1. **保留原局部消息层。** 输入`H:(B,778,128)`；沿MANO三角网格的固定1-ring邻居收集特征。三维边向量和边长经`4→32`边编码后，产生逐通道sigmoid消息门；聚合有支持的邻居，再与自身线性项经过ReLU、残差相加。只有这一原局部层把支持扩展到邻接顶点。[原局部层](../semkine/xyz_mesh.py#L322)
+2. **新增第一层归一化与部位编码。** 令`X=LayerNorm(H_local)`。MANO固定LBS蒙皮权重`W_lbs:(778,16)`表示每个顶点与16个关节的混合关系；新增无偏线性层把它映射为`E:(778,128)`。这是静态的软部位身份编码，不是GT姿态，也不是新读取的事件或深度。
+3. **新增四头自注意力。** 传给`MultiheadAttention`的三个输入为`Q_in=X+E`、`K_in=X+E`、`V_in=X`；模块内部再分别做可学习的Q/K/V投影。128通道分成4头，每头32维，拼接后输出仍为128维。部位身份帮助决定“向哪些顶点读取”，不直接加进value内容。注意力dropout为0。
+4. **新增注意力残差与支持掩码。** 以`M=(S>0)`屏蔽无支持的key，更新后也用`M`清零无支持顶点。输出为`H_att=M⊙[H_local+Attention(X+E,X+E,X)]`。支持mask只说明该位置是否有直接或传播支持，不等于估计出了其可靠性。
+5. **新增逐顶点FFN。** 对`H_att`先做第二次LayerNorm，再走`Linear(128,256) → GELU → Linear(256,128)`，与`H_att`残差相加并再次应用`M`。FFN参数在顶点之间共享；它负责每个顶点内部的通道变换，跨顶点交互发生在前面的注意力中。[完整新增块](../semkine/xag.py#L176)
+
+新增块的紧凑表达是：
+
+```text
+H_local, S = 原局部GNN(H, S)
+M = (S > 0)
+X = LN1(H_local)
+E = Linear16→128(W_lbs)
+H_att  = M * [H_local + MHA(Q=X+E, K=X+E, V=X; key_mask=M)]
+H_next = M * [H_att + Linear256→128(GELU(Linear128→256(LN2(H_att))))]
+```
+
+全空支持时，代码只临时放开一个dummy key防止softmax全部被屏蔽而产生NaN，最后输出依然严格归零。新增块不改变`S`；即使注意力具有全局连接，无支持的顶点也不能借此变成有效顶点。当前调用仍针对完整778顶点，mask不代表按活跃顶点稀疏执行。
+
+三轮结束后，`H3:(B,778,128)`沿用原LBS池化：16个关节槽，每槽为128维均值、128维最大值和两个支持统计，共258维；与258维原残差槽拼成`17×258`。原分组卷积逐槽压成32维，得到`17×32=544`维，再拼接48维前态旋转/手指姿态，经`592→256→51`读出状态增量。F+保留这些结构；匹配从头训练时，它们的权重也参与学习，不能理解为冻结旧模型后单独训练三个插件。
+
+为保持对照可解释，三个新增块在所有原模块构造后、独立的`torch.random.fork_rng`作用域内初始化，保留共享模块的初始权重和后续随机流。新增块没有额外的零初始化输出门，其内部特征映射不承诺初始恒等；残差结构保留原特征通路。配置见[A0F1](../configs/xag/xag_a0f1_s3407.yaml)，构造及前向依据为[XYZMeshNet](../semkine/xyz_mesh.py#L421)和[GlobalResidual](../semkine/xag.py#L176)。图示源文件与来源哈希保存在同目录，不涉及训练或评估流程修改。
+
+读取证据时按以下顺序：
+
+1. **正式六格单seed比较**：完整保留zgz两序列主行及共同前态/各自递推评价，统一使用seed3407固定step6000，分别报告local/global/overall的方向、差值、交互及反例。原双seed同向条件及`max(1.1 mm, 2×六格最大同seed复跑差)`门依赖已取消的训练重复，本轮不再计算或套用，也不以已完成的少数历史复跑替代六格重复。精度表清楚标注单seed，不宣称可靠性PASS、稳定优势或主因已确定。
+2. **相同incoming与自由反馈**：共同前态隔离当前查询的差异，自由递推检验差异是否累积为恢复。共同前态收益不自动推出闭环收益；交互仅作本seed的描述，不能据此强排独立责任。
+3. **逐层探针与F★**：探针用于定位可解码信息，F★检验固定读出的目标辅助可达性。H0/H3和slots/压缩后分别采用同结构探针；压缩后输入以零补齐，因此名义参数量相同不代表有效容量或学习难度严格相同，两组之间也不能直接排序。F★收益不与关联收益比大小，优化失败也不证明不可达。
+4. **覆盖和反例**：同时保留候选缺失、未知来源、回退、实际对应改变、深度偏置、root/finger分解、错误内容对照及失败分母。自然递推中没有足够可干预事件时，不能把A1阴性写成“正确部位不重要”。
+
+现行范围及解释边界见[单seed修订账本](#xag-single-seed-20261017)，原预注册、验收、资源和18项执行历史见[原实验账本](#xag-20261017)。当前产物包括[四层探针独立复核](../outputs/xag/reviews/probe_all48_20261016T180557_499724Z/result.json)、[逐域逐前态探针备忘](../outputs/xag/reviews/probe_localization_20261017/notes.md)及[F★全量验收](../outputs/xag/diagnostics_v2/fstar_verification.json)。这些工程和描述性证据不替代六个完整模型的结果；六项训练与规定完整评价完成后，才进行本seed的描述性比较。 [2026-10-20补注：10-17 16:23之后的覆盖补证/恢复图件/费用结算/解释备忘产物已生成并于10-19随清理删除，账本无其数值，见[XAG单seed六格终态](#xag-single-seed-final-20261020)；该线无最终主因裁决。]
+
+主表成本的[只读合同复核](../outputs/xag/reviews/performance_reporting_contract_20261017/notes.md)说明whole-forward支持算子计数及Full51=1.75ms锚点：计时包来自`lyq_local`、前态固定为各段首GT，缓存读取/索引和输入传输在计时外，因此不称own-loop或端到端时延；此处只澄清冻结实现，未改测量或判据。
+
+冻结阶段的[F★机制附录](../outputs/xag/reviews/fstar_complete_20261016T191545_463632Z/notes.md)和[完整回放方向解释](../outputs/xag/reviews/interpretation/rollout_20261017/notes.md)保留全部分量冲突与反例。相对错误对应有利、相对原对应有利、共同前态有利和自由递推有利是不同判断；时间AUC与逐包等权也可能给出不同方向，不能互换。自然及扰动轨迹的关联覆盖补证保留[原160例CUDA逐位验收](../outputs/xag/reviews/association_coverage/validation_full_cuda.json)及其原身份；[v2协议](../outputs/xag/reviews/association_coverage_v2/protocol.json)显式登记资源版本与执行身份的迁移，关联、输入及计数计算不变，不冒称重新进行了数值验收。该v2计数队列原本绑定18项执行代次，尚未完成；当前六项范围不能冒称原18项全部完成以触发它，后续绑定以[单seed修订](#xag-single-seed-20261017)为准。
+
+六项范围的[新覆盖队列](../outputs/xag/reviews/association_coverage_single_seed_20261017/queue_status.json)现已按[独立协议](../outputs/xag/reviews/association_coverage_single_seed_20261017/protocol.json)封存并启动等待，预计重建1201760次查询、928组；保留原两检查点全部冻结诊断及六个新模型，尚未完成正式计数。[比较与图件清单](../outputs/xag/reviews/single_seed_interpretation_20261017/preparation_manifest.json)只完成元数据绑定、25项合成测试和样图检查，正式读取及20份恢复PDF均须等待新六项完整评价与覆盖补证。详细分母和继承边界见[单seed账本](#xag-single-seed-20261017)。
+
+**11:50恢复补记：** 上段v1侧车因控制层失败退役，原身份和证据保留。当前使用绑定UTC`03:30:52.002661`的[r2覆盖队列](../outputs/xag/reviews/association_coverage_single_seed_r2_20261017/queue_status.json)、[r2比较/图件清单](../outputs/xag/reviews/single_seed_interpretation_r2_20261017/preparation_manifest.json)及[r2费用观察](../outputs/xag/reviews/single_seed_actual_cost_r2_20261017/status.json)。独立审查确认数值核心及失败口径保持；新增3项代次元数据检查通过，原验收只继承。覆盖仍为64项等待任务，正式读取/绘图尚未执行；全部绑定、失败lineage和未知成本边界见上述账本。
+
+**15:14费用观察补记：** r2只读观察器因退出进程命令读取竞态停止，原失败和停滞status保留；[r3观察](../outputs/xag/reviews/single_seed_actual_cost_r3_20261017/status.json)经16项测试和独审后恢复。UTC`06:53:10.218978→07:13:34.744776`明确为未知采样缺口，原生命令计时与区间并集分开。科学流程未受影响；完整凭据和结算边界见[单seed账本](#xag-single-seed-20261017)。
+
+<a id="current-verdict"></a>
+### 1. 历史XDE/XDF结论与执行状态
+
+**当前最明确的失败是：local正确前态在第一步就被更新到更近的错误深度。** Q1全1204包的平均signed z误差为−64.670mm，腕误差66.319mm，而保持前态仅2.685mm，0/1204次更新更好。Q0与零观测重训臂N1亦有同类偏置。初始化错误、self训练或事件错关联都不能独自成为这一现象的充分解释；N1不是Q1同权重消融，不能据此排除Q1中的关联作用。
+
+事件仍然有用。XA匹配去掉D/Z/edge整组的local优势与XDL的MANO条件查询收益并不矛盾：几何可以组织读取，前态派生深度不自动构成独立测深。XDE又发现银行pre34/post4都有超出state-only及wrong-content的修正信息，但替换平移小头后local持续恢复仍0/24，global精度与运动退化；34→4尚不能锁定为主要瓶颈。
+
+**现在优先保留“深度训练支持／外推与状态更新偏置的耦合”，但唯一病因仍未识别。** XDL的self主要改善global；XA contour、XB局部残差、XC四片时间方案均未建立完整恢复。不能用ρ收缩、方向cos、RA下降或单步可解码代替向GT持续恢复，也没有足够证据推倒所有MANO/GNN。
+
+**XDF已完成完整接口补证，并将当前优先级收敛到读出／状态更新的泛化及其深度支持。** 正确legacy有用，不等于当前小头能保留原Q1的clean能力；训练身份留段也退化，不能把所有失败归为local深度外推。z倍权阴性降低了“只改一个平移损失系数”的优先级。GT腕钳位仍不能消除local角度错误，root/finger保留独立缺口。执行细节、未完成上游证据及下一步边界见[13.6节](#xdf-results)。
+
+| XDF快速判别 | 执行状态 | 裁决 |
+|---|---|---|
+| XDF-1完整接口／角度／反馈 | 10个平移头、16个角度头、两域own/clean回放完成 | legacy内容门PASS；root/finger事件增量门均未过；local恢复仍0/24，global保护失败 |
+| XDF-2深度／实际增强流 | 4549824合法endpoint普查、1000counter实际双流完成；D0/D1未拟合 | 目标深区重叠极稀薄；高深check仅1身份／2块，按原门停止拟合；语义差异已量化，未证明扩深因果收益 |
+| XDF-3仅z倍权 | 2seed×2臂及同seed repeat，共6头；全clean及短／长反馈完成 | 偏置门FAIL；local短clip恢复0/24；预固定1701两头在全长local出现非有限输出 |
+
+| 首批实验 | 实际状态 | 本轮得到的证据 | 仍未完成 |
+|---|---|---|---|
+| E1偏置与事件净纠错 | 快实验完成 | 四权重各1204包；Q1自身natural两序列各24段；强时间控制及采样支持审计 | 不能从单受试者分层独立识别深度的因果份额 |
+| E2接口定位 | 部分完成 | 冻结Q1银行34→4，20小头、13440递推forward；有事件增量但恢复失败 | 旧C0／mesh→LBS、候选排序、root/finger逐层probe未执行；selected-check不是独立交叉验证 |
+| E3深度支持匹配重训 | 仅前置核验完成，重训未启动 | 投影p95=1.538px通过；候选面集合变化45.166%未过5%门 | 五个完整run、两模型seed及repeat均未运行；门失败不否定深度支持假设 |
+
+XDE阶段记录约0.24993 GPU·h，另设未实测启动／收尾预算预留0.15 GPU·h；计划的73／65 GPU·h均非实际费用。模型正式主行仍沿用[XDL五臂主表](#xdl)，S39仍为默认方案，小头未成为部署候选。
+
+“GT正确”“真实终点”均指当前数据集标签计分。标签来自项目伪GT流程，本轮未新增独立高精度动捕；local＜10mm、低抖动、低时延和可复现SOTA仍是后续联合目标，尚未达到。
+
+来源：[E1审计](../outputs/xde/e1/final_audit.json)、[E2裁决](../outputs/xde/e2/verdict.json)、[E2递推审计](../outputs/xde/e2/supplemental_audit.json)、[E3结果](../outputs/xde/e3_preflight/result.json)、[执行费用](../outputs/xde/execution_summary.json)。
+
+<a id="scope"></a>
+### 2. 范围、协议和证据等级
+
+#### 2.1 固定数据与命名
+
+当前协议是九人72序列训练；zgz_global/local同属一个人，兼作开发与上报集；唯一 `data/hand_data51/splits_semkine.json` 只读。训练seed不是新受试者，包、片段、探针和重叠窗口也不是独立重复。
+
+“S37”在2026-09-06清理后重新命名。清理前的“FK直连S37”、五人/八人线及x1001不进入现行九人主表。当前S39唯一指 `dt3_dz_l3_w200cfg`；`s39_covmap`只是退役S37相关配置，不能混同。
+
+规范九列表中的EventHands-PCA6是原 `eval_abs`、PCA6投影GT口径的固定参照，并非同批zgz递推帧的配对评价；它与S37主行的差值不作因果或恢复收益。S39亦为不同窗口/滤波配方。两者保留规范参照身份，正式因子解释使用各轮内部匹配控制。
+
+#### 2.2 各时期并非完全相同的训练或评价合同
+
+| 时期 | 训练与权重选择 | 评价及解释边界 |
+|---|---|---|
+| 历史S37 routed/FK/mesh/根头/XYZ筛选 | 多数2seed；routed等6000步、500步网格择点；rootinnov仅1500步；XYZscreen仅1500单seed | 选点成绩带zgz选择偏差；不能与后来固定step6000的差值直接归因 |
+| 旧routed与XYZ-C1 | 训练窗口30–300ms并启用speed augmentation；各自噪声/读出合同 | 主评价W50；训练窗口合同不能改写为全程rawW50 |
+| RT统一配方 | 单卡512、累积2、cosine到2%；2k筛选与6k末点分开 | `rt_s37`三seed末点23.83；23.25是两seed末点，20.33是两seed选点，20.74是更早routed选点 |
+| XA | C1/C0/oracle/contour各3407/3408；C1另3407同seed复跑；取6000末点 | 一次C1 repeat提供当轮工程噪声门，不是CI，不可借给XB/XC/XDL |
+| XB | A/B/C/D各3seed fresh6000，另A的3407复跑，共13完整run；另8个1500步轻量探针 | pilot和完整训练分别裁决；效用、绑定、恢复、正常运动须联判 |
+| XC | G×T四条件各3seed及每条件3407完整复跑，共16run，固定6000 | 每个比较有自身repeat对比门；完整恢复和动作护栏，四片近似不等于持续逐事件图 |
+| XDL | 五臂各seed3407 fresh6000；2卡各512；rawW50、无speed augmentation；self K4三步burn+main | 单seed探索，V2无repeat δ/τ；固定实用margin不能被称为可靠复跑门 |
+
+**有效batch相同不保证训练目标逐位或数学等价。** 例如历史EDGE6用微批256累积2，routed用512累积1，均在batch MSE后取log10；一般 `mean(log L_micro) ≠ log(mean L_micro)`。FKGRAPH曾由DDP每rank512退回单卡1024续训，也改变rank内logloss的聚合。这是本次依据源码/配置做的数学合同复核，不能写成新的实测归因。历史成绩保留，严格单因子解释需收窄。
+
+#### 2.3 证据分层
+
+- **源码事实**：输入、聚合、状态、单位、时钟和梯度路径；不等于这个设计已被证明是最大瓶颈。
+- **零训练/冻结干预**：特定权重的敏感性与合同；推理期换成GT几何、删已训练特征常产生分布外输入。
+- **匹配重训**：可支持本因子、本实现、数据及预算内的效应；因子包消融不能识别包内单通道。
+- **恢复/运动证据**：共同初态后各自递推，与实际GT、clean及正常运动联判。
+- **历史文档级证据**：产物已删或主行不在，只能引用当时记录，不声称当前可重放。
+- **设计/合同阶段**：没有完成科学评价的条目，不能列成精度失败或成功。
+
+XA旧报告的block-bootstrap区间属于给定权重/包序列上的历史量测，不含训练seed不确定度。本次没有新增统计检验或CI；XB/XC多seed亦为描述性与工程门，XDL只有一个seed。
+
+**XDE新增口径：** local/global是两条序列类别，两列MPJPE都减腕点；MPVPE代码减第0顶点，不能混称腕对齐。XDE只训练20个诊断小头，冻结主干未重训；不将GT前态单步或24段诊断冒充正式主行。计时分历史归一化forward和XDE实际软件链，详见[量测合同](#measurement)与[新计时](#xde-pipeline)。
+
+指标与计时来源：[对齐实现](../semkine/eval_track.py#L140)、[评分调用](../semkine/eval_track.py#L233)、[旧计时](../tools/make_s36_row.py#L185)、[XDL计时](../tools/xdl/make_row.py#L75)。执行前源码基点为`8a5e753b2e6cfe866a66b6133618d30e481ef949`；训练seed、同一人的两条序列、重叠包及扰动查询不是独立受试者重复。
+
+<a id="inventory"></a>
+### 3. 全部实验索引
+
+下表和附录覆盖51项已核早期实验线及相关对照，后续XA、整手对齐、XB、XC、XD/V2、XDL另列。每项都有账本入口；没有当前主行的条目保留为历史记录，不制造替代主行。
+
+| 编号/实验线 | 原记录日期 | 状态入口 | 来源 |
+|---|---|---|---|
+| E01 S37 Routed / s37_routed | 2026-09-07 | [状态/结果登记](#experiment-e01) | [原记录](#s37-routed-prereg) |
+| E02 S37 FKgraph / s37_fkgraph | 2026-09-07 | [状态/结果登记](#experiment-e02) | [原记录](#s37-fkgraph) |
+| E03 S37 MeshQ / s37_meshq | 2026-09-07; later09-29 audit | [状态/结果登记](#experiment-e03) | [原记录](#s37-meshq) |
+| E04 S37 Meshgraph / s37_meshgraph | 2026-09-18 | [状态/结果登记](#experiment-e04) | [原记录](#s37-meshgraph) |
+| E05 S37 ROOTINNOV / s37_rootinnov | 2026-09-29 | [状态/结果登记](#experiment-e05) | [原记录](#s37-rootinnov) |
+| E06 S37 ROTW10 / s37_rotw10 | 2026-09-29 | [状态/结果登记](#experiment-e06) | [原记录](#s37-rotw) |
+| E07 S37 ROTW30 / s37_rotw30 | 2026-09-29 | [状态/结果登记](#experiment-e07) | [原记录](#s37-rotw) |
+| E08 S37diag CNNabs and CNN root fuse_R/fuse_RT | 2026-09-29 | [状态/结果登记](#experiment-e08) | [原记录](#s37-rotw) |
+| E09 S37 EDGE6 / s37_edge6 | 2026-09-29–30 | [状态/结果登记](#experiment-e09) | [原记录](#s37-edge6) |
+| E10 S37 ROOTFUSE / s37_rootfuse | 2026-09-29–30 | [状态/结果登记](#experiment-e10) | [原记录](#s37-edge6) |
+| E11 S37 XYZ/depth initial probe09-24 | 2026-09-24 | [状态/结果登记](#experiment-e11) | [原记录](#s37-xyz-candidate) |
+| E12 S37 XYZ CPU branch information DEBUG | 2026-09-29 | [状态/结果登记](#experiment-e12) | [原记录](#s37-xyz-candidate) |
+| E13 S37 XYZ candidate/minimal/full design drafts | 2026-09-29; updated09-30 | [状态/结果登记](#experiment-e13) | [原记录](#s37-xyz-candidate) |
+| E14 S37 XYZ SCREEN C1 and C0 | 2026-09-29; archived09-30 | [状态/结果登记](#experiment-e14) | [原记录](#s37-xyz-screen) |
+| E15 S37 XYZ FULL C1 / s37_xyz_c1_full | 2026-09-30; read-only analysis10-05 | [状态/结果登记](#experiment-e15) | [原记录](#s37-xyz-full) |
+| E16 RT unified S37 baseline / rt_s37 and rt_s37_2k | 2026-10-01–02 | [状态/结果登记](#experiment-e16) | [原记录](#root-tracking-verdict) |
+| E17 RT G3 hierarchical grid / rt_g3_2k | 2026-10-01–02 | [状态/结果登记](#experiment-e17) | [原记录](#root-tracking-verdict) |
+| E18 RT E8 whole-packet causal kNN / rt_e8_2k | 2026-10-01–02 | [状态/结果登记](#experiment-e18) | [原记录](#root-tracking-verdict) |
+| E19 RT C37 CNN+routed / rt_c37_2k | 2026-10-01–02 | [状态/结果登记](#experiment-e19) | [原记录](#root-tracking-verdict) |
+| E20 RT S37 ROOT_ABS / rt_s37ra_2k | 2026-10-01–02 | [状态/结果登记](#experiment-e20) | [原记录](#root-tracking-verdict) |
+| E21 RT C37 ROOT_ABS / rt_c37ra_2k | 2026-10-01–02 | [状态/结果登记](#experiment-e21) | [原记录](#root-tracking-verdict) |
+| E22 RT E7 absolute EventGNN / rt_e7_2k | 2026-10-01–02 | [状态/结果登记](#experiment-e22) | [原记录](#root-tracking-verdict) |
+| E23 RT CNN delta comparator / rt_cnndelta_2k | 2026-10-01–02 | [状态/结果登记](#experiment-e23) | [原记录](#root-tracking-verdict) |
+| E24 RT ABS_TRACK dense comparator / rt_cnnar_2k | 2026-10-01–02 | [状态/结果登记](#experiment-e24) | [原记录](#root-tracking-verdict) |
+| E25 x1001 aborted eight-subject root-screen round | 2026-10-01 | [状态/结果登记](#experiment-e25) | [原记录](#x1001-20261001) |
+| E26 S3709-28/29 frozen decomposition, reset/hold, root and finger, window probes | 2026-09-28–29 | [状态/结果登记](#experiment-e26) | [原记录](#s37-routed-prereg) |
+| E27 S3709-30 architecture-decision A..F diagnostics | 2026-09-30 | [状态/结果登记](#experiment-e27) | [原记录](#architecture-decision) |
+| E28 S37 read-only evidence synthesis10-07 | 2026-10-07 | [状态/结果登记](#experiment-e28) | [原记录](#s37-diagnosis-20261007) |
+| E29 Deleted S37-associated SPATIAL_CONTEXT | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e29) | [原记录](#audit-b8) |
+| E30 Deleted S37-associated NEIGHBORHOOD | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e30) | [原记录](#audit-b8) |
+| E31 Deleted S37-associated CONSTANT_CONTEXT | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e31) | [原记录](#audit-b8) |
+| E32 Deleted S37-associated TEMPORAL_HISTORY | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e32) | [原记录](#audit-b8) |
+| E33 Deleted S37-associated HISTORY_EVIDENCE | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e33) | [原记录](#audit-b8) |
+| E34 Deleted S37-associated CENTERED_UPDATE | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e34) | [原记录](#audit-b8) |
+| E35 Deleted S37-associated STATE_ACCUMULATION | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e35) | [原记录](#audit-b8) |
+| E36 Deleted S37-associated NORMAL_FLOW | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e36) | [原记录](#audit-b8) |
+| E37 Deleted S37-associated RELATIVE_INCREMENT | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e37) | [原记录](#audit-b8) |
+| E38 Deleted S37-associated EVENT_OBSERVATION | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e38) | [原记录](#audit-b8) |
+| E39 Deleted S37-associated PAST_ANCHOR / HASTE-style PA1 | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e39) | [原记录](#audit-b8) |
+| E40 Deleted S37-associated CURRICULUM K0/K1/K2 | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e40) | [原记录](#audit-b8) |
+| E41 Deleted S37-associated X1 / event_hier / X1c | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e41) | [原记录](#audit-b8) |
+| E42 Deleted S37-associated event_guided_mesh_memory / vertex GRU+unroll | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e42) | [原记录](#audit-b8) |
+| E43 Deleted S37-associated c0_s37_so3fk | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e43) | [原记录](#audit-b8) |
+| E44 Deleted S37-associated s39_covmap | before2026-09-28 cleanup; cited09-29, originaldateunverified | [状态/结果登记](#experiment-e44) | [原记录](#audit-b8) |
+| E45 Old KEG-halo E5.5b/E5.5c unroll reference | 2026-08-25 | [状态/结果登记](#experiment-e45) | [原记录](#audit-b8) |
+| E46 Old S7delta-trust / S13triggeredabsoluteanchor | oldprotocol;originaldateunverified | [状态/结果登记](#experiment-e46) | [原记录](#audit-b8) |
+| E47 S38 measurement/interface and S37abs/spdelta related controls | 2026-10-02–03 | [状态/结果登记](#experiment-e47) | [原记录](#s38-verdict) |
+| E48 U1a shared-node measurement/readout audit | 2026-10-02–03 | [状态/结果登记](#experiment-e48) | [原记录](#u1a-verdict) |
+| E49 S40 graph hierarchical encoder+16node measurement | 2026-10-05–06 | [状态/结果登记](#experiment-e49) | [原记录](#s40-prereg) |
+| E50 S39 and S42 dense runtime/history reference | 2026-10-04–06 | [状态/结果登记](#experiment-e50) | [原记录](#s42-verdict) |
+| E51 Pre09-06 old FK-direct S37 identifier | before2026-09-06 | [状态/结果登记](#experiment-e51) | [原记录](#s37-routed-prereg) |
+
+| 后续阶段 | 已开展工作 | 完成范围与结论 | 证据入口 |
+|---|---|---|---|
+| XA来源P1/效应P2 | 来源标签、噪声/时间、错配与更新探针 | 关联对前态敏感；两个效应判据未支持错配是根更新主因 | [XA原始报告](../outputs/xa/step1/REPORT.md)、[预注册/裁决](#xyz-assoc-20261009) |
+| XA A/B/C几何、D/E置信与特征 | 固定C1权重替换分配/几何、候选全搜索、置信缩放、几何屏蔽、扰动轨迹 | OOD敏感性与实现事实；发散/封顶/存活步分开保存 | [几何报告](../outputs/xa/step4/geom/REPORT.md)、[置信报告](../outputs/xa/step4/conf/REPORT.md) |
+| XA P3 | C1/C0/oracle/contour两seed及C1同seed复跑，共9run | local去整组3D有利；contour未超门；oracle含泄漏 | [最终P3门](../outputs/xa/step5/p3_gates.json) |
+| 整手对齐 | 2D相似、刚体/平移oracle，事件ICP及迭代/点到线变体、自检 | 一致率能部分恢复；未建立部署闭环主效用 | [完整对齐报告](../outputs/xa/align/REPORT.md) |
+| XB/ABCD | 8轻量probe、13完整run、内容负控制、共同10步恢复与运动 | pilot闭环非有限；完整主效用过、绑定和恢复未过 | [正式裁决](../outputs/xb/verdict.json) |
+| XC | 四组G/T、3seed、四完整repeat、错时刻和恢复/运动 | G、T与交互均无完整受控支持 | [正式裁决](../outputs/xc/verdict.json) |
+| XD完整设计 | 5臂×3seed＋5个完整repeat，物理扰动/恢复合同 | 设计已完成；原20run方案没有全执行 | [完整设计](#xd-recovery-20261013) |
+| XD-V2成本修订 | 首轮五臂单seed、减少诊断覆盖、预算分期 | 首轮已按XDL执行；第二seed没有执行 | [成本合同](#xd-recovery-cost-v2-20261013) |
+| XDL旧权重阶段 | C0/C1各3407/3408及C1r，单步/内容/恢复/运动 | 五旧权重完整，收缩与GT恢复分离 | [旧权重审计](../outputs/xdl/legacy_results_audit.json) |
+| XDL新五臂 | F0/Q0/F1/Q1/N1，五fresh6000及完整评价 | query/self有条件收益，local恢复/正常运动不足 | [最终原始审计](../outputs/xdl/results_audit.json)、[独立科学审查](../outputs/xdl/independent_final_scientific_review.json) |
+| 相关S43与S37→S43消融 | 稀疏渲染/比对、SO3/FK、depth增强、self及噪声正则；另设计逐项退回S37配方 | S43有历史结果；逐项消融四个3407臂在2500–3000步被用户终止，无评测，未完成归因 | [S43记录](#s43-prereg)、[中止消融](#s43-ablation) |
+
+10月14日追加的XDE属于后续机制诊断，单独见[第11节](#xde-results)，不改写E01–E51历史编号。
+
+<a id="architecture"></a>
+### 4. 三代结构及错误可能进入的位置
+
+#### 4.1 旧S37 routed：事件图与状态加性支路
+
+状态无关事件token/EdgeConv编码，按FK投影和LBS形成16关节证据；手指局部头、root整手头；另有独立 `prev_mlp`。旧根头可写成观测项加状态项的形式，常数增益/证据置零结论只针对这个版本。routed同时去掉S36渲染并加入路由，历史收益不能单独归因路由。
+
+“只有前32事件”是旧文误写；候选是每个事件之前的局部索引窗。将窗口或层数增大未过门，不证明所有事件时序信息无用；短训可解码性弱也不证明信息物理不存在。[10-07更正](#s37-diagnosis-20261007)
+
+#### 4.2 旧XYZ-C1：事件射线与前态网格共同生成关系特征
+
+XYZ版本取消独立prev_mlp，使用17槽共同读出，直接拼48维历史根/手指AA，原接口不显式拼t；不能沿用旧routed加性根头的推导。原输出51D仍通过delta更新。
+
+```mermaid
+flowchart LR
+    E[当前事件 u v t p] --> Tok[token7 保留位置 时间 极性]
+    P[上一MANO状态] --> FK[FK 网格及投影]
+    E --> Assoc[射线 hit / near 关联]
+    FK --> Assoc
+    Assoc --> Geo[前态深度 z 与 dXYZ]
+    Tok --> Rel[关系编码与顶点聚合]
+    Geo --> Rel
+    Rel --> GNN[MeshGNN 与16+1槽]
+    P --> Head[共同51D读出]
+    GNN --> Head
+    Head --> Next[下一状态]
+    Next --> P
+```
+
+图中实线表示源码数据依赖，不表示每条边的科学负效应已识别。实际模型既含观测，也含先验；不能把所有特征都称为“前态自己生成”。
+
+| 环节 | 代码 | 输入 → 输出（形状、坐标系、单位、时间基准） | 梯度 | 状态 |
+|---|---|---|---|---|
+| 事件窗口 | `eval_track.py::_window_events` | 事件 `(N,5)` = [0, x, y, t_rel_s, p]；x∈[0,240)、y∈[0,180) 像素；t_rel = (ms_rel·1000 + tsub) µs → 秒，**相对窗首**，tsub 给亚毫秒偏移（`zgz_*_tsub.npy`）；p∈{0,1} | — | 无；评估窗不重叠，事件不重复使用 |
+| prev | `track_sequence` / `dataset.py:392-412` | 评估：上一步预测，名义时刻 = 窗首前 1 ms（end−50）；训练：**窗首**真值 + 混合噪声（50% σ=(5 mm, 0.05, 0.05)，30% σ=(5 cm, 0.3, 0.3)，20% 方向性），训练窗长 log-U[30, 300] ms；target = 窗末真值。51 维 = [t(3, 米, 相机系), root 轴角(3), 手指轴角残差(45)] | prev 是数据 | 唯一跨步量 |
+| token7 | `encoder.py:153-171` | 全包计算后抽样：[x/240, y/180, 2p−1, t/Δt（Δt = 名义窗长）, log1p(Δt_ie/1e-6), SAE同/Δt, SAE反/Δt] → `(B,N,7)`；**事件时间只进这里** | 无参数 | 无 |
+| 抽样 | `xyz_mesh.py:70-83` `stride_sample` | 等步长 ≤2048/包，步长由整包最终计数决定（非因果）；global 91% 的步被截断（中位 29,974 事件 → 2048） | — | — |
+| FK | `model.py:~2521-2528` → `mano_layer.py:108-180` | prev(51) + 序列真值 β → V `(B,778,3)` 米、相机系；LBS + posedirs 常开；**整包共用这一份静止网格** | **`no_grad`** | 每包重建 |
+| 射线 | `model.py:~2529-2534` | d = (sK)⁻¹[u,v,1]，s = 0.375（640×480 → 240×180，典型 fx ≈ 226 px），d_z = 1 → 射线参数即深度；band = 16/f_px ≈ 0.0707，front_tol = 3/f_px，z_tol = 0.01 m，k = 16 | `no_grad` | — |
+| 关联 | `xyz_mesh.py::associate_rays`（hit_first 分支） | 顶点透视投影 → 每事件角距最近 16 顶点 → 其邻接面（≤128 槽）Möller–Trumbore，取最近正 t（**正反面同算**）→ hit：3 顶点重心权 A、q = 1、z = t；无命中 → near：16 px 带内、参考顶点 +3 px 同集、前层 = ≤ zfront + 1 cm（**无下界、无法向判据**）、≤4 顶点高斯权（σ = 8 px）、q = 最近者核值 < 1、z = 权重均值；都没有 → none（valid = 0）。输出 vid/A `(B,N,4)`，q/z/valid/hit `(B,N)` | **`no_grad`**，整个关联不可微 | 每包重建 |
+| 记录与 φ | `xyz_mesh.py:347-365` | w = q·A·mask `(B,N,4)`，r = (1−q)·mask；每条记录特征 13 维 = [token7, dXYZ = (z·d − V[vid])/0.01 m, zn = (z−0.45)/0.1, valid(=1), hit] → `rel` MLP 13→64→128。C0 把 dXYZ、zn 置零。**hit 记录的 dXYZ 法向分量恒为 0**（交点在面内） | 有（进 rel） | — |
+| 顶点聚合 | `:366-377` | 按 vid scatter：mean = Σw·φ/Σw（**对 w 的均匀缩放不变**），peak = amax(φ)（**不加权**），mass = log1p(Σw)；未命中顶点全零；`vin` 257→128 无偏置 → H `(B,778,128)`，O = 有直接质量的顶点 | 有 | — |
+| MeshGNN | `:257-268,379-385` | 固定面 1-ring（K = 8，平均度 5.93），边向量 (V_l−V_j)/5 mm 与长度 → `edge` 4→32 → sigmoid 门；3 层，支持集 S 每层扩一环（直接 ≈377 → 传播 ≈733 / 778）；全部 778 顶点计算后乘掩码 | 有（边几何 `no_grad`） | 每包重建 |
+| 槽池化 | `:271-292,388-402` | 16 关节槽 `(B,16,258)` = [LBS 软权均值(128), 硬分配 max(128), 直接覆盖率, 传播覆盖率]；第 17 槽 = 残差 [rmean, rpeak, rs/live, rhas] | 有 | — |
+| 读出 | `:316-319,405-407` | 分组 1×1 conv 17×258 → 17×32 → 拼 **prev[3:51]**（根旋转 + 手指；**不含平移**）→ fc1 592→256 → fc2 256→51（零初始化） | 有 | — |
+| 增量合成 | `model.py:~2775-2787` | x = prev + δ：平移米直接相加；**根轴角直接相加（无 SO(3) 复合）**；手指残差相加；空包 δ = 0 | — | — |
+| 损失 | `model.py:285-303,977` | (450·MSE手指 + 60·MSE根旋 + 30000·MSE平移)/51，取 log10；参数空间，无 FK、无根对齐 | — | — |
+
+这张张量表取自10-10源码快照，只描述旧C1；原代码行号已漂移，复核应以函数名和冻结源码SHA定位。现存主要实现为 [xyz_mesh.py](../semkine/xyz_mesh.py)、[model.py](../model/model.py)、[mano_layer.py](../model/mano_layer.py)。
+
+旧关系特征的关键数学量为：
+
+```text
+X_event = z_prior(prev, ray, association) · ray
+dXYZ = (X_event − V_prev[vid]) / L_REL
+z_feature = (z_prior − 0.45m) / 0.1m
+```
+
+hit交点位于所选前态三角面内；这里没有增加一个独立测深传感器。dXYZ仍同时依赖事件射线与前态几何，不应写成“完全仅为prev函数”或“对前态误差残差恒零”。token7通过关系编码保留时间/极性，不能说观测“只剩命中模式”。
+
+#### 4.3 XDL：共同事件银行、状态99与两种查询
+
+五臂共同采用状态无关的事件节点银行、旧C0关联/槽和state99：t3、全部48AA、16个处理后的投影坐标及valid位。新增64维银行接口和旧544维接口共同读出；F/Q只改变新增银行查询中心（固定atlas或MANO投影）。两组都保留共同旧关联、offset和状态上下文；F不是彻底去掉全部几何先验。
+
+N1在最终旧544D/新64D观测接口乘零，保持同名义参数定义、状态输入和空包gate。Q1/N1检验该实现中事件内容的效用，Q/F检验新增查询接口，均不能直接证明旧hit-first射线规则必要或新银行容量有效。接口加入完整t后local仍漂移，故“旧读出没有t”已不能作为完整解释。[模型实现](../semkine/xyz_recovery_study.py)、[银行实现](../semkine/xyz_observation.py)
+
+<a id="information-flow"></a>
+#### 4.4 信息流核对与执行前定位问题
+
+以下结构事实与缺口清单形成于XDE执行前。其后只补齐了全量偏置、银行34→4和部分平移读出证据；表中“缺少”若涉及这些项，以[实际结果](#xde-results)为准，其余候选／根／手指问题仍未查清。
+
+| 层级 | 当前实现事实 | 决定性缺口与可判别信号 |
+|---|---|---|
+| 数据与相机几何 | 序列β、K进入FK与射线；K按0.375尺度映射。XDL沿用focal增强，缩放改变K、不扩充标签深度。历史平移参数深度记录约564 mm、最大约710 mm，local约699–742 mm；实际腕深另加J0，不能跨坐标比较，XDE修正见第11.3节 | 重算真实训练曝光而非只看原始label范围；检验GT投影、时间偏移、β／腕定义。需要同深度不同事件量、同事件量不同深度的支持，缺重叠就不得声称分离了混杂 |
+| 原始事件与token | 全包token7含xy/p/t/全局相邻Δt/同异极性SAE，随后按最终事件数抽至2048。旧XYZ本身没有event-event GNN | 区分原始证据缺乏、下采样遗漏、时序特征弱化。global大量抽样与local稀疏是不同制度；不能把旧routed的32邻居结论套在XYZ上 |
+| event—MANO候选与分配 | 前态网格投影top16顶点的邻面；hit取最近正交点、q=1；near最多4顶点；静止几何不逐事件更新 | 分开量测候选几何支持与候选排序；现有全1538面搜索只约束“同一错误网格上的近似漏面”，不是正确物理来源召回证明 |
+| 几何关系特征 | `X=z_prior·ray`，dXYZ依赖射线和旧网格；z标准化 `(z−0.45)/0.1`；C0去整组显式3D仍保留几何关联 | 旧z不是独立测深，但dXYZ不是纯prev常数。缺少单通道／规范化／状态偏差的分解；需要内容能在错误前态下区分正负修正的正证据 |
+| 顶点聚合与图传播 | qA加权mean、未按质量缩放的max、mass；二值support经3层mesh传播；LBS槽和第17剩余槽 | 微小质量可有完整峰值；传播覆盖不等于直接证据。残差槽有再捕获价值，但多空间模式被混合；需要池化前后同监督的条件解码对照 |
+| XDL新增银行 | 同一2048抽样；2层32维EventGNN；`.9 softmax+.1 uniform`；每槽34→32→4，16槽共64维 | 非零全局支持不等于可区分。远处事件可能主要成为共享均值；查询score用slot ID及距离，未显式比较多个候选状态。优先检查34→4压缩 |
+| 状态读出 | 旧XYZ为17×32槽+prev48→共同51D；XDL补t、AA、UV、valid成state99；输出仍加到prev | “读出缺t”不能解释当前全部失败。缺少最后接口的真实纠错可解码证据；SO(3)加法、跨块竞争都是待测因素，不能凭结构风险直接排名第一 |
+| 闭环训练 | 参数块加权MSE后log10；XDL三包eval/no_grad/detach burn，末包监督；没有多步恢复损失或BPTT | self证明访问自身状态有条件收益，没有证明长期恢复目标已被训练。还缺Q1自身失败分布、干净状态保护与错误状态恢复是否可兼得的证据 |
+
+源码入口：[dataset](../semkine/dataset.py#L333)、[domrand](../semkine/domrand.py#L110)、[token](../semkine/encoder.py#L153)、[采样与关联](../semkine/xyz_mesh.py#L85)、[关系与聚合](../semkine/xyz_mesh.py#L444)、[XYZ调用](../model/model.py#L2553)、[银行](../semkine/xyz_observation.py#L33)、[state99与self](../semkine/xyz_recovery_study.py#L118)、[损失](../model/model.py#L285)。
+
+<a id="incremental-events"></a>
+#### 4.5 真正逐事件增量更新还缺什么
+
+当前XYZ和XDL是原始事件输入的**按包更新**。有timestamp、稀疏节点或较少MAC，都不等于新来一个事件只触发局部增量计算。
+
+1. **前缀稳定性。** stride由最终count决定；SAE按包重建，缺历史时fallback依赖包内首末时间。相同事件前缀在不同分包下未必得到相同token和support。先固定绝对时间、采样及历史截断语义。
+2. **持久传感器状态。** 定义逐事件插入、去重、过期、同刻顺序、跨段reset；事件银行放在传感器坐标，查询时再用MANO状态。当前银行没有persistent cache，S43已有writer/query原型，不能把单纯分离两者当新贡献。
+3. **可撤销的聚合。** mean缓存分子／分母，max要处理赢家过期，support要记录可删除计数。事件过期和新事件一样会引起计算。
+4. **状态变动的依赖闭合。** 根平移／旋转可使全手投影、邻面、法向及许多对应失效；不能默认局部新事件只改局部MANO。需要量测dirty集合随姿态更新的范围，证明缓存结果与全量参考一致。
+5. **多速率状态与输出合同。** 可以逐事件更新传感器统计，在证据足够时更新局部姿态，低频校正绝对状态；这是待验证方案。必须说明每事件实际维护的是什么，不能将低频MANO读出包装成逐事件全姿态更新。
+6. **训练和运行一致。** 持续记忆的有效时长、截断梯度、查询频率与训练分包要一致；同一流的不同分包／查询计划应做前缀等价检查。以真实events/s×queries/s报告每秒总成本，包含root变化引起的最坏失效成本。
+
+异步工程应跟随一个已显示净纠错的观测接口。先把有偏估计做得更快，无法满足可靠tracking目标。[现有异步原型](../semkine/async_tracker.py#L212)、[事件token](../semkine/encoder.py#L90)、[XDL银行无缓存声明](../semkine/xyz_observation.py#L33)
+
+<a id="early"></a>
+### 5. 早期S37：从路由到XYZ完整训练
+
+#### 5.1 路由、FK图、MeshQ和Meshgraph
+
+历史routed选点RA20.74，相对S36选点23.17有改进，证据置零会明显退化；但这不是恢复机制或单一读出因子的证明。末点均值23.99与选点20.74必须分开。10-07复核纠正了“闭环/TF放大率变小证明局部化”的旧因果读法。
+
+FKgraph把FK当图、事件当观测，历史RA22.10，两个seed方向相反，按当轮门打平；观测承重与效率改善没有解决根测量。MeshQ已经训练，后审读记43.34/41.83；结果节仍“待填”且无正式主行，不可标成未执行。Meshgraph的20.48/29.30显示种子分裂，不足以认定网格拓扑本身无效。
+
+FKgraph的NCCL故障、回退续训和float64累加修复，Meshgraph的运行期法向累加修改，都属于工程和可比性记录。它们增加了历史严格因果归因的限制，不应删除失败轨迹或把工程恢复当科学效用。
+
+#### 5.2 根新息、旋转权重、CNN根融合、深图和根融合
+
+ROOTINNOV是选中S37权重上的冻结骨干、只训根第一阶段，且同时去掉根prev_mlp；1500步未过门后未进入full。它只能否定本阶段组合，不能否定所有新息头或保留先验的门控设计。
+
+ROTW10双seed完整训练但整体打平；ROTW30只一个seed，不能写成跨seed的否定。CNN绝对根的零训练融合有收益，说明更好的外源观测可以帮助；融合输出又回灌下一步FK，无法由一次输出替换证明闭环根/手指解耦或具体根头可部署上界。
+
+EDGE6与ROOTFUSE的主评价均在当轮平局区间并且seed反向；没有补足根/oracle/纯手指机制诊断。EDGE6的EBS匹配不能自动掩盖微批logloss差异。层数、路由均值或损失权重修法未获支持，仍没有单独排除编码、读出、数据和优化交互。
+
+#### 5.3 根/手指/窗口/复位/hold诊断与统一RT筛选
+
+历史冻结分解发现根旋转是重要RA来源，换根后仍剩手指缺口；GT复位、hold、noevents、窗口50–300ms、特征ridge/CCA和梯度/更新诊断均已开展。可解码性是指定探针和数据上的能力，不是信息论不可观测证明。当前主表RA只是减腕对齐，换根改善RA也不证明绝对t恢复。
+
+RT已实际筛查G3层级读出、E8整包因果kNN、C37 CNN+routed、ROOT_ABS、E7绝对EventGNN、CNN-delta和ABS_TRACK。短训换编码器或绝对根都没有普遍修复；CNN绝对线显示观测表示和监督目标可能共同重要。RT三seed末点23.83不可与历史routed选点20.74混写；CPU/GPU2k评价也存在闭环放大的数值差。
+
+x1001是被叫停的八人轮次；ly封存集未打开，若干臂未完成。S38/U1a/S40是相关分支而非同一个XYZ因子；S39/S42是稠密参考，不能将CNN较好直接归因为某一S37关联实现。
+
+S43是另一条稀疏渲染–比对路线，相关主干、监督、depth增强、热像素和self同时变化。历史干净稀疏sp在S39栈的三seed RA约9.21，未过当轮9.01门；去热像素的稠密两seed约9.694/9.196，而同样去热像素的稀疏约9.294/8.970。这是指定配方上的噪声/活跃集证据，不能直接证明稀疏或稠密架构普遍优劣。后续噪声、门控、死区和异步运行时亦有记录，不能用W200/滤波结果替代本次W50 XYZ恢复。
+
+为拆分S37→S43，曾设计norender、mse、focal和s37recipe等消融；实际四个3407臂在2500–3000步被用户终止，没有评测。这组未完成的控制不能提供“损失”“尺度”或“渲染比对”的单因素效果。[原记录及中止原因](#s43-ablation)
+
+#### 5.4 已删的空间、历史、课程、精度、记忆和观测合同
+
+SPATIAL_CONTEXT、NEIGHBORHOOD、CONSTANT_CONTEXT、TEMPORAL_HISTORY、HISTORY_EVIDENCE、CENTERED_UPDATE与STATE_ACCUMULATION均有历史执行记录，后者梯度保真通过但任务效用未过。K0/K1/K2是单seed课程筛查，K0有NaN，K1/K2未过门。X1/event_hier是绝对GNN的多因素短训尝试，原X1超时；顶点GRU/unroll记忆有严重精度负结果。
+
+NORMAL_FLOW、RELATIVE_INCREMENT、EVENT_OBSERVATION、PAST_ANCHOR停留在支持/合同或NOT_TESTED层，没有正式姿态主行；`c0_s37_so3fk` 和 `s39_covmap`仅核到配置/动机，不可登记为已完成精度失败。这些条目只剩文档/提交索引，不把合同通过当网络有效。[历史B8](#audit-b8)、[内部索引](#internal-arm-index)
+
+#### 5.5 XYZ CPU信息检查、1500筛选与6000完整C1
+
+09-29 CPU DEBUG检查的恒等式和反例证明某些几何量来自前态，没有训练新模型或完成闭环精度。1500步C1/C0单seed筛选显示约1.11mm选点差，但根门和同预算门未过，不能由短训差证明显式3D有效。
+
+用户另行授权的full C1随机初始化、6000双seed完成，选点RA19.99，整体落在与历史routed的平局范围；末点均值21.9231另记。那时没有同预算full C0，所以没有隔离几何通道。10-09 XA才补齐该控制。历史XYZ权重后来清理，XA新重训不能假称原full权重的同一逐位复算。
+
+#### 5.6 历史九列主表
+
+以下表格机械提取自账本的原九列主表，不重建已删除主行，不统一择点/末点或旧时延。每张表以所属历史章节的合同解释；缺正式主行的MeshQ等仅保留文字结果和状态。
+
+Routed：该章节未提取到完整九列主表，结果和缺口见上述正文/附录及[原章节](#s37-routed-prereg)；不补造表格。
+
+FKgraph：该章节未提取到完整九列主表，结果和缺口见上述正文/附录及[原章节](#s37-fkgraph)；不补造表格。
+
+Meshgraph：该章节未提取到完整九列主表，结果和缺口见上述正文/附录及[原章节](#s37-meshgraph)；不补造表格。
+
+##### ROOTINNOV：历史表
+
+来源：[原章节](#s37-rootinnov)；原表择点/末点及种子规则不变。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S37 路由读出（当前臂） | 26.41 | 15.82 | 21.40 | 12.39 | 20.74（19.23 / 22.26） | 7.72 ms | 0.827 G | 0.73 M |
+| S37 根新息 第一步（冻结骨干） | 27.77 | 18.74 | 23.85 | 15.09 | 22.94（23.01 / 22.86） | 20.66 ms | 0.827 G | 0.74 M |
+
+##### ROTW/CNN根融合：历史表
+
+来源：[原章节](#s37-rotw)；原表择点/末点及种子规则不变。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S37 路由读出（当前臂） | 26.41 | 15.82 | 21.40 | 12.39 | 20.74（19.23 / 22.26） | 7.72 ms | 0.827 G | 0.73 M |
+| S37 旋转权重 ×10 | 25.88 | 16.28 | 21.10 | 13.64 | 20.74（21.10 / 20.38） | 8.00 ms | 0.827 G | 0.73 M |
+
+##### EDGE6/ROOTFUSE：历史表
+
+来源：[原章节](#s37-edge6)；原表择点/末点及种子规则不变。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S37 路由读出（当前臂） | 26.41 | 15.82 | 21.40 | 12.39 | 20.74（19.23 / 22.26） | 7.72 ms | 0.827 G | 0.73 M |
+| S37 + EdgeConv 6 层 | 24.36 | 18.80 | 20.49 | 14.09 | 21.38（22.61 / 20.16） | 8.47 ms | 1.651 G | 0.78 M |
+| S37 + 根头逐关节融合 | 26.94 | 14.51 | 23.26 | 11.28 | 20.29（20.52 / 20.06） | 8.18 ms | 0.827 G | 1.50 M |
+
+##### XYZ SCREEN：历史表
+
+来源：[原章节](#s37-xyz-screen)；原表择点/末点及种子规则不变。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S37 路由读出（当前臂，双种子） | 26.41 | 15.82 | 21.40 | 12.39 | 20.74（19.23 / 22.26） | 7.72 ms | 0.827 G | 0.73 M |
+| XYZ C1（三维关系，3407 单种子短训） | 30.49 | 12.83 | 25.08 | 10.33 | 21.04 | 9.68 ms | 0.231 G | 0.46 M |
+| XYZ C0（去显式三维通道，3407 单种子短训） | 28.56 | 16.59 | 25.93 | 12.98 | 22.15 | 9.61 ms | 0.231 G | 0.46 M |
+
+##### XYZ FULL：历史表
+
+来源：[原章节](#s37-xyz-full)；原表择点/末点及种子规则不变。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S37 路由读出（当前臂） | 26.41 | 15.82 | 21.40 | 12.39 | 20.74（19.23 / 22.26） | 7.72 ms | 0.827 G | 0.73 M |
+| XYZ C1（完整双种子） | 28.08 | 12.97 | 23.70 | 10.04 | 19.99（19.80 / 20.18） | 9.66 ms | 0.231 G | 0.46 M |
+
+
+<a id="xa"></a>
+### 6. XA：关联来源、作用与可修性
+
+#### 6.1 P1/P2：真实错配和前态敏感性
+
+真值前态下，local手指轮廓事件被分到掌部的M约6.3%，这些错误命中大多q=1，深度偏差中位约+30mm；自身前态下M约12.6%，精确部位一致率80.6%降到41.9%，hit却近乎不变。命中率、精确一致率和M的分母不同，不得互相替代。
+
+课程小/大噪声增加错配；50ms时间近似也增加错配，但其变化不能与39pp的一致率下降直接比作科学“效应大一到两个量级”。P2两个冻结效应判据没有支持错配质量是根更新主因；关联敏感性不等于闭环放大链已被唯一识别。
+
+#### 6.2 A/B/C：更正确关联的冻结替换为何会变坏
+
+A1仅将分配替换为真值旧状态，几何仍用自身prev；A2连同z替换，含泄漏。多检查点出现变差或发散，说明训练好的C1对这类输入替换敏感，不能据此推断它“只能学命中模式”“没有学位移”或更正确关联物理上无用。
+
+B1事件时刻真值几何的冻结替换，整体TF约+0.53mm、local+0.89mm；旧文统一写“≤0.5mm”不准确。全1538面候选搜索影响很小，但只约束本搜索近似和这些权重。旧A组报告将极大误差/NaN/Inf封顶为1000mm并另报发散计数；“存活步+1.93mm”是辅助选定子集读数，不能与XDL全分母有限精度混并。
+
+#### 6.3 D/E：置信聚合与几何特征的实际路径
+
+顶点mean使用归一化权重，q统一缩放在精确数学上会抵消；peak不加权；mass与残差槽仍改变，所以置信度不是完全无效，而不是简单的输出可靠性门。q不直接作为原关系MLP特征，hit给满置信、near无完整法向/前层下界，是源码风险。冻结缩放跨seed反向，尚无匹配“可靠性聚合”重训识别其瓶颈份额。
+
+E组屏蔽已训练的dXYZ/z/edge是OOD敏感性；no_z的TF改善不能单独证明删z重训必然有利。E2确实在后续真实事件下自递推10步，但采用旧AA加法扰动及R_excess定义，并非XDL的wrist保持/左右运输物理合同。不能拼接为同一收缩或恢复曲线。
+
+#### 6.4 P3配对重训及当前可信读法
+
+下面引用 `outputs/xa/step5/main_table_last.md` 的最终快照，checkpoint均6000；oracle显式标为含GT几何泄漏的诊断参照，不能部署。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| XYZ C1 复现（末步，hit_first，自身 prev 关联） | 32.31 | 14.07 | 25.24 | 11.36 | 22.55（22.93 / 22.16） | 9.61 ms | 0.231 G | 0.46 M |
+| XYZ C1 同配置同种子复跑（噪声底） | 29.96 | 11.00 | 24.15 | 9.34 | 19.81 | 9.52 ms | 0.231 G | 0.46 M |
+| XYZ C0 匹配预算（显式 3D 通道置零） | 25.43 | 14.56 | 22.72 | 11.23 | 19.62（19.20 / 20.03） | 9.55 ms | 0.231 G | 0.46 M |
+| XYZ 真值分配上界（分配用窗末真值网格，几何用自身 prev；诊断，不可部署） | 16.57 | 8.02 | 14.31 | 6.19 | 12.00（11.02 / 12.98） | 11.42 ms | 0.231 G | 0.46 M |
+| XYZ 替代关联（遮挡轮廓双假设 + 近层背面过滤） | 27.89 | 13.31 | 23.11 | 10.66 | 20.09（18.77 / 21.41） | 10.29 ms | 0.233 G | 0.46 M |
+
+- C1的同seed复跑末点差约3.12mm，overall/local/global工程门约6.24/6.36/6.13mm；这些只属于XA。
+- 去原D/Z/edge整组后，最终step5 local改善约6.880mm，两个seed约7.030/6.729，同号且超门。早期 `outputs/xa/gates.json` 曾记6.892mm；差异不改裁决，本文不混拼两快照的精确小数。
+- contour的overall约2.461mm、local4.418mm改善未超过门；未检出不等于证明等效或贡献为零。预注册local追加种子当时未完成，不能后补成已有结果。
+- oracle整体差约10.552mm、local15.740mm，同时引入窗末GT对应/几何信息；不能将差距当可部署可达收益，也不能将φ≈0.23当实际规则贡献份额。
+- overall/global的C0/C1差未过门，应写“未超过本轮门”，删除“无因果贡献”的排他表述。
+
+**原因分析：** 旧几何输入存在local条件下负效应，深度分布和前态依赖是合理解释；D/Z/edge、编码、关联与读出尚未单独隔离。硬命中规则有真实错误，当前修法没有建立稳定主收益，不能认定它是唯一主因。
+
+<a id="align"></a>
+### 7. 整手2D相似/ICP对齐可行性
+
+对 `xa_c1_s3407` 实际2590包的共同闭环前态，oracle 2D相似将local精确一致率41.85%提高至63.02%，真值前态为80.56%；事件ICP仅47.48%。global为78.86%→oracle86.27%、事件ICP82.74%。这些是关联质量，不是新候选闭环RA。
+
+local仅平移事件ICP估计反而降低一致率；仅平移oracle则提高到约49.35%，两者不可混写。tight、30次迭代、尺度退火、点到线等变体属于看过基准后的补充敏感性。真值形状自检仍有系统偏置和捕获范围限制；内部纹理事件吸附到外轮廓、遮挡和形状歧义均可能影响估计。oracle有778顶点对应，ICP只有轮廓和事件，信息量不同。
+
+该探针支持整手旋转/尺度偏差参与错配，但不证明“加ICP就能修好”、不能把oracle回收55%关联差距改写成55%姿态误差收益。来源 [完整报告](../outputs/xa/align/REPORT.md)；历史block区间仅给定权重的包级重采样范围。
+
+<a id="xb"></a>
+### 8. XB：ABCD局部残差与控制
+
+四臂分别为A全包容量控制、B固定4×4局部残差、C局部内容置乱、D只留空间占用/质量。全部用同main监督和原C0基础；不是单独的新逐事件MANO更新器。
+
+#### 8.1 轻量probe与完整训练分开
+
+8个1500步probe训练loss有限，但完整自身闭环全部出现非有限：前态指数放大后FK溢出。它们记FAIL、不能排序。随后13个fresh完整run的必需数值检查通过，不能用full结果追认pilot恢复能力，也不能把pilot失败代替full机制裁决。
+
+#### 8.2 完整结果与门
+
+以下机械引用正式主表，A/B/C/D为三个seed均值，A-repeat是同seed噪声参照。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| 旧匹配 C0（两 seed，末步参考） | 25.43 | 14.56 | 22.72 | 11.23 | 19.62（19.20 / 20.03） | 9.55 ms | 0.231 G | 0.46 M |
+| A：全包容量对照 | 35.74 | 17.69 | 29.07 | 12.90 | 26.08（21.56 / 27.27 / 29.41） | 11.60 ms | 0.232 G | 0.48 M |
+| B：4×4局部残差 | 26.14 | 15.32 | 21.57 | 11.51 | 20.35（19.68 / 22.73 / 18.64） | 11.26 ms | 0.232 G | 0.48 M |
+| C：局部内容置乱 | 28.63 | 17.71 | 23.53 | 13.83 | 22.79（23.72 / 19.72 / 24.93） | 11.86 ms | 0.232 G | 0.48 M |
+| D：仅空间占用/质量 | 28.27 | 18.97 | 23.80 | 14.57 | 23.29（19.92 / 24.31 / 25.65） | 11.62 ms | 0.232 G | 0.48 M |
+| A：同种子独立复跑 | 24.67 | 15.23 | 20.70 | 12.81 | 19.62 | 11.41 ms | 0.232 G | 0.48 M |
+| S39：W200 + 自适应滤波 + 证据门（完整栈参考） | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+
+B相对A整体改善约5.726mm，超过当轮约3.871mm工程门；但是内容置乱只消除约42.55%收益，未达到50%绑定门。恢复门失败：3407的natural和large均变坏，不能被其他seed的改善抵消。正常动作在当轮容差内通过，但三seed小幅一致代价仍记录。[正式裁决](../outputs/xb/verdict.json)
+
+near质量交换可能同时改变内容与质量绑定；质量保持r=1补充不替代全域负控制。B比A好，也没有据此超过旧C0或证明局部绑定是唯一机制。
+
+**原因分析：** 额外空间读出能改善主评分，证据尚不足以认定收益来自正确局部事件—MANO绑定；错误前态后的恢复未被打通。因此继续堆同类局部残差缺少完整证据。
+
+<a id="xc"></a>
+### 9. XC：原显式3D × 四片因果时间关联
+
+G0/G1仅控制原D/Z/edge整组；G0仍保留前态关联/图拓扑。T0/T1使用共同过去历史，T1从incoming锚定外推四个包内中心并分配事件时刻；无未来GT，边图仍incoming anchor。训练teacher-noisy前态和部署自身历史的差异仍存在。
+
+四组各3407/3408/3409，加四条件3407完整复跑，共16run6000。每个条件比较及交互使用对应repeat的噪声门，恢复/运动全部核验。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| 旧C0（两seed、无新历史读出，仅参考） | 25.43 | 14.56 | 22.72 | 11.23 | 19.62（19.20 / 20.03） | 9.55 ms | 0.231 G | 0.46 M |
+| G0T0：零显式3D，静止关联，共同过去历史 | 25.51 | 16.88 | 22.83 | 12.61 | 20.89（20.75 / 20.69 / 21.24） | 12.63 ms | 0.231 G | 0.47 M |
+| G1T0：原3D，静止关联，共同过去历史 | 30.78 | 17.76 | 25.57 | 12.79 | 23.81（22.48 / 28.83 / 20.12） | 13.88 ms | 0.231 G | 0.47 M |
+| G0T1：零显式3D，四片因果关联 | 32.67 | 16.22 | 28.60 | 12.60 | 23.87（20.12 / 20.78 / 30.70） | 34.70 ms | 0.231 G | 0.47 M |
+| G1T1：原3D，四片因果关联 | 34.27 | 15.89 | 28.13 | 12.52 | 24.44（28.73 / 22.25 / 22.32） | 33.74 ms | 0.231 G | 0.47 M |
+| G0T0：同种子独立复跑 | 23.99 | 14.96 | 22.40 | 11.37 | 19.16 | 13.73 ms | 0.231 G | 0.47 M |
+| G1T0：同种子独立复跑 | 31.20 | 13.03 | 26.14 | 9.94 | 21.47 | 13.33 ms | 0.231 G | 0.47 M |
+| G0T1：同种子独立复跑 | 39.55 | 15.79 | 32.64 | 11.95 | 26.83 | 30.58 ms | 0.231 G | 0.47 M |
+| G1T1：同种子独立复跑 | 39.93 | 23.06 | 29.12 | 15.87 | 30.90 | 31.57 ms | 0.231 G | 0.47 M |
+| S39：W200完整栈（参考） | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+
+裁决为 `no_supported_effect_under_registered_gates`：没有支持的G/T上下文，协同亦未过。组合相对G0T0的主评分没有改善；seed与复跑差很大，不能选某个好seed解释普遍因果时间收益。[正式裁决](../outputs/xc/verdict.json)
+
+**原因分析：** 时间一致性是合理合同，但这次四片外推没有解决正确状态恢复。时间更精细也可能继续建立在错误速度、位置和姿态上；这一解释尚未被独立速度/深度因子证实。负结果约束本实现/预算，不否定所有连续时刻关联或时间信息。没有持久逐事件图、前缀不变采样或完整异步调度性能证明。
+
+<a id="xdl"></a>
+### 10. XD设计、成本修订与XDL实际执行
+
+#### 10.1 设计与实测范围
+
+原XD提出五臂×三seed＋五完整repeat（20run）；后来V2首轮收窄为五臂seed3407及较稀疏seen bank。实际完成的是XDL首阶段；没有第二seed，更没有把20run全设计执行完。
+
+五旧权重诊断和五新fresh6000均完成。所有新臂使用共同银行/state99/C0基础；F0/Q0 teacher，F1/Q1 self，N1 self且最终观测接口置零。self课程为 `p_self=.5*clip((s−500)/1500,0,1)`，前三raw包eval/no_grad burn，末包监督，没有跨burn BPTT或后续GT reset。
+
+选中行burn优化在真实B512 learned夹具/梯度对照中不满足容差，正式退回full batch burn；训练main30,720,000＋burn50,614,272＝81,334,272窗口行。旧52,605,696只是未实现selected优化的期望，不能作本次实耗。
+
+旧五权重恢复诊断同样保留：local均16个eligible、0新增持续恢复；global均23个eligible，结果如下。每序列均24片段，global初始已满足1个、local8个；AUC为全部24片段均值，不是eligible或成功子集。表中AUC按实际elapsed归一化，属于指定冻结权重与固定片段的描述性量测，不是新旧结构的匹配因子比较。[原始审计](../outputs/xdl/results_audit.json)
+
+| 旧权重 | global natural新增hit/23 | local natural新增hit/16 | local natural腕点AUC/mm | local natural RA-AUC/mm | local clean腕点AUC/mm |
+|---|---|---|---|---|---|
+| C0 seed3407 | 1 | 0 | 95.353 | 26.584 | 56.651 |
+| C1 seed3407 | 6 | 0 | 91.885 | 33.441 | 90.237 |
+| C0 seed3408 | 5 | 0 | 128.378 | 25.530 | 99.833 |
+| C1 seed3408 | 8 | 0 | 94.485 | 31.501 | 95.430 |
+| C1r seed3407 | 6 | 0 | 92.887 | 31.168 | 92.639 |
+
+#### 10.2 旧权重复评、新五臂主结果与固定比较
+
+旧五权重来自XA的C0/C1及C1复跑，未为本阶段重新训练。以下是XDL评价阶段重新生成的规范表；它与XA原表在表格聚合与时延测量层次上分别保留，不能将单seed行作多seed因果效应。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| 旧 C0 / seed3407 / step6000 | 26.11 | 13.20 | 23.38 | 10.03 | 19.20 | 9.98 ms | 0.231 G | 0.46 M |
+| 旧 C1 / seed3407 / step6000 | 33.14 | 14.07 | 26.33 | 11.89 | 22.93 | 9.90 ms | 0.231 G | 0.46 M |
+| 旧 C0 / seed3408 / step6000 | 24.75 | 15.92 | 22.06 | 12.44 | 20.03 | 9.78 ms | 0.231 G | 0.46 M |
+| 旧 C1 / seed3408 / step6000 | 31.48 | 14.07 | 24.15 | 10.83 | 22.16 | 9.61 ms | 0.231 G | 0.46 M |
+| 旧 C1r / seed3407 / step6000 | 29.96 | 11.00 | 24.15 | 9.34 | 19.81 | 9.72 ms | 0.231 G | 0.46 M |
+
+下面逐字引用规范CLI生成的 [最终主表](assets/xdl_20261013/final_main_table.md)。新五臂单seed；S39为不同W200/滤波/门控三seed配方参考。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XDL F0：固定查询／teacher，单seed3407 | 27.89 | 18.84 | 24.61 | 13.71 | 23.04 | 15.08 ms | 0.268 G | 0.49 M |
+| XDL Q0：MANO查询／teacher，单seed3407 | 24.50 | 15.48 | 19.69 | 11.00 | 19.67 | 15.22 ms | 0.268 G | 0.49 M |
+| XDL F1：固定查询／自身前态，单seed3407 | 27.54 | 12.99 | 24.59 | 9.74 | 19.75 | 16.90 ms | 0.268 G | 0.49 M |
+| XDL Q1：MANO查询／自身前态，单seed3407 | 23.91 | 10.93 | 19.37 | 8.33 | 16.96 | 16.09 ms | 0.268 G | 0.49 M |
+| XDL N1：零观测／自身前态，单seed3407 | 41.17 | 50.41 | 30.38 | 38.45 | 46.11 | 17.48 ms | 0.268 G | 0.49 M |
+
+七固定比较的主RA改善（base−candidate，mm，overall/local/global）：
+
+| 比较 | overall | local | global | 描述性读法 |
+|---|---|---|---|---|
+| Q0/F0 | 3.375 | 3.392 | 3.359 | teacher下新增MANO查询有益 |
+| Q1/F1 | 2.788 | 3.629 | 2.058 | self下新增MANO查询有益 |
+| F1/F0 | 3.293 | 0.352 | 5.847 | self主要改善global |
+| Q1/Q0 | 2.706 | 0.589 | 4.546 | local未到1.1mm实用margin |
+| Q1/N1 | 29.150 | 17.261 | 39.479 | 事件内容对主RA有用 |
+| F1/N1，预声明补充 | 26.362 | 13.632 | 37.421 | 非零观测self比N1好 |
+| Q1/F0，预声明补充 | 6.081 | 3.981 | 7.905 | 联合主效用有工程信号 |
+
+这张是诊断比较表，不扩充九列主表。交互 `E_Q0+E_F1−E_F0−E_Q1` 为overall−0.587、local+0.237、global−1.302mm，不能声明普遍超加性。没有repeat δ，不补造τ或跨seed可靠性。
+
+#### 10.3 同E下扰动方向和ρ：能回拉，不等于正确GT
+
+新五臂zgz的三块large均满足medianρ≤.90且至少70%ρ<1的描述性政策，N1也满足。Q1 local大平移/root/finger的medianρ约0.492/0.464/0.547，实际腕点却85.27mm、root12.02°、finger9.81°。配对方向cos高、N1也高，不能把它们命名为真实GT修正方向成功。
+
+local小平移下四个有事件臂均未满足收缩政策：F0/Q0/F1/Q1的ρ<1比例约52.08%/56.25%/65.28%/52.78%；N1为100%却正常动作很差。seen/global汇总较好，九人和各轴尾部另留；稀疏seen探针不能冒称每事件完整Jacobian。
+
+#### 10.4 实际GT、自身20步恢复与clean起态
+
+共同natural来自冻结C0，之后每模型仅用自己的预测。global/local natural RA真实时间AUC（mm）：F0 13.201/28.251、Q0 12.520/26.203、F1 10.570/27.269、Q1 10.004/24.892、N1 22.495/28.309。
+
+local24段中8个initially_satisfied，16个待恢复；五臂全部0新增持续恢复、16右删失。global有23个待恢复，F0/Q0/F1/Q1/N1新增hit分别5/6/13/6/0，其余删失。最低RA-AUC不是最高恢复率。
+
+Q1相对Q0的local natural RA-AUC改善，但腕点AUC85.220→98.883mm恶化；F1相对F0亦137.388→145.074mm。Q1从clean GT开始，固定24包的local单步GT腕点误差均值已约65.787mm，local20步腕点AUC仍97.519mm。**错误初始MANO并非该local失败的充分解释，正确起态也未得到保护。** 此处单步bank与20步恢复是不同固定样本集合，不以其差计算累积误差贡献。
+
+#### 10.5 正常运动和事件控制
+
+Q1 full-clean global absolute gain/cos/lag约1.049/0.954/0ms，root约0.872/0.855/0ms；finger仅0.128/0.172/50ms。local absolute约0.285/0.112/114.706ms、root约0.146/0.058/100ms、finger约0.320/0.369/58.824ms。local41个连续run中17个具有主200ms/active读数，上述是17个defined run的等权均值；24个undefined未被写成0或通过。114.706ms是离散lag的均值，不是单轨迹具有亚50ms的量测分辨率。
+
+self_query的local clean absolute lag增加29.412ms，超过25ms；root cos下降约0.0625，超过0.05；query_self的local absolute/finger lag增加35.294ms。全部七比较各120指标及defined分母见 [独立终审](../outputs/xdl/independent_final_scientific_review.json)，不能凭主RA通过完整运动保护门。
+
+每臂960错内容、48empty完整；N1实际960个控制模型输出完全相同，两序列×两模式各240；Q1有非零响应；empty exact hold。N1重新FK计分约1.5e−5mm尾差与模型输出一致性分开。事件有用的证据很强于“完全无用”，但local腕点/所有自由度的事件恢复门仍未全部通过。
+
+#### 10.6 完整性、成本和图
+
+旧五权重293,750科学查询；新五臂诊断423,350＋主评12,950＝436,300，共同参考/预检/基准调用另计。30诊断分项完整且mandatory数值有限，无有限子集补均值。训练/优化器实际6000，实际曝光相同；first3各rank配对流一致，不宣称测了6000步全部事件哈希。
+
+训练46.7738GPU·h含首次失败通信启动0.4739，新评价2.1357，共48.9095；加先期10预算预留的保守58.9095≤82。预留不是先期实测费用。GPU仅2–7，第二seed未执行。CPU最后68项target测试通过，既有全仓7个默认快照失败如实保留。
+
+以下图表为正式产物的逐字节副本，随仓库提交；原始路径、审计和 raw 来源 SHA 保留在 [figure manifest 来源快照](assets/xdl_20261013/xdl_figures_manifest.json)，附件说明见 [README](assets/xdl_20261013/README.md)。
+
+![大扰动收缩与实际GT终点](assets/xdl_20261013/xdl_large_bank_rho_gt.png)
+
+图1：新五臂与旧C0/C1 seed3407，global/local均保留24个固定包的全部large探针。横轴是配对ρ中位数，纵轴是GT终点均值；向左不保证向下。平移/根/finger各144/144/2160查询，不是独立样本置信区间。[SVG](assets/xdl_20261013/xdl_large_bank_rho_gt.svg)
+
+![共同natural起态的自身递推恢复](assets/xdl_20261013/xdl_natural_recovery_gt.png)
+
+图2：每序列24共同片段、21状态，49/50ms真实时钟；首态共同C0，此后各自递推。腕点与RA同时展示，不能用RA改善掩盖位置漂移。曲线是完整片段均值，无CI或成功子集筛选。[SVG](assets/xdl_20261013/xdl_natural_recovery_gt.svg)
+
+<a id="xde-results"></a>
+### 11. XDE快实验：实际结果与失败边界
+
+日期：2026-10-14。用户授权物理GPU2–7。执行入口为[三项诊断计划](#xde-plan)与[执行预注册](#xde-prereg-20261014)。本轮实际进行了冻结模型推理、20个小读出头拟合、几何核验与软件链计时；没有完整编码器重训，没有修改S39、生产网络、原始数据或历史权重。
+
+**XDE裁决：local正确前态的第一步负深度偏置已经在全1204包确认。XDL银行压缩前后都有超出状态先验的修正信息，34→4尚不能锁定为主要瓶颈；换小读出头也没有建立可靠恢复。下一项真正缺失的因果证据仍是“深度训练支持／外推”与“更新目标／读出偏置”的匹配分离。原focal→depth干预未过关联候选一致性前置门，按冻结合同没有启动昂贵重训。**
+
+正式参考主行统一见[第10.2节](#xdl)，本节不重复XDL／S39表。小头没有新的完整正式主行；GT前态单步和24段诊断也不替代全序列成绩。
+
+![固定输出与条件解码证据](assets/xde_20261014/fast_evidence.png)
+
+[可编辑SVG](assets/xde_20261014/fast_evidence.svg)及[来源SHA](assets/xde_20261014/figure_manifest.json)。图B的check用于头的epoch选择；图C未用于拟合或选头。两个seed仅是小头初始化，不是两个完整模型训练seed。
+
+<a id="xde-e1"></a>
+#### 11.1 E1：第一步偏置与自身错误上的净纠错
+
+固定W50、相机、β、权重、batch1；每包输入正确的上一时刻GT，输出与实际窗末GT比较。全local1204包，无非有限预测或失败；四模型重叠的旧24包输出逐状态完全一致。
+
+| 冻结权重 | 平均signed z误差 mm | 平均腕误差 mm | 优于hold包数 | z占总腕平方误差 |
+|---|---:|---:|---:|---:|
+| Q1 | −64.670 | 66.319 | 0/1204 | 95.11% |
+| Q0 | −52.229 | 55.878 | 0/1204 | 87.41% |
+| N1 | −51.563 | 57.371 | 0/1204 | 81.31% |
+| 旧C0 | +10.818 | 15.069 | 65/1204 | 69.00% |
+
+共同hold腕误差2.685 mm。Q1/Q0/N1的1204包均为负z，全部通过预注册偏置筛选门。Q0没有self，N1是另行训练的零观测臂，说明这类偏置可以不依赖self或事件内容产生；不能据此排除Q1的关联因果贡献，旧C0也不是匹配的state99消融。[全量审计](../outputs/xde/e1/final_audit.json)
+
+分层不支持“仅最稀疏包出错”：Q1在≥700mm平移参数深度层的三档事件数中，平均z误差分别约−68.3/−63.8/−64.7mm。但几乎所有local包都处于同一深度档，仍无法分离深度、受试者和动作域的独立作用。[完整分层及空格子](../outputs/xde/e1/full_clean_strata.json)
+
+**自身natural而非共同C0错误起态。** 从Q1原全段轨迹按预冻结z分层和时间中点选每条序列24段，各20步，不使用未来成败。每步同态real回放与原轨迹最大状态差为0。下表AUC使用21个状态和实际时间积分；同态单步改善与独立递推另计。
+
+| 条件 | 同态real相对hold腕误差改善 mm | 同态real相对强shuffle改善 mm | real / shuffle / hold腕AUC mm | 新增持续恢复 real / shuffle / hold |
+|---|---:|---:|---|---|
+| local | −0.421 | +0.058 | 100.870 / 100.659 / 93.101 | 0/24 / 0/24 / 0/24 |
+| global | +0.730 | +1.243 | 24.608 / 27.225 / 53.160 | 4/20 / 3/20 / 0/20 |
+
+global另有4段初始已满足，不能放入新增恢复分母。成功定义仍为absolute MPJPE≤20mm且RA≤10mm连续3查询。[local完整结果](../outputs/xde/e1/q1_own_zgz_local.json)、[global完整结果](../outputs/xde/e1/q1_own_zgz_global.json)
+
+强shuffle保留xy、极性、计数及时间戳集合，在极性组内重配时间后排序。local约95%时间戳改变，平均移动15.96ms，时间相关约0.017；并非旧弱swap。然而排序也改变stride采样支持：global 438/480包支持改变，Jaccard中位仅0.039。故global优势不能独立解释为精细时序贡献。同支持子集单列且不替换总体门；local总体尚未建立可靠事件净纠错，global有有限的条件性改善，不能概括为“事件没有信息”。
+
+<a id="xde-e2"></a>
+#### 11.2 E2：34→4不是已经定位的主瓶颈
+
+实际缓存：72训练序列各24个fit包、8个check包；zgz各128包只评价。每包clean/±50mm z三前态，共7680行、15360次batch1 forward。fit/check按完整valid run或5s块分离，跨v2/v3/v4核对无原始时间重叠。主干冻结；错内容来自同序列同fold远时刻donor，保持当前计数、极性和时间戳，固定相同前态重新提取。此控制是分布外反事实。
+
+头输入均为相同state99+16×34；post4逐槽零填充至34，state-only观测位为0。宽128/512、seed1701/1702、5种接口共20个头；监督真实下一状态所需xyz修正，未用zgz选epoch、宽度或seed。有效输入维度不同已披露，名义同头不能被解释成有效容量完全相同。[协议](../outputs/xde/e2/protocol.json)、[独立审计](../outputs/xde/e2/independent_review_xa.json)
+
+宽128的z修正MAE如下，单元格为两个头seed，不是置信区间：
+
+| 输入接口 | selected-check mm | zgz-local mm |
+|---|---|---|
+| state-only | 16.47 / 16.81 | 89.24 / 90.39 |
+| 压缩前pre34 | 14.19 / 13.87 | 62.41 / 58.13 |
+| 压缩后post4 | 14.41 / 13.44 | 51.62 / 68.74 |
+| 错内容pre34 | 20.36 / 20.52 | 94.39 / 89.81 |
+| 错内容post4 | 18.12 / 18.62 | 80.55 / 82.34 |
+
+两宽度的pre/post均通过“相对state和对应wrong，两个seed均改善≥10%且≥2mm”的selected-check筛选门；local同样存在事件增量。但pre/post的优劣随seed和宽度反转，不能确认4维压缩是主要损失点。[全部固定比较](../outputs/xde/e2/verdict.json)
+
+**阳性只到可解码，不到可靠更新。** 混合±50mm的改善不能掩盖clean失败：宽128的local clean平均signed z，pre仍约−65.36/−60.11mm，post约−54.14/−71.40mm；仅0–1/128包比hold好。check又用于300epoch选点，须称selected-check筛查；冻结Q1主干本已见过训练身份，不能声称整个网络从未见过这些段。
+
+随后冻结使用较小128头的全部两个seed，不按zgz挑选，复用E1两序列各24段，对own/clean两种起态各递推20步。仅用probe替换xyz平移更新，根与手指仍用原Q1输出；包括Q1与state-only控制，共13440次forward。原Q1的own轨迹与E1逐状态一致。
+
+| own起态，实际时间腕误差AUC | Q1 | pre seed1701 / 1702 | post seed1701 / 1702 |
+|---|---:|---:|---:|
+| local，mm | 100.87 | 81.67 / 68.98 | 74.42 / 106.11 |
+| global，mm | 24.61 | 37.34 / 38.50 | 53.43 / 35.15 |
+
+本表与E1一致，采用包含初态的21状态实际时间AUC；原始汇总中的20输出算术均值另保留，不混算。所有local own分支仍0/24新增持续恢复。local clean递推也未被保护；global所有事件probe头均劣于原Q1，并出现根与RA串扰。**不采纳这些替换头作为新方案。** [实际时间AUC与完整分母](../outputs/xde/e2/supplemental_audit.json)、[local原始汇总](../outputs/xde/e2/rollout_zgz_local.pt.json)、[global原始汇总](../outputs/xde/e2/rollout_zgz_global.pt.json)
+
+运动和抖动也没有支持只看local平均误差的采纳：global own的绝对运动cosine由Q1的0.846降至pre的0.695/0.712，平均lag由16.67ms增至41.67/52.08ms；腕平移加速度误差由3803增至4172/4350mm/s²。post中可有较小加速度误差，却没有精度和恢复同时通过。加速度及jerk是固定短段上的粗糙度代理，受伪标签差分噪声影响，不冒充静止整手抖动或完整正常运动基准；各空间／指标的defined与undefined分母均保留，hold未定义lag不记零。
+
+本轮只裁决银行34→4及平移读出，没有完成mesh→LBS、根与手指的逐层解码；银行已有可用增量，使“只加宽这一压缩层”的优先级下降，不排除其他接口的信息损失。小头失败不等于所有读出／目标无效，也未提供原目标与多步目标的匹配训练对照。
+
+<a id="xde-e3"></a>
+#### 11.3 E3：几何前置未过，完整重训未启动
+
+固定1000个Q1训练counter样本，全部72序列被覆盖。唯一变更仍为focal→depth；1000组事件数组完全相同，只改变标签和相机语义。
+
+| 预注册核验 | 结果 | 判定 |
+|---|---:|---|
+| 778000顶点投影残差p95≤3事件像素 | 1.538 px | 通过 |
+| 128000可见查询的候选面集合任一身份变化≤5% | 45.166% | 未通过 |
+
+候选集合的“任一成员改变”较敏感：平均top16成员替换4.895%，hit/near/none类型变化2.055%；但最终正权重顶点支持集合也有26.361%改变。这里比较逐顶点仿射参考网格与depth标签FK网格；参考网格保留原顶点深度，只作诊断参照，并非两种实际训练流最终关联的直接比较。不能把这些离散变化直接当作精度损失。本门是保守的干预准入，不是深度覆盖假设的有效性检验。按事前合同没有启动五个完整run，也没有看到结果后放宽5%门。[核验结果](../outputs/xde/e3_preflight/result.json)、[详细候选统计](../outputs/xde/e3_preflight/candidates.json)
+
+**本轮纠正了一处深度坐标混用。** 当前β下腕点为`J0(β)+t`，zgz的`J0_z=+6.197364mm`；local平移参数z为699.349–743.174mm，实际腕深为705.546–749.371mm。误差差值不受这个常量影响，但训练覆盖比较会受影响。原E3的699–742、710.2字段只保留溯源，不再当作实际腕深边界。[坐标核对](../outputs/xde/e1/depth_coordinate_audit.json)
+
+改用一致的实际腕深坐标，1000次训练曝光落入真实local范围：focal **0/1000**，depth **50/1000**，depth另50次超过local上界。这里只是固定1000次曝光，不是声称全训练分布最大值；深度支持仍是优先竞争解释，尚无匹配重训因果结论。[覆盖修正](../outputs/xde/e3_preflight/actual_wrist_depth_coverage.json)
+
+<a id="xde-pipeline"></a>
+#### 11.4 软件成本及异步意义
+
+Q1原权重在全部2590包自身递推，计时包括切窗、packet和H2D、完整forward、输出MANO、host-ready状态/关节/mesh，含同步与反馈clone；段首reset/初态设置、额外审计拷贝、文件打开、传感器传输、实时排队与显示不计。
+
+| 软件链时延，ms | p50 | p95 | p99 | 平均forward | 平均输出MANO |
+|---|---:|---:|---:|---:|---:|
+| local，1204包 | 13.459 | 13.765 | 14.106 | 11.901 | 1.188 |
+| global，1386包 | 14.111 | 15.503 | 17.271 | 12.212 | 1.193 |
+
+这是同机实测软件包到输出时延，不与主表的归一化16.09ms直接作性能改进比较。时间戳另给事件年龄：W50按窗末输出，事件在关窗时平均已经约25ms；加实测软件时间，离线估计事件到host-output的p95约local61.125/global62.125ms。该估计按每事件加权，直方图分辨率0.25ms，不包含真实硬件或排队延迟。[管线结果](../outputs/xde/pipeline/result.json)、[事件年龄估计](../outputs/xde/pipeline/event_age.json)
+
+因此，未来异步方案须同时减少重算和信息等待。当前低参数／低MAC没有消除每包约12ms的完整forward，也没有逐事件维护缓存；先证明一个观测接口能净纠错，再优化其持久统计与状态变动失效规则。
+
+<a id="causes"></a>
+### 12. 原因分析：哪些已经知道，哪些还要隔离
+
+#### 12.1 独立观测与前态派生几何需要区分
+
+已知：当前事件给像素/时间/极性，旧z与被关联的网格来自前态；hit几何满足自身面约束。几何可以组织读取，但不会自动提供独立深度纠错。XA的local整组3D负效应与这个风险相容。
+
+尚未证明：网络只学先验、事件无法提供深度，或自指是唯一主因。XDL新银行状态无关、旧显式3D关闭仍失败，表明仅删除旧z通道或改命中规则不能保证解决。下一需分别控制单通道、关联/特征、状态接口和读出；oracle含泄漏不能作可达目标。
+
+#### 12.2 深度、尺度、事件稀疏、遮挡和标签边界
+
+历史平移参数口径记录训练深度均值约564mm、p99约666mm、最大约710mm；local699–742mm、约86%步高于该历史训练最大。XDE已核对实际腕深=平移参数z+J0_z；local实际腕深705.546–749.371mm。前述历史值不能当作实际腕深范围或未经复核的全训练上界，见[坐标与覆盖修正](#xde-e3)。local原事件中位660/50ms、global约29,974；训练/评测的深度、受试者、录制、遮挡和伪标签条件混杂。
+
+旧routed在首步已出现72.7–79.9mm local平移误差，占闭环的70–85%，其他CNN也有同类偏差，说明不是全由递推累积或XYZ关联引起。深度一致增强在稠密线改善绝对误差为相容旁证；它不是这次XYZ独立深度因子的结果。事件充足分层仍有S37差距，亦不能将全部失败归于事件数少。
+
+修复必须核相机K/尺度增广语义、depth覆盖、腕点定义和标签误差；XDE只补了坐标／1000次曝光核验，没有重新修数据或计算这些因素的贡献比例。新物理扰动合同通过支持单位/mean/clock的一致性，不排除未测试的标定或标签偏差。
+
+#### 12.3 事件表示与绝对姿态/细动作读出
+
+旧RT ridge/绝对输出短训及更深EdgeConv没有建立稳定解决；CNN根融合可改善，说明更强观测参照有价值。XDL global整体运动较好、finger增益很小，local多数运动读数弱，是输出行为的直接缺口。
+
+候选解释包括有限节点/局部时域、pooling丢失精细空间符号/时序、观测读出分辨力不足、多块共用51D头竞争。probe解不出不证明信息物理不存在；新银行相对旧C0的增益并非纯容量对照；EDGE6阴性也不证明所有编码器升级无用。
+
+#### 12.4 teacher噪声与部署自身状态分布
+
+旧训练prev主要GT加噪声，部署prev来自模型，分布失配风险真实。XDL用当前模型三步自身burn而非旧离线状态，global改善支持这项干预有作用；local改善小、正确GT起态也漂，排除了“只要换自身前态就足够”的简单预测。
+
+候选是三步burn/单末包损失不足以学习长恢复，噪声去除目标与动作跟随不匹配；本次没有完整BPTT或恢复损失因子对照。旧K0/K1/K2/unroll失败只约束各具体实现，不能逻辑排除所有self/recovery训练。
+
+#### 12.5 收缩、偏置与运动保护的冲突
+
+若模型将不同输入回拉到同一有偏轨迹，配对距离可下降、高cos也可出现，真实GT误差仍大；零观测N1的良好ρ提供该解释的实际对照。XDL clean起态漂移、local无持续恢复和normal动作欠响应共同说明当前收缩目标不足以裁决纠偏。
+
+“回拉到先验/偏置轨迹”是与结果一致的候选机理，不是已证明的全局吸引子。需要实际GT、clean及运动联合目标，不再把ρ、方向投票或平滑单独当成功。
+
+#### 12.6 关联置信与离散对应
+
+hit-first可能误把几何相交当对应，q=1会掩盖来源不确定，mean归一化与不加权max削弱简单置信语义。这些源码事实值得处理；contour改善来源错误但主效用未过，表明来源指标与任务指标不能自动等价。
+
+尚缺匹配的q特征/加权聚合/可微关联/软候选因子。`no_grad`表示当前损失不优化关联参数，不表示所有不可微关联必然无效。XDL的Q/F也未单独检验旧hit-first。
+
+#### 12.7 根AA合成、跨块串扰与历史状态
+
+旧XYZ的AA加法、旧读出无t、统一头、无持久节点记忆均为代码事实；扰动存在跨块影响。这些不能直接排序为最大原因。XDL显式加入全状态后未解决local；GRU/unroll记忆历史失败，亦非所有记忆机制否证。
+
+物理root/local扰动用SO3合成并保持实际FK腕点，正确量测防止把AA分支或平移/腕点差混入效应；模型输出合成则是另一个待单变量检验的因素。换输出某块GT不等于运行中的块已解耦。
+
+#### 12.8 时间近似与异步实现
+
+旧关联不读t，包内静止几何有真实近似；XC使几何与事件时刻更一致，却未获得完整效用/恢复支持。时间精确性和独立纠错信息是不同问题：以有偏状态/速度外推更精细的网格未必产生更正确观测。
+
+多种实现按包重建图/FK，stride采样依赖最终包计数，不能宣称前缀不变或逐事件局部更新。毫秒/亚毫秒timestamp不等于实现了微秒级状态输出；模型查询时延也不是采集、组包、传输、队列、缓存的完整时延。
+
+#### 12.9 对“架构、初始化还是关联”的当前回答
+
+| 候选 | 当前证据 | 当前判断 |
+|---|---|---|
+| 只改MANO起始错误就够 | correct GT起态也漂；natural错误态全local不恢复 | 简单充分解释被削弱；初始化质量仍有实际作用 |
+| 只改硬命中/轮廓规则就够 | 来源错配降低，配对主收益未过门 | 本修法不足；规则并非已证明完全无贡献 |
+| 只精确事件时刻关联就够 | XC完整四片试验未获支持 | 本时间方案不足；不能否定所有异步方法 |
+| 只加self训练就够 | XDL global有益，local收益弱且恢复/保护失败 | 可保留作为基础，非完整解决方案 |
+| 整个MANO/GNN必须推倒 | 条件查询有益、事件有益，默认/物理合同核验通过 | 尚无足够证据作此排他决定 |
+| 观测/读出/恢复目标与local边界共同限制 | 跨实现首步偏差、几何输入局部负效应、clean漂移及动作弱 | 当前最值得分因子研究的解释族，贡献比例未识别 |
+
+这里排序的是研究优先级，不是各原因真实贡献的估计；local姿态RA、绝对位置和global finger可能具有不同原因。
+
+<a id="evidence-boundaries"></a>
+#### 12.10 历史裁决的可靠范围
+
+下表保留XDE执行前的证据范围：65.8mm来自原24包，97.519mm来自XDL既有clean片段；不与第11节全1204包或Q1自身natural混算。
+
+| 判断 | 证据及出处 | 解释边界 |
+|---|---|---|
+| 正确初始化不能保护后续状态 | XDL Q1 的 local clean 单步腕误差约65.8 mm，20步 clean 腕点 AUC 97.519 mm | “clean”是正确上一时刻状态；理想输出应跟随真实下一时刻，不能要求更新恒为零 |
+| 错误前态下尚无可靠整手恢复 | 共同 C0 natural 起态，local 16个待恢复片段，旧五权重和新五臂均0个新增持续恢复 | 此历史结果仅来自共同C0起态；[XDE已补Q1自身失败分布](#xde-e1)，其他模型尚未补齐 |
+| 事件对整体任务有用 | Q1 比匹配零观测 N1 主RA好；空间镜像会改变输出 | 不等于每个自由度都有净纠错，也不证明精细时间信息被使用 |
+| 关联错误真实存在 | XA local 部位一致率约80.56%→41.85%，指轮廓→掌错配约6.31%→12.63% | 源标签是几何来源代理；错配与任务误差的因果份额未识别 |
+| 旧显式3D组在local有负效应 | XA C0 local 比 C1 好6.87997 mm，双seed同向并超当轮门 | 一起移除了 dXYZ、z、edge；不能单独归因 z 或宣称事件不能测深 |
+| 当前规则与时间修补未打通恢复 | XA contour 未超噪声门；XB 主效用过而绑定／恢复未过；XC G/T及交互未获注册支持 | 阴性约束具体实现和预算，不是所有对应学习、图网络、时间模型的否证 |
+| XDL query 和 self 有条件收益 | Q/F有主效用；self收益主要global，local主RA只改善约0.35／0.59 mm | 五臂单seed；共同增加银行、state99并改变训练合同，不可与旧C0直接拆因果 |
+
+出处：[XA最终门](../outputs/xa/step5/p3_gates.json)、[XB裁决](../outputs/xb/verdict.json)、[XC裁决](../outputs/xc/verdict.json)、[XDL原始审计](../outputs/xdl/results_audit.json)、[XDL科学复核](../outputs/xdl/independent_final_scientific_review.json)、[现有完整诊断](#current-verdict)。
+
+历史措辞应以较新证据收窄：`AGENTS.md` 末段及账本 XA 裁决中的“主瓶颈已锁定”“规则最多解释四分之一”等，不应继续作为确定结论。φ 的分母含窗末 GT 分配泄漏，分子尚未超过工程噪声门，不能解释成机制贡献比例。10月13日诊断文档已明确这一边界。[旧账本入口](#xyz-assoc-20261009)、[修订说明](#measurement)
+
+<a id="bias-decomposition"></a>
+#### 12.11 执行前24包复算与偏置分解
+
+**历史样本说明：** 以下是XDE前的24包CPU复算和当时解释，不替代第11节1204包及own-natural结果。这里保留b+r定义、±50mm反例和原始样本边界。
+
+对 XDL 已保存的51维 `initial`、`prediction` 与相同包的 GT 窗末标签作 CPU 复算。每条 local 行是同一组24包，不是新增模型或新的整体主成绩。固定 beta 下实际腕点为 `J0(beta)+t`，因此相同 beta 的腕点位移误差等于平移参数差。复算脚本、输入 SHA 与完整结果见 [附件](assets/s37_diagnosis_20261014/)。
+
+| 既有权重 | local clean 的平均有符号 z 误差 mm | 平均腕点误差 mm | 同包 hold 腕点误差 mm | 更新优于 hold |
+|---|---:|---:|---:|---:|
+| Q1 | −64.656 | 65.786 | 3.044 | 0/24 |
+| Q0 | −50.932 | 53.752 | 3.044 | 0/24 |
+| N1 | −52.397 | 57.965 | 3.044 | 0/24 |
+| 旧 C0 seed3407 | +8.089 | 13.345 | 3.044 | 2/24 |
+
+Q1 的 z 项占这24包腕点总平方误差约96.62%。global 同口径 Q1 的平均 z 误差却为 +9.238 mm，腕误差10.871 mm，hold为6.652 mm，9/24更新优于hold。**这不是所有条件下统一的坐标平移，而是明显的条件相关行为。** 它仍可能与相机／标签、受试者、深度及动作分布混杂，不能凭这两组均值断定深度是唯一条件。
+
+更直接地，在 local 的±50 mm、三个平移轴共144次探针上，Q1 的配对ρ中位数约0.492，但只有7/144次输出比保持同一受扰前态更接近窗末 GT，平均腕误差反而增加35.184 mm。旧 C0 同口径107/144次改善，平均改善12.684 mm；跨配方差异不能归因某一个模块。
+
+**事实所排除的解释：** Q0无需self就有大负z偏置；N1不输入观测特征也有大负z偏置。因此错误事件关联和self训练都不是产生这一现象的必要条件。N1仍保留state99和空／非空门，不能称为完全无事件条件的动力学系统。旧C0不是匹配的state99消融，不能反推“显式输入t必然有害”。
+
+N1是独立重训的零观测臂，不是Q1同权重屏蔽观测。它证明该类偏置可以不依赖事件内容产生，不能据此排除Q1中关联的因果贡献，也没有证明两者偏置机制相同。
+
+##### 为什么正确起态也会漂移
+
+记一步完整映射为 `F(E, s_prev)`，`s*prev`为正确上一时刻状态，`s*next`为正确下一时刻状态。对腕点平移定义：
+
+```text
+b       = wrist(F(E, s*prev)) − wrist(s*next)
+r(δ)    = wrist(F(E, s*prev ⊕ δ)) − wrist(F(E, s*prev))
+eδ_next = b + r(δ)
+```
+
+这是同一事件包上的精确加法分解；根／手指需在指定 SO(3) 切空间运输，不能直接相减轴角套用。ρ只比较 `||r(δ)|| / ||δ_wrist||`。真正的增量响应还应扣除输入扰动，即 `r(δ)−δ_wrist`，最终是否正确则必须对照 `s*next`。
+
+因此，**正确起态首先受到非零 b 的误差注入，后续才叠加错误前态反馈**。local Q1 的大负z说明第一步已明显把状态推向更近的深度；就算误前态分支收缩到它，仍可远离GT。这是“偏置轨迹”解释的直接支持，但未证明全局吸引子、稳定点或整个51D系统的因果机制。现有样本也不能估计全序列偏置与反馈的贡献百分比。
+
+##### 错误前态下事件有没有指向真值的修正
+
+目前的答案是：**有整体任务效用及部分块／条件的真实改善，尚无普遍可靠的事件驱动恢复。** 已有证据既不能说事件完全没有信息，也不能说事件已提供可用的完整51D修正。
+
+XDL 的 `swap` 是每12.5 ms×极性分组内，把xy循环挪一个事件，并非强时间洗牌。邻近事件可能很相似，swap弱响应不能否认时间信息；mirror明显退化只能说明空间内容敏感。后续要比较同一前态下真实内容与匹配破坏内容对实际GT的净改善，而非仅测输出是否改变。[控制源码](../tools/xdl/geometry.py#L175)
+
+<a id="state-blocks"></a>
+#### 12.12 平移、根旋转、手指的分块证据
+
+下表保留执行前分块定位。XDE补齐了local平移全量偏置与银行条件解码；root/finger主要仍依赖XDL运动证据和替头后的串扰，未完成各自接口定位。
+
+
+
+| 条件与状态块 | 现在最可靠的定位 | 还缺什么 |
+|---|---|---|
+| local平移／深度 | 大负z clean偏置是当前最清楚的失败来源；RA评分把它隐藏，下一步关联仍受它影响 | 全local及训练受试者上的signed轴向统计；深度支持与状态回拉的匹配干预；真实E相对匹配错E的净纠错 |
+| global平移／深度 | Q1正常绝对运动总体较好，不代表每步更准；固定bank上clean仍可能不如hold | 正负z与xy分开，天然错误的同前态控制；绝对漂移尾部与长段恢复 |
+| local根旋转 | motion gain/cos弱且滞后；可由证据不足、读出偏差或错误平移改变关联共同造成 | 固定真实相机位置的旋转扰动；分清根本身修正与平移／手指串扰；SO(3)而非AA误差 |
+| global根旋转 | 比手指跟随好，仍未证明各种错误初态都恢复 | 多轴正负扰动及长期测地误差；不能凭RA改善认定根已解决 |
+| local与global手指 | global Q1 finger gain约0.128，local约0.320；需要检查动作分辨率 | 每关节可见／活动支持、近端／远端、屈伸／twist；多时标对照伪标签噪声，防止将静止低抖动当正确跟随 |
+
+Q1的local运动统计只有17/41段定义了主200 ms读数；其余24段不是0也不是通过。记录中的114.706 ms是50 ms网格的多段均值，不代表单段具有亚50 ms精度。[运动与分母](#xdl)、[量测定义](../outputs/xdl/measurement_spec_v3.json)
+
+<a id="post-xde-causal-audit"></a>
+#### 12.13 XDE之后：分开深度支持、完整读出与反馈
+
+本节是2026-10-14的新审查；源码核对与既有E2数组的CPU复算已经完成，后述XDF模型实验未执行。CPU审计覆盖74个序列缓存、7680行和20个头，按clean／−50／+50及fit／check／zgz分开；[复算脚本](assets/s37_next_controls_20261014/recompute_e2_domains.py)、[结果与输入SHA](assets/s37_next_controls_20261014/e2_domain_clean_audit.json)。重复运行结果字节一致，结果SHA256为`d8000af75cc07734c873919faae189312bb758acda9571edfab412c74618dc22`。
+
+**先修正两个实验解释前提。** 原Q1最终读出是`legacy XYZ544 + bank64 + state99 = 707`；E2的小头只读bank与state99，没有legacy544。因此E2阳性证明银行接口有条件增量，阴性却不能证明整个最终接口无效；替头后global退化混有信息支路缺失、头结构和小样本拟合变化。[原融合接口](../semkine/xyz_recovery_study.py#L61)、[融合hook](../semkine/xyz_recovery_study.py#L75)、[E2输入](../tools/xde/e2_probes.py#L228)
+
+原Q1损失为`log10((450 MSE(fingerAA45) + 60 MSE(rootAA3) + 30000 MSE(t_next))/51)`，先按rank内样本求各块MSE，再取log。平移已经监督真实下一时刻终点；root／finger仍是AA坐标损失，评估的SO(3)测地角不是训练目标。在固定incoming和β下：
+
+```text
+||delta_t − (t_GTnext − t_in)||²
+    = ||(t_in + delta_t) − t_GTnext||²
+    = ||wrist_pred_next − wrist_GTnext||²
+```
+
+所以“改成真实残差／腕点终点MSE”若只有重新表述，是空对照。真正可改的是风险权重、角度／关节目标或跨时刻目标；本轮新方案只选一个明确因素。log不会自动要求负z，在同批次中只是共同缩放梯度；批次聚合、任务权重与有限模型能力可能改变实际优化，但尚无它们造成负z的独立证据。[loss](../model/model.py#L285)、[log聚合](../model/model.py#L978)、[Q1配置](../configs/xdl/xdl_q1_s3407.yaml)
+
+| 已有四个可能入口 | 怎样产生负z的合理机制（推断） | 已知事实及不能越过的边界 |
+|---|---|---|
+| 训练目标深度支持 | 深层状态缺少对应真实终点，条件回归向较近的训练终点收缩 | E2 fit目标实际腕深437.891–680.577mm；local128包为707.448–748.074mm，全部超出。±50mm扩的是输入错误范围，不是目标深度覆盖。这仅是probe拟合样本，不是原Q1完整训练支持 |
+| 尺度增强语义 | focal改变K却不扩标签z；depth改变手的标签深度和运动，改变大小／深度条件关系 | focal并非数学上错误，也不能说它必然抹去全部测深信息；模型仍经K进行投影。两种语义不能当作只有coverage差异 |
+| 状态输入 | state99显式t/.1可提供近深先验捷径；不可靠观测时，远深incoming可能被回拉 | 同时还有UV／valid、legacy关联及bank查询的间接状态路径。删掉一个z输入不等于取消几何条件。N1重训偏置不证明Q1也由同一路径造成 |
+| 损失与访问状态 | clean小运动、注入大噪声、短burn及多个状态块共享容量，可能优先降低混合风险而损害clean跟随 | 当前目标不等于监督“−注入噪声”；已有真实终点监督。对称噪声本身不必然产生同号偏置；要检查条件误差和匹配权重干预 |
+
+**可解码阳性没有跨过clean保护门。** 以下仅为同一E2缓存上的z误差，不是新的主行或新训练结果：
+
+| 条件 | 原Q1 z-MAE | pre128两头seed | post128两头seed | hold z-MAE |
+|---|---:|---|---|---:|
+| 训练身份check，clean，576包 | 4.546mm | 16.270 / 15.641mm | 15.475 / 15.881mm | 1.470mm |
+
+check clean的pre有符号偏差约−2.09／−1.56mm，local clean却约−65.36／−60.11mm。这支持“一般留出泛化／校准失败，加上local额外同号域偏置”，尚不能把额外偏置唯一归给深度。check用于旧头选epoch，仍属selected-check；后续新头不得再用它挑epoch。[CPU审计](assets/s37_next_controls_20261014/e2_domain_clean_audit.json)
+
+**首步错误与反馈恶化也要拆开。** E2只覆写xyz，第一步角度与Q1相同；其后每支反馈自己的完整51D，重新执行FK→关联→query→读出，平移偏差能间接改变根和手指。global clean首步腕误差已从Q1的11.185mm增至pre的23.946／23.543mm，故不能把全部失败解释为递推后的状态分布偏移。训练探针的其余角度均为GT，只有z±50；部署own-natural则含多块相关误差，确实又增加了访问状态差异。应先让同态clean和扰动更新通过，再检验自由反馈，不能把混合单步MAE下降称为“单步恢复已经解决”。[替换与反馈](../tools/xde/e2_probes.py#L343)、[首步角度一致性与实际时间审计](../outputs/xde/e2/supplemental_audit.json)
+
+**E3的45.166%究竟测了什么。** 旧脚本使用main当前GT和均匀栅格可见像素；把仿射后的投影按原顶点z逆投影成参考网格，再在同一depth-K射线上与depth标签FK网格比较。没有使用实际previous、固定噪声、三步self-burn或真实事件stride支持。[取样](../tools/xde/e3_geometry.py#L150)、[参考及候选](../tools/xde/e3_geometry.py#L242)
+
+这个比较并非无意义：对clean-target的角距离top-K，focal和depth的统一尺度可近似约掉，仿射参考能近似刻画角候选变化；focal相对仿射参考投影p95仅0.01135px。但是原深度参考不是另一条实际训练流，不能据此推断near分支米制深度层、错误前态条件、完整融合或任务损失的变化。
+
+需要把两层误差分开：
+
+- **物理近似：** 图像缩放对应各顶点`Z_i/a`；刚性MANO的depth增强只平移腕点到`Z_root/a`。刚性depth网格减逐顶点`Z_i/a`参考的深度差为`(Z_i−Z_root)(1−1/a)`，投影误差随离轴和手内深度跨度变化。已有投影p95=1.538px是这一近似的量测，不是关联损失。
+- **离散敏感性：** top16中换一个顶点或面边界跨过一点就会触发“集合变化”。旧结果平均成员替换4.895%、hit/near/none变化2.055%，与45.166%集合变化不是同一个量。应追加逐顶点质量`qA`的总变差、来源part的保留质量、查询特征和预测变化；不能把集合翻转率直接视作错误率。[既有结果](../outputs/xde/e3_preflight/result.json)、[候选统计](../outputs/xde/e3_preflight/candidates.json)
+
+真实focal→depth还共同改变prev／target z、K和射线带宽、z运动标签、state99、bank查询与self-burn；固定米制噪声在标签变换后注入。Q1强制`XYZ_GEOM=false`，关系dXYZ／z和图edge几何清零，所以其连续几何变化不能被当作Q1现成输入混杂；当前主要入口是关联质量／支持、query和state99。[数据增强及噪声](../tools/xdl/data.py#L138)、[burn](../semkine/xyz_recovery_study.py#L170)、[几何清零](../semkine/xyz_mesh.py#L464)
+
+**仍欠独立证据的三个接口。**
+
+| 接口 | 现存材料可以回答什么 | 必须补的同前态比较 |
+|---|---|---|
+| 候选→排序→最终权重 | XA有part/kind/depth伪来源与最终摘要；当前hit/near排序用射线和几何，时间／极性内容在分配后才进rel | 正确part是否在候选、是否通过前层过滤、最终拿到多少qA质量，分开分母；现存标签没有来源face-ID，不声称精确面recall |
+| H3→LBS槽→legacy544 | XB有17×258槽和输入／目标，但没有H3；Q1的E2没有这一支 | H3→16个LBS mean/max槽→加残差槽17×258→slot_proj544逐截面配对；H3可读而槽不可读才支持LBS损失，槽可读而544不可读才支持槽压缩损失 |
+| 完整707→root/finger→反馈 | 现有E2只扰动z；XDL有物理角度扰动输出及运动分数，没有逐层特征 | 固定真实前态腕位置做正负root／finger扰动，再用同角度错误叠加z错误；区分自身角度修正失败与平移改变关联／查询造成的失败 |
+
+GT腕位置钳位只作机制上界，不能作为部署恢复。若固定正确平移后root/finger仍失败，存在独立角度接口或读出问题；若钳位后成立而自由平移失败，则优先处理平移与条件查询的耦合。以上两种结果目前都未被完整验证。[候选实现](../semkine/xyz_mesh.py#L244)、[层间与LBS](../semkine/xyz_mesh.py#L488)、[XB缓存](../tools/xb/probe.py#L205)
+
+<a id="repair"></a>
+### 13. 当前下一步、原计划与结诊条件
+
+以下四点保留XDE结束时的裁决；新审查后的具体执行顺序、预算与单因素对照以[13.5节XDF预注册](#xdf-prereg)为准。
+
+1. **已经确认：** local第一步偏置；当前自身错误上local净恢复失败；银行压缩后仍有条件修正信息；简单替头没有保护正常global行为。
+2. **优先保留：** 深度支持／外推与有偏状态读出或目标的耦合。关联候选、根旋转和手指仍需独立证据，不能因平移探针把它们判清。
+3. **暂不做：** 直接加宽34→4、再提高self比例、重复旧弱swap，或以当前focal→depth冒充干净的深度支持因果干预。
+4. **下一项最小匹配验证：** 先把深度支持干预的物理／候选影响说明清楚并预注册新的可接受合同，或在固定已验证观测接口下只改真实物理更新目标；两者不得一起改。继续要求clean保护、正负扰动、own-natural和正常global动作同时通过。当前结果不足以在两个因素间唯一选定因果病因，不能声称诊断已经结束。
+
+本轮快速筛选避免了在未满足前提时支出完整重训预算。训练仅20个小读出头；它们未成为部署候选。全部操作限GPU2–7，记录、命令和费用见[执行附件](assets/xde_20261014/README.md)。local＜10mm与可复现SOTA仍是后续目标，本轮未达到或宣称达到。
+
+<a id="priority-hypotheses"></a>
+#### 13.1 三个优先假设及XDE后的更新
+
+以下假设在执行前提出；H2中银行34→4已获得部分反证，其他接口不随之被排除。
+
+1. **H1 正确状态附近存在由训练分布及状态条件学习形成的深度回拉。** 历史平移参数采样显示local大量越界，focal增强未增加标签深度；XDE固定1000次focal曝光未覆盖实际local腕深区间，尚不能断言完整训练分布无重叠；Q0、Q1、N1都有大负z。最强竞争解释是相机／标签偏差与观测信息不足。当前支持“偏置存在”，尚不支持“只修depth增强就能解决”。
+2. **H2 事件中的纠错信息在候选选择或空间聚合压缩中失去可区分性。** 单一硬对应、剩余单槽、Q银行34→4均有此可能。最强竞争解释是最后接口已经含有信息，但现读出没有利用。必须拿到同前态真实E的条件增量信息，不能只引用oracle、coverage或梯度非零。
+3. **H3 当前目标与访问状态分布偏向去噪收缩，未同时学会准确运动及持续恢复。** N1也收缩、self仅末包监督、正常细动作弱与此相容。最强竞争解释是可用观测本身不足，增加恢复监督只会学更强先验。只有一步真实纠错通过而连续递推失败，或末层信息明确可解码时，才优先改读出／恢复训练。
+
+三项不是互斥病因；它们分别对应偏置注入、信息传递和更新使用。不得由一个阴性探针把其余解释自动判真。
+
+| 假设 | XDE后的定位 |
+|---|---|
+| H1深度回拉 | 全local确认偏置；固定1000次focal曝光未覆盖实际local腕深区间，不能推出完整训练分布无重叠；几何前置未过，匹配重训因果仍缺失 |
+| H2信息在关联／压缩中丢失 | 银行pre/post均有增量且排序不稳定，不优先只加宽34→4；mesh→LBS与候选排序仍未测 |
+| H3读出／目标及闭环分布不足 | 替头仍偏置、local不恢复且global退化；可用信息不等于部署更新可靠，原目标对多步目标仍缺匹配对照 |
+
+<a id="historical-repair-priorities"></a>
+#### 13.2 历史修复问题及尚未覆盖项
+
+1. **统一验收对象。** 同E改变物理错误前态后，同时检查GT腕点/绝对joints、root/finger测地角、RA形状、真实事件下自恢复及clean运动。保留所有失败、初始已满足、短段和undefined；拒绝以RA或ρ单指标替代。
+2. **保留有效基础，分别隔离绝对位置信息。** Q查询和self作为候选基础；分别比较深度覆盖/尺度语义、原z相对化或单通道控制、独立观测位置估计。一次只改变一个可归因因素，不能同时改数据、头、loss再宣称某一项生效。
+3. **定位细动作表示/分块读出。** 先比较同监督/同状态/同预算的编码与读出，再检查root/finger时序或局部运动证据；全局pooling与局部结构、状态条件输入和观测估计分开控制。必须保护GT起态和正常动作。
+4. **检验恢复监督。** 比较现三步burn+单末包与明确的真实GT恢复/跨步目标；teacher对照、零观测N1和正常动作保护保留。尚未证明更多unroll或更高self比例有效。
+5. **随后处理置信、旋转合成与精确时间。** 它们作为单变量合同/效用试验，而不是因代码存在风险就自动扩大网络。XC阴性后不优先重复同四片方案。
+
+以上为10月13日提出的五类问题，随后以三项计划实施快筛。后续完整重训仍须冻结追加seed/repeat与训练预算。XDL只一个seed，不把missing repeat当δ=0；本文上述修复项仍是待验证问题。
+
+<a id="decision-tree"></a>
+#### 13.3 结果决策树与结束诊断的条件
+
+执行后位置：E1偏置门通过；E2银行末层有可解码增量但替头恢复失败；E3几何门未过。因此尚未进入“匹配修改＋真实恢复均成立”的结诊节点，不能把可解码阳性直接升级为读出创新。
+
+```mermaid
+flowchart TD
+  A[偏置与同前态事件净纠错 E1] --> E[候选与两个压缩截面 E2]
+  E --> B{深度覆盖仍是优先解释 且几何合同通过}
+  B -->|是| C[匹配深度训练支持 E3]
+  B -->|否| F{第一处有正证据的断点}
+  C --> F
+  F -->|raw可用 但候选外| G[修候选与再捕获]
+  F -->|候选在 内容可判别 规则选错| H[修关联排序与拒绝]
+  F -->|上游可解码 下游丢失| I[修表征 聚合或压缩]
+  F -->|最终接口可解码 部署头错误| J[修读出或endpoint目标]
+  F -->|单步真实纠错通过 连续失败| K[修闭环访问分布与恢复目标]
+  F -->|均无阳性定位| L[继续核观测与标签 不扩大架构]
+  G --> M[单因素复现 加跟踪全指标护栏]
+  H --> M
+  I --> M
+  J --> M
+  K --> M
+  M --> N{机制定位 因果复现 真实恢复均成立}
+  N -->|是| O[结束该瓶颈诊断 收敛具体创新]
+  N -->|否| P[保留竞争解释 不以RA或rho单项结诊]
+```
+
+**结束某个瓶颈诊断，需要三种证据同时成立：**
+
+- 定位证据：找到具体偏置／信息损失接口，至少有正向可解码证据或受控干预，不能只有排除法。
+- 因果复现：一个匹配修改在至少两个seed同向、超过自身repeat波动，正确起态的误差注入随之减小；关联／表征／读出中的其他因素保持不变。
+- 跟踪证据：真实事件优于状态先验及等幅收缩控制，正负扰动和own-natural都向GT恢复，正常运动、绝对位置、lag、jitter与完整成本满足冻结护栏。只改善深度就只结束深度诊断，根和手指不能自动晋级。
+
+之后的具体创新应围绕**已定位的一个机制**收敛：若为对应，研究错误前态下可再捕获的稀疏多候选观测；若为压缩，研究保留修正方向和质量的局部充分统计；若为更新，研究以真实观测残差及可观测方向约束MANO更新并保护正常运动。论文要证明该机制相对容量、数据覆盖、普通平滑和先验回拉的独立收益，而非模块堆叠。
+
+local MPJPE＜10 mm 是后续完整闭环验收目标，不是本轮已达结论。它应和绝对位置、持续恢复、抖动、lag及每秒成本一起成立。现有zgz单受试者开发／上报协议可以保留用于内部迭代，但不能单凭该协议宣称可复现跨受试者SOTA；论文阶段还需在明确的公开基准与同传感器、同初始化、同对齐、同算力合同下外部验证，不改写当前固定split。
+
+<a id="xde-plan"></a>
+#### 13.4 首批三个最小判别实验：执行前合同
+
+**本节是执行前合同存档，不是当前任务状态。** E1快实验已完成；E2只完成Q1银行及平移头范围，未完成旧C0／mesh→LBS、候选和root/finger全套；E3只有前置几何核验，完整重训未启动。详细差异见[执行状态](#current-verdict)与[实际结果](#xde-results)。以下预算、重复次数和判据保留事前版本，不改成结果或实际费用。
+
+<a id="plan-e1"></a>
+##### E1 实际深度偏差与事件净纠错
+
+**要区分的解释：** 主要是正确状态附近已有偏置注入，还是误前态才触发错误反馈；并检验同一错误状态下真实事件是否提供超过先验回拉的净纠错。
+
+**比历史多什么：** XDL已经有扰动、N1、20步恢复和错内容，无需重做整套。新增的是有符号的 `b+r` 分解、对真实窗末GT的hold对照，以及Q1自身自然错误的内容干预。当前报告完成的是24包的CPU初步复算，不能替代全local验证。
+
+**复用与固定：** 复用Q1/Q0/N1、旧C0的`bank.pt.gz`、`recovery.pt.gz`及`motion.pt.gz`中的全段轨迹（下称full_motion）和冻结片段银行，固定权重、K、beta、事件包、计分时钟。主分析为z，xy／root／finger作护栏；旋转按现有物理扰动合同。clean与扰动态必须来自同一包；24包单步bank与另一组20步片段不能直接相减推算累积贡献。
+
+**只增加的工作：**
+
+1. CPU扩展复算到现有可用seen、global/local记录，按深度、事件数、真实运动和段龄分层；记录空格子及缺乏重叠支持。对24包以外的clean反事实，最多追加一次固定全local逐包GT前态回放，不更新权重。
+2. 从Q1既有full_motion轨迹取自身错误前态，使用事先固定的z误差分层与等间隔抽样，每条序列最多24段、每段20步；保留共同C0 natural作为公共对照。选择不使用未来恢复成败，不能只选“最坏案例”。
+3. 相同前态下比较真实事件、现有swap/mirror，以及**新增一种有强度验证的时间破坏**：固定xy、p、计数和时间戳集合，在极性组内随机重配时间戳，再稳定排序并重算token。验证时空相关性确实被破坏，同时检查采样support变化；它是分布外机制控制，阴性／阳性都不独立证明自然因果。先做24包受控回放，不扩成新训练臂。
+
+**指标与判据：** 每轴signed bias、腕／absolute MPJPE、root及finger测地角；真实E相对hold与错E的GT误差改善、方向和增益；`||b||²`、`||r||²`、`2b·r`分别报告，不强行化为原因百分比。复用20步实际时间AUC、持续恢复与正常运动指标。自然误前态没有GT-clean分母时不要硬造ρ。
+
+建议把“偏置主导”预定义为：在扩大后的local clean样本中，至少75%的包被更新得比hold更差，负z同号比例≥75%，z占总腕平方误差≥80%；这些是**机制筛选门**，不是总体统计定律。事件净纠错需在相同状态下优于hold且优于匹配错内容，并在正负z扰动和own-natural上同向；不能仅靠mirror显著变坏通过。
+
+**预算：** 优先CPU，补推理≤2 GPU·h；先100包测每包耗时，保持batch1科学回放合同，避免历史batch形状导致的数值差。未完成全量时报告覆盖率，不沿用“全local”措辞。
+
+**结果决定下一步：**
+
+- 大偏置扩展成立，N1／Q0也同号：优先H1，进入E3的深度支持检验；仍用E2检查事件是否有纠错增量。
+- clean偏置较小，但扰动／own-natural失败：转向H2/H3，优先E2；E3默认depth方案暂停，不能为凑三项硬跑。
+- 同态真实E稳定更接近GT、单步有效但20步失败：优先恢复训练／持续状态更新，而非重新证明事件有信息。
+- 空间控制有效、时间控制不敏感：不能以异步时序纠偏作为创新主张；后续表征须明确增加可检验的时序量。
+
+<a id="plan-e2"></a>
+##### E2 查明信息在哪个接口丢失
+
+**要区分的解释：** 纠错信息在关联／聚合之前就无法取得，还是最后接口仍可解码而部署读出／训练没有利用。
+
+**比历史多什么：** 旧ridge/CCA及GT替换没有给出当前XYZ/XDL同输入、同状态、同目标的层间比较；XB改了空间残差整体，不能定位具体压缩点。这里先查两个窄截面：XDL每槽34维→4维，XYZ传播后顶点→LBS槽。不默认训练八套新编码器。
+
+**改变与固定：** 冻结Q1及旧C0 backbone，在完全相同事件、前态、标签上提取上述特征；每个探针均可读相同state99。给出等预算state-only、state+真实特征、state+错事件特征；监督**真实下一状态所需修正**，不能只预测人为注入的δ。34→4截面把4维零填充到34维，使用完全相同下游MLP，不加一个可能再次丢信息的投影；state-only把对应观测位清零。报告名义与实际活跃参数，输入维数不同本身是待测因素。另一截面用共享逐token层及固定16查询的读出，不设每顶点独立参数；启动前列出适配器、参数和计算计数，若无法做到可比较，就只裁决34→4截面。增加一次预声明较宽读出检验，避免小探针欠拟合被误判成信息缺失。
+
+拟合与超参选择只在既有九人训练身份内部按不重叠连续段进行交叉拟合，保留包长、段边界和缓存清零；不改全局split，不用zgz拟合。先拟合z修正，再在相同接口检验root/finger；共享状态输入可能提供捷径，**真实事件相对state-only的增量价值**才是主要读数。
+
+若两个截面都没有定位，按固定顺序向上追加一次raw/token／relation对照及候选审计：
+
+- 候选支持：在相同错误前态下，统计GT投影支持区域是否落在候选邻域、几何top-K和未匹配通路；GT只离线计分。
+- 候选可区分性：在已覆盖的集合内测正确候选的排序／兼容性，比较真实内容与交换内容。真实数据的最近GT面只是**几何伪来源标签**；没有独立来源或可信合成事件时，不称真实来源recall。
+- 保留未匹配类与噪声类，不强迫每事件对应手部；GT末态不得进入部署特征、查询中心或训练侧验证输入。
+
+**指标与判据：** training段交叉验证及zgz固定评价分别给出真实GT修正误差、signed z、方向正确率、对应支持与排序；报告输入状态误差相近时的表现。候选支持、排序、下游输出各用自己的分母。
+
+建议将探针阳性预定义为：真实特征相对state-only和错事件，两种探针初始化均在训练段留出上同向，z修正MAE至少降低10%且≥2 mm；root/finger各自测地角MAE至少降低10%且≥1°，分别裁决，不折算成同一个总分。低运动／不可定义方向另列。探针只是可解码下界；即使通过也不自动是部署更新器，必须附短自递推复核。负结果不得写成信息论不可观测。
+
+**预算：** 单次特征缓存＋小读出拟合≤6 GPU·h，最多两轮固定截面；若需要大编码器重训才能测试，退出此最小实验并重新预注册。
+
+**结果决定下一步：**
+
+- 正确信息主要在候选外、raw区域仍能给出纠错：修候选获取／再捕获，保留剩余证据。
+- 候选在集合内，内容能区分但现规则不能：修关联排序、未匹配及可靠性语义；不继续盲目扩大面搜索。
+- 压缩前有事件增量价值、压缩后没有：修聚合／槽压缩／质量传播；若raw有而编码后无，修事件表征。
+- 最后槽特征可生成正确修正、部署头仍错误：优先分块读出或物理endpoint监督；暂不换候选或大编码器。
+- 所有探针都失败：保留观测／标签／训练可识别性竞争解释，不能直接认定GNN路线死亡。
+
+<a id="plan-e3"></a>
+##### E3 匹配检验深度训练支持是否足够重要
+
+**本轮默认的唯一重训因素：** 同Q1，把 `AUG.DOMRAND.SCALE_MODE` 从默认`focal`改为`depth`。不同时改bank、候选、state99、SO(3)合成、损失、self比例或窗口。
+
+**要区分的解释：** 扩展度量深度训练支持能否消除主要clean回拉，还是在该干预下依旧有同量级偏置，需要转向观测读取／更新目标。它直接回应新发现，而不是再做一次contour或提高self比例。
+
+**比历史多什么：** S39的depth收益属于不同稠密配方；S37→S43相关消融未完成。XA C0是去几何组，XDL F/Q与self没有改变depth支持。当前没有同Q1的匹配focal/depth因子证据。
+
+**前置合同：** `depth`模式对MANO根深度精确，但以整手z平移近似图像缩放，离轴和手指深度跨度处存在透视残差。先在训练标签上复算残差分布、有效深度覆盖、越界／删事件比例，核对其与原增强随机流对应。建议固定1000个训练状态／增强实现，以逐顶点仿射投影为参照，要求投影残差p95≤3个事件像素、可见支持点的候选身份变化≤5%；3像素对应现有front阈值的量级，是建议工程门。不得称为严格物理深度干预。若前置门失败，先停止本实验，不能把其阴性当“深度覆盖无用”；也不得在zgz上调scale范围以追求阳性。[实现与既有误差说明](../semkine/domrand.py#L28)
+
+**固定项与重复：** 两臂固定6000末步、2卡×512、微批与logloss聚合、counter RNG、训练clip身份、rawW50、增强数值抽样、full-batch burn以及科学评价。使用3407/3408；两臂各补一次3407完整repeat。现有focal/Q1的3407身份可验证是五run预算的启动条件；不能复用就不启动，重新估算六run成本。最多5个新增完整run，不能把旧C0或N1当focal控制。
+
+**指标与判据：** 首要指标为local全量clean signed z与腕点误差；次要为正负扰动和own-natural腕点／absolute AUC；同时检查RA、root/finger、正常运动、抖动与完整时延。
+
+建议成功门：两seed各自使clean腕点误差降低≥10 mm，且 `|mean(b_z)|` 至少减半，符号翻转不能自动算改善。另对腕点及绝对z偏差分别定义比较 `C=E_focal−E_depth`，用原／repeat比较的差估计δ，`τ=max(实用门,2|C_repeat−C_original|)`；两seed均值还需超过τ。腕点实用门10 mm，绝对z偏差实用门10 mm。该门是一次工程复跑检查，不是CI或普遍方差估计；均值过门但任一种子未满足自身门，记未建立可靠效应。
+
+RA不恶化超过预声明0.3 mm、motion方向不下降超过0.05、平均lag不增加超过25 ms，并保留50 ms离散分辨率解释。数据增强无推理新增模块，仍以真实完整p95时延不恶化超过5%核查；若测量波动超过5%，先记时延未定，不用单次计时强判。
+
+**预算：** 先做CPU增强几何核验；既有Q1的实耗为11.0683 GPU·h／run，五个Q1式self run约55.34 GPU·h训练，不能用包含便宜teacher臂的五臂平均数估算。另留评价与工程余量，E3建议硬上限65 GPU·h。启动前100步测吞吐并确认完整预算，不因超限临时减少seed或缩短训练后仍声称同预算。三项合计建议上限73 GPU·h，绝大部分预算在E1/E2以后才支出。[实际费用来源](../outputs/xdl/independent_final_cost_review.json)
+
+**结果决定下一步：**
+
+- 深度偏置消失且绝对恢复改善：H1获得匹配支持。若RA／细手指仍差，结论仅是深度瓶颈被定位，不宣布整手tracking解决；依E2只改剩余接口。
+- 偏置减小但只靠低运动增益／增大滞后：失败，不能当稳定性创新。
+- 覆盖扩大、增强几何可接受、偏置仍在，且E2末层阳性：下轮只改读出／物理endpoint目标，停止继续扩深度增强。
+- 一步净纠错已成立而连续恢复仍坏：下轮固定已验证观测接口，比较单末包目标与真实多步恢复目标；保留clean正常运动监督。不能把同时新增BPTT、self比例、旋转合成的组合叫单因素。
+- 阴性且增强透视残差大：只能否定本增强实现，不能排除数据深度支持这一解释。
+
+<a id="xdf-prereg"></a>
+#### 13.5 XDF新预注册V1：最多三项，先做完整接口
+
+日期2026-10-14，**本节保留执行前合同；执行结果见13.6节，冻结快照不随结果修改**。本合同与XDE-E1/E2/E3独立编号；旧E3仍为候选门FAIL、未启动完整重训，不更改旧5%门、原始JSON或已报告分母。登记入口见[实验账本](#xdf-prereg-20261014)。本节只安排冻结主干／匹配小头的快速判别，不能据此替代完整模型两seed验证。
+
+**最值得先做XDF-1。** 它先排除已经确定的“探针漏掉544维”混杂，又能把同态读出错误与后续反馈拆开。若完整接口在训练支持内尚不能保护clean，现在就做昂贵depth重训或扩大unroll都缺乏足够依据。XDF-2和XDF-3分别只改变深度曝光政策、监督权重，禁止拼成一个同时改数据与loss的候选。
+
+| 顺序 | 核心比较 | 快速阶段硬上限 | 是否完整重训 |
+|---|---|---|---|
+| 1：XDF-1 | 完整707 vs 缺legacy544；同态更新 vs 自由反馈，必要时上溯候选／LBS | 2 GPU·h；先执行≤0.5 GPU·h的完整接口阶段 | 否 |
+| 2：XDF-2 | 原生真实深区截断 vs 覆盖；另作实际focal/depth路径语义审计 | 1 GPU·h，CPU统计另限2小时 | 否 |
+| 3：XDF-3 | 同数据／前态／完整接口，原z损失权重1 vs 2 | 2 GPU·h，含一次固定own状态缓存 | 否 |
+
+GPU只使用已授权物理2–7；预算按占用卡数×墙钟累计，启动、缓存、拟合、评价均计入；先100包测速，预计超限则记录未完成，不缩分母后宣称通过。三项上限合计5 GPU·h，非已实测费用；不以占满六卡为目标，不自动追加完整训练。预注册快照及输入身份将存`outputs/xdf/preregistration_v1.md`和`preregistration_v1.json`。
+
+<a id="xdf-1"></a>
+##### XDF-1：完整接口、状态支路和反馈的最小闭合检查（第一优先）
+
+**区分：** A. E2主要受缺legacy观测／有限探针泛化限制；B. 完整最终接口仍难以在错误状态下读出可靠修正。若A被排除，再区分候选／压缩损失和读出使用失败。它补的是整个Q1实际接口，不再重做bank34→4比较。
+
+**固定与改变：** 固定Q1 step6000、β、K、raw W50、batch1、E2原始包／fold／donor、相同真实下一时刻目标。先补原2560包×clean／±50z的legacy544，既有bank64和state99复用，真／错内容保持配对；在`_recovery_readout`之后捕获fc1输入，必须是707而非592。用原fc1/fc2重放，要求每维delta与冻结forward最大差≤1e−6（float32），加同incoming后计分一致；不满足则先修取证。
+
+主要两臂F（完整707）与B（legacy544清零、保留bank64+state99）使用相同`707→256 ReLU→3`平移头、相同名义参数、AdamW(lr=0.001, wd=0.0001)、batch256和固定300epoch末点；增加Wlegacy（wrong legacy544＋真实bank64＋同state99）、state-only及完整wrong-content控制。用真实完整fit特征统一计算mean/std（std下限0.001），标准化后再将被消融块置零；xyz残差以mm/50拟合。输入均补齐707，披露实际可变维度。两个头seed1701/1702配对，所有臂优化步数相同。原check只计分，不作epoch选择，zgz不用于选头。这只能叫冻结Q1特征的留段验证，Q1主干训练见过这些身份／片段，不能称整网未见。
+
+**按顺序补证，出现明确断点即停止向上扩矩阵：**
+
+1. **直接状态与观测支路。** 在缓存上用原头做`obs608(s0)/obs608(sδ) × state99(s0)/state99(sδ)`的2×2重放；全部delta都加同一个实际`sδ`，并与同一GTnext比较。先看显式t_z列±5mm的小扰动，再看全部state99；必要时拆legacy与bank。混合特征仅是机制反事实，UV/valid和观测608都依赖前态，不能声称已经取消全部几何或可部署。
+2. **root／finger独立纠错。** 从原包单每训练序列固定等间隔取4 fit＋2 check、zgz各24包，共480包；追加root±20°、finger±20°，沿用XDL固定物理SO(3)轴向量、hands_mean和腕补偿。先固定真实前态腕位置，再在同一状态叠加z±50复用筛查。finger先用15关节固定向量共同扰动，并逐关节报告，不能称已覆盖全部单关节自由度。对完整707做同预算分块角度probe，目标是实际GTnext旋转，使用既有AA状态合成，评价SO(3)；不同时更换合成算法。[物理扰动实现](../tools/xdl/geometry.py#L70)
+3. **只有末层不足才上溯。** 在同480包和固定三类状态（clean、+50z、+20°root）补`H3→LBS slots→zs544`及候选。捕获最后MeshGNN输出、slot_proj输入／输出；保留residual槽、支持O/S及质量，不用不同包比较上下游。H3使用共享逐顶点映射＋固定16槽适配器，slots使用逐槽映射，读出宽128为主、512仅作固定的阴性复核；参数、有效维度、MAC均另列。适配器和探针欠拟合仍是阴性的竞争解释，不宣称信息论丢失。旧C0在相同包上仅作历史结构锚点，不把跨模型差异当层间因果。
+4. **候选支持与排序各用自己的分母。** 固定真实事件采样索引，去重top16的邻接面、排除−1；记录来源part进入集合、通过几何前层、最终qA质量三步。GT逐事件毫秒网格只作离线伪来源计分；背景／噪声／未匹配单列。只有“候选内、真实内容小ranker比几何排序更好”才优先学习排序；ranker使用训练身份的几何伪来源、同一候选集合及state控制，仍不等于真实事件面来源已知。正确信息在候选外，且更广token支持上的同目标probe阳性，才支持修候选获取；仅低伪recall不能排除标签问题。
+
+**预设判据：** F相对B和Wlegacy的check clean腕误差，两seed均下降≥10%且≥2mm，才判定正确legacy内容具有实用影响；只胜B而不胜Wlegacy不能排除新增活跃维度／容量或输入扰动效应；clean、−50、+50分开，不能用混合均值过门。事件增量需同时优于state-only与wrong。root／finger各自要求角误差下降≥10%且≥1°，逐块判定。候选内排序的条件part top1准确率须提高≥5个百分点且真内容优于wrong，两seed同向；精确face没有标签则记未定义。局部比较超过门但未优于hold，只叫接口阳性，不能叫净纠错。
+
+同态单步净纠错必须对clean、正负扰动及Q1 own三个条件分别报告，与hold／原Q1／wrong比较。只有clean不劣于原Q1且perturbed／own真实E优于hold和wrong，才进入“反馈是主要剩余问题”的分支。复用E1两序列各24×20步，增加两种机制对照：所有头在同一Q1历史前态上做teacher-replay，以及各自自由反馈；原Q1对照必须逐状态重放一致。另作腕位置钳位的角度回放，明确标成GT机制上界。
+
+**结果导向：**
+
+- F恢复训练支持内／global性能，local仍同号偏：优先XDF-2，不把E2旧头失败当所有读出无效。
+- F也在训练支持内clean失败：先核probe fit与留段差、state支路及目标权重，进入XDF-3；不能只归深度外推。
+- H3阳性而slots阴性：优先怀疑LBS聚合；slots阳性而544阴性：优先怀疑slot压缩；候选内可区分但规则错选：优先修排序；候选外且广域token阳性：优先修获取。层间探针仍需后续匹配干预排除适配器／容量因素，无正向对照则保留未识别。
+- 正确腕位置下角度纠错成立，自由平移时失败：优先平移—查询耦合；正确腕位置下仍坏：root／finger有独立缺口。
+- 同态clean及净纠错都过、自由递推失败：才把访问状态覆盖／跨时刻训练提到首位；先做一次首个分叉步骤回放，确认不是首步坏更新累积。
+
+<a id="xdf-2"></a>
+##### XDF-2：固定原生观测语义，只检验深度曝光政策
+
+**区分：** A. 深度边界处缺少对应目标样本，读出发生外推回拉；B. 在目标深度已有支持时仍更新错误。补上现有±50前态噪声不能提供的“目标深区曝光”对照。此快速实验识别冻结Q1特征上的读出支持，不冒充完整编码器训练支持因果。
+
+**先核支持总体。** CPU枚举固定72序列的全部合法训练endpoint和β，以`J0_z+t_z`统计原生目标／前态深度及subject×序列类别分布；与已保存1000次增强曝光分开。E2 fit的680.577mm上界、旧710.2mm平移记录、全量原生腕深上界必须分别报告。若原生训练不覆盖实际local范围，明确承认目前不存在无增强的local深区配对证据，不用给前态加50mm伪造覆盖。
+
+**主对照D0／D1：** 复用XDF-1完整707缓存，只用原生事件、原K、原标签，不切换focal/depth、不改loss和状态噪声。以fit唯一包的实际目标腕深80%分位为预固定边界T（不是从zgz拟合T）。D0仅曝光`z≤T`；D1在相同样本总数下按80%低深、20%高深曝光。subject×local/global×事件量二分×真实腕运动二分格内匹配曝光；二分阈值由fit确定，只比较同时含低／高深的格，空格保留。每格取`N=5×floor(min(n_low,5×n_high)/5)`个唯一包：D0取N个低深包，D1保留其中固定80%并以高深唯一包替换另20%；按包ID稳定排序取样，各臂独立包数与每包曝光次数相同，N=0的格保留为空。实际状态／事件内容多样性仍随曝光政策变化，不能宣称纯深度以外完全等同。同包全部扰动副本同fold，两臂优化步数／头结构／损失／seed相同，均取固定300epoch末点、共同低深fit样本计算的预处理统计，不以高深selector替D0选点；其余优化参数沿用XDF-1。
+
+评价旧check中`z>T`与`z≤T`的连续块，zgz仅作外部固定读数。先冻结格子、样本ID、实际各格运动／姿态分布及最终T；若高深评价不足3个训练身份、20个不重叠时间块，则登记支持不足，不强跑并给阳性结论。不同深度包伴随动作和遮挡变化，分层只能减少这种差异，不能宣称除深度外逐像素相同。
+
+**预设判据：** D1在训练内部高深check上的clean腕误差、z-MAE相对D0，两头seed均下降≥10%且≥2mm；低深check不恶化超过1mm，正负扰动分别保留。若D0本来没有≥2mm的负z偏置，则这次没有复现待解释的“回拉”，不能仅凭MAE下降声称解释了S37负z。若有回拉，还要求`|mean(b_z)|`至少减半且不是由正偏置替换。高深收益若只发生在姿态／事件量不重叠格，记曝光政策与伴随因素未分离。
+
+**同时重审增强语义，不启动重训：** 复用E3的1000个counter索引／随机数，分别走真正`RawRecoveryDataset`的focal／depth路径，保存事件与stride索引、K、变换后prev／target、噪声、关联qA、bank查询、state99及预测；固定一套Q1权重。先teacher/noisy，再按各自输入做固定Q1三步burn。后者是同权重数据流敏感性，不是两种训练好模型的比较。物理仿射投影残差仅在同一时刻、未加噪声的对应GT姿态上计算；实际previous／noisy／self-burn的偏差另称训练流状态偏差，其中包含运动、噪声和反馈，不混作增强误差。逐顶点精确影像参考只诊断，禁止作为可训练MANO真值。
+
+新审计分别报告：投影p95／p99、top16成员替换、part有效覆盖和保留质量、每事件顶点质量总变差`0.5Σ_v|w_f(v)−w_d(v)|`（未匹配为额外质量槽）、bank查询变化、完整读出变化。**两条物理语义不同的流不要求候选ID相同**；小投影误差却较大集合变化未必损伤修正信息。此处不设替代旧5%门的“新通过”门，只回答旧门的代表性，完整训练的准入仍须另行冻结。
+
+**结果导向：**
+
+- D1只在原生高深留段改善：支持读出深度曝光政策有作用，仍未证明zgz域和完整训练病因；不立即宣称depth增强有效。
+- 完整接口在支持内好、在没有目标覆盖的local坏，D1内部边界对照又阳性：下一步才值得完整匹配支持干预。优先在同一种经核验的depth语义内比较近深／宽深曝光，两臂保持同loss；focal→depth只能另称语义总效应，不能冠名纯coverage。
+- D1无效且支持充分：降低“只增深度覆盖”的优先级，转XDF-3或XDF-1发现的具体接口；仅冻结特征阴性不能排除编码器需要重训。
+- 实际流显示候选质量／query发生变化：先记录接口变化，再用同态输出或受控钳位检验是否损伤更新；仅相关变化不能判为主因，也不能用参考网格45%就宣布数据假设失败。
+
+<a id="xdf-3"></a>
+##### XDF-3：固定深度与访问状态，只改变z监督权重
+
+**区分：** A. 最终读出的优化权重不足以保护z更新；B. 固定信息与支持下，加重z风险也无法得到正确clean及恢复。它不再检验“有没有endpoint监督”，也不同时改变深度增强、state99、角度合成、self比例或时间长度。
+
+**固定数据和状态，避免把loss效应混成访问分布效应。** 复用XDF-1完整接口及物理扰动缓存；额外在既有fit时间块内每训练序列最多4段、每段20步，使用冻结原Q1产生own前态，至多5760次forward。片段按时间中点固定抽样、不看恢复结局、不跨valid run或fold，真值只作目标。两臂使用同一个缓存和每一步相同的采样／增强／前态，禁止按各自新头在线生成训练前态。原生目标深度支持相同，不使用XDF-2的深区曝光重加权。
+
+**唯一变化：** 冻结编码器、关联、slot_proj和bank；两臂从相同原Q1的fc1/fc2初始化，只优化这两个最终51D读出层。原臂保持`L_t=(e_x²+e_y²+e_z²)/3`，新臂改为`L_t=(e_x²+e_y²+2e_z²)/3`，其中e为真实下一时刻平移误差，单位m；**分母仍3**，保证log前的xy系数不变；保留log后，`1/L`仍会共同缩放其他块的有效梯度，这是该单因素的组成，不声称其余块梯度相同。30000／60／450、/51、rank内batch后log、AA合成和其余项全部固定。两臂均从fresh Adam状态开始，使用Adam lr=1e−4、batch512、固定100epoch末步；不择zgz、check或最佳epoch。两组数据顺序seed1701/1702，每臂额外重复1701一次，六个小读出拟合；这不是六个完整模型训练。
+
+在训练前，对相同缓存计各损失块到fc1共享参数的梯度范数、方向cos，并比较z项与root／finger项；这只能显示该参数点的优化竞争，不等于病因已定。训练后记录同样读数，检验效果是否与干预方向一致。clean仍监督实际运动终点，不加“更新为0”或将GT速度设0的保真项。
+
+**预设判据：** local clean全1204包，两个seed的腕误差均比L0下降≥10mm且`|mean(b_z)|`至少减半；平均收益还需超过`max(10mm, 2|C_repeat−C_original|)`，其中C为同seed L0−L1差。这是工程复跑门，不是置信区间。若在支持内clean已有小偏置，另给≥10%且≥2mm的机制读数，但不能借它替代local主门。对正负扰动及own-natural必须同向，不得只改善+z输入。
+
+之后按共同合同检验两序列真实反馈、正常运动和global保护；只过偏置门记“监督权重影响偏置”，不记恢复或新方案通过。若单步已正确而自由递推失败，本实验不临时加BPTT／unroll；将固定观测接口上的访问分布或多步目标留给下一份预注册。若阴性，也只降低“当前z权重不足”这一解释，不能否定所有训练目标。
+
+<a id="xdf-acceptance"></a>
+##### 三项共同的判断边界与停止规则
+
+主分析为各自固定包上的配对差，训练身份按subject及连续块分别列，zgz只是一名受试者的两条序列；两个头seed不是完整训练seed。任何层间或数据域阴性必须保留小样本、探针拟合和无重叠支持的解释。模型选点、预算、实际分母与失败均进入新产物，历史输出只读。
+
+| 必查项 | 冻结的读数与保护门 |
+|---|---|
+| clean真实运动跟随 | signed xyz、腕误差和absolute MPJPE；相对真实GTnext与hold，不能用小更新本身作为保护。200ms正常运动为主，50／150／250／500ms作敏感性 |
+| 正负扰动与恢复 | z±50mm、root／finger±20°分别报告；E1固定own每序列24×20步，21状态实际时间AUC。持续成功仍为absolute MPJPE≤20mm且RA≤10mm连续3查询；初始已满足、无效与失败分开 |
+| global保护及状态块 | 与原Q1及相应匹配控制同时比较：global腕／absolute误差不增超过1mm，local/global RA不增超过0.3mm，root／finger测地角不增超过1°；尾部p95另列，不以overall抵销 |
+| lag与抖动 | motion cosine不降超过0.05，gain与真实运动相比较，平均lag不增超过25ms；50ms网格限制保留。腕／角速度和加速度误差不增超过5%；静止段漂移单列，短段jerk不冒充完整手部抖动；undefined不填零 |
+| 软件链成本 | 相同机器／线程／W50，完整回灌、切窗、传输、FK、关联、forward、输出MANO与host-ready，同序列三次回放；p95不增超过5%，波动超过5%记未定。事件年龄、queries/s、峰值内存、总卡时分列，未接传感器不声称硬件端到端已测 |
+
+**机制筛查通过与可以结束诊断是两级门。** 能定位某接口不要求已经达到local＜10mm；但要结束该瓶颈诊断并收敛论文创新，还需一个匹配修改在至少两个完整模型seed同向、超过自身repeat波动，clean保护和真实事件净纠错成立，own-natural新增持续恢复且无global／运动／lag／抖动／成本护栏失败。只解决深度就只结束深度诊断，root和finger不能自动晋级。
+
+当前首先执行的决策顺序是：**完整707是否能在同态下正确更新 → 在支持内外是否分离 → 目标权重能否在固定支持下改变偏置 → 再看自由反馈。** 若已有明确候选／聚合断点，就修该接口；没有正向定位时，不把“关联、表征、读出、训练”任一项宣布为唯一病因。
+
+<a id="xdf-results"></a>
+#### 13.6 XDF实际执行：有可用信息，但尚未得到可靠更新
+
+2026-10-14，用户授权物理GPU2–7和CPU后执行。GPU2/3做完整接口及反馈，GPU4做角度及完整软件链，GPU5/7做目标对照，GPU6做实际增强流；CPU并行普查、复算和护栏。所有新代码位于[tools/xdf](../tools/xdf/)，原checkpoint、划分和XDE产物只读。正式S39及模型主表不变。下列是固定Q1的诊断评分，不是新部署模型主行；头seed不是完整模型seed。
+
+![XDF接口、监督和反馈结果](assets/xdf_20261014/diagnostic_summary.png)
+
+图由[脚本](../tools/xdf/plot_results.py)直接读取结果生成。A为训练身份check的576个clean包，B为完整local1204个clean包，C为各24段own、21状态真实时间AUC；三者分母不能互换。
+
+##### 13.6.1 XDF-1：漏接口确实是混杂，但补全并未通过clean与恢复
+
+原2560包×3种z状态、真／错内容共15360次forward，7680配对行。707维在`_recovery_readout`后捕获，原头delta及endpoint重放最大差均0；与E2原bank、state、incoming和prediction也全部逐值一致。10个平移头按固定300epoch末点评分，无check选点。[协议](../outputs/xdf/interface/protocol.json)、[数值与内容门](../outputs/xdf/interface/summary.json)、[源码](../tools/xdf/interface_probe.py)
+
+| check clean腕误差，mm | seed1701 | seed1702 | 解释 |
+|---|---:|---:|---|
+| 完整707 F | 11.941 | 11.998 | 两seed都胜以下内容控制 |
+| legacy544清零 B | 17.575 | 17.504 | F改善5.63／5.51mm |
+| wrong legacy＋真bank＋同state | 18.296 | 18.633 | F改善6.36／6.64mm，超过10%和2mm门 |
+| state-only | 23.680 | 22.805 | 正确观测提供额外信息 |
+| 完整wrong-content | 23.965 | 24.856 | 内容控制门也通过 |
+| 原Q1／hold | 7.295／3.891 | 同左 | F仍未保留原Q1的clean能力 |
+
+**事实：** F的fit clean腕误差只有1.238／1.013mm，check却约12mm，存在明显留段泛化差；不能把阴性简单称为头完全拟合不动。zgz固定128包local clean约38.69／38.75mm，global约19.38／18.84mm。local −50扰动仍约50mm、未胜hold，+50约27.57／27.30mm；完整接口也未形成双向可靠修正。E2遗漏legacy的比较问题已经排除，但新F不是原Q1等价读出，也没有验证“最终信息只差一个可部署线性映射”。
+
+**状态路径反事实：** local +50输入、全部delta加同一个错误前态时，原头的z误差：clean观测＋clean state为−13.731mm，只换扰动态state99为−54.636，只换扰动态obs608为−20.125，两者都换为−61.947。显式t_z列±5mm偏导的全7680行均值约−0.34；clean local对应约−0.735／−0.750，clean global约−0.166／−0.165。这说明原头对状态路径敏感。完整state99内部仍来自同一个物理姿态，但与另一状态的obs拼接后不可实现；只改t_z列还破坏t与UV的一致性。**这是路径敏感性，不是实际闭环总导数，也未识别clean负偏置的唯一来源。** [2×2重放](../outputs/xdf/interface/state_cross.json)、[物理一致性审计](../outputs/xdf/interface/state_cross_physical_audit.json)、[t_z域内偏导](../outputs/xdf/interface/state_tz_partial_by_domain.json)
+
+同E1固定clip做15360次模型调用：13440次Q1／6个头的自主反馈＋1920次GT腕钳位；teacher复用特征、额外forward为0，Q1轨迹对历史逐状态最大差0。表中均为21状态实际时间AUC、每域24段；teacher只计20个共同Q1前态的端点，绝不将它报成持续恢复。
+
+| own反馈 | local腕AUC，mm | global腕AUC，mm | local新增持续恢复 | global新增持续恢复／20个初始不满足片段 |
+|---|---:|---:|---:|---:|
+| Q1 | 100.870 | 24.608 | 0/24 | 4/20 |
+| F1701 | 76.994 | 35.755 | 0/24 | 1/20 |
+| F1702 | 71.990 | 32.143 | 0/24 | 3/20 |
+
+**为什么单步改善没有形成恢复：** global在共同Q1历史前态上已略坏：abs MPJPE端点均值Q1 30.039mm、F teacher 31.874／31.888；各自反馈进一步变成41.166／36.948。local则是Q1 111.501、F teacher 94.195／97.335、free 84.633／80.509mm，反馈还进一步改善，但绝对误差远未进入持续恢复区。不能用global的反馈放大解释所有域，也不能称剩余问题只有unroll。固定首clip复算显示平移第1步分叉、角度第2步才分叉；第1步角度逐值等于Q1，之后仅改平移也会经FK／查询改变角度。[回放与teacher汇总](../outputs/xdf/interface/rollout/summary.json)、[首分叉复算](../outputs/xdf/interface/rollout/first_divergence_audit.json)
+
+##### 13.6.2 根／手指：独立缺口成立，尚不能归到某个上游层
+
+480固定包×root/finger正负20°×z=0/±50，5760行、11520次真／错forward；实际腕保持误差0、原头delta重放差0。16个分块头保持生产AA加法目标，SO(3)计分；符号、叠加深度、交叉块及15关节读数分别保留。[物理协议](../outputs/xdf/angles/protocol.json)、[提取核验](../outputs/xdf/angles/extraction.json)、[分层结果](../outputs/xdf/angles/summary.json)
+
+| check本块±20°、z0，角误差° | F1701／1702 | state1701／1702 | wrong1701／1702 | 原Q1／hold | 预注册事件增量门 |
+|---|---:|---:|---:|---:|---|
+| root | 12.812／13.022 | 12.741／13.297 | 14.351／14.322 | 11.681／20.071 | FAIL，未稳定胜state |
+| finger，15关节均值 | 14.803／14.810 | 17.807／17.786 | 15.319／15.396 | 10.057／20.851 | FAIL，胜wrong不足1°及10% |
+
+这不是“根／手指没有事件信息”的证明：原Q1已优于这些新头，探针泛化／目标仍有竞争解释。另发现12行root AA跨分支（fit6、check6）：AA残差约6rad、真实SO(3)变化不超过0.540rad，占角度probe数据中8640 fit／3456 check行的 **root AA修正目标平方范数**约40.17%／57.80%，不是51维总目标或XDF-3全部14400行。这不是已测损失或梯度贡献。历史训练和评分不删行；描述性去掉这些评估行后root内容门仍未过，不能说阴性仅由少数测试异常直接造成。[分支审计](../outputs/xdf/angles/aa_seam_audit.json)
+
+GT腕钳位提供另一条独立证据：每步将实际腕位置校正到GT、角度仍由Q1反馈，最大钳位误差1.49e−5mm。local own的RA AUC从24.121变成25.039mm、root从10.267变12.602°、finger从21.304变19.453°；clean起态下local RA仍22.629mm。**精确平移没有消除local角度缺口。** global own RA则从11.549改善到9.786mm，说明平移耦合在global确有作用。钳位访问GT，只是机制条件，任何“恢复”不得算部署能力。[腕钳位与各块读数](../outputs/xdf/interface/rollout/summary.json)
+
+**尚未补齐：** 同包H3→LBS slots→544的容量匹配阳性链、逐事件来源候选支持与候选内学习排序仍未执行。XDF-2的候选统计只是两种数据语义的敏感性，不能代替这两项。本轮已发现完整读出的内容收益及新头的留段／目标混杂，故没有继续扩大上游探针矩阵；不能凭当前角度probe阴性宣判聚合丢信息或优先替换MANO/GNN。
+
+##### 13.6.3 XDF-2：稀薄支持已证实，覆盖的因果收益尚未识别
+
+枚举72序列全部合法K4/W50主endpoint，共4549824个；实际腕深436.127–718.461mm。local有效标签范围705.546–749.371mm，原生训练只有1176个endpoint落入该范围，约0.02585%；都来自ycy_global及三个版本中同一294ms片段，不能当四个独立来源。local固定query前态970/1204（80.565%）超过原生最大腕深；毫秒标签对应49497/61399（80.615%）。这是**可采样原生标签总体**，不是训练实际抽样频次；版本重复也已披露。旧E2 fit上界680.577mm、旧t_z记录和这次实际腕深不能混用。[全量普查](../outputs/xdf/depth/native_population.json)、[重叠细分](../outputs/xdf/depth/native_overlap_details.json)
+
+D0/D1按原合同得到T80=627.199mm，各100个唯一匹配包，但高深check仅8包、1个身份、2个保守独立时间块，未达到≥3身份／20块。因此**未拟合D0/D1**，结果是“没有足够支持做预定因果对照”，不是D1无效。没有看结果后扩大时间格、放宽身份门或把前态+50mm当成深区标签。[冻结分层与停止理由](../outputs/xdf/depth/support.json)
+
+1000个E3 counter复用相同增强随机数，真实`RawRecoveryDataset`分别走focal/depth的teacher/noisy与三步Q1 burn，10000次batch1 forward。两流增强后的事件逐值相等；相机、MANO状态语义、噪声后输入和反馈不同。共同GT同刻的连续投影残差p95=1.538px、p99=2.837px；这是物理近似量，不是对实际前态／噪声／烧入差异的评分。
+
+| focal→depth实际流差异 | teacher/noisy | 各自三步burn后 |
+|---|---:|---:|
+| 每事件顶点质量TV，含unmatched | 0.1081 | 0.3503 |
+| top16成员替换比例 | 4.410% | 18.178% |
+| 至少一个top16成员变化的事件比例 | 39.876% | 81.792% |
+| hit/near/none类型变化 | 1.828% | 10.079% |
+| focal／depth腕误差，mm | 14.164／33.458 | 10.338／38.245 |
+
+表中TV和候选比例以stride后的1933696个main事件槽计分；伪part仅906925个有效（46.901%），其余1026771个background/unlabeled单列，不进入条件覆盖率。
+
+**旧E3比较不等于这两条实际流。** 它是同刻仿射参考网格对depth标签FK网格的几何审计，缺少真实前态、噪声及各自反馈；其45.166%集合变化仍按旧5%门FAIL。新流显示小连续残差可伴离散集合敏感，且burn后差异扩大；但teacher伪part有效覆盖几乎相同（675048对674688／906925事件）、伪part质量0.46004对0.45981，集合变动不自动等于有效信息损失。part来源是focal主GT终点的全mesh z-buffer伪标签，**不是逐事件真实来源**。固定Q1只按focal训练，depth误差较大同时含配方域失配，不能把它当作depth重训的反证或纯coverage效应。[实际流结果](../outputs/xdf/depth/flow_result.json)、[1000份独立复算](../outputs/xdf/depth/cpu_final_audit.json)、[语义边界](../outputs/xdf/depth/result_note.json)
+
+##### 13.6.4 XDF-3：只增加z权重不足，共享头重拟合暴露泛化和稳定性问题
+
+固定完整707、原生深度、同一14400行训练缓存：5184主接口fit＋3456角度fit＋5760原Q1 own-fit。own从fit时间块首GT只初始化一次，再用原Q1烧入，不回灌GT；11096次额外burn也计入成本。两臂从原fc1/fc2初始化，fresh Adam、同顺序100epoch；唯一loss变化为prelog z平方项1→2、分母仍3。两个seed、每臂1701 repeat，权重与完整短轨迹repeat逐值一致。[训练协议](../outputs/xdf/objective/protocol.json)、[输入核验](../outputs/xdf/objective/training_input_audit.json)、[原loss数学自检](../outputs/xdf/objective/self_test.json)、[独立复现核验](../outputs/xdf/objective/final_audit.json)
+
+| 全local1204 clean | 腕误差，mm | signed z偏置，mm | 优于hold包数 |
+|---|---:|---:|---:|
+| 原Q1 | 66.319 | −64.670 | 0/1204 |
+| L0，seed1701／1702 | 91.650／91.279 | −90.972／−90.596 | 0/1204 |
+| L1，seed1701／1702 | 90.203／89.507 | −89.650／−88.957 | 0/1204 |
+
+L1相对L0只改善1.447／1.772mm，偏置绝对值仅降至原来的98.55%／98.19%；平均1.610mm低于10mm门，repeat效应差为0。两seed的local z±50mm各128包均无腕误差优于hold，故**z倍权主门FAIL**。这只降低当前系数不足的优先级，不能否定所有物理目标或优化办法。[全clean](../outputs/xdf/objective/eval_clean.json)、[各状态／域分层](../outputs/xdf/objective/strata.json)、[裁决](../outputs/xdf/objective/result.json)
+
+重拟合在fit有效：训练local clean腕约9.48→4.355–4.773mm、own-fit约26.88→7mm；训练身份check clean却退化（local约9.20→11.415–11.536，global约5.39→9.592–9.785mm），zgz global完整clean约12.33→22.1–23.6mm。**推断：** 这支持当前小样本状态混合上的重拟合不能保留既有泛化，而非证明目标深度不足能解释全部错误；L0本身改变了训练暴露与优化历程，L0对原Q1不是“z权重因果比较”。真正单因素结论只来自L1对匹配L0。
+
+短own回放中local腕AUC L0/L1为101.94／104.71、100.90／102.18mm，均0/24持续恢复；RA从原Q1 24.12恶化到32–34mm。global腕AUC约23–24mm虽接近Q1 24.61，RA由11.55升至14.4–14.8，正常运动cos由0.846降至约0.715–0.739。不能用某个腕均值或新增恢复计数抵销角度和运动退化。[local回放](../outputs/xdf/objective/rollout_zgz_local.json)、[global回放](../outputs/xdf/objective/rollout_zgz_global.json)
+
+梯度审计也不支持直接宣判普遍“多任务梯度冲突”：最初512行全是ch主接口，后补先冻结索引的完整main-fit／angle-fit／own-fit及seam分组。原Q1的z/root共享fc1梯度cos分别−0.103／−0.0165／约−0.0001；L0/L1在angle和own上转为小正值。seam6行root目标风险明显，但不能从该子集推出负z的因果解释。在同一参数点、同一批数据且其他loss不变时，加倍z会通过log的共同导数缩小其他块有效梯度；不能推成重训后L1所有其他块梯度都比L0更小。全组`log(mean loss)`审计不冒充实际随机batch的`mean(log loss)`。[首batch组成](../outputs/xdf/objective/gradient_batch_composition.json)、[补充分组冻结](../outputs/xdf/angles/gradient_strata_protocol.json)、[分组梯度](../outputs/xdf/angles/gradient_strata_result.json)
+
+##### 13.6.5 正常运动、抖动、全长反馈与软件成本
+
+20步片段中所有新头数值有限，不能推广到整条序列。额外预固定1701原头／F／L0／L1，在每个valid run仅GT初始化一次后，按原50ms查询钟完整递推global1386＋local1204包、三遍复测。**L0在local第803次查询、L1在第839次查询出现非有限输出**；三遍均在相同查询失败，失败前的有限子集不进入完整精度或时延通过判定。F1701虽保持有限，却在完整local／global上出现巨大漂移：腕端点均值4918.46／12787.44mm，原Q1对应102.09／26.66mm。这进一步说明短片段均值改善不能推广到长期tracking。单片段恢复、全长稳定性和软件耗时是三种不同证据。
+
+软件链包括切窗、H2D、输入FK／关联／forward、额外探针、输出MANO、host-ready及回灌；F当前是原Q1加额外t-head的诊断实现，不能把它的成本当成编译合并后的部署模型。输入文件打开、真实传感器、队列及显示未测。先于任何计时修正了Q1参考复测波动的传播规则，原v1保留，v2要求候选和Q1任一三遍p95波动>5%都记未定。[计时预注册v1](../outputs/xdf/pipeline/protocol.json)、[测前修正v2](../outputs/xdf/pipeline/protocol_v2.json)、[完整逐遍结果](../outputs/xdf/pipeline/result.json)
+
+三遍完整Q1的global p95为15.827／15.453／15.511ms，local为14.153／20.299／13.848ms，local基准波动40.07%，故local相对时延未定。F的global p95为15.658／15.797／14.842ms，自身波动6.19%，亦未过稳定复测条件；不能择最快一遍宣称更低成本。L0/L1的global时延单项通过，local完整分母失败。
+
+共同抖动补审计保留全部21状态和真实时间：腕速度／加速度与GT比较；root使用相机系SO(3)增量；finger相对角速度用同一GT父关节中点旋转运输到相机系计分，另给包含根／祖先运动的global finger导数。静止段按预固定GT最大位移≤1mm筛选，腕静止与整手静止分开；无样本、低能量或未定义lag不填0。不把原仅50ms近似t差分称为完整手抖。GT只用于评分。[共同补测合同](../outputs/xdf/objective/supplemental_guardrails_protocol.json)、[接口护栏](../outputs/xdf/interface/supplemental_guardrails.json)、[目标护栏](../outputs/xdf/objective/supplemental_guardrails.json)
+
+补测的global own腕速度／加速度误差：Q1为114.989mm/s／3779.680mm/s²，L0/L1_1701为167.256／156.463和5303.826／4889.670，均超5%护栏；根及相对手指角速度误差也退化。两序列腕静止／整手静止片段均0/24，因此静止抖动仍无新证据。
+
+本轮累计114388次完整模型／数据流forward（含burn、oracle、计时warmup及失败调用；不含小头优化调用），32个固定末点小头。已测费用 **0.68095 GPU·h**，另列未实测启动预留0.05，合计预算记账0.73095，低于5 GPU·h上限；不把预留称为实测值。费用按实际占用GPU墙钟累计并避免共享缓存重复计费，训练支持普查与审计另列CPU。[执行清单与费用](../outputs/xdf/execution_summary.json)、[核验](../outputs/xdf/execution_verification.json)、[复现入口](../outputs/xdf/README.md)
+
+##### 13.6.6 现在的三个优先解释与下一步决策
+
+1. **深度／状态先验外推与读出泛化耦合，优先级最高。** 稀薄深区支持、显式状态敏感及local单侧修正共同支持这一方向；但支持内check也坏、D0/D1未满足样本门，尚未识别“纯深度”的因果份额。不能把当前结果收敛成只换depth增强。
+2. **完整信息的使用、共享读出及训练状态分布仍有问题。** legacy内容已阳性；当前替头拟合好、留段差，z倍权未救回，global共同前态已经稍坏、反馈继续放大。更新错误先于部分反馈退化出现。多步目标值得保留，但没有“同态可靠净纠错已成立”的前提，不能现在宣布只剩BPTT。
+3. **root／finger有独立的角度读取／监督缺口。** GT腕钳位仍坏、分块新头不胜原Q1、AA目标有不连续点；尚未将候选、LBS压缩、后端图传播和角度读出相互排除。当前没有足够证据把某个上游模块定为真正主瓶颈。
+
+**下一次最值得先验证：能否在保留原Q1角度路径和训练支持的情况下，改正平移而不损伤支持内clean。** 具体最小控制可复用本轮14400行和L0：从同一Q1初始化、同缓存／loss／顺序／100epoch，只开放原fc2的平移3行，冻结fc1和角度输出行；与已完成的全共享头L0及原Q1比较。这个因素是可训练参数边界，不是声称增加了测深信息，也不能用“角度被冻结所以不变”充当恢复收益。仍需另冻协议后执行，本轮未追加该训练。
+
+随后按以下分支收敛，不同时修改数据、关联、目标和闭环：
+
+- **受保护读出在支持内clean、±扰动及own改善，local仍系统偏：** 再补目标深区曝光的匹配因果对照；先解决多身份／独立时间块支持不足，在同一种已核验语义内改变曝光范围。focal→depth对照只能称语义总效应。只有曝光干预阳性才能优先收敛深度标定／可观测性创新。
+- **最终接口在物理一致的状态下仍不能泛化，而H3或更广域事件probe阳性：** 才沿候选获取→候选内排序→LBS→slot压缩定位。候选外且广域阳性指向获取；候选内可分而几何错排指向排序；H3阳性而slots阴性才优先聚合。阴性probe必须保留容量、AA分支及拟合误差解释。
+- **同态clean和双向净纠错都通过，global也守住，但free恢复失败：** 才将访问状态覆盖／多步恢复目标置首。若正确腕下角度仍失败，单独做root／finger物理目标与读出控制，禁止以平移成功替代它们。
+
+**本轮可以结束“E2漏接口”和“当前固定设置下只需z倍权”这两个局部问题的快速筛查，不能结束整体瓶颈诊断。** 收敛具体论文创新仍需至少两个完整模型seed及匹配repeat支持同一机制干预，真实内容优于state/wrong、clean运动不退、own新增持续恢复、global／角度／lag／抖动／全长有限性／完整成本全过。当前没有可采纳的新模型；MANO tracking与逐事件异步增量的长期方向保留，先用上述门证明更新确实指向真实状态。
+
+<a id="measurement"></a>
+### 14. 量测定义、异常及旧文勘误
+
+#### 14.1 XDL物理扰动与收缩定义
+
+state51=[t3(m),root AA3,15组local残差45]。MANO local mean只加一次，SO3扰动后减一次；root在相机系、local在父系。small/large为5/50mm或5°/20°，旋转保持实际OpenPose21腕点≤0.01mm，而非只保持t参数。
+
+`ρ_T=distance(wrist_predδ,wrist_predclean)/distance(wrist_prevδ,wrist_prevclean)`；root/finger采用旋转矩阵差的Frobenius/chordal范数比，finger汇总15关节，可含串扰。旋转配对gain/cos使用左右运输的条件定义，不是唯一的“真实运动相减”。
+
+GT终点独立计分：wrist、abs/RA MPJPE/MPVPE、root geodesic和15local geodesic均值；RA-MPJPE分别减各自腕点joint0，RA-MPVPE分别减各自网格vertex0，均不拟合旋转或尺度。这也是冻结XDL评分器的实际定义；原文将两者统称“仅减腕”不准确，2026-10-18按冻结源码更正文案，未改历史计分或产物。translation恢复不能用RA证明。clean/natural零分母等undefined明示，不转换为0或成功。
+
+#### 14.2 真实恢复与运动
+
+新120clips×18初态×20queries/21states；旧仅zgz48clips。旧XB/XC10步起点不能直接延长代替新20步选择。真实时间AUC为梯形积分除以总elapsed，单位仍mm/°，不是累计mm·s。持续恢复需absolute MPJPE≤20mm且RA-MPJPE≤10mm连续3查询，前者不是仅腕点误差；初始已满足另列，未达右删失。
+
+主motion为200ms displacement和5点GT中心平滑，仅离线计分；root/local用SO3 chordal mean。signed gain=predΔ·GTΔ/||GTΔ||²，bias=|gain−1|；不足horizon、低能量及平坦lag为undefined。lag网格0/50/100/150/200ms，不能宣称比50ms更细的单轨迹时延分辨率。
+
+首状态跨度49ms、后50ms，E相对incoming offset0/1ms；诊断packet.target全零。代码时钟/mean/物理合同通过，不等于全部任务能力过门。[冻结量测规范](../outputs/xdl/measurement_spec_v3.json)
+
+#### 14.3 工程失败与科学失败分开
+
+| 记录 | 实际发生 | 科学解释边界 |
+|---|---|---|
+| 历史FK/mesh累加与NCCL | 运行期修复/续训/重选点 | 保留合同差异，不能当架构因子效应 |
+| XA冻结GT替换 | OOD输入导致发散，旧报告封顶并另存位置 | 不能用存活子集均值或oracle泄漏识别唯一原因 |
+| XB pilot | 有限前态先放大、继而FK非有限 | 本probe版本闭环失败；full另行有限，二者不互相覆盖 |
+| XB公共输入审计 | 默认CUDA归约差触发严格断言；审计作用域确定性后通过 | 训练/科学评分未借此放宽，失败历史保留 |
+| XDL selected burn | 子批终态/梯度超预声明容差 | 优化未验收，正式fullburn；不叫模型恢复失败 |
+| XDL诊断batch16/64 | 微小FK差经barycentric放大，未达1e−5 | bulk工程预检停止，正式batch1；不以批形状异常解释科学效果 |
+| XDL首次NCCL | 三pair初始化有挂起，统一已测通信设置后fresh重启 | 未完成权重隔离，费用带回；未隔离三项设置的单独因果 |
+| XDL配置身份检查器 | 原yaml和resolved语义相同、bytes SHA不同，旧checker误报 | CPU分链修正并红绿复审；预测与训练源不变 |
+
+PL的精确 `ModelCheckpoint.kth_value=+inf` 是monitor=None管理哨兵，单独保留，不豁免模型/optimizer非有限。XDL data_identity.scope中“v2/v3/v4 files not used”是冻结描述错误；实际360训练＋10留出＋1split全覆盖各版本，证据未改写。
+
+#### 14.4 旧文需要更正的判断
+
+| 旧读法 | 当前严谨表述 |
+|---|---|
+| 更正确分配发散，所以只学命中/不能学位移 | 固定权重对OOD关联替换敏感，具体表征和因果瓶颈未隔离 |
+| dXYZ/z完全只是prev函数，误差残差恒零 | 深度依赖前态，但dXYZ也依赖事件射线；hit满足自身面约束，无新增独立测深 |
+| z_prior是local失败直接原因 | D/Z/edge整组local负效应已测，单通道与数据边界尚未隔离 |
+| overall/global无因果贡献 | 本轮未超过工程门，未证明无贡献或等效 |
+| 时间作用≤0.5mm，所以不用修 | 实际TF整体+0.53/local+0.89；后续XC本四片方案未获完整支持 |
+| 自身前态从未测过/读出无t就是主因 | 仅对旧版本成立；XDL已经真实self/fullstate，local仍失败 |
+| ρ好/方向cos高就是恢复 | 必须与实际GT、clean、正常运动和零观测联判 |
+| 某修法未改善就能排除整类机制 | 只否定具体实现与预算，不能排他归因其它原因 |
+| 所有S37均同配方，EBS一样就公平 | 选点/末点、窗长、loss聚合、历史版本、已删源必须分开 |
+
+<a id="acceptance-contract"></a>
+#### 14.5 三项实验共同的验收合同
+
+这是事前完整验收要求。XDE快实验补了软件链和短段运动／粗糙度代理，并未完成传感器硬件时延、静止整手抖动或全部正常运动基准；各项已完成范围见第11节。
+
+| 维度 | 必须保留的读数 | 防止的误判 |
+|---|---|---|
+| 形状精度 | 规范主表local/global RA-MPJPE、MPVPE，逐seed与尾部 | overall掩盖local，旧择点与末步混合 |
+| 绝对位置 | 腕点xyz signed bias、z及xy误差、absolute MPJPE／MPVPE | RA移除平移，却让下一包路由承受错误平移 |
+| 真实恢复 | clean、小／大正负扰动、共同natural及own-natural；20步实际时钟AUC | 只恢复到有偏clean分支；只选成功片段 |
+| 持续成功 | absolute MPJPE≤20 mm且RA≤10 mm连续3查询；初始已满足、失败、右删失另列 | 把某一帧过线或低腕点误差当整手持续恢复 |
+| 正常运动 | root／finger的SO(3)、绝对腕点位移，200 ms主指标，50／150／250／500 ms敏感性 | hold或强平滑得到低抖动；伪标签50 ms噪声被误当真实细动作 |
+| 滞后与抖动 | lag、signed gain、方向cos；静止段漂移和运动误差的高频分量／加速度误差 | 只测输出自身平滑；静止策略“完美稳定” |
+| 完整成本 | 同机同线程，事件到输出及包末到输出p50/p95/p99、事件年龄、events/s、queries/s、峰值内存、总GPU时间 | 以低MAC或GPU已缓存forward代替真实延迟 |
+
+全部保留undefined、nonfinite、短段与有效分母；不把undefined写成零或通过。对统计重采样使用连续段／受试者层级并说明只有一个zgz受试者，不能对上千扰动声称上千独立样本；多seed与同seedrepeat分别回答随机初始化和工程复现。
+
+完整计时必须真的反馈预测前态，包含切窗／token／传输／FK／候选／网络／状态合成及所需输出mesh。窗口回看长度W、输出查询间隔、排队时间和算法lag分开报告，不能机械把W全加到compute latency。离线回放只测可复现的软件链，未接传感器时不冒称测得硬件采集与传输延迟。可先在每条目标序列固定前100包分解profile，再跑完整rollout。
+
+计时实现有版本差别：旧 `make_s36_row.latency_s36` 各包前态固定在段首GT；**XDL自己的 `make_row.latency_packets` 已在预备阶段真实回灌预测，取600个自身前态包**，计时阶段才固定这些包、warm100、三遍取最小均值。不能把旧工具的GT-held缺陷套在XDL上。二者仍都没有完整摄取、staging、排队和发布计时。[XDL真实实现](../tools/xdl/make_row.py#L75)
+
+<a id="sources"></a>
+### 15. 文献、原件与复核范围
+
+文献是解释和实验设计框架，不是本模型效果的证据。本节沿用原文已完成的2023—2026检索，文档合并没有新增检索或重新核验出版状态。
+
+<a id="literature"></a>
+#### 15.1 面向证据缺口的文献筛选
+
+检索截至2026-10-14，覆盖2023—2026正式论文及当前预印本，以出版方、会议论文库和作者arXiv为依据。核心会议包括CCF-A的CVPR、ICCV、NeurIPS正式长文；高水平期刊包括TPAMI、Nature，并保留任务最直接的IJCV。CCF等级、JCR Q1与中科院一区Top不是同一分类；未取得官方年度分区表核验的期刊不补写“2026一区Top”。TPAMI的一线机构页面有一区Top标注，作为纳入依据而非统一年度分区认证。[CCF目录口径](https://www.ccf.org.cn/Academic_Evaluation/By_category/)、[TPAMI机构标注](https://smes.shu.edu.cn/info/1033/6155.htm)
+
+下表“本任务用法”均为迁移推断，不是论文已证明S37瓶颈。优先级表示对当前判别的必要性，不是论文质量排名。ECCV、3DV、ICRA及预印本单独标出，不混作本轮CCF-A主会证据。
+
+| 论文与正式身份 | 可解释当前失败的方法思想 | 本任务用法与限制 |
+|---|---|---|
+| [Event-Based Non-rigid Reconstruction of Low-Rank Parametrized Deformations from Contours，IJCV 2024](https://link.springer.com/article/10.1007/s11263-024-02011-z) | 事件—面隐变量关联；明确将有助于遮挡排序的纵向项用于分派，却不用于状态优化，以免把物体错误拉近相机 | **优先。** 直接提醒“分配先验≠状态观测”。检查Q1的负z，但N1也偏负，因此不能说S37复现了论文同一因果；轮廓／静态背景假设需核 |
+| [EvHandPose，TPAMI 2024](https://doi.org/10.1109/TPAMI.2024.3380648)，[方法全文](https://arxiv.org/html/2303.02862v3) | 手部flow表征、Pose-to-IWE的对比度与hand-edge弱监督，缓解运动歧义 | **优先。** E2检查方向信息，而不是只看占用。可借运动一致性监督；论文训练期IWE不等于部署每步有独立测量，静止歧义仍在 |
+| [Continuous-Time Human Motion Field from Event Cameras，ICCV 2025](https://openaccess.thecvf.com/content/ICCV2025/html/Wang_Continuous-Time_Human_Motion_Field_from_Event_Cameras_ICCV_2025_paper.html) | EvHuman把事件体积的离散姿态输出改为时间隐式运动场，可在任意时刻查询 | 条件保留。指导多时标motion与lag评价；任意时刻可查询不自动等于原始事件逐条增量、因果在线或错误前态可恢复 |
+| [HaWoR，CVPR 2025](https://openaccess.thecvf.com/content/CVPR2025/html/Zhang_HaWoR_World-Space_Hand_Motion_Reconstruction_from_Egocentric_Videos_CVPR_2025_paper.html)，[作者原文](https://arxiv.org/abs/2501.02973) | 分开相机系手部运动和世界系相机轨迹，结合SLAM及缺失动作补全 | 条件保留。借其状态块与评价分离；当前local/global是动作类别，不能误叫世界／相机系。RGB、相机运动和补全先验不是单事件手跟踪的免费信息 |
+| [LightGlue，ICCV 2023](https://openaccess.thecvf.com/content/ICCV2023/html/Lindenberger_LightGlue_Local_Feature_Matching_at_Light_Speed_ICCV_2023_paper.html) | 用内容学习匹配，并按问题难度自适应计算 | **优先于再加硬几何规则。** 先用E2证明候选内内容可区分，再考虑小匹配头；关键点两图匹配不能直接套作事件到部位的多对一对应 |
+| [DUSt3R，CVPR 2024](https://openaccess.thecvf.com/content/CVPR2024/html/Wang_DUSt3R_Geometric_3D_Vision_Made_Easy_CVPR_2024_paper.html)；[MASt3R，ECCV 2024，补充](https://www.ecva.net/papers/eccv_2024/papers_ECCV/html/9080_ECCV_2024_paper.php) | 几何预测与匹配相互联系；MASt3R另加局部描述子及匹配损失，而非认为3D回归自动给出精确对应 | E2把几何兼容与对应判别分开。大规模RGB双图预训练不是事件原始流的独立测深证据；不建议直接搬大骨干 |
+| [FoundationStereo，CVPR 2025](https://openaccess.thecvf.com/content/CVPR2025/html/Wen_FoundationStereo_Zero-Shot_Stereo_Matching_CVPR_2025_paper.html) | 多假设代价体与长程上下文过滤，提高跨域匹配 | 借候选代价曲线／多峰不确定性，不引入其网络；双目已知基线提供本项目单目没有的几何约束 |
+| [HypoDepth，CVPR 2026](https://openaccess.thecvf.com/content/CVPR2026/html/Liu_Depth_Hypothesis_Guided_Iterative_Refinement_for_Event-Image_Monocular_Depth_Estimation_CVPR_2026_paper.html)，[2026-10-02公开arXiv](https://arxiv.org/abs/2610.03439) | 把完整深度直接回归改为离散深度假设与相关性搜索，逐步残差细化 | **与z诊断直接相关。** E1/E2可先离线检查候选深度得分是否朝GT改善；论文有image输入，不能据此宣称单事件观测可直接取得度量深度 |
+| [Data-Driven Feature Tracking for Event Cameras，CVPR 2023](https://openaccess.thecvf.com/content/CVPR2023/html/Messikommer_Data-Driven_Feature_Tracking_for_Event_Cameras_CVPR_2023_paper.html) | 事件对已有特征做低时延跟踪，利用轨迹之间的信息和自监督适应 | **优先。** 借“真正可跟踪的持久观测”检验，而非每包只统计当前命中；其初始化灰度特征不是当前传感器协议已有输入 |
+| [Learning Normal Flow Directly From Events，ICCV 2025](https://openaccess.thecvf.com/content/ICCV2025/html/Yuan_Learning_Normal_Flow_Directly_From_Events_ICCV_2025_paper.html)；[Motion and Structure from Event-based Normal Flow，ECCV 2024，补充](https://arxiv.org/abs/2407.12239) | 前者从局部原始事件预测逐事件normal flow；后者用该部分运动量构造几何误差和线性／连续时间求解 | E2可用来检查符号运动信息及可观测方向。normal flow只有法向分量，不能未经秩／条件数分析要求其恢复全部51D，旧项目NF支持门也不能忽略 |
+| [Deep Patch Visual Odometry，NeurIPS 2023](https://proceedings.neurips.cc/paper_files/paper/2023/hash/7ac484b0f1a1719ad5be9aa8c8455fbb-Abstract-Conference.html)；[DEVO，3DV 2024，补充](https://arxiv.org/abs/2312.09800) | 稀疏patch对应与几何状态优化相结合；DEVO为事件选择可追踪patch | **优先。** 启发把对应证据、权重和状态更新分离，并用多步恢复验收；刚性场景／相机运动的BA秩条件不适用于整只非刚性手 |
+| [RPEFlow，ICCV 2023](https://openaccess.thecvf.com/content/ICCV2023/html/Wan_RPEFlow_Multimodal_Fusion_of_RGB-PointCloud-Event_for_Joint_Optical_Flow_and_ICCV_2023_paper.html)；[ARES，CVPR 2026](https://openaccess.thecvf.com/content/CVPR2026/html/Lee_ARES_Unifying_Asymmetric_RGB-Event_Stereo_for_Probabilistic_Scene_Flow_Estimation_CVPR_2026_paper.html) | 2D／3D运动相关性；ARES用时序视差后验融合使场景流几何一致 | 条件保留。支持分开运动、深度和不确定性，以及检验多峰候选；RGB／点云／双目提供额外观测，不作为单目事件深度能力证明 |
+| [Low-latency automotive vision with event cameras，Nature 2024](https://www.nature.com/articles/s41586-024-07409-w) | DAGr通过有向事件图、递归更新和有选择的计算复用降低感知与计算时延 | **逐事件工程的核心参考。** 需要依赖闭合、缓存失效和全链计时。其RGB融合及目标检测任务不同，低延迟数字不能移植为MANO更新时间 |
+| [Asynchronous Collaborative Graph Representation for Frames and Events，CVPR 2025](https://openaccess.thecvf.com/content/CVPR2025/html/Li_Asynchronous_Collaborative_Graph_Representation_for_Frames_and_Events_CVPR_2025_paper.html) | 用图保留不规则时空信息并异步对齐帧与事件 | 条件保留。借输入时钟及图更新合同；本文是多模态任务，不证明状态改变后的MANO关联可局部缓存 |
+| [EvHand-FPV，2025预印本](https://arxiv.org/abs/2509.13883) | wrist ROI、显式ROI偏移及训练期辅助几何头，以较小模型做第一视角手跟踪 | 条件保留。支持先检查坐标上下文和辅助目标；真实集主要2D标签、3D成绩在合成集，不能作真实毫米级恢复SOTA证据 |
+| [EgoEV-HandPose，2026-05预印本](https://arxiv.org/abs/2605.12297) | 双目事件的BEV融合与重投影细化，扩展了事件手部评测范围 | 保留为外部任务对照。它是SMC 2025工作的扩展，不标为CCF-A已发表；双目与本项目单目协议分开，不能直接比较MPJPE |
+
+最新检索也核到 [ATOC，2026-10预印本](https://arxiv.org/abs/2610.04342)：通过LED智能标记进行异步跟踪与3D动捕。它有主动光学标记，**本轮不纳入模型方向**；可参考事件级时延评价，但不能用它消除无标记手部的对应歧义。没有因为年份新就优先选用。
+
+这批论文共同支持的是一组可验证的方法原则：分开“选择对应的先验”和“推动状态更新的观测”；保留可判别的运动／空间结构；用显式候选比较与不确定性而非单个伪深度；以真实递推和完整时延验证稀疏收益。它们不证明现有XYZ需要同时加入flow、Transformer、EM和滤波器。“软对应”“事件写入与MANO查询分离”“连续时间查询”均已有直接先例，本身不足以构成论文创新。
+
+10月13日诊断稿保留的补充引用与方法归属：
+
+- [Motion and Structure from Event-based Normal Flow，arXiv:2407.12239](https://arxiv.org/html/2407.12239)：论文用专门几何约束处理normal flow的部分可观测性；本项目可据此分自由度/运动能量分析，不能直接推断整手51D完全不可观测。
+- [Kassis, Agarwal, He, Patel & Brueckner (2026), Scientific Agent Skills: A Library of Procedural Knowledge for Research Agents](https://doi.org/10.48550/arXiv.2609.00065)：10月13日整理时 `scientific-critical-thinking`/分析流程的方法归属，官方当前元数据已核；不是科研效果或模型质量证据。
+
+10月13日整理时按 `research-experiment-workflow` 的writing阶段读取 `ml-paper-writing`、`scientific-critical-thinking`、`verification-before-completion`，以及前一分析阶段的 `statistical-analysis`。阅读收据不代替科学判断；没有新Jev调用、没有把未执行设计晋级为结果。
+
+#### 15.2 原件、身份和复算入口
+
+| 阶段 | 权威结果/身份 | 可重读范围 |
+|---|---|---|
+| 早期及已删S37 | [早期覆盖清单](../outputs/xdl/s37_consolidation_early_inventory.json)、账本s37-records/10-07/B8 | 现存配置/历史文字与提交索引；无主行/权重的不声称模型复算 |
+| XA | [最终P3门](../outputs/xa/step5/p3_gates.json)、[最终主表](../outputs/xa/step5/main_table_last.md)、step1/2/4及align | 阶段快照需匹配，不能混接早期gates精确小数 |
+| XB | [verdict](../outputs/xb/verdict.json)、[完整主表](../outputs/xb/TABLE_full.md)、study/analysis/reanalysis manifests | pilot、full、补充r=1和数值审计作用域分开 |
+| XC | [verdict](../outputs/xc/verdict.json)、[完整主表](../outputs/xc/TABLE_full.md)、frozen/study manifests和individual rows | 三seed、四repeat、注册比较与全部曲线 |
+| XDL | [results_audit](../outputs/xdl/results_audit.json)、[科学终审](../outputs/xdl/independent_final_scientific_review.json)、[费用终审](../outputs/xdl/independent_final_cost_review.json) | 所有新旧raw、失败/undefined、配置与weights链、图来源 |
+
+XDL结果SHA `c5ba02a7b473906fd508e4dfaa10d9aa08aa1c72fb028b01cd94791e573d47e1`；独立科学review SHA `8a6f682eb8edbad3789b7d38ca144e5192fc20fd632f33a866ab4a664ad14f11`；最终journal SHA `a6682298e33291b222072b733da11c3f84680fad9c8edf396765d6ff27e41748`。这些PASS证明对应身份/完整性和描述性结论可审，不代表全部恢复门通过。
+
+10月13日整理稿由机器插入既有九列表与51项覆盖索引，再独立审读原因和量测边界；复核/来源manifest位于 `outputs/xdl/s37_consolidation_20261013/`。本文更新不改已有训练或诊断原件。
+
+<a id="xdl-reproduction"></a>
+#### 15.3 XDL 工具与 CPU 复算命令
+
+以下命令均从仓库根目录运行，使用安装了项目依赖的 Python 环境。
+
+- `tools/xdl/finalize.py` 从既有 raw 重算审计。原始 YAML、训练 resolved YAML 和诊断使用的 YAML 分别核对各自记录的文件 SHA；诊断路径只接受原始或 resolved 文件，完整配置语义及 checkpoint 配置仅排除 `_config_path` 后比较。不同 YAML 序列化字节不能直接相互充当身份。
+- `tools/xdl/plot_recovery.py` 读取完整审计、冻结 `packet_bank.json` 及七个模型的14份 bank/recovery raw，不运行模型。正式新图要求五新臂及旧 C0/C1 seed3407 完整；逐项校验 SHA、元数据、冻结包/片段 ID、全部分母及必需数值。图保存 PNG、SVG 和来源 manifest，失败另存 `xdl_figure_failure.json`。`--legacy-only` 仅绘制两个旧锚点。
+
+`outputs/`、权重和数据默认不随 Git 提交；本仓库保留的 [图表附件](assets/xdl_20261013/README.md) 可直接阅读。重算 finalizer 还需要本地冻结清单、权重/配置、训练完成收据、共同参考及主行等完整产物。下面第一条命令会重写 `results_audit.json` 和 `diagnostic_analysis.txt`，产生新的时间戳与 SHA；执行前应备份对应历史审计和审查文件，新审计须重新绑定审查及绘图，不能沿用正文里的历史 SHA。
+
+```bash
+CUDA_VISIBLE_DEVICES='' python tools/xdl/finalize.py --out outputs/xdl --workers 5
+```
+
+只重绘历史正式图时直接读取既有审计，输出到独立目录，保留原图及其 manifest：
+
+```bash
+CUDA_VISIBLE_DEVICES='' python tools/xdl/plot_recovery.py \
+  --audit outputs/xdl/results_audit.json \
+  --audit-sha256 c5ba02a7b473906fd508e4dfaa10d9aa08aa1c72fb028b01cd94791e573d47e1 \
+  --out outputs/xdl/figures_recheck
+```
+
+若已重算审计，`--audit-sha256` 应改为新审计的实际 SHA。绘图自身只读取 audit/bank/raw 及其身份元数据，不重新打开 checkpoint 或执行训练/推理。
+
+记录中最后一轮68项 CPU target suite 的完整命令如下；10月13日文档整理时另复跑其中配置身份与绘图的20项，全部通过。全仓历史7个默认快照失败仍按原记录保留。
+
+```bash
+CUDA_VISIBLE_DEVICES='' OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=1 \
+  python -m pytest -q \
+  tests/test_xd_model.py tests/test_xdl_data.py tests/test_xdl_diagnostics.py \
+  tests/test_xdl_rows.py tests/test_xdl_runner.py tests/test_xdl_finalize.py \
+  tests/test_xdl_plots.py
+```
+
+<a id="xde-reproduction"></a>
+#### 15.4 XDE与执行前CPU复算的复用入口
+
+- [完整诊断历史](#current-verdict)、[实验账本](EXPERIMENT_RECORDS.md)、[网络结构分析](网络结构分析.md)及docs附件按日期和实现版本对照。历史图JSON的“未训练设计”是09-29快照，不代表后来的XYZ/XDL未实现。
+- XA：`outputs/xa/step1/labels_zgz_*.npz`、`step4/{geom,conf}`、`align/closedloop_prev_*.npz`、`step5/p3_gates.json`。
+- XB/XC：`outputs/xb/c0_val_reference.pt`、`outputs/xb/recovery_full_s*.json`、`outputs/xc/recovery_s*.json`、各正式verdict与step6000权重。
+- XDL：`outputs/xdl/packet_bank.json`、`measurement_spec_v3.json`、`diagnostics/<run>/{bank,recovery,motion}.pt.gz`、`results_audit.json`及独立科学审查；全段轨迹在 `motion.pt.gz['data']['rows']`，短natural在同一data下的 `short_natural`。不要重写历史finalizer来生成“新结果”。
+- 2026-10-14执行前诊断阶段的CPU复算：[脚本](assets/s37_diagnosis_20261014/recompute_clean_bias.py)、[结果及来源SHA](assets/s37_diagnosis_20261014/clean_bias_recalculation.json)、[复现说明](assets/s37_diagnosis_20261014/README.md)。结果JSON两次重跑字节一致，SHA256为 `c50004122b1692c701722d7ce9f4cc43213c1397d2a699e4b9b8ba7ec7caeba7`。
+
+2026-10-14执行前诊断阶段对XYZ/XA/XB/XC/XDL相关正文、源码、配置、日志和关键raw逐项交叉核对；对长篇退役实验与历史文献附录按目录、结论和相关来源复核，不把它们都声称为逐字重新验证。未另行重跑历史训练，未证明所有标定／伪标签正确，也未把文献启发当成实验结果。
+
+- XDE完整复现、执行命令与卡时：[执行附件](assets/xde_20261014/README.md)。记录的执行阶段合计0.24993 GPU·h，另0.15为未实测预算预留；不是原E3计划预算。
+- XDE审计：[E1](../outputs/xde/e1/final_audit.json)、[E2](../outputs/xde/e2/supplemental_audit.json)、[E3几何](../outputs/xde/e3_preflight/result.json)、[坐标修正](../outputs/xde/e3_preflight/actual_wrist_depth_coverage.json)、[软件链](../outputs/xde/pipeline/result.json)。
+- 原2026-10-10 XA版本：[整理前快照](../outputs/xdl/s37_consolidation_20261013/S37_XYZ_ASSOC_DIAGNOSIS.before.md)，SHA256 `7222cb4f0e2f7aa979cec00cdc3ff4f399880ba6ee4b7c167b239fae111d83c1`。
+- 本次三文合并前原稿及SHA：[合并留档](../outputs/s37_doc_merge_20261014/manifest.json)。旧名不再作为docs下并行维护的文档。
+
+<a id="inventory-detail"></a>
+### 附录A：每项早期实验的结果登记与特有限制
+
+共同的数据、择点、受试者和时延边界见§2。以下保留每项自己的状态/结果字段与附加限制；机器状态英文名称原样保留以便查回清单。结果为历史登记，不是本次新测。
+
+<a id="experiment-e01"></a>
+#### E01. S37 Routed / s37_routed
+
+原记录日期：2026-09-07。状态：`historically_adopted_complete_6000x2`。来源：[账本](#s37-routed-prereg)（整理时行号 3837, 3943, 3966, 5998, 6001）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "selection_steps": [
+    2500,
+    5000
+  ],
+  "historical_selected_RA_mm": 20.74
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Compared with existing S36; removes prev rendering and adds routed readout together, so not an isolated readout factor.
+- Training source on09-07 was not committed; source/forward equivalence evidence is not exact historical training reconstruction.
+- Old amplification-ratio causal explanation must be weakened under10-07 erratum#1.
+
+<a id="experiment-e02"></a>
+#### E02. S37 FKgraph / s37_fkgraph
+
+原记录日期：2026-09-07。状态：`complete_with_DDP_failure_resume_not_adopted_tie`。来源：[账本](#s37-fkgraph)（整理时行号 4209, 4301, 4305, 4337, 4377）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "optimizer_steps": 6000,
+  "selection_steps": [
+    2000,
+    1500
+  ],
+  "historical_selected_RA_mm": 22.1
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- DDP stalled atstep3378; resumed each seed fromstep3000 on singleGPU batch1024, repeating unsaved work and altering rank grouping.
+- Same effective1024 batch does not imply same scalar logMSE objective: rank-local log512 vs single log1024 aggregation differs in general (new read-only mathematical inference).
+- Float32 atomic accumulation replaced by float64 for reproducibility; checkpoints were reselected after this inference change.
+- Full encoder change versus S36; two seeds differ in direction.
+
+<a id="experiment-e03"></a>
+#### E03. S37 MeshQ / s37_meshq
+
+原记录日期：2026-09-07; later09-29 audit。状态：`trained_negative_result_without_formal_mainrow_original_results_section_unfilled`。来源：[账本](#s37-meshq)（整理时行号 4416, 4496, 4517, 4521, 8913, 8914, 9060）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "historical_selected_RA_mm_by_seed": [
+    43.34,
+    41.83
+  ],
+  "source": "B6 audited selection grid"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Do not classify as unexecuted merely because original sections6/7 say pending.
+- Changes query aggregation, raw4, prev_mlp/prev interface and routed heads together; cannot isolate the cause.
+- No formal mainrow, original raw selection outputs currently absent.
+
+<a id="experiment-e04"></a>
+#### E04. S37 Meshgraph / s37_meshgraph
+
+原记录日期：2026-09-18。状态：`complete_6000x2_not_adopted_seed_split`。来源：[账本](#s37-meshgraph)（整理时行号 4529, 4625, 4648, 4706）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "selection_steps": [
+    3000,
+    5000
+  ],
+  "historical_selected_RA_mm": 24.89,
+  "historical_selected_RA_mm_by_seed": [
+    20.48,
+    29.3
+  ]
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Changes nodes, edges and pooling versus FKgraph.
+- Training-time normal accumulation changed float32 tofloat64; reproducibility restored, but training version was not wholly fixed.
+- Root instability/long-range-message explanation is supported descriptively, not isolated by an independent mechanism training arm.
+
+<a id="experiment-e05"></a>
+#### E05. S37 ROOTINNOV / s37_rootinnov
+
+原记录日期：2026-09-29。状态：`stage1_complete_1500x2_G1_G2_G4_FAIL_no_full_training`。来源：[账本](#s37-rootinnov)（整理时行号 4743, 4754, 4785, 4818, 4843）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "optimizer_steps": 1500,
+  "selection_steps": [
+    1000,
+    1250
+  ],
+  "historical_selected_RA_mm": 22.94
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Same-seed selected S37 warmstart, backbone/fingers frozen, only roots trained, root prev_mlp removed together with adding new innovation head.
+- Six checkpoint grid250..1500 differs from12-point full-training comparator.
+- Shows failure of this mixed first-stage implementation; does not reject innovation, keeping prior pull, multi-step training or full training.
+
+<a id="experiment-e06"></a>
+#### E06. S37 ROTW10 / s37_rotw10
+
+原记录日期：2026-09-29。状态：`complete_6000x2_not_adopted_tie_seed_split`。来源：[账本](#s37-rotw)（整理时行号 4879, 4952, 4980, 6024）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "selection_steps": [
+    6000,
+    4000
+  ],
+  "historical_selected_RA_mm": 20.74
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Only rotation-loss weight60->600 changes; root error does not reliably improve.
+- Rotw10 seed effects disagree; no general proof that loss allocation cannot matter.
+- ROTW text citing failed SO3/FK c0 is superseded: B8 only confirms configuration, not results.
+
+<a id="experiment-e07"></a>
+#### E07. S37 ROTW30 / s37_rotw30
+
+原记录日期：2026-09-29。状态：`single_seed_diagnostic_only`。来源：[账本](#s37-rotw)（整理时行号 4879, 4967, 4975）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407
+  ],
+  "selection_steps": [
+    5000
+  ],
+  "historical_selected_RA_mm": 19.1
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Single seed dose diagnostic, not a formal adoption arm; global rotation change is offset by local deterioration.
+
+<a id="experiment-e08"></a>
+#### E08. S37diag CNNabs and CNN root fuse_R/fuse_RT
+
+原记录日期：2026-09-29。状态：`CNN_reference_trained_4000x2_fusion_zero_extra_training_diagnostic`。来源：[账本](#s37-rotw)（整理时行号 4894, 4934, 4947）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "CNN_optimizer_steps": 4000,
+  "CNN_selected_steps": [
+    4000,
+    3500
+  ],
+  "historical_CNN_RA_mm": 13.56,
+  "historical_fuse_R_RA_mm": 16.93,
+  "historical_fuse_RT_RA_mm": 16.79
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- CNN absolute51D/LNES/11.18M is an external architecture/target/recipe reference, not PCA6 baseline or an isolated S37 factor.
+- Fusion changes output rotation and the recurrent next-state routing; direct measurement and route improvement are not separated.
+- No formal candidate mainrow for diagnostic CNN/fusion.
+
+<a id="experiment-e09"></a>
+#### E09. S37 EDGE6 / s37_edge6
+
+原记录日期：2026-09-29–30。状态：`complete_6000x2_not_adopted_tie_seed_split`。来源：[账本](#s37-edge6)（整理时行号 4996, 5013, 5019, 5133, 5157, 5182, 5190）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "selection_steps": [
+    5500,
+    4500
+  ],
+  "historical_selected_RA_mm": 21.38
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Both seed effects disagree; root/oracle/finger mechanism probes proposed insection3 were not completed.
+- Gradient finite/nonzero confirms training connection, not estimation utility.
+- Two ranks256 samples withaccumulate2 differs from baseline two ranks512 withaccumulate1; LOG10 batchMSE makes microbatch averaging generally a different objective despite EBS1024 (new mathematical inference).
+
+<a id="experiment-e10"></a>
+#### E10. S37 ROOTFUSE / s37_rootfuse
+
+原记录日期：2026-09-29–30。状态：`complete_6000x2_not_adopted_tie_seed_split`。来源：[账本](#s37-edge6)（整理时行号 4996, 5013, 5019, 5133, 5157, 5182, 5190）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "selection_steps": [
+    4500,
+    6000
+  ],
+  "historical_selected_RA_mm": 20.29
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Both seed effects disagree; root/oracle/finger mechanism probes proposed insection3 were not completed.
+- Gradient finite/nonzero confirms training connection, not estimation utility.
+- Same512/rank batching retained; changes root readout to per-joint nonlinear fusion; adds substantial parameters.
+
+<a id="experiment-e11"></a>
+#### E11. S37 XYZ/depth initial probe09-24
+
+原记录日期：2026-09-24。状态：`historical_zero_training_geometry_probe_raw_outputs_deleted`。来源：[账本](#s37-xyz-candidate)（整理时行号 5366, 8593, 6048）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "no_formal_pose_result": true
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Source exists via git85d76a1:docs/S37_XYZ_EVENT_DEPTH_ANALYSIS_20260924.md; original runtime products deleted and not rerun.
+- Projection retained depth for visibility; ray representation does not add sensor depth; detach does not eliminate inference feedback.
+
+<a id="experiment-e12"></a>
+#### E12. S37 XYZ CPU branch information DEBUG
+
+原记录日期：2026-09-29。状态：`CPU_executed_no_optimizer_no_new_model_accuracy_no_GPU`。来源：[账本](#s37-xyz-candidate)（整理时行号 5324, 5340, 8666）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seed": 20260929,
+  "scope": "equivalence identities, counterexamples, MANO local rank, head rewrite"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Uses two existing S37 selected head weights for algebraic equivalence only, not a trained new XYZ network.
+- Does not demonstrate that a narrow common head or pooled mesh preserves useful pose information.
+- Original temporary scripts/JSON gone; preserve archived statements and source limits.
+
+<a id="experiment-e13"></a>
+#### E13. S37 XYZ candidate/minimal/full design drafts
+
+原记录日期：2026-09-29; updated09-30。状态：`proposal_at_drafting_then_implemented_by_screen_full_no_separate_training_arm`。来源：[账本](#s37-xyz-candidate)（整理时行号 5209, 5214, 5230, 5358, 5393）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "six merged design/debug/recommendation/admission documents"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Historical draft labels unimplemented/untrained are not final state: SCREEN and FULL subsequently ran.
+- XYZ common head receives48historicalAA directly and drops independentprev_mlp; routed F(E)+G(prev) root argument does not directly prove the XYZ mechanism.
+- Design is not lossless pruning of routed; changes encoder/readout and information organization.
+
+<a id="experiment-e14"></a>
+#### E14. S37 XYZ SCREEN C1 and C0
+
+原记录日期：2026-09-29; archived09-30。状态：`complete_1500x1_stage2_admission_FAIL_user_later_overrode_to_full_C1`。来源：[账本](#s37-xyz-screen)（整理时行号 5412, 5443, 5476, 5486, 5510, 5525）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407
+  ],
+  "optimizer_steps": 1500,
+  "selection_grid": [
+    500,
+    1000,
+    1500
+  ],
+  "C1_selected_step": 1000,
+  "C0_selected_step": 500,
+  "C1_RA_mm": 21.04,
+  "C0_RA_mm": 22.15,
+  "admission": "H4 root rotation FAIL; H5 matched short-budget lag; H6 evidence load PASS"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Screen budget capped6GPUh overall, paired training cap3GPUh plus evaluation; no general architecture rejection from one seed/short training.
+- C0 retains historical geometric association and model size, masks explicit3D learned inputs; not event-only/no-geometry.
+- Full dual-seed routed table row is context, not a matched short-budget comparator; actual H5 uses same seed and500/1000/1500 grid.
+
+<a id="experiment-e15"></a>
+#### E15. S37 XYZ FULL C1 / s37_xyz_c1_full
+
+原记录日期：2026-09-30; read-only analysis10-05。状态：`fresh_complete_6000x2_not_adopted_tie`。来源：[账本](#s37-xyz-full)（整理时行号 5539, 5558, 5578, 5590, 5609, 5623, 5630, 5664）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "selection_steps": [
+    6000,
+    2500
+  ],
+  "historical_selected_RA_mm": 19.99,
+  "historical_last_RA_mm": 21.9231
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- User expressly authorized complete training after failed automated screen admission; fresh random initialization, not warmstart fromscreen.
+- No matching complete6000x2C0 existed in this historical round; cannot isolate explicit3D contribution from C1vsrouted.
+- 19.99 is selected, not both last-step result; seed3407 worsens.
+- Historical C1 training30..300ms withSPEED_AUGtrue; W50 evaluation, unlike laterXDL rawW50 training.
+- Temporary probe scripts deleted; formal numeric records do not imply full mechanism probes were run.
+
+<a id="experiment-e16"></a>
+#### E16. RT unified S37 baseline / rt_s37 and rt_s37_2k
+
+原记录日期：2026-10-01–02。状态：`2k_paired_screen_and_complete6k_later_three_seed_confirmation`。来源：[账本](#root-tracking-verdict)（整理时行号 322, 371, 464, 549, 5682, 6027, 6070）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds_last": [
+    3407,
+    3408,
+    3409
+  ],
+  "two_seed_selected_RA_mm": 20.33,
+  "two_seed_last_RA_mm": 23.25,
+  "three_seed_last_RA_mm": 23.83,
+  "three_seed_selected_RA_mm": 20.76
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Unified singleGPU512acc2, cosine schedule differs from historical routed2GPU512constantLR; no causal comparison of just architecture.
+- Three seeds share sameGT/sequences/reset noise; three runs span versions, dirty training source not fully reproducible.
+- 2k schedule compressescosine to2000; not equivalent to slicingfirst2000steps of6k.
+- Historical 23.25 and20.33 are two-seed, not three-seed means.
+
+<a id="experiment-e17"></a>
+#### E17. RT G3 hierarchical grid / rt_g3_2k
+
+原记录日期：2026-10-01–02。状态：`executed_2000x2_last_step_screen_not_complete6k_evidence`。来源：[账本](#root-tracking-verdict)（整理时行号 371, 378, 405, 549, 605）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "steps": 2000,
+  "RA_mm_by_seed": [
+    24.16,
+    22.41
+  ]
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Uses unifiedRTrecipe and2kcompressedcosine; cannot equate with historicalselected6k20.74.
+- Some screen arms were evaluatedonCPU, othersGPU; same-checkpoint device difference about0.13..0.19mm.
+- Retired arm names verified read-only gitshowa555857:tools/rt/make_configs.py; existing generated6kconfig does not establish6ktraining.
+
+<a id="experiment-e18"></a>
+#### E18. RT E8 whole-packet causal kNN / rt_e8_2k
+
+原记录日期：2026-10-01–02。状态：`executed_2000x2_last_step_screen_not_complete6k_evidence`。来源：[账本](#root-tracking-verdict)（整理时行号 371, 378, 405, 549, 605）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "steps": 2000,
+  "RA_mm_by_seed": [
+    24.28,
+    24.14
+  ]
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Uses unifiedRTrecipe and2kcompressedcosine; cannot equate with historicalselected6k20.74.
+- Some screen arms were evaluatedonCPU, othersGPU; same-checkpoint device difference about0.13..0.19mm.
+- Retired arm names verified read-only gitshowa555857:tools/rt/make_configs.py; existing generated6kconfig does not establish6ktraining.
+
+<a id="experiment-e19"></a>
+#### E19. RT C37 CNN+routed / rt_c37_2k
+
+原记录日期：2026-10-01–02。状态：`executed_2000x2_last_step_screen_not_complete6k_evidence`。来源：[账本](#root-tracking-verdict)（整理时行号 371, 378, 405, 549, 605）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "steps": 2000,
+  "RA_mm_by_seed": [
+    23.2,
+    24.11
+  ]
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Uses unifiedRTrecipe and2kcompressedcosine; cannot equate with historicalselected6k20.74.
+- Some screen arms were evaluatedonCPU, othersGPU; same-checkpoint device difference about0.13..0.19mm.
+- Retired arm names verified read-only gitshowa555857:tools/rt/make_configs.py; existing generated6kconfig does not establish6ktraining.
+
+<a id="experiment-e20"></a>
+#### E20. RT S37 ROOT_ABS / rt_s37ra_2k
+
+原记录日期：2026-10-01–02。状态：`executed_2000x2_last_step_screen_not_complete6k_evidence`。来源：[账本](#root-tracking-verdict)（整理时行号 371, 378, 405, 549, 605）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "steps": 2000,
+  "RA_mm_by_seed": [
+    23.66,
+    24.05
+  ]
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Uses unifiedRTrecipe and2kcompressedcosine; cannot equate with historicalselected6k20.74.
+- Some screen arms were evaluatedonCPU, othersGPU; same-checkpoint device difference about0.13..0.19mm.
+- Retired arm names verified read-only gitshowa555857:tools/rt/make_configs.py; existing generated6kconfig does not establish6ktraining.
+
+<a id="experiment-e21"></a>
+#### E21. RT C37 ROOT_ABS / rt_c37ra_2k
+
+原记录日期：2026-10-01–02。状态：`executed_2000x2_last_step_screen_not_complete6k_evidence`。来源：[账本](#root-tracking-verdict)（整理时行号 371, 378, 405, 549, 605）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "steps": 2000,
+  "RA_mm_by_seed": [
+    19.55,
+    20.41
+  ]
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Uses unifiedRTrecipe and2kcompressedcosine; cannot equate with historicalselected6k20.74.
+- Some screen arms were evaluatedonCPU, othersGPU; same-checkpoint device difference about0.13..0.19mm.
+- Retired arm names verified read-only gitshowa555857:tools/rt/make_configs.py; existing generated6kconfig does not establish6ktraining.
+
+<a id="experiment-e22"></a>
+#### E22. RT E7 absolute EventGNN / rt_e7_2k
+
+原记录日期：2026-10-01–02。状态：`executed_2000x2_last_step_screen_not_complete6k_evidence`。来源：[账本](#root-tracking-verdict)（整理时行号 371, 378, 405, 549, 605）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "steps": 2000,
+  "RA_mm_by_seed": [
+    27.9,
+    28.11
+  ]
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Uses unifiedRTrecipe and2kcompressedcosine; cannot equate with historicalselected6k20.74.
+- Some screen arms were evaluatedonCPU, othersGPU; same-checkpoint device difference about0.13..0.19mm.
+- Retired arm names verified read-only gitshowa555857:tools/rt/make_configs.py; existing generated6kconfig does not establish6ktraining.
+
+<a id="experiment-e23"></a>
+#### E23. RT CNN delta comparator / rt_cnndelta_2k
+
+原记录日期：2026-10-01–02。状态：`executed_2000x2_last_step_screen_not_complete6k_evidence`。来源：[账本](#root-tracking-verdict)（整理时行号 371, 378, 405, 549, 605）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "steps": 2000,
+  "RA_mm_by_seed": [
+    20.53,
+    22.85
+  ]
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Uses unifiedRTrecipe and2kcompressedcosine; cannot equate with historicalselected6k20.74.
+- Some screen arms were evaluatedonCPU, othersGPU; same-checkpoint device difference about0.13..0.19mm.
+- Retired arm names verified read-only gitshowa555857:tools/rt/make_configs.py; existing generated6kconfig does not establish6ktraining.
+
+<a id="experiment-e24"></a>
+#### E24. RT ABS_TRACK dense comparator / rt_cnnar_2k
+
+原记录日期：2026-10-01–02。状态：`executed_2000x2_last_step_screen_not_complete6k_evidence`。来源：[账本](#root-tracking-verdict)（整理时行号 371, 378, 405, 549, 605）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "seeds": [
+    3407,
+    3408
+  ],
+  "steps": 2000,
+  "RA_mm_by_seed": [
+    16.28,
+    14.14
+  ]
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Uses unifiedRTrecipe and2kcompressedcosine; cannot equate with historicalselected6k20.74.
+- Some screen arms were evaluatedonCPU, othersGPU; same-checkpoint device difference about0.13..0.19mm.
+- Retired arm names verified read-only gitshowa555857:tools/rt/make_configs.py; existing generated6kconfig does not establish6ktraining.
+
+<a id="experiment-e25"></a>
+#### E25. x1001 aborted eight-subject root-screen round
+
+原记录日期：2026-10-01。状态：`aborted_changed_protocol_not_current9subject_result`。来源：[账本](#x1001-20261001)（整理时行号 616, 618, 622, 626, 635）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "train_subjects": 8,
+  "missing_subject": "ly",
+  "sealed_ly_never_opened": true,
+  "E8_completed_steps": 500,
+  "cnntrack_completed_steps": 2500,
+  "scope": "S37/CNN/E7/E9 completed or selected historical comparison plus incompleteE8/cnntrack"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Directorydeleted; numeric records only inthissection.
+- Eight-subject split differs fromcanonicalnine-subject72seq; no direct currentmainrow comparison.
+- Stoppedbyuser19:24 andswitchedback9people20:02; incompletetasks yieldno precision rejection.
+- E9 executed in8personround; statement nevertrained appliesonlycurrent9personprotocol.
+
+<a id="experiment-e26"></a>
+#### E26. S3709-28/29 frozen decomposition, reset/hold, root and finger, window probes
+
+原记录日期：2026-09-28–29。状态：`zero_training_historical_diagnostics_many_raw_outputs_deleted`。来源：[账本](#s37-routed-prereg)（整理时行号 4008, 4030, 4080, 4111, 4157, 5998, 6048）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "closed-loop replacement/freeze, same-packet iteration, ridgeMLPinformation,2D/oracledepth residual, window50..300 scan"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Use10-07errata for amplification,rootgain,oracle interpretation,metricalignment,reset effects,lossweight,windowbound.
+- Ridge/MLP are frozen-featuredecoder probes, not front-endinformationtheorems; oracledepth leaks privilegedgeometry.
+- Rawtemporaryfilesdeleted; no claim they were rerun duringcurrentconsolidation.
+
+<a id="experiment-e27"></a>
+#### E27. S3709-30 architecture-decision A..F diagnostics
+
+原记录日期：2026-09-30。状态：`executed_diagnostics_no_new_formal_arm_or_mainrow`。来源：[账本](#architecture-decision)（整理时行号 6542, 6548, 6554, 6570, 6920）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "source audit, state-free absolute readout probes, update law, timing, selection effect; S37-AbsRoot proposal never implemented"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- No new formalresult inresearchwindow.
+- ProposedS37-AbsRoot wasnot implemented; do notconfuse withlaterRTROOT_ABS.
+- SomeJSONreadablehistorically butscriptsdependondeletedtemporarydirs.
+- Timingdifferentharness/rawvsanchored cannot be readaswholepipeline latency.
+
+<a id="experiment-e28"></a>
+#### E28. S37 read-only evidence synthesis10-07
+
+原记录日期：2026-10-07。状态：`read_only_no_new_training_evaluation_mainrow`。来源：[账本](#s37-diagnosis-20261007)（整理时行号 5670, 5682, 5731, 5850, 5950, 5998, 6048）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "historicalroutedandunifiedRTsource/artifact audit with28errata andcandidatehypotheses"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Usecorrectedmetadataandscope, notoldabsoluteclaims.
+- Statementself-generatedstatesnotyettested istrueat10-07, supersededbylaterXDLfive-armstage.
+- Allnegativecausalclaimsrestrictedtospecificimplementation/probe/budget; noentireXYZ/GNNdirectionrejection.
+
+<a id="experiment-e29"></a>
+#### E29. Deleted S37-associated SPATIAL_CONTEXT
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`frozen_S37_adapter_utility_FAIL`。来源：[账本](#audit-b8)（整理时行号 9016, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "FrozenS37@2500; distant-vslocal localgain0.25below1.1gate"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e30"></a>
+#### E30. Deleted S37-associated NEIGHBORHOOD
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`fixed_checkpoint_neighborhood_probe_STOP`。来源：[账本](#audit-b8)（整理时行号 9016, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "No formaltrainedmainrow; localchange−0.03"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e31"></a>
+#### E31. Deleted S37-associated CONSTANT_CONTEXT
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`fixed_context_control_NOT_ADOPTED`。来源：[账本](#audit-b8)（整理时行号 9016, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "Constantbias-vslocaladapter violatesglobal0.3tolerance"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e32"></a>
+#### E32. Deleted S37-associated TEMPORAL_HISTORY
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`fixed_history_readout_gate_FAIL`。来源：[账本](#audit-b8)（整理时行号 9017, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "Gainvsmatchedcontrolonly0.22below0.5;globalworse"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e33"></a>
+#### E33. Deleted S37-associated HISTORY_EVIDENCE
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`fixed_past_evidence_joint_utility_FAIL`。来源：[账本](#audit-b8)（整理时行号 9017, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "Apparentlocalgainvsholddoesnotpassmatchedcontrol/globalgates"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e34"></a>
+#### E34. Deleted S37-associated CENTERED_UPDATE
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`fixed_null_centering_STOP`。来源：[账本](#audit-b8)（整理时行号 9017, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "Didnotpass0.5mmutilitygate"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e35"></a>
+#### E35. Deleted S37-associated STATE_ACCUMULATION
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`gradient_fidelity_PASS_pose_utility_FAIL`。来源：[账本](#audit-b8)（整理时行号 9018, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "BF16tailaccumulationtoFP32;fidelitydoesnotimplytaskbenefit"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e36"></a>
+#### E36. Deleted S37-associated NORMAL_FLOW
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`INCONCLUSIVE_SUPPORT_OR_PROFILE`。来源：[账本](#audit-b8)（整理时行号 9018, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "NF2supportgateunmet;noformalposemmresult"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e37"></a>
+#### E37. Deleted S37-associated RELATIVE_INCREMENT
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`definition_contract_only_no_pose_result`。来源：[账本](#audit-b8)（整理时行号 9018, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "Onlydefinition/constructioncontract"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e38"></a>
+#### E38. Deleted S37-associated EVENT_OBSERVATION
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`local_contract_PASS_G22_NOT_TESTED`。来源：[账本](#audit-b8)（整理时行号 9018, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "Localobservabilitycontractpassed;requiredG22notexecuted"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e39"></a>
+#### E39. Deleted S37-associated PAST_ANCHOR / HASTE-style PA1
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`INCONCLUSIVE_FIXED_TRACK_SUPPORT`。来源：[账本](#audit-b8)（整理时行号 9018, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "local0/16support,globalBlabelunopened; noformaltrackingresult"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e40"></a>
+#### E40. Deleted S37-associated CURRICULUM K0/K1/K2
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`single_seed_K0_NaN_K1_K2_gates_FAIL`。来源：[账本](#audit-b8)（整理时行号 9019, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "S37architecture,seed3407;K0failsnumerically;K1/K2utilitygatesfail"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e41"></a>
+#### E41. Deleted S37-associated X1 / event_hier / X1c
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`X1_TIMEOUT_X1c_single_seed3000_joint_gates_FAIL`。来源：[账本](#audit-b8)（整理时行号 9020, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "Multiplechangesencoder/absoluteinterface/loss/steps;notcleanS37factor"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e42"></a>
+#### E42. Deleted S37-associated event_guided_mesh_memory / vertex GRU+unroll
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`trained_selected_negative_precision_gate_FAIL`。来源：[账本](#audit-b8)（整理时行号 9021, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "778vertexGRUplusunroll;step500selectedRA78.78fromdeletedrecord"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e43"></a>
+#### E43. Deleted S37-associated c0_s37_so3fk
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`configuration_only_results_UNVERIFIED`。来源：[账本](#audit-b8)（整理时行号 9021, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "Not XYZ-C0;SO3/FKlossblockresultnotverified"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e44"></a>
+#### E44. Deleted S37-associated s39_covmap
+
+原记录日期：before2026-09-28 cleanup; cited09-29, originaldateunverified。状态：`configuration_motivation_only_results_UNVERIFIED`。来源：[账本](#audit-b8)（整理时行号 9021, 9037, 6048, 8590）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "NotcurrentS39;coverage-maprootproposalhasunverifiedtrainingresult"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- AllPart2B8numbersaredeletedrecordscitedfrom85d76a1, originalexecutionhash/checkpoints/scriptsnotreverified.
+- No current formalmainrow; notaddedtoformalnine-columnscoretable.
+- Sparse short-budget/frozen/multi-factor/support-failure evidence cannot reject the general mechanism.
+
+<a id="experiment-e45"></a>
+#### E45. Old KEG-halo E5.5b/E5.5c unroll reference
+
+原记录日期：2026-08-25。状态：`old_split_related_reference_not_S37_self_training`。来源：[账本](#audit-b8)（整理时行号 9011, 9037, 5950）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "constantUNROLL_P0.5collapse; laterannealed/residualformreference"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Old5personKEGprotocol/architecture, nottheS37EventGNNorXYZself-historyexperiment.
+- Cannotcall42.5mmTFaGNN-absoluteformalresultorclaimS37self-trainingwasalreadytested.
+
+<a id="experiment-e46"></a>
+#### E46. Old S7delta-trust / S13triggeredabsoluteanchor
+
+原记录日期：oldprotocol;originaldateunverified。状态：`related_reference_S7_frozen_probe_S13_incomplete_accuracy`。来源：[账本](#audit-b8)（整理时行号 9014, 9037）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "Olddenseprotocolzero-trainingconstanttrust;triggeredanchorcontractpassedbutaccuracyincomplete"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Do notmixwithcurrentS37selected/lastschema; incompletetrackingdoesnotconstituteformalnegativeaccuracyarm.
+
+<a id="experiment-e47"></a>
+#### E47. S38 measurement/interface and S37abs/spdelta related controls
+
+原记录日期：2026-10-02–03。状态：`separate_sparse_measurement_family_related_control`。来源：[账本](#s38-verdict)（整理时行号 6928, 7100, 5950, 7554）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "IncludesS37encoderabsolutecontrolandpyramidΔcontrol;S38v2changesencoderandmeasurementinterfaces,gainsnotS37singlefactor"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Explicitboundary/controlonly;donotpoolwithS37XYZformalresults.
+- Onlyalreadycheckedsourceclaimsused; completeper-armnewerresultsbelongtoitsownrecordsection.
+
+<a id="experiment-e48"></a>
+#### E48. U1a shared-node measurement/readout audit
+
+原记录日期：2026-10-02–03。状态：`separate_S38_based_shared_interface_study_not_S37_mainline`。来源：[账本](#u1a-verdict)（整理时行号 7566, 7624, 7658, 8110）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "S37RTthree-seedrowisread-onlycontrol;U1afreezeandsavedsourceidentitiesareseparate"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Explicitboundary/controlonly;donotpoolwithS37XYZformalresults.
+- Onlyalreadycheckedsourceclaimsused; completeper-armnewerresultsbelongtoitsownrecordsection.
+
+<a id="experiment-e49"></a>
+#### E49. S40 graph hierarchical encoder+16node measurement
+
+原记录日期：2026-10-05–06。状态：`2k_screen_failed_no_stage2_user_discarded_code`。来源：[账本](#s40-prereg)（整理时行号 8169, 8257, 8317, 8402, 8737）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "RelatedscreencomparesRTS37baselineandS38measurement,notS37XYZarchitecture;coderetiredaftergatefailure"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Explicitboundary/controlonly;donotpoolwithS37XYZformalresults.
+- Onlyalreadycheckedsourceclaimsused; completeper-armnewerresultsbelongtoitsownrecordsection.
+
+<a id="experiment-e50"></a>
+#### E50. S39 and S42 dense runtime/history reference
+
+原记录日期：2026-10-04–06。状态：`current_baseline_or_dense_reference_not_S37_experiment`。来源：[账本](#s42-verdict)（整理时行号 7, 11, 2412, 2560, 5950）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "S39W200/filter/evidencerampandS42selfstateeffectarecrossarchitecture/schedulecontrols,notS37causalproof"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Explicitboundary/controlonly;donotpoolwithS37XYZformalresults.
+- Onlyalreadycheckedsourceclaimsused; completeper-armnewerresultsbelongtoitsownrecordsection.
+
+<a id="experiment-e51"></a>
+#### E51. Pre09-06 old FK-direct S37 identifier
+
+原记录日期：before2026-09-06。状态：`deleted_identifier_not_current_S37_family`。来源：[账本](#s37-routed-prereg)（整理时行号 3841, 5731）。
+
+结果登记（保持原字段和单位）：
+
+```json
+{
+  "scope": "S37numberwasreset;nocurrentroutedidentityorrunrowclaimed"
+}
+```
+
+当前正式主行：未核到本条目的当前主行；历史数字不当作本次可重放结果。
+
+本条目特有边界（来自独立覆盖审查）：
+
+- Explicitboundary/controlonly;donotpoolwithS37XYZformalresults.
+- Onlyalreadycheckedsourceclaimsused; completeper-armnewerresultsbelongtoitsownrecordsection.
+
+<!-- EXPERIMENT_RECORD:S37-XYZ-DIAGNOSIS:END -->
+
+---
+
+<a id="xag-single-seed-20261017"></a>
+## XAG 范围修订：六个方案各一次训练（用户 2026-10-17）
+
+**完整评价验收（10-17 16:23，北京时间）：** 当前scope于UTC`2026-10-17T08:22:25.432638+00:00`达到`COMPLETE_EVIDENCE_READY_FOR_REVIEW`。六项训练及六主行、六common+六own GPU命令和原CPU矩阵审计均完成；[504份原始轨迹审计](../outputs/xag/single_seed/matrix_diagnostics_audit.json)为COMPLETE、integrity PASS，missing/implementation_errors/numerical_failure_artifacts均空，完整分母成立。CPU审计重新执行原MANO、物理误差、完整运动及恢复评分，运行期间进程CPU计时持续增加；没有跳过长global段或将缺失改作完成。覆盖补证随同代次完成门开始RUNNING，当前7张闲置卡GPU1–7执行；GPU0上非本任务桌面进程被原闲置门排除，未停止无关进程或放宽原保护。64项任务和1201760查询的全量范围保持；正式reader、完整性adapter、图件与最终成本均继续等待完整coverage及各自终态门。这里是完整性验收，不是关联/GNN科学裁决。
+
+**训练完成（10-17 14:37，北京时间）：** 六项全部完成正式fresh step6000，末点固定，未按中途成绩删臂。A1F+最后[独立CPU核验](../outputs/xag/reviews/single_seed_fresh_completion_r2_20261017/xag_a1f1_s3407.json)SHA`c336fca15ddacb5c810b688d66a9fcd4ca292709960b4bbf13883f1959f80209`确认权重SHA`f4ebe98a2a0c2591c372d19f1046a3e3238db18dbf91b5a7fdb230c5c31f0612`、PID188834/start15439240完整组消失、真实exit0、64项Adam全6000且有限、调度/LR、39个新增键/形状及全部fresh/配置/绑定/两rank初始化与前三批。三项新最终文件分别只读取一次并在CPU内存解码，CUDA均未初始化。原[六项配对审计](../outputs/xag/single_seed/paired_training_audit.json)PASS；这只证明共享初始化和启动前三批配对，不扩称全部6000步逐位相同。六主行已在GPU0–5并行开始完整两序列评价，随后执行共同前态与自由递推、504原始审计及覆盖补证；此时仍无六格效果或主因结论。 [2026-10-20补注：10-17 16:23之后的覆盖补证/恢复图件/费用结算/解释备忘产物已生成并于10-19随清理删除，账本无其数值，见[XAG单seed六格终态](#xag-single-seed-final-20261020)；该线无最终主因裁决。]
+
+**阶段完成（10-17 13:50，北京时间）：** A2F+成为第5个正式step6000完成项。[独立CPU核验](../outputs/xag/reviews/single_seed_fresh_completion_r2_20261017/xag_a2f1_s3407.json)SHA`5415281bb6ff14e8951ebe44fd64f0b2f7c2b10c411d15da6f76aceebd119335`确认检查点SHA`20cc92246ddc90a208523c725afb5784e2b2c567a2d64cfd045951f3f31fe1b4`、PID188832/start15439221完整组退出、真实exit0、64项Adam全部step6000且有限、增强分支额外39参数键/形状、fresh2×512及配置/绑定/两rank初始化与前三批。仅一次文件读取、CPU内存解码，未读成绩或原轨迹；仅剩A1F+仍在训练，全六格效果评价尚未开始。
+
+**阶段完成（10-17 13:32，北京时间）：** A2F0成为第4个正式step6000完成项。独立[CPU核验](../outputs/xag/reviews/single_seed_fresh_completion_r2_20261017/xag_a2f0_s3407.json)SHA`d9ddd4b66a132912478d11ff3ca5db9d19b3379a2a9249ea4454772303289951`确认检查点SHA`3e4a86826ce5bf1f6fa2ebc93f2e94ce2996d60ae47b396f70bea0dffa1b9b17`、原PID/start完整组退出、真实returncode0、fresh2×512、25项Adam全step6000且有限、调度6000/LR0.004、精确状态键集、配置/源码/数据绑定及两rank共享初始化和前三批。文件仅一次读取后在CPU内存解码，未读成绩或原始轨迹。A1F+、A2F+仍在训练；此处只确认训练合同，不作六格效果结论。
+
+**控制层失败及同源码恢复（10-17 11:31，北京时间）：** 六项控制器在UTC`03:19:05`因读取退出中A1F0子进程`/proc/157817/environ`瞬时`EACCES`而失败；其清理路径同样遇到该竞态，随后原owned组全部退出。并行的A1F+、A2F0、A2F+由控制器SIGTERM停止，分别停在950、1500、1300步，真实退出码−15；不是正式完成项，不续接部分权重。主机OOM计数21未变。58个文件、88,583,407字节的[失败归档清单](../outputs/xag/single_seed/attempts/adopted_proc_permission_20261017T031905/manifest.json)SHA`14412f4eecdf5388c455e3e7e3702e635c28a1032b1bd784e10abbcf9ef345ad`及[独立回读](../outputs/xag/reviews/single_seed_adopted_completion_review_20261017/recovery/archive_prelaunch_review.json)保留原状态、日志、检查点和源码；原三个目标目录重建为空，semkine链接保持。
+
+A1F0原训练已经写出完整fit-end及step6000权重。[独立CPU恢复核验](../outputs/xag/reviews/single_seed_adopted_completion_review_20261017/recovery/review.json)SHA`e2ecfe238ef2d064f52d967a483c503d4ad62939d863e99cd548d9f0e3ca33a9`确认权重SHA`f9221059941ac8e1335026ddb4e61c93e9817ac5b397cad023a4271ec512de4d`、25个Adam状态全部6000且有限、scheduler6000、fresh双卡2×512、9人72序列/原划分、两rank初始化与前三批及所有绑定。其真实OS退出码仍记未知，不追认为exit0。原控制器无需改源码：原接管验收的“无live进程组”路径不再读取退出中的environ，并同时要求fit-end、完整进程组退出和原检查点合同成立；这不是修补原竞态或另一次A1训练。
+
+[恢复回执](../outputs/xag/single_seed/recovery_r2.json)SHA`7daba692228bf509e5fed146810ad717a73854f6f192cd62fe7c57ac5ba471bf`记录删除三个pending旧runtime记录，防止journal合并遗留error/returncode/finished_at；A1恢复原handoff基线，原handoff字节不变，其他历史项不动。186个冻结文件及六项控制层4文件哈希均不变。[新启动回执](../outputs/xag/single_seed/launch_r2.json)SHA`545c4031fec6410b0ddaef65f2b231ca2c219d37d9fb5b548a9dcc6cb4741412`对应controller188827、UTC新代次`2026-10-17T03:30:52.002661+00:00`；当时3/6通过完整训练合同，三项从头执行。原v1覆盖/费用观察器已停，失败代次及侧车证据保留；r2侧车必须另目录绑定新代次，不能继承过期COMPLETE或伪造旧起点。三项中断成本另记，同一A1训练不重复计费。此处只报告执行恢复，不作效果或主因判断。
+
+**执行回执（10-17 10:46，北京时间）：** 新调度已实际启动，当前训练完成2/6、其余4项执行中。`a0f0/a0f1`的seed3407通过原末点身份校验复用；`a1f0_s3407`原进程保留且继续，`a1f1/a2f0/a2f1`的seed3407分别在GPU0–1、2–3、6–7从头启动，保留项仍在GPU4–5。旧coordinator/matrix先停止派发，再仅退出其调度进程；非选中`a0f1_s3408`、`a1f0_s3408`和`a1f0r_s3407`进程组经原root/job/token/启动时间身份检查后停止，独立扫描确认无残余live成员。原日志、检查点和修订前状态完整保留；已完成的其他旧seed/复跑不进入本轮六项比较。具体见[交接前快照](../outputs/xag/single_seed/handoff_before.json)、[交接回执](../outputs/xag/single_seed/handoff.json)、[启动回执](../outputs/xag/single_seed/launch.json)与[当前状态](../outputs/xag/single_seed/status.json)。
+
+执行入口为`tools/xag_single_seed/execute.py all`；新文件单独[绑定哈希](../outputs/xag/single_seed/code_manifest.json)，未改原186文件、原协议及缓存清单。新调度只复用原检查点校验、配对初始化/前三批审计、双卡训练与原主存/OOM保护；接管的孤立训练须完整进程组退出、`TRAINING_COMPLETE`末点回执及原step6000检查点校验同时成立，不能只凭已到6000步接受。单seed主行仍经原`make_s36_row.py --seeds 3407`和`report_table.py`生成，独立命名保存，原双seed主行别名不改；完整共同前态/自身递推诊断改按六模型、504份原始轨迹产物核验，原两seed/复跑门不再调用。[启动前15项范围测试、原冻结校验及diff检查](../outputs/xag/single_seed/prelaunch_checks.json)通过；这只是实现与执行验收，不能代替效果比较。
+
+六项控制层另存[源码包](../outputs/xag/single_seed/source_archive/single_seed_scope_9519b1b2.tar.gz)，SHA`3978b1058e1e4eff8e6d95ffb4543cd9b3f5f5b30e5ad5cdc32f812875cc7865`；[逐成员回读](../outputs/xag/single_seed/source_archive/verification.json)确认4个封版源码/测试及协议、交接、清单、启动验收共8个成员与实文件一致。原186文件归档继续保留。保留项A1F0的训练进程在旧调度退出后被PID1接管，新控制器沿用原PID/starttime及GPU4–5；其真实OS退出码如未被捕获应记不可观测，不能追认为实际exit0。该项完成依据是完整进程组退出、fit-end完成回执及原检查点/优化器/身份校验；真实非零退出状态若被观察到仍判失败。此证据边界不改变其余fresh子进程的退出码验收。
+
+**现行范围为6个run，统一seed3407，不再执行seed3408或同seed独立复跑。** 这是用户对实验数量的明确修订，替代原18项训练数量及依赖重复训练的可靠性判据；不是根据中途成绩选择实验臂或seed。六格全部保留：
+
+| 方案 | 关联与后端 | 保留训练 |
+|---|---|---|
+| A0F0 | 原关联＋原MeshGNN | `xag_a0f0_s3407` |
+| A0F1（F+） | 原关联＋增强MeshGNN | `xag_a0f1_s3407` |
+| A1F0 | GT16部位限制对应＋原MeshGNN | `xag_a1f0_s3407` |
+| A1F1（F+） | GT16部位限制对应＋增强MeshGNN | `xag_a1f1_s3407` |
+| A2F0 | GT网格辅助细粒度表面对应＋原MeshGNN | `xag_a2f0_s3407` |
+| A2F1（F+） | GT网格辅助细粒度表面对应＋增强MeshGNN | `xag_a2f1_s3407` |
+
+保留项沿用原run名、配置、初始化和既有训练身份。原先已经完成的seed3407固定末点直接保留，正在运行的保留项继续到step6000，未开始项按原fresh合同启动；不重新训练已完成项、不从其他seed改名移植权重。第二seed和复跑退出当前派发范围，其已有完整或部分产物、日志、状态、失败与审查证据均保留，不能混入六项单seed主表。
+
+本次只缩减重复次数：A0/A1/A2 × F0/F+六格干预定义、原fresh step6000、双卡2×512、rank内logloss、优化器/调度、数据增强/随机流、固定末点及完整zgz评价合同保持。9人72序列训练，zgz两序列开发/测试共用，唯一只读 `splits_semkine.json` 不变。已完成的两旧C1检查点冻结诊断及其分母保留，不因正式训练改为单seed而删除一半既有诊断。正式共同前态评价使用保留seed对应的旧C1前态轨迹，自身递推继续使用各臂自己的输出；全部原规定前态、失败分母、运动/恢复及非有限处理不变。
+
+**结果解释收缩为单seed描述性比较。** 继续记录关联收益 `L00-La0`、GNN收益 `L00-L01` 和交互 `La0+L01-L00-La1`，保留local/global/overall、共同前态与自身反馈及所有反例。原“两训练seed同向”条件及 `tau=max(1.1mm,2*max_cell|seed3407-repeat3407|)` 复跑噪声门不再适用，不计算伪造的六格重复差，不以少数已完成历史复跑补足门槛，不把单seed差值写成可靠性PASS、稳定优势、等效结论或主因已确定。SO(3)、weighted51及腕深度等仍为机制量。代码正确性与工程合同核验可独立通过，但不能代替学习效果。
+
+主表继续由工具生成规定九列，包含baseline、S39及当前臂；每个新臂明确标注“单seed3407”，A1/A2明确标注GT辅助/oracle。其精度是本seed值，RA不伪装成双seed均值或双seed括号。六个完整模型及其规定评价未齐前，不输出六格的完整比较结论。
+
+原 [18项协议](../outputs/xag/protocol.json)、186文件 [源码冻结清单](../outputs/xag/frozen_sources.json)（SHA `22f2fdcf0fa7de36f2230f413d0f08abbe38acbba4c44952613d2f53554ae701`）及源码归档保持原字节；原18项执行代次、资源OOM/监视器失败、资源修订及完成审查记录均作为历史证据保留。新范围另存 [单seed协议](../outputs/xag/single_seed/protocol.json)，执行层在 `tools/xag_single_seed/` 单独实现；执行切换、保留/取消任务及实时进度以 [六项状态](../outputs/xag/single_seed/status.json) 为准。原 `execution.json/runtime.json` 不能继续充当现行六项状态。原关联覆盖补证队列绑定旧18项完成条件，其既有协议与验收保留；不得伪造旧18项全部完成状态来触发它，后续执行需按新范围另行绑定。
+
+**六项范围补证已另行封版，尚未形成效果结论：** [新覆盖协议](../outputs/xag/reviews/association_coverage_single_seed_20261017/protocol.json)SHA`35ebe6c8bbd76552bce74587b91079715eb23565737300873e761e6943e9b280`绑定scope协议`5ce2f255…`、4文件控制层清单`9519b1b2…`及新执行起点UTC`2026-10-17T02:46:13.158256+00:00`。保留旧两C1检查点五模式的751100次查询，加六个正式模型450660次，预计共1201760查询、928组、336份计数JSON及64个分片任务。核心关联、计数和失败处理AST保持原v2，继承原160例CUDA验收；另有12项范围/schema测试及[独立审查](../outputs/xag/reviews/single_seed_actual_cost_20261017/coverage_queue_independent_review.json)通过，没有冒称重跑CUDA验收。[新队列](../outputs/xag/reviews/association_coverage_single_seed_20261017/queue_status.json)仅在新六项训练、主行和诊断均完整完成后使用闲置GPU；此时仍在等待，没有完成覆盖统计。 [2026-10-20补注：10-17 16:23之后的覆盖补证/恢复图件/费用结算/解释备忘产物已生成并于10-19随清理删除，账本无其数值，见[XAG单seed六格终态](#xag-single-seed-final-20261020)；该线无最终主因裁决。]
+
+六项版[比较读取器与图件准备清单](../outputs/xag/reviews/single_seed_interpretation_20261017/preparation_manifest.json)SHA`6c5a9297c8eb418b4cd9db9e6aaabd1aee51d5079061b3f20a140a0c584f1a79`已封存；25项合成schema/公式/失败分母测试及两页明确标记SYNTHETIC的图形检查通过。正式读取要求六主行、504份原始产物审计和上述完整coverage同时成立；输出单seed描述性差值、交互及全部方向反例，不调用旧复跑门。图件固定两域、14前态和9个GT误差族及恢复/删失分母，共20份PDF、280页；每格只有seed3407一条曲线，无seed误差带、伪造dense轨迹或自动病因裁决。目前未执行正式summarise/render，也未把合成样例当作实验结果。
+
+**恢复代次补证重绑定（10-17 11:50，北京时间）：** 上两段v1侧车保留其失败代次身份，不再承担当前等待/读取。[r2覆盖协议](../outputs/xag/reviews/association_coverage_single_seed_r2_20261017/protocol.json)SHA`2cdfda8dbfd557f219c653dde3b3b8482bbdccb5583e0c62fd556f13ed64fb0e`与[读取/图件清单](../outputs/xag/reviews/single_seed_interpretation_r2_20261017/preparation_manifest.json)SHA`b1f065ef7bb4d56a8cd78921b7f7adb7171dcb8ba38e6aa96ca23d31ba8516d5`均绑定UTC`03:30:52.002661`及失败/恢复凭据；[独立审查](../outputs/xag/reviews/single_seed_interpretation_r2_20261017/independent_review.json)SHA`73e960c6ca081542bfcd7eb05c6a45535f32a879ec897a912792e6afb5064a40`确认覆盖四核心逐字节相同、helper全部函数AST相同，仅路径/代次绑定改变。新增3项纯元数据测试PASS；原12+25项及160例CUDA、两页样图只继承，不冒称重跑。1201760查询、928组、336文件、64任务及504原始审计门不变。[队列启动凭据](../outputs/xag/reviews/association_coverage_single_seed_r2_20261017/queue_launch_receipt.json)SHA`28d4b24a2640729464dba5ffffba587822e0029920918eb64fb9932fc1a74ccc`记录PID195269，UTC`03:46:09Z`进入WAITING，64 pending/0运行；实际GPU任务仍需新代次全流程完成及闲置GPU。
+
+[r2费用观察协议](../outputs/xag/reviews/single_seed_actual_cost_r2_20261017/protocol.json)经[独立审查](../outputs/xag/reviews/single_seed_actual_cost_r2_20261017/independent_review.json)SHA`37db583a26f15b8ebc85ffb5a93dfe5cf71c16bbffa527380383b56d582edd33`通过，11函数AST保持v1；[启动凭据](../outputs/xag/reviews/single_seed_actual_cost_r2_20261017/launch_receipt.json)SHA`aff96a613aa3b7ed3aaef923b1c2c1d4f4c9da7a29952e56b68852f82704938e`对应PID195454。只读5秒采样，按job/PID/start及GPU区间并集计量，A1原尝试的inner fit时钟与真实分配窗口分开，迟到接纳时间不当作真实退出；三项被中断尝试另记。此时只有工程准备与采样，没有正式效果、完整覆盖或实际总费用结论。
+
+**只读费用观察器退出竞态（10-17 15:14，北京时间）：** r2费用观察器在已退出的PID201410上读取到空/变化命令，误报command mismatch后退出；[原失败](../outputs/xag/reviews/single_seed_actual_cost_r2_20261017/failure.json)SHA`4a90721790fd3c6eabf0a7d9e8154aea268e45b90cf61b134a67461efa7bf2d2`保留2196次采样，旧status停在OBSERVING，不能据该停滞字段认为仍健康。科学训练/评价/CPU审计及覆盖队列均未受影响，186文件和四控制文件不变。[r3协议](../outputs/xag/reviews/single_seed_actual_cost_r3_20261017/protocol.json)SHA`c0661494529c7180b3171afe816dcb134590f4193eb0afa0801b19f0105ac70e`仅修复只读进程身份观察：双stat核启动身份，退出/僵尸/同live空命令保持未知而不伪造退出边界，稳定活进程错命令仍失败，异常同步健康状态。16项隔离测试及[独立审查](../outputs/xag/reviews/single_seed_actual_cost_r3_20261017/independent_review.json)SHA`604a7abd498b49584a154145e13a0e19ee508fe8169027afff13c00d133dde73`通过后，[启动回执](../outputs/xag/reviews/single_seed_actual_cost_r3_20261017/launch_receipt.json)SHA`3da3651e676f0314ae77d7465194a29068ea8e431181eff6b9e5e39bb46d700f`记录PID203068/start16775329。旧最后完整采样UTC`06:53:10.218978`至新实际窗口`07:13:34.744776`为明确缺口，不能用旧failure捕获时间或新窗回填连续采样；原生命令计时票据与观测区间分开，最终结算另版本绑定。此时仍在CPU全量轨迹审计，未作科学效果或完整费用结论。
+
+<a id="xag-single-seed-final-20261020"></a>
+### XAG 单seed六格终态与旧证据迁移（2026-10-20据归档产物补登）
+
+**终态（10-17 16:21，北京时间，UTC `2026-10-17T08:21:36.753474+00:00`）：** 归档的[decision.json](../outputs/deleted_20261019/xag_xa_legacy/files/outputs/xag/single_seed/decision.json)（SHA`d81debf0bdddedf0c178c7e17fd08498fec3974a43c01ba69286389424201207`）状态`SINGLE_SEED_MATRIX_EVALUATED`：evaluated_models=6/expected 6，`missing=[]`，`numerical_failure_rows=[]`，六主行均`FINITE`、各2590端点、failed_endpoint_count 0、评价进程exit 0；`canonical_table_eligible=true`。`reliability_gate_status=NOT_ASSESSED_SINGLE_SEED_NO_REPEATS`，`tau_mm`、跨seed门、复跑噪声门均null，`final_bottleneck_conclusion=null`，`adoption_eligible=false`。即这条线按10-17用户修订止于“六格单seed描述性比较”，没有可靠性PASS、没有主因裁决、不据此采纳任何方案。
+
+下表为这六格在10-18统一严格运行时下的重评（与[指标重核表](#xag-metrics-reconfirmed-20261018)同表，复制自归档`strict_main_table.md`，SHA`2907446bd35c87465ba9e966deeab3d497503a826f6536e3a6f56e0e8e59820e`）；decision.json所用的是10-17默认运行时旧行（据指标重核节：A0F1 local 33.72→33.70、A1F1 local 24.61→24.59，其余四格两位小数保持），旧行文件已删、不能再由`report_table.py`重生成。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XAG严格评估：原关联＋原GNN（单seed3407） | 39.08 | 13.55 | 30.47 | 10.39 | 25.42 | 13.91 ms | 0.231 G | 0.46 M |
+| XAG严格评估：原关联＋增强GNN（单seed3407） | 33.70 | 15.12 | 25.76 | 10.32 | 23.76 | 17.85 ms | 1.009 G | 0.86 M |
+| XAG严格评估：部位GT对应＋原GNN（oracle，单seed3407） | 27.56 | 14.30 | 23.15 | 10.41 | 20.47 | 17.43 ms | 0.230 G | 0.46 M |
+| XAG严格评估：部位GT对应＋增强GNN（oracle，单seed3407） | 24.59 | 12.12 | 20.16 | 10.36 | 17.92 | 21.20 ms | 1.008 G | 0.86 M |
+| XAG严格评估：表面GT对应＋原GNN（oracle，单seed3407） | 19.15 | 9.99 | 15.19 | 7.49 | 14.25 | 15.20 ms | 0.227 G | 0.46 M |
+| XAG严格评估：表面GT对应＋增强GNN（oracle，单seed3407） | 16.31 | 7.33 | 13.82 | 5.65 | 11.50 | 19.01 ms | 1.005 G | 0.86 M |
+
+**decision.json记录的因子差值（默认运行时旧行，seed3407，单位mm，`L00−L01`口径，正=该干预降低误差；状态`DESCRIPTIVE_SINGLE_SEED`，所有门均null）：**
+
+- local（MPJPE-RA，正=该干预降低误差）：GNN收益`L00−L01`=5.3587；A1关联收益(F0)=11.5145、(F+)=9.1047，F+收益(A1底)=2.9488，交互=-2.4098；A2关联收益(F0)=19.9274、(F+)=17.4068，F+收益(A2底)=2.8380，交互=-2.5206
+- global（MPJPE-RA，正=该干预降低误差）：GNN收益`L00−L01`=-1.5664；A1关联收益(F0)=-0.7494、(F+)=2.9956，F+收益(A1底)=2.1786，交互=3.7450；A2关联收益(F0)=3.5610、(F+)=7.7917，F+收益(A2底)=2.6644，交互=4.2308
+- overall（MPJPE-RA，正=该干预降低误差）：GNN收益`L00−L01`=1.6528；A1关联收益(F0)=4.9517、(F+)=5.8355，F+收益(A1底)=2.5367，交互=0.8838；A2关联收益(F0)=11.1691、(F+)=12.2614，F+收益(A2底)=2.7451，交互=1.0923
+
+口径：A1=GT部位限制对应，A2=GT网格辅助表面对应，均为不可部署oracle；F0=原MeshGNN，F+=增强GNN；交互=`La0+L01−L00−La1`。MPVPE-RA及abs版本在同一文件`effects`下。这些差值的A0F0是10-17旧非确定性训练（local 39.08），与后来的确定性C1（local 27.99）不是同一训练合同，不能与[XCL](#xcl-result-20261019)的配对差值混读。
+
+**16:23之后的产物（内容未保存）：** 据[删除清单](../outputs/deleted_20261019/xag_xa_legacy/inventory.json)的路径/大小/mtime，10-17 16:23–17:55曾生成：r2覆盖补证`summary_all.json`（2,126,356 B，17:04:31；该目录共761个文件、2,085,661,711字节）、恢复图件目录（20个PDF，17:10:20）、`single_seed_actual_cost_r3/settlement_*`（completion_receipt 17:12:17）、`single_seed_final_independent_r2/final_review.json`（17:17:15）、`single_seed_interpretation_r2/postcomplete_audit_*/INTERPRETATION_MEMO.md`（11,507 B，17:43:51）及`handoff_review.json`（17:55:58）。这些目录10-19随清理删除，清单仅有路径/大小/mtime而无内容与SHA，账本此前也未记载其数值；本节不补写任何数值，也无法复核其是否PASS。
+
+<a id="xag-c1-baseline-discrepancy-20261017"></a>
+### XAG 对照与历史C1的差距：可比性勘误（2026-10-17 16:04）
+
+用户质疑历史C1与本轮A0F0的local差距。只读追溯确认，本轮主行数值来自其固定step6000完整2590包评价，不是手工抄数错误；但此前报告未并列历史基线，且不能把本轮A0F0称为历史C1训练的严格复现。当前六格配对只说明新注册训练流下的单seed内部差异，不能自动构成“已复现历史C1基础上的改善”证据。
+
+下表由原`tools/report_table.py`直接读取现存/归档main_row生成；原文件与生成命令见[只读证据清单](../outputs/xag/reviews/c1_baseline_discrepancy_20261017T080406Z/evidence.json)，未重新评估或重训。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| 历史XYZ C0（短训选step500，seed3407） | 28.56 | 16.59 | 25.93 | 12.98 | 22.15 | 9.61 ms | 0.231 G | 0.46 M |
+| 历史XYZ C1（双seed，选step6000／2500） | 28.08 | 12.97 | 23.70 | 10.04 | 19.99（19.80 / 20.18） | 9.66 ms | 0.231 G | 0.46 M |
+| 10月C1配对重训（step6000，seed3407） | 33.14 | 14.07 | 26.33 | 11.89 | 22.93 | 9.90 ms | 0.231 G | 0.46 M |
+| 本轮A0F0：原关联＋原GNN（step6000，seed3407） | 39.08 | 13.55 | 30.47 | 10.39 | 25.42 | 9.42 ms | 0.231 G | 0.46 M |
+
+- **数值来源澄清不等于排除退化。** 文档中的28.56属于历史C0短训选step500；历史完整C1双seed选点行是28.08。但历史C1的seed3407本来就选step6000，其local为27.5020637512；本轮同seed同末步39.0768356323，退化11.5747718811。最近XA C1同seed末步33.1421127319，本轮再差5.9347229004。选点差异或C0/C1名称混淆都不足以解释实际差距。
+- **已发现实质训练流差异。** 最近XA C1 metadata记录`data_generator_seed=null`，本轮记录3407；最早完整C1 metadata没有该字段，不能把缺字段直接写成实物记录null。历史git训练入口未传独立generator；XAG键触发`train.py`的独立`torch.Generator().manual_seed(SEED)`并传给DataLoader。实际训练环境Lightning用`DistributedSamplerWrapper`包装原RandomSampler，后者None分支从全局torch RNG另抽seed，有generator则用独立流。相同模型SEED因此不等于相同训练采样合同。数据集每个idx的增强/前态噪声由(seed,idx)固定，改变的是排列、step/rank/batch组合及末步前曝光，而不是worker任意改变同一idx内容。
+- **默认路径逐位检查的边界。** 既有检查固定少量dataset索引与真实包，比较CPU FP32前向、关联、loss和梯度；它不经过DataLoader/DDP/6000步优化器轨迹。其PASS不能替代历史训练复现或最终精度复现。
+- **配方与数据核对。** 最近XA C1与本轮A0F0的原有模型/增强/损失/优化器/步数/batch字段一致，均为9人72序列与同一官方划分；另有预取2→1、XAG来源缓存及显式base/legacy键、路径/名称差异。没有证据将这些差异之一直接认定为全部退化的原因。
+- **16:04时裁决（后续证据见下节）。** 历史基线复现尚未建立；已经定位采样随机流改变，但没有历史全batch索引哈希或受控隔离证据量化其贡献，不能断言全部由此造成，也不直接归为普通随机波动。不改既有主行、不重选检查点、不追加种子或训练；S39保持正式方案。
+
+本次仅追溯配置、元信息、源码及现有结果，生成比较表并补记可比性边界。证据目录：`outputs/xag/reviews/c1_baseline_discrepancy_20261017T080406Z`。
+
+
+<a id="xyz-c1-repro-20261018"></a>
+### XYZ C1可复现baseline与XAG指标重核（2026-10-18，执行前登记）
+
+**完成状态：完整6000步复现、三主行及全部2590包轨迹已通过；指定baseline已发布，见下方[最终结果](#xyz-c1-repro-result-20261018)。以下执行前登记保留原时间与当时状态，不代表仍在训练。**
+
+用户本次要求：查清历史C1与本轮差距；给出稳定可复现C1并作为baseline；不用多seed随机训练，重新确认原关联＋增强GNN及部位/表面GT对应四格的指标并更新。原六格权重、单seed协议、186文件冻结、历史失败/复跑与S39全部保留。新研究目录`outputs/xyz_c1_repro/20261018/`，训练/评估包装器位于`tools/xyz_c1_repro/`；原训练器、模型与原主行生成器不改。
+
+**预先指定基线，不根据成绩选择。** `xyz_c1_stable_s3407`使用历史C1的None采样流；`xyz_c1_stable_replay_s3407`是相同seed/样本流/配方的完整fresh6000工程核验副本，不当第二seed、不做均值、不作为更好候选替代；`xyz_c1_dedicated_s3407`仅把train DataLoader generator改为独立3407，给出固定确定性实现下的采样干预效应。原9人72序列、唯一官方只读划分、zgz两序列开发/测试共用、模型/数据增强/前态噪声/每rank log10损失/Adam0.004/warmup500/BF16/2×512/完整验证与固定末步6000均保持。统一worker12、prefetch1，已与历史pf2/worker2作真实批内容一致性核验；它是资源设置变更，不改学习配方。
+
+**明确的新数值执行合同。** CUBLAS workspace=:4096:8，torch确定性算法严格开启（不可warn_only），固定cuDNN deterministic/关闭benchmark、TF32与BF16/FP16 reduced-precision reduction，固定线程、NCCL Ring/Simple单通道；实际每rank flags/版本/硬件/loader/sampler/首末流状态留证。这是数值执行策略变更，不是声称复原历史未记录的运行环境。None canonical、副本、dedicated对照三者共享该合同。完整from-scratch副本未通过前不宣称baseline已稳定，不据短步PASS或推理复算成功替代训练复现。
+
+**验收顺序。** 同卡及三组L20之间的真实2×512 fresh50重放；完整val路径及返回训练；最终入口guard+worker12 fresh20；封版后才派发三角色full6000。逐步保存两rank实际dataset索引、输入小字段、loss指纹，首3/每500前后/epoch边界另存完整raw packet hash；每500比较canonical/replay参数、Adam、scheduler、RNG及滚动数据流，分叉则停止本研究owned进程并保留失败。最终比较全部6000批记录、实际12个checkpoint网格、最终权重/优化器及完整2590包incoming/预测；副本只作核验。原checkpoint不保存完整mid-epoch sampler/RNG，本轮fresh研究不提供或宣称精确resume。
+
+**五格重核独立处理。** 保留原step6000身份，重新核验全部六格原协议两遍与严格数值运行时两遍全2590包。增强GNN原默认评估已定位固定packet的微小数值分叉，因此新统一严格评估明确登记为运行时修订；新准确度和成本均由原`make_s36_row.py`在该运行时重新生成，只把最后JSON写入新目录，不覆盖原行。GT部位/表面四格仍标oracle。旧五格训练没有变成新确定性训练，不据与新None baseline的差值宣称严格配对或稳定优势。
+
+**归因边界。** 新None/dedicated差值只识别此seed/确定性实现下的采样效应，不能倒推出历史non-deterministic的11.57mm全部份额。最早历史权重缺失，所有不能取证的部分继续明确保留；baseline若可复现但没有恢复历史精度，也必须按原先指定报告。C1正式三角色已于北京时间2026-10-18 03:08:11启动，完整6000结果尚未产生，状态以新目录`status.json`为准。封版协议SHA`c0d1e2fa7887342cfdfb4404c532bfdaab5c8aef7e9671495f3b2940850fd44d`，launch acceptance SHA`346f6dd907ce16a8e97002f95cefab93060efbe18ab80f5977f56fabdbb65cdf`；213项源码/配置/证据与820项数据属性持续核验，封版后不得修改。
+
+**历史数据追溯补证。** [只读追溯报告](../outputs/xyz_c1_repro/20261018/audit/historical_data_provenance/report.json)未发现历史C1训练后普通改写数据的证据：74序列event/offset/meta/aux/done/evc的mtime与ctime均在8月11日，tsub均在8月22日，早于9月30日C1启动；371项文件大小/mtime/inode及149项小文件SHA与10月13日身份记录一致。MANO资产和三个数据准备/划分脚本与历史git一致，存续XA/DT检查点的12项MANO缓冲一致。原C1元信息的72＋2序列和4544300/128187窗口数也与现在一致。但没有9月训练前封存的完整数据哈希，故不能由这些证据宣称历史全部数据字节身份已被证明；缺失哈希本身也不是数据变更的证据。[中文因果证据说明](../outputs/xyz_c1_repro/20261018/audit/historical_data_provenance/causal_evidence_cn.json)逐项绑定历史主行、算子实验、闭环干预与采样重建，保留不能唯一分摊全部退化的边界。
+
+<a id="xyz-c1-repro-result-20261018"></a>
+#### 完整6000步复现与更新结果：指定C1基线已发布（2026-10-18）
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XYZ C1（确定性baseline，seed3407） | 27.99 | 21.06 | 22.50 | 15.35 | 24.28 | 13.89 ms | 0.231 G | 0.46 M |
+| XYZ C1：仅换独立采样流（诊断，seed3407） | 29.72 | 13.25 | 22.62 | 10.54 | 20.91 | 14.09 ms | 0.231 G | 0.46 M |
+| 既有XAG A0F0（旧训练，严格重评，seed3407） | 39.08 | 13.55 | 30.47 | 10.39 | 25.42 | 13.91 ms | 0.231 G | 0.46 M |
+| XAG：原关联＋增强GNN（单seed3407） | 33.70 | 15.12 | 25.76 | 10.32 | 23.76 | 17.85 ms | 1.009 G | 0.86 M |
+| XAG：部位GT对应＋原GNN（oracle，单seed3407） | 27.56 | 14.30 | 23.15 | 10.41 | 20.47 | 17.43 ms | 0.230 G | 0.46 M |
+| XAG：部位GT对应＋增强GNN（oracle，单seed3407） | 24.59 | 12.12 | 20.16 | 10.36 | 17.92 | 21.20 ms | 1.008 G | 0.86 M |
+| XAG：表面GT对应＋原GNN（oracle，单seed3407） | 19.15 | 9.99 | 15.19 | 7.49 | 14.25 | 15.20 ms | 0.227 G | 0.46 M |
+| XAG：表面GT对应＋增强GNN（oracle，单seed3407） | 16.31 | 7.33 | 13.82 | 5.65 | 11.50 | 19.01 ms | 1.005 G | 0.86 M |
+
+**裁决：完整工程复现PASS，采用事先指定的None采样C1作为后续XYZ研究的可复现baseline。** 五格XAG为既有权重的严格重评，矩阵内配对参考是表中的“既有XAG A0F0”；不能把它们与新None基线的差值当作严格配对的结构收益。PCA6与S39保留历史参考合同，未在本轮重评；时延按各自所述运行时计量。
+
+**1. 已完成的复现证据。** canonical与fresh工程副本都固定seed3407、6000步、2×512；每rank全部3072000实际索引、6000批小字段与objective记录、13个训练状态网格的模型/Adam/调度器/CPU及CUDA RNG均完全相同。逐一读取12个真实周期检查点及额外训练结束检查点，预算和最终状态通过；两run全部2590包incoming与prediction逐位一致，主行所有精度一致。工程副本不当第二seed、不取平均、不择优。这里验证的是冻结硬件/软件/数值执行合同内的复现，不是跨seed可靠性、抗扰恢复或跨机器保证。
+
+[完整复现回执](../outputs/xyz_c1_repro/20261018/full_reproduction.json)、[独立最终实物审查](../outputs/xyz_c1_repro/20261018/audit/final_release_independent_readme_v2_20261018/receipt.json)及[三角色独立NumPy评分](../outputs/xyz_c1_repro/20261018/audit/c1_metric_definition_final_20261018/receipt.json)全部PASS。后者独立重算三角色36项精度，0.001mm误差门与两位小数门均通过。三run各12次实际验证、213冻结源和820数据属性另经[全程来源审查](../outputs/xyz_c1_repro/20261018/audit/formal_final_origin_review.json)复核；旧XA→新None及旧XAG→新dedicated的五项输入路由统计各300/300点精确相同，两epoch×两rank×两采样模式的实际索引SHA与独立语义模型8/8匹配。旧训练没有完整raw tape，不能把这些证据冒称为恢复了历史全部原始输入身份。
+
+**2. 历史差距现在能解释到哪里。** 先纠正此前名称：28.56是历史C0在step500的选点结果；真正C1 seed3407本来就选中step6000，local27.5021，对旧XAG A0F0同seed同step39.0768仍有11.5748mm真实差距。本轮严格合同下仅换采样，local由27.9903变29.7195（+1.7292mm），global由21.0640变13.2504（−7.8136mm），RA总体−3.3775mm；所以“采样顺序变了”不能作为历史local大幅退化的充分解释，也不能断言采样对所有序列均无影响。
+
+在同为dedicated采样的对照中，旧非确定训练权重严格重评local39.0768，新严格数值执行训练29.7195，差−9.3573mm。这与已隔离的CUDA FP32 index_add扰动入口、同seed既有复跑终点差及姿态/平移闭环放大证据一致，支持数值执行与训练终点变化是关键问题；但这是整个新数值合同的比较，包含算法/精度归约/通信设置，旧训练亦缺全raw实录，不能把9.3573称为单个算子贡献，更不能将它与1.7292线性相加来唯一分摊历史11.5748。历史C1原权重、完整dirty源码和训练前数据hash缺失仍限制追溯，未把不能证明的部分写成已确定。
+
+**3. 新baseline的精度边界。** 新None基线local27.99接近历史3407的27.50，但global21.06并未恢复历史表现；采用它是因为执行前已指定且完整复现通过。dedicated对照总体RA更好，也没有据分数将它换成baseline。工程可复现不等于恢复历史checkpoint或证明模型泛化稳定。S39继续保留原正式身份。
+
+[最终因果独审](../outputs/xyz_c1_repro/20261018/audit/final_causal_interpretation.json)核对全部未舍入差值：新None相对历史C1，local为+0.4883mm，global为+7.9474mm、总体RA为+4.4799mm。因此这里只宣布当前合同内可重复的新参考，不能用local接近来宣称完整历史精度已经复原。两份checkpoint因run/config等元数据不同而整文件SHA不同，复现PASS指模型参数、Adam/调度器/loop状态、逐rank RNG与输入记录相同；不是声称整个checkpoint容器逐字节相同。
+
+**4. 复用与保留。** 当前身份入口为[baseline.json](../outputs/xyz_c1_repro/baseline.json)，run=`xyz_c1_stable_s3407`，固定step6000；[权重](../outputs/semkine/xyz_c1_stable_s3407/xyz_c1_stable_s3407-step=6000.ckpt)SHA256=`41a8dc3feac3e7cffc5b19ec93491ec2c7a841c902ee583c39d8435eb5c08091`，配置为`configs/xyz_c1_repro_20261018/xyz_c1_stable_s3407.yaml`。标准主行别名`outputs/semkine/xyz_c1_baseline_main_row.json`指向新行，旧XAG/历史C1行不覆盖。完整复现使用[reproduce.py说明](../tools/xyz_c1_repro/README.md)，不能仅用原生semkine/train.py而遗漏严格运行时：
+
+```bash
+/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python tools/xyz_c1_repro/reproduce.py \
+  --output-dir outputs/xyz_c1_repro/20261018/replays/my_replay_01 --gpus 0,1
+```
+
+该命令仅在原冻结环境及空闲GPU对下运行，输出目录须不存在，不接受其他seed、短步数或resume。独立reproduce.py入口自身只做了CPU guard/schema验收；本次完整物理重放由同一冻结train/evaluate/trace协调器执行，未为验证包装入口而另开第三次None全训。源码bundle、P/A/E、硬件/软件身份及全部失败/历史产物均保留。
+
+本节联合表由原report_table.py读取已验证JSON生成，[命令与逐行SHA](../outputs/xyz_c1_repro/20261018/release/all_results_table_manifest.json)可追溯；没有人工填写新精度。旧六格的两遍严格递推及独立NumPy重算详见下节。
+
+另存[基线归档包](../outputs/xyz_c1_repro/20261018/baseline_export.tar.gz)与[逐成员来源清单](../outputs/xyz_c1_repro/20261018/baseline_export_manifest.json)，保留原canonical权重、配置、主行、P/A/E、环境身份和已有复现证据/源码快照，共19项实物及内嵌清单，逐成员SHA已重核。归档SHA256=`f6414b9203ae20dea4ea893eca2236378dff3903cb1044c14434576d60eef09f`；原始训练数据和可安装环境未打包，不代表可跨机器直接复现。不能再次只保留分数而删除基线权重。
+
+<a id="xag-metrics-reconfirmed-20261018"></a>
+#### 既有六格指标重核完成：统一严格评估（2026-10-18）
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XAG严格评估：原关联＋原GNN（单seed3407） | 39.08 | 13.55 | 30.47 | 10.39 | 25.42 | 13.91 ms | 0.231 G | 0.46 M |
+| XAG严格评估：原关联＋增强GNN（单seed3407） | 33.70 | 15.12 | 25.76 | 10.32 | 23.76 | 17.85 ms | 1.009 G | 0.86 M |
+| XAG严格评估：部位GT对应＋原GNN（oracle，单seed3407） | 27.56 | 14.30 | 23.15 | 10.41 | 20.47 | 17.43 ms | 0.230 G | 0.46 M |
+| XAG严格评估：部位GT对应＋增强GNN（oracle，单seed3407） | 24.59 | 12.12 | 20.16 | 10.36 | 17.92 | 21.20 ms | 1.008 G | 0.86 M |
+| XAG严格评估：表面GT对应＋原GNN（oracle，单seed3407） | 19.15 | 9.99 | 15.19 | 7.49 | 14.25 | 15.20 ms | 0.227 G | 0.46 M |
+| XAG严格评估：表面GT对应＋增强GNN（oracle，单seed3407） | 16.31 | 7.33 | 13.82 | 5.65 | 11.50 | 19.01 ms | 1.005 G | 0.86 M |
+
+上述表为既有六份step6000权重的确定性重评，不是新C1训练结果。每格单seed3407，完整zgz_global 1386＋zgz_local 1204包；每格两次fresh load的全部incoming、事件/来源字段与预测逐包一致。新主行准确度与成本均由原`make_s36_row.py`经已审查严格包装器生成，兼容字段`two_seed_mean`只含seed3407且与per_seed完全相同；288项准确度对独立双遍结果全部精确相等。表由原`report_table.py`读新JSON生成，[完整命令](../outputs/xag/reviews/reconfirm_metrics_20261018/strict_main_table_command.txt)及[显示来源清单](../outputs/xag/reviews/reconfirm_metrics_20261018/display_manifest.json)保留。
+
+新增定位：原默认数值运行时下，A0F1与A1F1完整复算存在微小分叉，另外四格逐包一致；固定A0F1最早分叉packet/incoming反复64次可重现两种输出，差从相同输入下产生，下一包才因反馈而改变输入。统一严格运行时下固定packet64次和全六格双遍均完全一致。因此原表不是抄数错误，但F+末位数值缺少稳定执行合同；本表明确更新为新严格数值运行时，不把不同设置的数值混称同一次测量。A0F1两位小数local由33.72更新33.70，A1F1由24.61更新24.59，其余四格保持。完整未舍入数字均以新主行为准。
+
+Latency也按新严格运行时重新计量，不沿用旧默认成本；标准仍为Full51=1.75ms缩放的预置GPU包查询时间，不是端到端时延。MAC/params计算合同不变，oracle离线来源构建仍不包含在查询成本中。表内PCA6与S39是原历史参考行，未重训或改写它们；当前六行采用新的严格查询运行时，不能把成本变化解释成网络结构变化。
+
+原186冻结文件、79项显式输入、旧权重/配置/主行/来源缓存SHA均原样保留。[终态重核](../outputs/xag/reviews/reconfirm_metrics_20261018/final_receipt.json)SHA`40b943d744ef65180ba181569ecf8cfab0d3ea68e88c6f4d503b143707367555`，原154文件快照[MANIFEST](../outputs/xag/reviews/reconfirm_metrics_20261018/MANIFEST.json)SHA`cce46c08e7deceb12dc495ee864afa82580f6943b2c95499672bcf62c67540fc`；新表另有显示阶段清单，不覆盖旧manifest。A1/A2继续只作GT辅助oracle诊断；训练的旧数值非确定性没有因重评而被消除，不据此追加稳定优势或严格新基线配对结论。
+
+今后读取这六格更新指标使用[当前指标入口](../outputs/xag/current_metrics.json)：它绑定六份严格重评主行及其SHA，原默认主行和`outputs/semkine/xag_*`历史链接不改。旧五格的矩阵内配对参考仍为同训练合同的A0F0；新确定性None基线可另列参考，不能据此计算严格配对的结构收益。 [2026-10-20补注：paired结果从未发布，指标pointer未切换；`outputs/xag/current_metrics.json`已于10-19归档删除（[删除登记](#xag-xa-deletion-20261019)），现无XAG指标pointer。]
+
+**指标定义另作独立数值复核。** [NumPy重算报告](../outputs/xyz_c1_repro/20261018/audit/metric_definition_20261018/report.json)仅读六格已封存的GT/预测51维状态，用独立NumPy MANO解码与评分，CPU分块覆盖15540个端点对；local/global/overall三组共72个精度值均通过预先0.001mm误差门，最大误差约0.00001022mm，两位小数全部相同。这里local/global是`zgz_local`/`zgz_global`序列名；MPJPE分别减预测/GT的21关节腕点joint0，MPVPE分别减各自778顶点中的vertex0，单位由m转mm。RA-MPJPE是两序列全部端点加权的腕点平移对齐误差，不是Procrustes旋转/尺度拟合。global为1段1386端点；local为90个有效段中41个至少50ms的段产生1204端点，其余49个短段没有端点；每段从a+49ms起按50ms步进，没有额外200/300ms烧入裁除。该定义与最早历史评分源码一致，本次没有更换指标。PCA6常数参考行未在本轮重评，不能把本次独立验证扩称为对它完整合同的核验。XDL文档把两类对齐统写“仅减腕”的文案已按其当时冻结评分器更正，不改历史数字。
+
+评分时消去整体平移，并没有取消模型内前态平移对投影、关联及下一步姿态的影响。深度偏置可经这条闭环改变关节相对形状，但不能把深度偏置的毫米数直接加到root-aligned MPJPE，或当作其退化的线性份额。
+
+<a id="xag-paired-c1-20261018"></a>
+### XAG与可复现C1严格配对：五格各重训一次（2026-10-18，执行前登记）
+
+**评估资源修订（用户2026-10-18追加指定）：** 后续统一评估改用物理GPU4、5、6、7四卡，每卡同时一个任务；GPU6–7最后一组训练完整结束、全五格训练验收通过后再启动。五主行包含Latency计时，先按4/5/6/7/4轮换串行执行，其间不并发本任务trace；随后每臂两次fresh完整递推在四卡并行，固定4:A0F1后A2F1、5:A1F0、6:A1F1、7:A2F0。原冻结协调器使用GPU0的后处理安排由新独立执行修订取代，原P/A及926冻结文件保持；不改模型、训练预算、评分、末点或每臂两次2590包轨迹合同。GPU0–3不再分配本轮后续评估。此段仅登记资源修订，不表示新五格已有正式评估结果。
+
+**资源接管已执行（北京时间15:57）：** [新执行修订v3](../outputs/xag_paired/20261018/execution_gpu4567/override_v3.json)SHA=`d12d66fa77da1911fd2a84660a87c426fcd160d014fccfa9b8fd6177df75fd8b`，对应[接管脚本](../tools/xag_paired_20261018/continue_gpu4567.py)SHA=`50a1fac6986925a1810ebf44b42bdf4c24b10ff7c91c3de350a4016d854b1a92`。[独立15项安全审查](../outputs/xag_paired/20261018/audit/contract_review/postfreeze_handoff_independent_review.json)与目标训练环境的只读预检、实际dummy pidfd信号/退出码核验通过；[激活回执](../outputs/xag_paired/20261018/execution_gpu4567/activation_receipt.json)保留实际交接。旧协调器仅收到精确PID暂停，不再派发GPU0；最后A2F0仍沿用原PID与GPU6–7继续训练，新协调器监督全部原训练身份。最后训练退出码将从其原父暂停时保留的内核zombie状态实际读取，再按原合同全量验收；旧协调器随后按计划单独终止，不把该人为终止计作训练失败。原v1/v2候选从未激活并完整保留；当前训练与后处理状态继续见[status.json](../outputs/xag_paired/20261018/status.json)。
+
+**主机共享内存故障，已按协议停止（北京时间16:02）：** 两rank实际记录在15:54:33停于1437批、epoch0，早于15:57:15接管约162秒；不是epoch切换或1500步验证。主机同一mount namespace的`/dev/shm`挂载消失，路径落到root:root、0755的`/dev`底层目录，uid1004无法创建共享内存。worker的24条`_share_fd_cpu_ Permission denied (13)`导致队列批次被丢弃，恢复挂载不会补回结果。冻结step1000检查点缺完整RNG、采样器、worker和迭代器状态，审计JSON只存RNG哈希，不能严格resume。[取证报告](../outputs/xag_paired/20261018/audit/postfreeze_shm_failure_20261018/final_receipt.json)SHA=`a1ed1245e538f9880f5a6b32b46648261d54a05fe0bdde3f3dc0d6f93c403908`。
+
+16:02:38向新协调器精确PID发SIGTERM，由其owned-cleanup停止最后训练并退出旧协调器；[停止原因](../outputs/xag_paired/20261018/execution_gpu4567/shared_memory_failure_stop.json)、[清理回执](../outputs/xag_paired/20261018/execution_gpu4567/runtime/failure.json)及[原退出状态](../outputs/xag_paired/20261018/execution_gpu4567/status_after_owned_cleanup.json)保留。当前`FAILED_PRESERVED`：四组6000训练保留，最后失败现场/1000步检查点保留，五主行0、未发布新结果、旧pointer未切换。[独立清理验收](../outputs/xag_paired/20261018/audit/contract_review/shared_memory_failure_20261018/receipt.json)确认全部本任务进程组/GPU进程退出、926冻结文件/820数据身份/P/A/旧pointer均不变。四组合并CPU验收也被同一OpenMP共享内存故障阻断，未生成结果。历史实际`/dev/shm`总量270315171840字节（251.75GiB），旧flags未留存；当前账号sudo需要密码，已请管理员恢复tmpfs与1777权限。后续评估仍只使用GPU4–7，不能重启旧GPU0入口或拿不完整结果补表。 [2026-10-20补注：本段为10-18 16:02时点。此后`/dev/shm`于10-19恢复，paired线仍停在`FAILED_PRESERVED`（[终态补注](#xag-paired-final-20261020)），四个已完权重与新训A2F0由[XCL](#xcl-result-20261019)评价。]
+
+用户在新C1基线及旧六格重评完成后，明确追加授权“五组各重训一次seed3407，形成严格配对比较”。本轮复用已验证的`xyz_c1_stable_s3407`作为A0F0，另执行A0F1、A1F0、A1F1、A2F0、A2F1各一次fresh6000；不重新训练基线，不增加seed3408，不在多个同seed结果中择优。旧六格及两次旧评价、原186/213文件冻结、原P/A/E、权重、失败与归档全部保留。
+
+新产物单独存于`outputs/xag_paired/20261018/`，配置`configs/xag_paired_20261018/`，入口`tools/xag_paired_20261018/`。五格唯一结构差异仍为`MODEL.XAG_ASSOC=base/part_route/face_route`和`MODEL.XAG_GNN=legacy/global_residual`，统一启用原来源缓存。训练固定C1的历史`legacy_none`采样、严格确定性CUDA/BLAS/TF32/NCCL合同、双卡每rank512、BF16、worker12/prefetch1、原模型共有部分/增强/前态扰动/损失/Adam与LR0.004/500步warmup、原6000步调度和每500步完整验证；9人72序列及唯一划分文件不变。没有按验证分数选点，主行固定step6000。
+
+队列预先固定为GPU0–1 A0F1、2–3 A1F1、4–5 A2F1、6–7先A1F0后A2F0；不得依据中途分数改变顺序或取消臂。正式启动前先做真实2×512数值路径检查，并让五格各经过第25与50步两次完整验证和26–50步返回训练检查。该短程只作工程验收，权重不接入正式6000步、不产生精度结果。初次20步V2检查与其调度器最后退出码未捕获的限制另存原目录；V3完整预检必须以实际子进程退出、两rank50批、完整验证、来源/共有输入和初值证据独立验收，不由旧短程推定通过。
+
+共有37项初始模型状态必须与指定C1相同，F+新增39项初值须在三格一致。正式全6000步两rank实际索引、共有事件/增强/前态输入和CPU RNG按原C1参考核验；来源字段另存真实哈希。学习后的权重、梯度、预测及各自递推自然允许因结构不同而不同。13个训练状态快照、12次完整验证、参数/Adam/调度步数、末点权重及两rank同步均须留证。运行中冻结源码/数据身份漂移、新OOM或连续低内存触发仅停止本研究拥有的进程组，失败完整保留，不改batch或数值合同重标成功。
+
+评价仍调用原`make_s36_row.py`及完整zgz_global 1386＋zgz_local 1204包；每格另做两次fresh load完整递推，逐包事件/来源/incoming/预测一致，并用独立NumPy MANO评分核对精度。跨五格只比较共有事件、来源、GT和时间端点，不要求分岔后的incoming/预测相同。新主表由原`report_table.py`生成规定九列，包含PCA6、原S39、新C1及五格。全部验收完成后才归档旧`outputs/xag/current_metrics.json`并原子切换；完成前旧pointer继续表示旧六格严格重评，不能用旧行充当新配对结果。 [2026-10-20补注：paired结果从未发布，指标pointer未切换；`outputs/xag/current_metrics.json`已于10-19归档删除（[删除登记](#xag-xa-deletion-20261019)），现无XAG指标pointer。]
+
+本轮仅单seed3407描述性配对，A1/A2继续是使用GT来源的不可部署oracle。新C1可复现的工程证据不会因复用而变成跨seed可靠性证据；五格亦不据单seed宣称稳定优势、可靠性PASS或历史大幅退化已唯一归因。S39保持不变。
+
+**正式启动记录（2026-10-18）：** 五组V3各50步的[独立预检](../outputs/xag_paired/20261018/audit/contract_review/preflight50_independent_review.json)1999项全通过，五个OS退出码均0，全部真实2×512、两次完整126批验证和26–50返回训练通过；OOM计数保持21，采样最低可用主存27.61GiB。E SHA=`208b980dd7e19de74953dee96e4c4cedebaa8318286e50643d239f2190edfbfb`。新正式P SHA=`8a8e019611c8e6fc9431fd230f13c533c58bc590045005c341fa8efbfa6e220a`，A SHA=`c1eff9a6f853d169b7ae935f5aaf064a6444b2061fb15394d45b32bb5f653a55`，冻结926文件并继承原820项数据身份，保存873份文本副本及P/A/E；[源码归档清单](../outputs/xag_paired/20261018/source_archive/manifest.json)SHA=`d66959c6400ff5e6be1e4147b48d9da17b8310e252b5f18da3ada55a9b3d0197`。[封版后独立消费者检查](../outputs/xag_paired/20261018/audit/contract_review/frozen_binding_review.json)再次通过。正式固定队列已启动，进度见[status.json](../outputs/xag_paired/20261018/status.json)；此记录仅确认启动，尚无新6000步结果，不更新当前指标pointer。
+
+<a id="xag-paired-final-20261020"></a>
+#### 终态补注（2026-10-20，据产物）
+
+**终态：** [status.json](../outputs/xag_paired/20261018/status.json)（10-18 16:04:17）最后一次写入即`FAILED_PRESERVED`、`results_ready=false`，`ended_at_utc`=`2026-10-18T08:02:41.348811+00:00`，error=`HOST_SHARED_MEMORY_UNAVAILABLE: /dev/shm mount absent, root0755; worker SHM EACCES dropped batch1438; original no-resume policy requires preserving failure.`；`oom_now`=21（起点21）。之后该文件未再更新。五格：A0F1 TRAINED GPU0–1 exit 0，结束2026-10-18T06:41:15Z；A1F0 TRAINED GPU6–7 exit 0，结束2026-10-18T07:18:03Z；A1F1 TRAINED GPU2–3 exit 0，结束2026-10-18T07:37:49Z；A2F0 FAILED_PRESERVED GPU6–7，无退出码（被控制器SIGTERM停止），rank0最后进度步1400、实际批记录1437；A2F1 TRAINED GPU4–5 exit 0，结束2026-10-18T06:41:15Z。四个已完权重在原目录保留，无主行、无独立评分、无两次2590包轨迹、`outputs/xag/current_metrics.json`未切换，结果均未发布。
+
+**未执行的草案：** [recovery_plan_pending_environment.json](../outputs/xag_paired/20261018/recovery_plan_pending_environment.json)（UTC `2026-10-18T08:05:59.834842+00:00`）状态`DRAFT_UNEXECUTED`，只登记环境恢复后的复核设计，不是启动许可，未被执行；[docs_release_draft.md](../outputs/xag_paired/20261018/audit/docs_release_draft.md)（回执`DRAFT_ONLY_DOCS_UNCHANGED`）以`status=COMPLETE_PAIRED_FIVE_RESULTS`为应用条件，该条件从未成立，草稿未应用。
+
+**之后：** 据[XCL预注册节](#xcl-20261019)记载`/dev/shm`于10-19恢复tmpfs+1777后，用户计划的[XCL](#xcl-20261019)接管这条线：A0F1/A1F0/A1F1/A2F1四个已完6000步权重按SHA绑定复用（`outputs/xcl/20261019/receipts/reuse_*.json`四份PASS，UTC 03:09），A2F0不resume、不使用其1000步检查点，另开`outputs/xcl/20261019/runs/xcl_a2f0_s3407`新fresh6000；失败现场`outputs/xag_paired/20261018/runs/xag_paired_a2f0_s3407`保留。这五格的精度只见[XCL最终结果](#xcl-result-20261019)，不在paired目录产生主行。因此上文“全部验收完成后才归档旧current_metrics并原子切换”从未触发；该pointer于10-19作为旧XAG产物归档删除，现无XAG指标pointer。
+
+<a id="xag-c1-deep-audit-20261017"></a>
+### C1退化继续排查：数值非确定性与闭环放大（2026-10-17）
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| 历史XYZ C1（双seed，选step6000／2500） | 28.08 | 12.97 | 23.70 | 10.04 | 19.99（19.80 / 20.18） | 9.66 ms | 0.231 G | 0.46 M |
+| 10月C1（step6000，seed3407） | 33.14 | 14.07 | 26.33 | 11.89 | 22.93 | 9.90 ms | 0.231 G | 0.46 M |
+| 10月C1既有复跑（step6000，seed3407，仅诊断） | 29.96 | 11.00 | 24.15 | 9.34 | 19.81 | 9.72 ms | 0.231 G | 0.46 M |
+| 本轮A0F0（step6000，seed3407） | 39.08 | 13.55 | 30.47 | 10.39 | 25.42 | 9.42 ms | 0.231 G | 0.46 M |
+| A0F0既有复跑（step6000，seed3407，仅诊断） | 34.34 | 12.26 | 27.88 | 9.50 | 22.52 | 9.43 ms | 0.231 G | 0.46 M |
+
+**裁决：已定位具体数值扰动入口及闭环放大机制，仍未唯一解释全部历史差距。** S39保持正式方案；既有复跑仅作诊断，不替换六格保留项，不据单seed宣布稳定优势。表由原`tools/report_table.py`生成，复跑主行先用原`tools/make_s36_row.py --run xag_a0f0r --step 6000 --seeds 3407`生成；[汇总及逐文件SHA](../outputs/xag/reviews/c1_deep_audit_20261017/summary.json)保存精确命令及main_row来源。没有新增训练、优化研究权重、改动186文件冻结或重选末点。
+
+**1. 固定权重复算，排除已测评估/默认核心漂移。** 最近XA C1、本轮A0F0和范围修订前已完成的A0F0复跑，各自完整zgz_global 1386＋zgz_local 1204包复算；现存主行四项精度全部原样复现。每包把同一检查点的XYZ模块与关联函数切换成归档的原始实现，51D输出2590/2590逐位相同、无非有限端点。归档XYZ源码与09-30 git版本一致。这不等于重评最早C1：原step6000权重已不在工作区，现有归档只有主行/选择记录/日志/部分源码。
+
+**2. 数据与源码差异进一步收窄，并更正随机流解释。** 旧git、XA与当前入口重建的37项初始化状态一致；完整4544300项训练索引一致，覆盖72序列的105个真实样本字段一致。同权重固定8样本的CPU FP32/bf16前向、loss、25项梯度及临时克隆Adam更新均逐位一致；不能把当前重建误写成历史实物初始hash已留存。实际Lightning DDP在模型构造后执行`reset_seed()`，故撤回“模型初始化消耗随机数使原采样变化”的解释。旧None与新独立generator确实改变顺序，但双rank完整索引重放均无跨rank重复；首epoch按drop_last各丢812项。6000步训练曝光中local占比仅差0.01971个百分点，72序列最大相对曝光差0.6543%，不支持“local漏训/类别显著变少”。重建新流首批512样本、19059170事件及全部来源字段SHA与真实训练回执相同。[采样报告](../outputs/xag/reviews/c1_rng_rank_20261017/report.json)、[曝光](../outputs/xag/reviews/c1_rng_rank_20261017/exposure.json)、[语义审计](../outputs/xag/reviews/c1_training_semantics_20261017/report.json)。
+
+**3. 确认一个不受seed控制的具体数值入口。** 冻结同权重、同64个真实训练样本，每次重置CPU/CUDA seed，5次GPU bf16前向/反向的关联、key、权重及关系编码phi相同，H0后特征、预测和全部25项参数梯度却变化。固定捕获的308008条key/权重/phi，仅重复`xyz_mesh.py`中FP32 `mass/num.index_add`，求和结果仍不同；启用确定性算法后该算子5次逐位相同。独立进程设置`CUBLAS_WORKSPACE_CONFIG=:4096:8`并启用确定性算法，原None首批前64样本的整条前向/反向3次42项全部相同，37项权重未变。训练使用FP32累加、评估使用FP64累加，这能解释“CPU固定包检查相同、评估固定权重复现，GPU训练仍分叉”。另对真实首层ring-gather反向及LBS max反向各5次隔离重放，此批均稳定；没有把它们另列为已证实噪声源。整条确定性验证同时改变多个算法，不能由此宣称只修一个index_add就已充分修复全部训练。[回执](../outputs/xag/reviews/c1_training_semantics_20261017/receipt.json)、[反向阴性隔离](../outputs/xag/reviews/c1_training_semantics_20261017/backward_isolation_report.json)。
+
+**4. 既有重复实物证明相同seed没有带来相同终点。** A0F0原跑/既有复跑的local相差4.7338447571 mm，旧XA同seed两跑相差3.1818008423 mm。两组分别核对配置、loop/scheduler/Adam 6000步、同L20/BF16/NCCL；XAG两rank初始权重及首三批完整hash相同。两组全300个训练记录点的5项仅依赖输入/前态/固定MANO的路由统计各300/300逐位相同，12次验证统计也相同，首个记录点step19的loss已出现微小分叉。此证据支持匹配的预定数据流下存在数值分叉；当时未存全6000批raw hash，且物理卡组不同，不能声称全部实物批次已逐位取证，更不能用复跑挑好点替换原项。[身份及全程统计审计](../outputs/xag/reviews/c1_rng_rank_20261017/repeat_identity.json)。
+
+**5. 单步差距不足以描述闭环差距。** 冻结三权重，在同一全2590包上每步给干净GT前态：local单步XA 18.1174、本轮19.0819、复跑19.8844 mm；XA旧探针逐位复现。新旧单步差0.9645 mm，而自身递推差5.9347 mm；复跑单步反而差0.8025 mm，递推却好4.7338 mm。共同GT前态hold为4.4117 mm，三个网络连正确前态也会拉偏。因此不能只根据训练/验证loss或单步排序解释结果；训练所得更新与自身前态分布发生交互。这里的单步值只作机制补证，未填入递推RA主行。[逐包GT前态诊断](../outputs/xag/reviews/c1_deep_audit_20261017/tf_summary.json)。
+
+**6. 完整闭环分量干预，验证反馈的放大作用。** 三权重分别运行GTz、GT平移、GT姿态三模式，共23310次完整推理；每段先核对原噪声初始化，再仅用上一真实时刻标签替换指定前态分量，其他列沿用该模式自身输出，全部378次段首核验及2590端点分母通过。local递推：XA原33.14→GTz36.40／GT平移33.86／GT姿态14.81；本轮原39.08→35.18／32.81／15.31；复跑原34.34→34.21／34.69／14.87 mm。阻断姿态反馈后，新旧差由5.93降至0.50、同流复跑差由4.73降至0.44 mm；但GTz/GT平移也会使排序翻转，说明是姿态与平移反馈耦合，不能做线性份额分解或归为唯一某一分量。每步输入正确z后，输出仍分别偏浅58.56／73.64／79.20 mm，说明错误深度附近的小更新不代表正确稳定；GT姿态时根对齐精度下降到约15 mm，深度仍偏浅约101～109 mm。这些是使用真值的反事实机制干预，不是可部署结果。[协议](../outputs/xag/reviews/c1_deep_audit_20261017/clamp_protocol.json)、[汇总](../outputs/xag/reviews/c1_deep_audit_20261017/clamp_summary.json)、[逐文件SHA与全分母核验](../outputs/xag/reviews/c1_deep_audit_20261017/clamp_receipt.json)。
+
+**归因边界。** 已有证据支持“CUDA数值扰动进入梯度，预定数据流相同也会分叉；训练终点差异被脆弱的姿态/平移闭环显著放大”，采样顺序改变是额外未独立量化的因素。尚不能把历史27.5021→本轮39.0768的全部11.5748 mm唯一归因于index_add、采样或某个反馈分量：最早权重/实际初始hash/完整batch记录不全，且没有在同物理卡、固定全流下做确定性×generator的完整受控训练。本次遵守六run单seed范围，未新开该类训练，不把缺失证据写成已证明。完整推理/协议/脚本/SHA在`outputs/xag/reviews/c1_deep_audit_20261017/`；[独立审查](../outputs/xag/reviews/c1_deep_audit_20261017/independent_review.json)607项检查0失败，冻结186文件清单复核通过。
+
+**方向对照完整性补充（10-17 16:18，北京时间）：** 正式读取前的独立源级审查发现，r2读取器将非有限context写作单一无effect名marker，方向比较因而跳过涉及它的pair；原失败分母仍保留，但不能声称这些undefined方向已全列。原封版reader/renderer/准备清单保持字节不变，另存[完整性补充协议](../outputs/xag/reviews/single_seed_interpretation_r2_20261017/completeness_adapter_20261017/protocol.json)。9项合成验收及[独立复核](../outputs/xag/reviews/single_seed_interpretation_r2_20261017/completeness_adapter_20261017/independent_review.json)SHA`b6773fd1b20c76075574d787f07a3be97a2be57408c8c2abf0ccffdfe377099c`确认360 contexts、3240 terms和7668规定方向pairs库存完整；非有限项只补null及原因，不恢复自然整块失败中的有限子项、不改变有限算式/符号/反转/失败分母。补充表与原r2输出分开，正式读取仍须原scope+coverage双完成门及独审PASS；登记时未读真实成绩、数组或执行正式图件。
+
+<!-- EXPERIMENT_RECORD:XAG-20261017:BEGIN -->
+<a id="xag-20261017"></a>
+## XAG：关联对应 × MeshGNN 的配对归因（2026-10-17，原18项历史）
+
+**历史范围说明：以下18项数量、双seed及同seed复跑门、旧“当前”状态均为本次修订前登记，原文保留供追溯；当前派发与结果解释以上方[单seed修订](#xag-single-seed-20261017)为准。**
+
+**状态（10-17 08:35）：实现与冻结诊断完成；工程失败已归档，资源修订、新完整验收与186文件冻结均PASS。正式训练已完成首3个A0F0及首个A0F+的step6000合同验收，共4/18，其余14个run继续执行；尚无正式主行，不作主因裁决。** 授权范围为 GPU0–7 和全部 CPU。协议先于新实验产出登记于 `outputs/xag/protocol.json`，六格共18个 run 的独立配置位于 `configs/xag/`。源码实际文件哈希（含工作区未提交文件）、验证与费用记录单独保存；旧 XA/XDL/XDE/XDF/XKF 产物和 S39 均保留。
+
+**10-17 08:35首个增强后端末点补证：** `xag_a0f1_s3407`的[CPU独立审查](../outputs/xag/reviews/first_a0f1_step6000_20261017/receipt.json)SHA为`008bb514e0a9657abcf87a6ae1627196bf383143f98c3ae5a7f1f1208b6a624d`。三分支各13个参数张量、134528参数，128通道及FFN256的形状完整；4头数由绑定源码与协议佐证，不能单凭矩阵形状推出。39个新增及25个原参数的Adam状态全部step6000、动量有限，scheduler last_epoch6000/_step_count6001；共享结构、固定MANO缓冲、fresh2×512、当前绑定及两rank与同seed A0F0各前三批配对一致。29个归档成员复核一致，只读取两份小检查点、未执行模型forward或读取成绩。非零动量和完整优化步仅说明分支参与训练，不说明改善有效，也不把启动前三批扩称全6000步流逐位一致。
+
+**10-17 08:09首批末点验收：** [阶段快照](../outputs/xag/reviews/formal_stage_first_three_20261017T000910/stage.json)记录3/18训练合同完成、0/12正式主行。A0F0的3407、3408及3407复跑均以exit0结束，实际CPU独立检查37个state tensors（32个浮点张量）、25个Adam参数状态，权重与动量有限、全部Adam step6000、scheduler last_epoch6000及LR0.004；fresh0、无resume、2×512和当前版本绑定吻合。两rank初始化及3407主/复跑的前三批逐条一致；这只是启动前缀配对证据，不声称全部6000步逐位相同。[独立审查](../outputs/xag/reviews/first_a0f0_step6000_20261017/review.json)SHA为`e752078c1ca24234154dd116bbfcc9675a0baf1f38ee868423d8f7501a996257`，[最终身份复核](../outputs/xag/reviews/first_a0f0_step6000_finalcheck_20261017/receipt.json)确认3份checkpoint和完成回执未变。该验收未读取分数、不涉及F+与其余15run或效果评估。后续三项注册训练已fresh启动，首个F+仍在训练。
+
+费用补证另用[只读观察器](../outputs/xag/reviews/actual_cost_observer_20261017/README.md)记录后续各任务的进程生命周期与物理GPU分配，5秒采样、绑定当前协议和执行代次。正式任务monotonic凭据、轮询区间上下界及成功计数内环时间分别解释；同卡并发取区间并集，旧OOM与资源验收单列，缺失时段保持未知。目前未形成全研究实际费用总计。
+
+**10-17 08:25资源观察器修复：** 原只读资源观察器在UTC00:05:34误将真实`TRAINING_COMPLETE`回执不含`samples_per_optimizer_step`判为合同变化而退出，[原失败](../outputs/xag/reviews/formal_resources_pf1_20261017/observer_failure.json)及其全部记录保留；训练器和资源停止保护未受影响。[v2观察器](../outputs/xag/reviews/formal_resources_pf1_v2_20261017/README.md)严格区分训练中七字段与完成态六字段，完成态须另经metadata、2×512配置、runtime和版本绑定补证，训练中缺batch仍拒绝；12项测试及[独立复核](../outputs/xag/reviews/formal_resources_pf1_v2_independent_review_20261017/review.json)通过后启动。最后旧采样UTC00:05:29.748291至首个新采样00:25:45.687185的1215.938894秒[监测缺口](../outputs/xag/reviews/formal_resources_pf1_v2_20261017/monitoring_gap.json)明确保留，不回填内存或吞吐区间。新观察器读取已落盘的末点回执及TensorBoard标签属于后读既有证据，不是补回采样；v1/v2累计GPU·h不能相加，最终按唯一执行代次/job的终态凭据去重。独立费用生命周期观察器持续运行；186个冻结文件、正式协议和全部训练均未修改。
+
+### 问题与单变量边界
+
+原 XYZ-C1 是本轮基底。关联侧 A1 仅以 GT 的16部位 ID 筛选原 top16顶点及邻接面候选，hit/near 仍由自身前态网格计算；无有效候选回退。A2 从事件所在毫秒的 GT 网格几何伪来源取得面与重心权。两者严格只换 `vid/A`，保留原 `q/valid/hit/z`、事件、前态、边几何及残差质量；none/unknown不补关联。新 `vid` 引起的 dXYZ 变化属于该干预的中介，因此不称纯scatter效应。来源不是独立物理真值，A2含标签信息；它不修补漏关联、深度或置信度。固定随机错对应对照匹配修改数量和质量；所有回退及未知项保留在全量分母。
+
+后端 F+ 只增强三轮 MeshGNN：原局部层后接128通道、4头的全局注意力及256宽FFN残差；LBS身份只用于Q/K，支持扩张沿用原规则，全空支持保持零。关系编码、顶点聚合、LBS池化、17槽压缩和最终51D读出结构不变。新增模块初始化不改变共享模块初始化或数据随机流。
+
+F★冻结全部参数和 O/S、残差槽，在实际 H3 上以原加权51D MSE优化200步（Adam0.05），限于训练通道标准差±3倍并保留原候选；半径0须恒等。它只检验旧读出能否利用某种特征修正，不加入关联/GNN收益排名，不当作可学习或可部署上限；未找到解也不等于不可达。
+
+### 冻结诊断、正式训练与评价合同
+
+- 冻结来源为 `xa_c1_s3407/3408` 的 step6000。共同事件、共同incoming比较A0/A1/A2及错对应；自由递推另行记录。逐层探针覆盖H0、H3、17×258槽、544维压缩槽；H0/H3头配对，slots/zs头配对。real与固定关联wrong-content保留相同真实残差和prev48；state-only将主特征及残差均清零，只保留prev48。因此real对state-only的增量包含主特征与残差，不能只归给主特征。训练内部fit/check只用于诊断，不改变唯一官方划分，不以check择点。
+- 六格 `a0f0/a0f1/a1f0/a1f1/a2f0/a2f1` 各3407、3408，另各3407复跑，共18个fresh6000。原XA-C1数据增强、损失、优化器、2×512和rank内logloss不变；固定末点，不看中途成绩删臂。共享样本流记录配对哈希。
+- `L[a,f]` 分别在local/global/overall计分：关联收益 `L00-La0`，GNN收益 `L00-L01`，交互 `La0+L01-L00-La1`。门 `tau=max(1.1mm,2*max_cell|seed3407-repeat3407|)` 仅用于`mpjpe_ra_mm`、`mpvpe_ra_mm`、`mpjpe_abs_mm`、`mpvpe_abs_mm`四项毫米指标，两训练seed须同向；SO(3)角度、weighted51损失、腕深度等其他机制量均不套用此门。此处为既有代码与封存清单口径的文字澄清，不增改任何判据。交互过门则报告耦合，不分摊责任百分比；阴性只约束本轮实现和预算。
+- 正式表覆盖zgz两条完整序列，原rng0、W50和固定step6000；共同前态与自身闭环分开。诊断另检查clean、natural及平移/根/手指正负物理扰动、持续恢复、腕深度偏置和正常运动。非有限/缺失不得通过丢帧或取两臂存活交集处理。
+- 共同前态重放逐包使用同seed旧C1的14条轨迹incoming，另记GT前态；新臂输出不回灌。自身恢复仅共用14种起始态，此后每臂使用自己的输出继续递推。前者量测固定前态分布下的即时输出，后者量测完整闭环；前者的逐包收益不自动构成持续恢复证据。
+- 正式结果必须经 `tools/make_s36_row.py` 与 `tools/report_table.py` 生成规定九列表，含baseline、S39及当前臂，GT对应清楚标注oracle。机制数字、层间探针、交互和反例在本节附属产物中保留。
+
+解释边界（正式训练前补记，不改变门）：匹配重训中，后续池化和读出仅保持结构与训练合同，权重允许共同适应；所以其关联差值是“对应干预及匹配适应的总效应”，增强GNN差值是“本轮增强方案的总效应”。共同incoming控制前态分布，并不把重训比较变成冻结后续权重的路由效应。单项过门而另一项未过门不能推出两项收益之差已可靠；`关联收益−GNN收益=L01−La0` 可作描述，本轮未注册独立优势门。最终“更值得修”只表示本轮证据更支持哪项干预，不能宣称普遍责任更大；出现域间冲突、交互或不充分证据时明确保留主次未定。
+
+### 工程验收与执行
+
+事件来源缓存按原事件row ID和整数毫秒索引；part/face/bary随同原事件经历几何增强、丢弃、排序及stride采样，hot标未知，禁止从float时间或重排后的序号猜回原事件。默认路径、恒等干预、质量守恒、来源回退、共享初始化、GT隔离、空包/DDP和完整回放通过后，再依预注册顺序执行。GPU分组0–1、2–3、4–5、6–7；每rank12worker及受控计算线程。吞吐、实际GPU·h及完成/失败状态分别记录，不把计划费用写成实耗。
+
+成本列沿用历史可比口径：在完整 `forward_packet` 上统计THOP支持算子的MAC，增强注意力另计Q/K/V投影及QK、AV矩阵乘；原生FK、kNN、scatter等未覆盖算术仍构成计数下界，不能称所有执行运算已穷尽。Latency计完整模型查询并沿用Full=1.75ms标尺，不包含传感器等待和离线GT来源缓存构建；oracle行的查询耗时不能解释为可部署成本。
+
+10-17只读[性能计量合同复核](../outputs/xag/reviews/performance_reporting_contract_20261017/notes.md)补充实际实现边界，未修改测量实现、实验合同或判据：主表读取whole-`forward_packet`的支持算子计数，MHA的Q/K/V/输出投影和QK、AV由自定义hook计入，FFN及LBS身份投影由Linear hook计入，LayerNorm沿用THOP近似；GELU、函数式softmax、mask/残差逐元素运算及原生FK、求交、scatter/池化等仍未穷尽，因此不能把该列当作所有真实FLOP。既有六格计数与新增参数量的独立公式核对通过，没有重跑profile或生成新主行。实际Latency使用`lyq_local`最多600个预置GPU包，每个valid run的前态固定为段首GT，预测不反馈到下一计时包；切窗、事件及GT来源缓存读取/索引、CPU→GPU传输均在计时区间外，区间内执行完整模型查询。缩放为`raw_query/raw_Full51_anchor×1.75ms`，不是裸毫秒；不能称为自身递推前态分布上的own-loop latency或端到端传感器/软件链时延。工具顶部旧“frontend-only/val sequence”说明与实际路径不符，本附记按执行代码澄清，冻结源保持原样。
+
+### 实现与执行记录（不作效果裁决）
+
+实现入口为 `semkine/xag.py`、`semkine/xag_sources.py` 和 `tools/xag/`；18份注册配置与主协议不根据阶段成绩改变。`tools/xag/execute.py` 负责等待冻结诊断、最终验收、源码冻结、18个fresh6000、规定主行以及全部共同前态/自身扰动递推；训练配对身份在前三步即检查，固定末点再核验权重、全部Adam状态、scheduler和数据合同。
+
+正式冻结诊断目录为 `outputs/xag/diagnostics_v2/`。首版来源哈希使用文件名通配符，错误纳入后来新增的资源验收脚本，续跑被身份检查拒绝；首版已完成32份特征与失败/中断记录保留在 `outputs/xag/diagnostics/`，没有复用到v2。v2改用明确文件清单，重新提取全部特征。此处是出处记录修复，不是根据实验效果修改臂。资源单卡batch512验收通过，但不把单rank计算吞吐当作DDP端到端完成时间；最终6格实际来源验收后登记计算费用外推，实际用量另从运行记录累计。
+
+四层探针采用两个容量配对组：H0/H3同结构，slots/zs同结构；两组参数量不同，所以跨组分数差不能单独证明池化丢失信息。固定错内容仍保留真实ray/dXYZ及残差，是有边界的内容对照。F★读取GT并只说明固定读出可达性；原候选、半径0、支持集与200步合同均独立审计。合法的数值发散保留为实验反例，不因冻结诊断成绩取消后续18个臂；源码/数据身份、索引、形状或执行完整性错误才阻止进入下一阶段。
+
+10-17训练期间只读复核补充解释精度，不改实现、配置或判据：F★的±3std为逐顶点、逐通道盒约束，不是联合范数界或训练特征流形；优化后H3未全部保存，零半径和约束证据来自绑定执行源码的断言，不能描述成全部潜变量的独立重放。实际特征库没有全空支持样本，该情形由实现测试覆盖。slots/zs头的名义结构和参数数相同，但zs每槽32维补至258维，其中226个零输入列没有数据梯度，因此不能宣称有效容量与学习难度严格相等。wrong-content仅错配token xy，仍保留真实ray/dXYZ、时间、极性与残差，可能引入内容和几何不一致；分别训练的控制头也不是冻结读出上的因果干预。F+同时加入注意力、FFN、归一化及参数量，未设容量匹配消融；正结果支持注册增强方案的总效应，不能唯一归给全局传播。依据为既有[探针定位记录](../outputs/xag/reviews/probe_localization_20261017/notes.md)与[F★完整复核](../outputs/xag/reviews/fstar_complete_20261016T191545_463632Z/notes.md)，未追加模型计算。
+
+探针对照的文献依据仅限解释边界：[Hewitt与Liang（2019）](https://aclanthology.org/D19-1275/)讨论了高探针精度可能混入探针自身学习或记忆能力的问题。本文的state-only与wrong-content是手部任务的预注册对照，不等同于该论文的随机词类型标签控制任务，也不将本轮差值称为复现其selectivity指标。
+
+10-17 01:46工程验收记录：全74序列来源、444个缓存文件及376个原输入文件已完成SHA复验；两C1种子的148份特征、35840行已独立核验，前态/目标跨种子逐值一致。实现测试141项通过，证据为 `outputs/xag/preflight/implementation_test_result.json`；`implementation_ready.json`绑定183个实际文件，只声明代码已审查，不代表完整冻结诊断或学习效果通过。此时正式训练为0/18，48个探针头仍在运行。
+
+10-17 02:19执行记录：48个探针头均完成固定300轮，完整性核验覆盖860160条预测行；16个state-only头在同结构组、同head seed下跨接口及backbone输出逐位一致，见 `diagnostics_v2/state_control_equivalence.json`。独立保存头/归一化/输入重放复核位于 `reviews/probe_all48_20261016T180557_499724Z/`，此时尚在执行。受控调度切换已完成，F★按资源合同启动GPU0–7每卡4个独立B1进程；正式训练仍为0/18。
+
+10-17 02:29独立复核补记：上述48头实际产物复核全部PASS；每头17920行、target/init/order/源码与权重身份、完整指标字典一致。全部48个归一化统计从12096条真实fit行逐位重算一致，保存头的三类输入CPU重放最大绝对差3.34e-6，在事前固定的跨设备FP32核对容差内。该结论只覆盖探针产物完整性。F★首两序列实物验收另存 `reviews/fstar_first2_20261016T182608_656137Z/`，不替代全部148份优化和84份冻结递推的最终验收。
+
+完整探针的描述性机制记录另见[四层配对备忘](../outputs/xag/reviews/probe_localization_20261017/notes.md)，随附3456行原指标及4032行配对记录，保留全部backbone/head seed、fit/check/zgz、local/global与七前态。两种容量组分别比较，完整保留wrong/state及域间反例；这些结果不应用正式模型的τ，也不预判18个模型的主因裁决。
+
+10-17 03:14阶段记录：F★完整148份文件、35840行均通过验收（`diagnostics_v2/fstar_verification.json`），每行200步、半径3std，优化失败及最终非有限均0；执行阶段实测3325秒，此处不把并发进程耗时相加冒充GPU实耗。调度器已转入两旧C1检查点的完整五条件/14初态递推，正式训练仍为0/18。只读硬件和训练进度观察器位于 `reviews/resource_monitor/`，每30秒保存实际采样，供正式DDP吞吐和费用登记使用，不修改科学流程。
+
+F★的完整配对机制记录见[全量附录](../outputs/xag/reviews/fstar_complete_20261016T191545_463632Z/notes.md)：148原件、35840行、432个检查点/fold/domain/前态/支持分层均通过第二脚本逐行复算；1165行未严格改善并保留原候选，反例索引完整保留10964行（理由可重叠）。总加权目标与平移、root/finger参数及SO(3)终点误差分别登记，不要求所有分量同时下降。实际银行中空支持和raw空包均为0，空组以n=0/null保留，不能把该样本银行当成空支持效果验证。该附录不替代完整递推验收及正式训练。
+
+执行中只读审查发现路由计数覆盖缺口：旧冻结回放和新模型共同前态回放原有计数只针对GT incoming，新模型自身递推未存路由计数；且“应用路由”不等于vid/A实际改变。为避免把候选不足造成的A1阴性误写成关联内容无用，另加独立的事后重建计数，保存于 `reviews/association_coverage/`。它从已保存incoming重放原关联计算，单独绑定源代码、权重、数据和原轨迹哈希；不改模型、训练合同、原始预测或本轮门。验收必须与原GT计数及真实完整forward一致，之后才允许解读自然/扰动前态的全事件覆盖、未抽样、未知来源、候选缺失、回退和实际对应变化；完成前不声称该补证已具备。
+
+10-17 03:47补充工具验收：两检查点×两域×两包×四前态×五模式共160例，GPU完整forward与GNN前截断捕获的全部关联逐位一致，原保存common/GT预测160/160逐位复现，GT计数无差；未知来源、空包、非有限前态及质量检查通过，9项单测通过。CPU虽然能复现部分总计数，跨设备候选/对应仍有差异，按原零容差要求拒绝用于正式重建，失败证据保留。附加协议 `reviews/association_coverage/protocol.json` 已冻结（SHA256 `bea7ffe884e7b81b08827c16ddad7609b1798787200d3e331eac5f819f7f1bad`），仅允许CUDA。独立队列等待全部官方GPU阶段完成后再执行旧/新全部轨迹，共2103080查询；此时全量计数尚未执行。另将只改零权槽的情况与正质量记录改变分别计数，避免把数组改变直接视为有效内容改变。160查询捕获实测1.560秒，仅作查询级测量，不外推端到端完成时刻。
+
+10-17 03:54正式训练启动记录：旧C1的84份完整递推覆盖两检查点各2590包，own/common/GT端点分母分别362600/362600/25900，数值失败与失败端点均0；阶段墙钟2227.20秒。最终独立冻结审计PASS，141项实现测试再次通过，默认路径逐位一致，两DDP rank各18例通过；六格真实来源、batch512资源检查通过且初始化/前四批事件与来源哈希配对一致。`preflight/result.json`为PASS，`frozen_sources.json`冻结183个实际文件（SHA256 `a1178e3650cfb478bffc5b117173abf69d1c1168102078b3d613b501e3d4ee4c`）。四组两卡正式队列已启动，尚无step6000结果。
+
+实测六格单rank计算与传输窗口外推，18个run的该部分预计64.01 GPU·h，详见 `resource_projection.json`；它排除DDP同步、完整数据等待、验证、最终评价和准备工作，不能当作端到端费用或完成时刻。正式DDP资源观察另记录启动后真实步数、墙钟、显存、主存和共享内存，首300步区间与跨step500验证区间分开。
+
+实际文件可恢复归档为 `reviews/source_archive/xag_frozen_a1178e3650cfb478.tar.gz`（SHA256 `c1b8499a94a34fb3da55f60159965deb2bb727404d4f2632e644ac651b15ed7a`）：183个冻结文件及5份原manifest按真实内容保存，含工作区未提交内容；原数据和30GB来源缓存仅保留原manifest及SHA，不重复打包。归档成员重读验收通过，恢复仅向独立新空目录进行。运行环境的独立清单见 `reviews/source_archive/environment_snapshot.json`，与源码归档一起保留。
+
+完整冻结回放的独立配对附录见[回放机制记录](../outputs/xag/reviews/rollout_complete_20261017/notes.md)：全部84原件、106428条配对、45976个分层和73148条反例记录均保留；理由可重叠，不作独立重复计数。独立CPU复算79900个状态并核验5880个clean/natural完整轨迹AUC，符合预先规定的跨设备算术核对容差。own的原生逐包指标没有在旧JSON中保存，明确标为unavailable；对应完整run AUC和原始51维状态仍保留，不以虚构逐点值填补。该附录仅描述固定旧检查点，不套正式重训tau，也不用于提前判主因。
+
+冻结回放的[完整方向解释](../outputs/xag/reviews/interpretation/rollout_20261017/notes.md)另存5104条方向、9744条完整run配对及全部方向反例，独立重算通过，原104个封存文件不变。固定旧检查点存在相对sham与相对base、common与own、加权51目标与原生几何指标之间的方向冲突；也存在等run时间AUC与逐包等权聚合的反转。所有14前态及两检查点均保留，不能挑选参照或聚合方式，也不能从冻结权重的响应提前推断匹配重训后的模块主次。sham仅在同一incoming下匹配干预，own分岔后的轨迹累计计数不保证相等。
+
+10-17 04:03正式资源初测：四个并行双卡任务的step50→300实际窗口已完成，见 `reviews/training_resources_20261017/measured_window_summary.json`。三个A0F0任务分别为1.237/1.247/1.294秒每优化步，首个A0F+为1.434秒；该窗口包含真实数据等待与DDP同步，尚未跨第一次step500验证。全机采样最低MemAvailable为96.8GB，共享内存采样最高167.3/270.3GB；这不是连续采样峰值保证。跨验证窗口另行记录，尚不以该短区间给出完整矩阵费用或完成时刻。
+
+10-17 04:17资源失败：四组实际训练跨首次完整验证时，主存耗尽并触发内核OOM，`oom_kill`由0增至21。三个F0的TB事件证实val(step499)已于04:07:22完成，随后仍有train step519/539；因此50步间隔的进度文件停在500，不能误写为一直停在验证。F+到500附近尚未记录验证完成。最紧张快照MemAvailable不足1GiB、共享内存约204GiB，文件页缓存被大幅逐出；实测磁盘持续读与major faults上升，不是GNN计算时延。所有受影响进程组与派发器已停止，主存恢复约492GiB；4个未完成run、日志、旧协议/源码冻结/配置/验收和停机现场保存在 `attempts/host_oom_20261017/`，不充当正式结果、不续训其部分权重。原资源验收范围不足的失败保留。
+
+最小资源修订先独立验收：训练`PREFETCH_FACTOR`由2降为1，96训练worker、每rank512、全部数据/增强/前态/损失/模型及验证合同保持。当前自定义EventPacketBatch没有pin_memory接口，配置的pin键并未固定其内部张量，因此不以修改该键冒充修复。四组双卡全部使用F+（A0/A1/A2/A2），相同seed3407、CLI固定650步，配置MAX_STEPS6000保持原优化器调度；必须通过完整step500验证并到550/600/650，不以训练分数选择资源方案。1秒记录主存/共享内存/OOM；若MemAvailable低于16GiB连续两次，或OOM计数增加/子进程异常，立即中止仅本资源测试的进程组。通过后才另发布资源版协议及冻结，18个正式run全部从头执行。此时尚未完成该补充验收，旧冻结科学诊断不因资源失败改写。
+
+10-17 04:49补充验收的监视器误判：`prefetch1_full_validation`（协议`e487ed6c…`）中，A0F+日志已明确到达650步，三组完成step500完整验证并恢复训练，主存最低57.45GiB、共享内存峰128.07GiB、OOM保持21；但第一组正常收尾时worker先于`on_fit_end`退出，资源runner把子进程消失误判为异常并主动停止四组。所用Lightning的`_teardown()`确实先于`on_fit_end`，而`TRAINING_COMPLETE`在后者写入；因此这是资源监视器缺陷，不能写成模型或训练数值失败，也不能把部分验收升级为PASS。原目录、协议、脚本和终止证据保留；另建v3资源验收，子worker消失只登记生命周期事件，仍以父训练进程非零退出、OOM增加、连续低内存及最终完整验证/650退出证据判定。18个正式run仍为0/18，根科学源码及旧冻结未变。
+
+OOM后独立全字节校验已PASS：820个源/输入文件共44,644,000,623字节与原manifest逐项一致，UTC20:32:24.648921至20:37:03.845739，用时279.197秒，报告SHA`cffdfe7a8a3b1e80bfee7b241704dcd4385a94d0fdc29bff88d73d922ff4a322`。该只读进程与上述资源验收重叠，重叠区间不得作为稳定训练吞吐；进程块读增量不等同整机磁盘流量或精确缓存命中率。实际驻留快照与解释边界见[完整I/O复核](../outputs/xag/reviews/io_pressure/README.md)。
+
+F★执行优化另行保留全部尝试。B16/B32未通过预先固定的读出/200步等价门；两检查点各32个真实及空包案例中，B1与原实现最终H3和输出逐位相同。随后独立测同GPU1/2/4个B1进程，所有84次200步输出逐位一致，4进程实测吞吐约为1进程的3.80倍；只据执行吞吐选择32进程布局，不以精度选择数据或优化器。证据见 `diagnostics_v2/fstar_batched_equivalence.json`、`fstar_concurrency/benchmark.json`及`fstar_resources_protocol.json`。F★通道标准差由72训练序列中预先固定的fit-clean包及支持顶点估计；不是全训练事件的逐包枚举。数值优化失败保留有限原候选并单独计失败，不能把回退当优化成功；源码/输入错误不伪装成数值失败。
+
+新增训练产物实际位于 `outputs/xag/runs/`，主行位于 `outputs/xag/main_rows/`；`outputs/semkine/`仅为本轮新名称建立兼容旧报告工具的符号链接，映射冻结在 `execution_layout.json`。完整自然主评若正常退出但产生非有限汇总，需验证step6000、2590包、每序列到均值的传播及权重身份，并生成绑定原行SHA的完成凭据；保留分母、继续全部common/own诊断，禁止生成有限主表或自然因子过门结论。非零退出、缺帧和身份错误仍阻断。调度锁和遗留rank检查防止重复写同一fresh run。
+
+实际运行入口与审计：
+
+```bash
+/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python tools/xag/execute.py
+```
+
+- `outputs/xag/protocol.json`：18臂注册、固定训练合同及工程门。
+- `outputs/xag/source_manifest.json`：完整来源数组及原数据/资产/构建输入SHA；尚未构建完成时该文件不发布。
+- `outputs/xag/diagnostics_v2/frozen_execution_journal.json`：提取、48探针头、F★、五条件完整递推的阶段状态。
+- `outputs/xag/preflight/result.json`、`outputs/xag/frozen_sources.json`：最终验收与冻结；检查未齐时不发布PASS。
+- `outputs/xag/execution.json`、`runtime.json`：全流程/正式训练与主行状态，包含日志、PID、固定GPU对和实际耗时。
+- `outputs/xag/diagnostics_v2/frozen_diagnostics_audit.json`、`matrix_diagnostics_audit.json`：独立完整性审计；缺失时不得输出最终瓶颈结论。
+
+<!-- EXPERIMENT_RECORD:XAG-20261017:END -->
+
+10-17 05:15资源修订验收通过：独立v3四组双卡全部完成step500全验证、550/600/650及正常退出，原共享初始化与每rank前三批哈希精确一致，无残留进程，OOM计数21→21。1秒采样主存最低约59.95GiB、共享内存峰129.60GiB。结果SHA`c1be8835fb88a1947e1ef9e14dd707df1b8bb0fd0a106f3a1af9fd2988e42517`，协议SHA`b80421d72677a515e9f1f04401ffda97d1b5deb37d64f4da7c66196a1b7f5e23`；[独立复核及实测费用](../outputs/xag/reviews/host_oom_resources_20261017/prefetch1_full_validation_v3/cost_notes.md)。四组父进程实际分配合计2.3488 GPU·h，完整八卡窗口含先结束组空闲为2.8403 GPU·h；该资源试验不作学习效果结论、不接用其权重。
+
+资源版协议已应用，SHA`5334cb2e8b0fe91db34419b016970ab5a53fbb718649e0a40e3a1b465c1bbfc8`。18份YAML仅训练预取2→1；训练worker96、batch2×512、模型/数据/损失/seed/固定6000合同不变。新增调度内存保护与标准库只读状态入口。旧协议/源码冻结/接受报告，以及两个将重发的冻结诊断汇总，均已按[迁移来源记录](../outputs/xag/reviews/resource_revision_20261017/lineage.json)逐字节归档，原失败不覆盖。新回归首轮156PASS/1FAIL仅来自旧配置测试未显式允许已登记的pf1；该测试增加严格pf1断言及原配方比较归一化三行后，157项全PASS。首轮FAIL和改动证据保留，后续仍须新的完整preflight及186文件冻结，不以资源或代码PASS替代正式模型效果。
+
+10-17 05:24正式重启：新最终preflight全部PASS（157项pytest、完整冻结诊断审计、默认路径逐位一致性、每rank18项DDP及六格真实batch512检查）；preflight SHA`f119d63ff691ca6b144f066e4d5c872a8568c1acf885cf278575d27b699e32e6`。186实际文件冻结SHA`22f2fdcf0fa7de36f2230f413d0f08abbe38acbba4c44952613d2f53554ae701`，冻结后独立资源修订审计SHA`a7e66ae7dbf2328f412fc27f75e9bada1fe221a7874d5efdf9439d53f89a7fd8`；[正式启动凭据](../outputs/xag/reviews/resource_revision_testsync_20261017/formal_launch.json)。协调器PID134999，精确执行代次`2026-10-16T21:24:20.762291+00:00`，原FAILED记录保存在previous_attempt及归档。四组双卡、每rank512、96训练worker、prefetch1、每rank原损失聚合与所有科学合同保持；18个run均fresh，固定6000，不按中间分数删臂。关联覆盖率队列只能绑定该新代次并在正式训练/评价全部完成后使用闲卡。
+
+10-17 05:25新版来源快照完成：[源码归档](../outputs/xag/reviews/source_archive_v2/xag_frozen_22f2fdcf0fa7de36.tar.gz)SHA`0aeceef4cdea7a0d62947d4a39b25d61106afa475ad76ad326c82ca208475811`，保存全部186个冻结文件及5份身份清单，另含归档清单和恢复说明等辅助文件，共194个常规文件成员。[独立复核](../outputs/xag/reviews/source_archive_v2/independent_verification.json)重新读取压缩包逐成员核SHA，并核对当前186个冻结文件未变；恢复只向独立新空目录进行，原数据和来源缓存仍按原manifest引用，不重复打包。[环境快照](../outputs/xag/reviews/source_archive_v2/environment_snapshot.json)SHA`9396eee49cac9603d05640581cb649f8f4822e02394a4bb017501d7b4143650c`，记录75个软件包版本、硬件及4个实际训练任务的允许列表环境项，不等同可安装依赖锁。[47份迁移证明副本清单](../outputs/xag/reviews/source_archive_v2/revision_evidence_manifest.json)SHA`77847188fde09d86d857b7a610e8da141ed8a891a5fbb82497a07665192b4aba`，逐字节保留资源lineage、旧接受报告、迁移与独立审计证据；旧183文件归档与原证明均未覆盖。
+
+关联覆盖补证正式注册为[v2协议](../outputs/xag/reviews/association_coverage_v2/protocol.json)，SHA`2be0c28a788228490db5f6fa8299d4c96a4ec1ca4ed6d82b80dc848ecacacad3`，明确绑定新训练协议`5334cb2e…`、源码冻结`22f2fdcf…`、资源lineage及执行代次`2026-10-16T21:24:20.762291+00:00`；[注册时执行快照](../outputs/xag/reviews/association_coverage_v2/execution_generation_at_registration.json)另存原字节SHA。旧160例CUDA验收保留其原身份，v2只迁移身份检查与等待条件，关联、输入、计数函数及汇总计算保持一致。7项身份合同检查和独立只读审查通过；[等待队列](../outputs/xag/reviews/association_coverage_v2/queue_status.json)PID141940仅在同一代次达到 `COMPLETE_EVIDENCE_READY_FOR_REVIEW` 后才允许使用闲置GPU，每次启动前重新核验绑定；过期COMPLETE、失败、执行代次或哈希漂移均不能放行。记录时尚无计数任务启动，完整coverage尚未完成，不能据此报告覆盖率或科学结论。
+
+实测后的训练费用登记：[资源费用外推](../outputs/xag/reviews/training_cost_projection_20261017/notes.md)以四组并行的50→450区间、完整验证和启动/收尾为基础，基准迁移情景约95.9584 GPU·h（纯训练83.44＋每run12次验证12.05＋启动/收尾0.47）。F0转换采用明确假设，三个情景94.51/95.96/101.10不是实测置信区间或上下界；不计全部诊断/评估，不报整个研究端到端ETA。独立14输入SHA及190算式复核通过；正式每臂实测将更新该估算。
+
+**10-17 06:27:54阶段记录（北京时间；UTC `2026-10-16T22:27:54.145922+00:00`）：** [本次轻量快照](../outputs/xag/reviews/formal_stage_2000_20261017_222754/stage.json)保存只读status输出、observer、runtime及执行身份，绑定新协议`5334cb2e…`、186文件冻结`22f2fdcf…`和05:24启动的同一代次。首批4个run均已有step499/999/1499/1999的完整验证完成事件；标签1999对应第2000优化步后的验证。三个F0 run（含同seed复跑）的进度为2400–2450步，F+为2050步且已恢复训练。正式step6000完成 **0/18**，固定末点主行 **0/12**；协调器阶段名`TRAINING_COMPLETE_MATRIX`不是训练完成凭据。该快照不读取模型成绩，不据中途进度选择或取消实验臂。
+
+本代资源观察的`oom_kill`由启动时21保持为21，**无新增OOM**；此前OOM与资源监视器误判、05:24从头重启记录均保留。[首个完整验证周期审计](../outputs/xag/reviews/formal_resources_pf1_20261017/first_cycle_review/20261016T214817/notes.md)核对四组验证后训练、70个步区间及GPU小时计数；[第二周期审计](../outputs/xag/reviews/formal_resources_pf1_20261017/second_cycle_review/summary_20261016T215743/notes.md)保留更高瞬时主存/共享内存压力、swap活动、后续回落及worker身份记录；[第三轮F0验证和验证后I/O记录](../outputs/xag/reviews/io_pressure/third_validation_20261017/notes.md)把验证完成、恢复训练的等待和之后吞吐恢复分开。第三轮的事后mincore仅查询驻留页，未重读数据、预热或重新校验全量文件；它不能重建高压时刻或证明缓存回收是唯一原因。
+
+上述记录只说明已观察到的阶段和资源波动，**不构成长时稳定性证明或科学结果**。5秒observer与1秒保护器的最低值、20步训练标签与50步进度回调分别保留采样口径；最终关联/GNN及交互裁决仍须全部18个fresh6000、规定主行、共同前态和各自递推评价完整后执行。此次仅更新文档与独立review快照，未改186个冻结文件、科学合同、保护门或正在运行的观察器。
+
+**10-17 07:02验证重叠资源补记（北京时间；观察截至UTC `2026-10-16T23:02:11.114356+00:00`）：** 三个F0的step3500验证与F+的step3000验证短时重叠，见[本轮只读审计](../outputs/xag/reviews/overlap_lowmem_20261017_225605/notes.md)及[完整快照与计数](../outputs/xag/reviews/overlap_lowmem_20261017_225605/review.json)。1秒保护器的累计最低可用主存为 **15.599GiB**，5秒observer最低为 **16.087GiB**，两种采样口径不同。原停止门要求严格低于16GiB的**连续2个保护器样本**；runtime仅约每5秒发布最新值和累计最低值，没有完整1秒序列，不能从累计最低值反推低内存持续时间或连续计数。本窗口`oom_kill`保持21，未报告新增OOM或保护停止；四组验证后均出现新的训练标签，但不据此宣称保护逻辑已独立验收或资源长期稳定。
+
+验证结束到首个后续训练标签耗时约 **266–303秒**。[进程与I/O快照](../outputs/xag/reviews/overlap_lowmem_20261017_225605/post_validation_wait_230001.json)记录多数训练worker处于文件页等待，同时读取字节和major faults继续增加，支持当时受I/O等待限制的解释；不把验证后的等待误写成验证仍在执行。无触页mincore在UTC23:01:03–23:01:08测得训练来源与event/tsub数组仍有约 **4.91GiB未驻留**，见[完整驻留分组与冷文件排名](../outputs/xag/reviews/overlap_lowmem_20261017_225605/cold_residency_summary.json)；meta和MANO资产不计入该分母。逐文件事后快照不能复原峰值时的缓存状态、必需读取量或证明缓存回收是唯一原因。本轮未实际预热、重读全量数据、改资源参数或冻结源码；旧资源证明全部保留。这是短窗口工程记录，**不构成科学结果或长时稳定性结论**。
+
+
+<!-- EXPERIMENT_RECORD:XCL-20261019:BEGIN -->
+<a id="xcl-20261019"></a>
+## XCL：关联、特征与读出阶梯控制（2026-10-19预注册）
+
+用户指定执行`/home/lyq/.cursor/plans/xyz关联gnn控制变量复盘_7ce02791.plan.md`并仅使用物理GPU2–7训练。新研究独立存于`outputs/xcl/20261019/`，工具`tools/xcl/`，配置`configs/xcl_20261019/`。旧实验事实及失败不改写；旧XAG/XA清理先归档`outputs/deleted_20261019/xag_xa_legacy/inventory.json`，待依赖迁移和真实新运行时验收后执行，当前不宣称已删除。C1与paired原冻结和完整权重始终保留。 [2026-10-20补注：已于10-19 11:48执行并通过独立验收，见[删除登记](#xag-xa-deletion-20261019)。]
+
+固定10模型：复用C1=A0F0（预指定legacy_none）及paired A0F1/A1F0/A1F1/A2F1；新训A2F0、A3F0、C0、A0FΩd、A0FΩo，每个仅seed3407一次fresh6000。原失败A2F0不resume，另开新目录。2–3队列A2F0→A3F0，4–5 C0→A0FΩo，6–7 A0FΩd，组间独立推进但组内顺序固定，不按成绩调度。全部保留原2×512、BF16、legacy_none、worker12/prefetch1、损失/Adam/LR/调度、9人72序列训练及zgz两序列开发兼测试划分。
+
+A3 full_oracle对已知来源替换vid/A/q/z/valid/hit，z来自原来源毫秒GT前景深度，未知来源进残差；depth sidecar逐毫秒精确核对原part/face/bary且原缓存只读。全部74序列完成后在任何A3标签读取之前以完整SHA验收并冻结独立depth manifest；正式五cell接受文件绑定该manifest身份。构建允许与其余四cell工程预检并行，正式训练仍等待全部五cell预检通过。C0仅关闭原几何通道。FΩd将H3替换为真实末时刻顶点位移的Linear3→128并S=1；FΩo仅在直接观测O处提供该特征并S=O。FΩ新增投影在隔离CPU RNG中初始化，两臂共享初值；rel/vin/edge/原GNN冻结以满足“仅后续学习”并兼容原find_unused_parameters=False。残差槽仍使用原冻结phi的数值，原ZERO_EVENT_GATE保留，空包不能凭oracle跳过该门。默认C1/旧XAG路径须输出、state与RNG逐位一致。
+
+预注册H1：A2相对A0主要改善闭环而单步弱。H2：A3相对A2若在local腕点/绝对及RA大幅改善，支持深度信息与召回是重要缺口。H3：C0不差于A0且A3明显优于A0，支持前态几何错时有害、对时有用。H4：比较FΩo/FΩd与A3的差异描述提取/传播夹层，不能把不同oracle输入条件的差直接写成无混杂的单模块因果量。H5：FΩd的local RA不能接近≤5mm或GT前态腕点仍>10mm，则读出/压缩/加法/参数损失存在明显下游限制。H6：GT-pose而非GT-translation钳位若普遍修复local，方向支持姿态闭环反馈；本轮不新增自身前态训练。
+
+统一评估仅GPU4–7，每卡一个进程；全五新训练验收后先串行生成10主行及Latency，期间不并发本任务trace/训练，再四卡并行。E1固定6000自身递推，两次独立freshload完整2590包逐数组一致；E2用严格C1 trace的incoming共同前态；E3 GT前态单步；E4自身递推+GT-pose或GT-translation钳位；E5同次训练5000、5500检查点完整E1，不替代6000判读。C1/A0F1/A2F1/A3F0至少做几何dXYZ/zn置零、H3置零、残差置零；A0模型在E2/E3做A2/A3路由跨喂并标OOD。完整分母和失败保留，输出RA/abs/wrist/root_deg/finger_deg及域内汇总，额外机制量只存本节/分析文件。用户主表始终由原report_table九列格式生成，含PCA6/S39，oracle标记不可部署。
+
+描述性门：local差≥5mm、global差≥8mm、腕点差≥10mm，E1/E2/E3同号，5000/5500/6000至少两点同号才写“方向支持”；其余写“噪声带内”或“缺读数”。不宣称跨seed可靠性、稳定优势或主因已确定。
+
+工程验收：五cell各fresh50、真实双卡完整验证25/50各126批且每rank64094样本，26步返回训练；共享37个state tensor初值、两个FΩ新增投影、每rank实际512索引及共同事件/增强/前态与C1绑定。训练前发布源码SHA及归档；正式期间改源码/数据身份、OOM、共享内存丢失或子进程失败均fail-closed，停止本队列拥有的进程组并保留证据。2026-10-19确认`/dev/shm`恢复tmpfs+1777，实际创建/读写/释放PASS；32项深度测试与默认/模型/配置联合112项测试PASS，仍不代表训练或效果已过门。
+
+
+### XCL 预检进度与GPU3资源等待（2026-10-19）
+
+A2F0/C0/A0FΩd/A0FΩo真实双卡50步、25/50完整验证、返回训练与C1完整50批输入核验均PASS，回执`outputs/xcl/20261019/receipts/preflight_*.json`。A3F0等待74序列depth构建。11:32另一账号在GPU3启动OVGGT评估（PID2409201），11:38确认协调器无任何活动子进程后，仅暂缓本任务协调器2361963的新派发，CPU缓存构建不受影响；独立资源等待器及执行修订见`outputs/xcl/20261019/execution_resource_wait/`。连续两次查询GPU2–7均无外部计算进程后，核验同一PID/启动ticks和协议SHA并继续原协调器，不重启、不恢复检查点、不迁移GPU，不改任何冻结数值源码或配置。全部五臂工程预检通过后才开正式fresh6000，当前不宣称正式训练完成或新精度结果。 [2026-10-20补注：五臂预检于11:47通过，正式训练13:50–17:03完成，评价17:46完成，见[训练回执](#xcl-training-receipts-20261019)与[最终结果](#xcl-result-20261019)。]
+
+
+<a id="xcl-training-receipts-20261019"></a>
+### XCL 深度sidecar、预检验收与正式训练回执（2026-10-19补登）
+
+**启动前注册失败两次（均未启动GPU任务、无训练更新）：** `registrations/registration_v1_source_stat_guard`（`PRESERVED_BEFORE_ANY_LAUNCH`）：旧820项stat包把`xag_sources.py`混入不可变数据，迁出4个源码身份、保留816项真实数据/资产身份；`registrations/registration_v2_duplicate_mount_guard`（UTC 03:11:59，`FAILED_PRESERVED`，`RuntimeError: /dev/shm tmpfs+1777 disappeared`）：`findmnt`返回两条合法tmpfs行而守卫做了字符串比较，改为`--first-only`，共享内存实际有效。第三次注册即正式协议（SHA`30dfedac5a86c5b050cfe6fbbe8b6787b966fa243822711662848ca3b54d8aac`，UTC 03:12:24），协调器PID 2361963 于UTC 03:12:29启动。
+
+**depth sidecar（北京时间11:06–11:41）：** 版本`xcl-source-depth-v1-source-ms-foreground-fk1`，74序列全部complete；处理2,126,931,761事件、4,729,038毫秒，有效来源1,691,907,852；48个worker，计算墙钟2056.17 s、总墙钟2075.14 s，chunk 100 ms。构建代码对part/face/bary逐毫秒与旧来源不一致即报`legacy source parity failure`，完成即表示未触发。[depth_manifest.json](../outputs/xcl/20261019/depth_manifest.json)SHA`1f3c8239d9364ccc39a3d12561464635f903fd48ef908788be7e3c762d5b2957`（74/74条目，`depth.npy`与`depth_done_ms.npy`逐文件字节/SHA）；[depth_binding.json](../outputs/xcl/20261019/depth_binding.json)SHA`3baaf238c020cf6122ec519d001e546abf453bd02c85cb6709d0e375ec9963c0`，`bound_before_any_A3_label_consumption=true`。
+
+**预检验收：** [preflight_acceptance.json](../outputs/xcl/20261019/preflight_acceptance.json)（UTC 2026-10-19T03:47:31，北京时间11:47:31）SHA`2c2e838129dc8cd36e28442fc67f59a9bd9d8a206f034fbaa89f58cba5f2bd67`，`PASS`，五格a0fod/a2f0/c0/a0foo/a3f0，`wrapper_sha256`=`866d70380d18612cc2ec406ae19e8fd2e85dd5b1fdc2cf268606c89e12816831`，`depth_binding_sha256`与上值一致，`engineering_only_no_accuracy_result=true`。五格预检回执均为50步、两rank `common_input_equal`与`shared_initial_equal`为true；两个FΩ格新增初值键恰为`xyz.xag_oracle_projection.weight/bias`，其余三格无新增键。预检完成时间：A2F0/C0/A0FΩd 11:20–11:21，A0FΩo 11:26，A3F0 11:47（GPU2–3，等待depth）。`audit/actual_gpu_start.json`（a2f0/c0/a0fod，两rank）首批共同输入与共享初值相等PASS。GPU3外部OVGGT占用等待在UTC 03:41:47（北京时间11:41:47）连续两次查询无外部计算进程后释放，状态`RESOURCE_RELEASED_COORDINATOR_CONTINUED`，协调器未重启、无训练被挂起。
+
+**测试：** [model_tests.json](../outputs/xcl/20261019/audit/model_tests.json)（UTC 2026-10-19T03:10:25）`PASS`，126项0失败（`tests.test_xa_assoc` 42、`test_xag_model` 24、`test_xcl_model` 27、`test_xcl_training_contract` 33），junit SHA`cda5c0885161ae2e3934289a92501d40f2cabf79ad0324e3e44572cadeef9bc4`；37项初始state与C1相同、默认输出/aux统计与冻结C1源逐位相等均记true。（`audit/model_tests.junit.xml`早一轮为122项，11:08:49。）
+
+**正式训练（每格seed3407一次fresh6000，2×512，BF16，legacy_none，worker12/prefetch1；队列2–3 A2F0→A3F0、4–5 C0→A0FΩo、6–7 A0FΩd）：** 协调器`status.json`（5个预检+5个正式run全`PASS`、exit 0；采样最低可用主存97,688,154,112字节）；五格两rank的`input_stream_sha256`相同（rank0 `19eb1ef7…`、rank1 `73e06e5a…`，与paired四臂同值）。
+
+- A2F0：GPU2–3，两rank 6000/6000批，exit 0，rank0/rank1 9782.57/9775.98 s，回执14:32:08（北京时间）PASS，`repro_final.ckpt` SHA`02e6a8a1ffda392cd276590fb9889f0c83dffce65c3f9a9e7cac2216db08d4ca`，新增初值键 无
+- C0：GPU4–5，两rank 6000/6000批，exit 0，rank0/rank1 10002.59/9996.94 s，回执14:35:44（北京时间）PASS，`repro_final.ckpt` SHA`c45621143d68da55a64bdd5871d7ab8c3e53c340bbc371cd32f893883c516a38`，新增初值键 无
+- A0FΩd：GPU6–7，两rank 6000/6000批，exit 0，rank0/rank1 7302.19/7296.47 s，回执13:50:54（北京时间）PASS，`repro_final.ckpt` SHA`72c7d3efedd3a13d27550a7363908616b2bf63fc27f901b4f2fad8256db6ad1a`，新增初值键 `xyz.xag_oracle_projection.weight/bias`
+- A3F0：GPU2–3，两rank 6000/6000批，exit 0，rank0/rank1 8968.30/8962.47 s，回执17:03:09（北京时间）PASS，`repro_final.ckpt` SHA`4d2e6bf2b89b897759a00a497bcaa09d62e462ec0bd66da83a9fab34040ffd0c`，新增初值键 无
+- A0FΩo：GPU4–5，两rank 6000/6000批，exit 0，rank0/rank1 6740.40/6734.49 s，回执16:29:43（北京时间）PASS，`repro_final.ckpt` SHA`38dab54b0bff7afe65ea0c8a355a2d86a284f6d1d22b70f6dc628db56fa6ebd4`，新增初值键 `xyz.xag_oracle_projection.weight/bias`
+
+复用的五个模型（不重训，权重SHA取自协议）：
+
+- A0F0(=C1)：`outputs/xyz_c1_repro/20261018/runs/xyz_c1_stable_s3407`，step6000 SHA`41a8dc3feac3e7cffc5b19ec93491ec2c7a841c902ee583c39d8435eb5c08091`，复用回执`receipts/reuse_a0f0.json` PASS
+- A0F1：`outputs/xag_paired/20261018/runs/xag_paired_a0f1_s3407`，step6000 SHA`b2b423567f9b46e587553fb18a34fff4cbabeba5501c89ebec9158ee342c17b8`，复用回执`receipts/reuse_a0f1.json` PASS
+- A1F0：`outputs/xag_paired/20261018/runs/xag_paired_a1f0_s3407`，step6000 SHA`2f109397132248dbcef623aba4db679c160b8e7a1dc7f9d2e5dc5fbead609fec`，复用回执`receipts/reuse_a1f0.json` PASS
+- A1F1：`outputs/xag_paired/20261018/runs/xag_paired_a1f1_s3407`，step6000 SHA`a2180332fce4412b0bd42a7bd084684f62d16326c0da199dcf66cd211e937fc6`，复用回执`receipts/reuse_a1f1.json` PASS
+- A2F1：`outputs/xag_paired/20261018/runs/xag_paired_a2f1_s3407`，step6000 SHA`e8073c37f6efcaaa692cca1e631c2cacdc10c6c9891fb99ac89ba8cbfc25e61f`，复用回执`receipts/reuse_a2f1.json` PASS
+
+### 2026-10-19 旧XAG/XA删除登记
+
+五个新XCL cell真实双卡预检均PASS后，按用户计划清理旧XAG六格/18项、旧冻结诊断和XA五臂；6,336项原路径/大小及关键JSON/SHA归档于`outputs/deleted_20261019/xag_xa_legacy/inventory.json`，完整删除回执见同目录`deletion_receipt.json`。旧节数字保留；原C1/paired权重、原冻结/归档和失败现场、来源缓存及其manifest保留。`outputs/xag/current_metrics.json`已删除，不能再引用为当前入口；XCL结果须以新统一评估及报告完成为准，不能把在训模型当已完成。删除提交：1a770d55372077eb4a442a10bbb97f3d1ba7b39a。
+
+
+<a id="xag-xa-deletion-20261019"></a>
+**归档范围与链接对应（2026-10-20补注）：** [deletion_receipt.json](../outputs/deleted_20261019/xag_xa_legacy/deletion_receipt.json)（10-19 11:48:06）`status=DELETED`，inventory SHA`c0c9a6b055031fda6ef9d82fbad940fa4e60d1f1e3f821c9147a3112de9272db`，迁移回执SHA`1c7af499c798cc2bf2b6def4d3c4aba801df6be348daf4414cc9756a05b6cd16`；[legacy_migration_pass.json](../outputs/xcl/20261019/audit/legacy_migration_pass.json)（11:47:48）`new_xcl_runtime_independently_verified=true`。清单`n_entries`=6,336，常规文件合计53,684,900,425字节。真正**有内容的副本**只有111个文件（含清单整个目录约56 MB）在`outputs/deleted_20261019/xag_xa_legacy/files/`：旧`tools/xag`、`tools/xa`、`tools/xag_single_seed`源码，`configs/xag`、`configs/xa`，XA主行及raw_accuracy，`outputs/xag/{protocol,frozen_sources,execution,runtime,current_metrics,source_manifest}.json`，`outputs/xag/single_seed/{decision,matrix_mechanism_summary}.json`，`outputs/xag/reviews/reconfirm_metrics_20261018/`（`strict_main_table.md`、命令、六主行及回执）。其余（`single_seed/status.json`、各`reviews/*`、`main_rows`、`runs`、覆盖/图件/费用产物等）只保留路径/大小/mtime，清单中仅110个关键文件带SHA，内容不可复核。
+
+因此本账本中指向`../outputs/xag/…`、`tools/xag/…`的相对链接大多已失效（抽查失效/总数：`#xag-single-seed-20261017` 37/37、`#xag-20261017` 17/17、S37章XAG条目16/24、S37章XAG状态段10/13、C1重核节5/19、退化排查2/14）；数字与SHA保持原写入值。对应规则：`outputs/xag/<p>`→`outputs/deleted_20261019/xag_xa_legacy/files/outputs/xag/<p>`（仅限上述有副本者），`tools/xag/`→`…/files/tools/xag/`。仍在原位的只有：`outputs/xag/sources/`、`outputs/xag/source_manifest.json`、`outputs/xag/reviews/c1_*`四个目录及早期来源构建/检查小文件；`outputs/xag_paired`、`outputs/xyz_c1_repro`、`tools/xag_paired_20261018`、`tools/xyz_c1_repro`与两套configs受保护未动。
+
+<a id="xcl-result-20261019"></a>
+## XCL 固定十模型最终结果（2026-10-19研究）
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XCL a0f0（seed3407） | 27.99 | 21.06 | 22.50 | 15.35 | 24.28 | 14.16 ms | 0.231 G | 0.46 M |
+| XCL a0f1（seed3407） | 38.47 | 18.18 | 28.36 | 12.53 | 27.61 | 18.02 ms | 1.009 G | 0.86 M |
+| XCL a1f0（seed3407） [oracle] | 28.00 | 15.55 | 23.41 | 11.31 | 21.34 | 17.45 ms | 0.230 G | 0.46 M |
+| XCL a1f1（seed3407） [oracle] | 31.92 | 12.35 | 25.58 | 9.48 | 21.45 | 21.59 ms | 1.008 G | 0.86 M |
+| XCL a2f1（seed3407） [oracle] | 17.32 | 8.36 | 13.33 | 6.19 | 12.52 | 19.21 ms | 1.005 G | 0.86 M |
+| XCL a2f0（seed3407） [oracle] | 20.57 | 10.39 | 15.61 | 7.57 | 15.12 | 15.09 ms | 0.227 G | 0.46 M |
+| XCL c0（seed3407） | 25.23 | 13.47 | 22.45 | 10.29 | 18.94 | 14.15 ms | 0.231 G | 0.46 M |
+| XCL a0fod（seed3407） [oracle] | 4.22 | 3.42 | 3.86 | 2.96 | 3.79 | 17.48 ms | 0.231 G | 0.46 M |
+| XCL a3f0（seed3407） [oracle] | 10.48 | 4.13 | 9.08 | 3.63 | 7.08 | 15.71 ms | 0.235 G | 0.46 M |
+| XCL a0foo（seed3407） [oracle] | 4.57 | 3.10 | 4.36 | 3.08 | 3.78 | 17.62 ms | 0.231 G | 0.46 M |
+
+预注册九个固定对比中，local RA有4项达到描述性方向门；达到预注册oracle绝对读数。结果仅为seed3407描述性比较，oracle不可部署，S39保持不变；完整三读数、晚期一致性、钳位与干预见scientific_review.json。
+
+**行来源：** 主表中a0f0即复用的严格C1（本次统一评价重测Latency 14.16 ms，`xyz_c1_baseline_main_row`为13.89 ms）；a0f1/a1f0/a1f1/a2f1是paired目录已训权重的复用；a2f0/c0/a0fod/a3f0/a0foo为XCL新训。
+
+**状态与封版（10-19 17:46，北京时间）：** [scientific_review.json](../outputs/xcl/20261019/postprocessing/scientific_review.json)（UTC 09:46:54）`status=COMPLETE_SCIENTIFIC_REVIEWED`，SHA`bbc6177e1084862609503e367519dbf0c58260c7e5fc953cfe5d462449707718`；[finalization_receipt.json](../outputs/xcl/20261019/postprocessing/finalization_receipt.json)`COMPLETE`、`no_gpu_or_training_or_pointer_update=true`。协调器[status.json](../outputs/xcl/20261019/status.json)末态停在`COMPLETE_PENDING_SCIENTIFIC_REVIEW`（`completed_at_utc` 09:46:32，复核后未回写），以复核/封版回执为准。协议SHA`30dfedac5a86c5b050cfe6fbbe8b6787b966fa243822711662848ca3b54d8aac`；评价队列[queue.json](../outputs/xcl/20261019/evaluations/queue.json)SHA`535e720863515bc8e15b1b406953aa95a85c02a96a94972979b8ae16bca4ebd5`；[report.json](../outputs/xcl/20261019/report/report.json)SHA`bc7a456ec5bf18ac83a88c05a1ffaf6fc326d878ed295db20fbdc8f56f01476f`（`missing=[]`、`single_seed_no_reliability_claim=true`）；[main_table.md](../outputs/xcl/20261019/report/main_table.md)SHA`325d6ae611c03e2c9e387543d4fa0e5981fef317761f64d871967a978f9d7f1c`。没有更新任何指标pointer。
+
+**评价规模与顺序（北京时间17:03:17–17:46:27）：** 134项评价全部COMPLETE、exit 0，只用GPU4–7、每卡一个进程（4/5/6/7各34/34/33/33项）：十个主行（含Latency）先串行，17:03:17–17:17:49，GPU按4/5/6/7/4/5/6/7/4/5轮换且互不重叠；随后四卡并行E1自身递推（6000步两遍fresh load、5000/5500步各一遍）、E2、E3、E4（GT-pose、GT-translation）及零训练干预。其中干预36项（C1/A0F1/A2F1/A3F0×{几何置零、H3置零、残差置零}×{E1,E2,E3}）+路由跨喂8项（C1、A0F1×{A2,A3路由}×{E2,E3}，标OOD）。十个模型6000步E1的**两次独立fresh load完整2590包（1386+1204）全部字段名/dtype/shape/数值逐数组相等**（queue.json `fresh_repeat_comparisons` 10/10 PASS）。
+
+**九个固定对比的定义（账本预注册节未列，来源`postprocessing/finalize_results.py:28-31`）与判读规则：** 差=候选−参考，mm，负=候选误差更低。规则（代码`support()`）：E1(step6000)差的绝对值≥阈值（local 5、global 8、腕点10），E1/E2/E3三者严格同号，且step5000/5500/6000三点中至少两点与E1同号，才写“方向支持”，否则“噪声带内”；root/finger角度及overall毫米量无预注册门，只描述。九对比：A2F0−C1、A3F0−A2F0、C0−C1、FΩd−A3F0、FΩo−A3F0、FΩo−FΩd、F+@A0（A0F1−A0F0）、F+@A1（A1F1−A1F0）、F+@A2（A2F1−A2F0）。
+
+**九对比结果（local RA方向支持：A2F0−C1、A3F0−A2F0、FΩd−A3F0、F+@A0共4项；global RA方向支持：A2F0−C1；每项为E1/E2/E3差，及step5000/5500/6000的E1差，mm）：**
+
+- **A2F0−C1**（A2F0对C1(A0F0)）：local RA E1/E2/E3 -7.42/-5.59/-4.63，5000/5500/6000 -9.77/-13.28/-7.42，方向支持（降低）；global RA E1/E2/E3 -10.67/-10.81/-0.35，5000/5500/6000 -3.13/-6.85/-10.67，方向支持（降低）；local腕点 E1/E2/E3 +4.76/-0.42/-6.22，5000/5500/6000 +21.76/-21.37/+4.76，噪声带内（升高）；global腕点 E1/E2/E3 -11.43/-12.57/-2.29，5000/5500/6000 -7.17/-5.81/-11.43，方向支持（降低）；绝对误差方向支持：global abs -13.47/-15.57/-1.30（降低）。
+- **A3F0−A2F0**（A3F0对A2F0）：local RA E1/E2/E3 -10.09/-10.06/-1.94，5000/5500/6000 -5.36/-8.43/-10.09，方向支持（降低）；global RA E1/E2/E3 -6.26/-4.71/-0.72，5000/5500/6000 -5.59/-5.81/-6.26，噪声带内（降低）；local腕点 E1/E2/E3 -68.92/-60.38/-48.19，5000/5500/6000 -88.45/-82.41/-68.92，方向支持（降低）；global腕点 E1/E2/E3 -15.93/-12.45/-2.22，5000/5500/6000 -11.34/-8.28/-15.93，方向支持（降低）；绝对误差方向支持：local abs -79.96/-69.68/-51.72（降低）、global abs -18.65/-14.25/-3.03（降低）。
+- **C0−C1**（C0对C1）：local RA E1/E2/E3 -2.76/-2.08/-5.28，5000/5500/6000 -2.35/-5.62/-2.76，噪声带内（降低）；global RA E1/E2/E3 -7.59/-2.08/+0.01，5000/5500/6000 +1.55/-0.57/-7.59，噪声带内（降低）；local腕点 E1/E2/E3 +76.02/-23.92/-44.61，5000/5500/6000 +87.20/+13.99/+76.02，噪声带内（升高）；global腕点 E1/E2/E3 -2.95/+0.04/-0.73，5000/5500/6000 +31.94/+7.89/-2.95，噪声带内（降低）。
+- **FΩd−A3F0**（A0FΩd对A3F0）：local RA E1/E2/E3 -6.26/-4.27/-5.57，5000/5500/6000 -10.41/-5.98/-6.26，方向支持（降低）；global RA E1/E2/E3 -0.71/-1.42/-1.15，5000/5500/6000 -0.96/-0.26/-0.71，噪声带内（降低）；local腕点 E1/E2/E3 -6.91/-8.74/-6.81，5000/5500/6000 -3.89/-2.64/-6.91，噪声带内（降低）；global腕点 E1/E2/E3 -0.76/-2.40/-1.00，5000/5500/6000 -1.32/-1.26/-0.76，噪声带内（降低）；绝对误差方向支持：local abs -10.05/-10.77/-8.71（降低）。
+- **FΩo−A3F0**（A0FΩo对A3F0）：local RA E1/E2/E3 -5.91/+0.05/-5.35，5000/5500/6000 -9.28/-5.08/-5.91，噪声带内（降低）；global RA E1/E2/E3 -1.02/-0.30/-1.56，5000/5500/6000 -1.28/-0.23/-1.02，噪声带内（降低）；local腕点 E1/E2/E3 -6.99/-8.50/-7.06，5000/5500/6000 -3.63/-1.08/-6.99，噪声带内（降低）；global腕点 E1/E2/E3 -1.02/-1.18/-1.45，5000/5500/6000 -0.36/-0.43/-1.02，噪声带内（降低）；绝对误差方向支持：local abs -9.95/-7.69/-8.92（降低）。
+- **FΩo−FΩd**（A0FΩo对A0FΩd）：local RA E1/E2/E3 +0.35/+4.31/+0.22，5000/5500/6000 +1.13/+0.90/+0.35，噪声带内（升高）；global RA E1/E2/E3 -0.31/+1.12/-0.41，5000/5500/6000 -0.31/+0.03/-0.31，噪声带内（降低）；local腕点 E1/E2/E3 -0.09/+0.24/-0.25，5000/5500/6000 +0.26/+1.56/-0.09，噪声带内（降低）；global腕点 E1/E2/E3 -0.26/+1.21/-0.45，5000/5500/6000 +0.95/+0.83/-0.26，噪声带内（降低）。
+- **F+@A0**（F+对F0（A0轴，A0F1对A0F0））：local RA E1/E2/E3 +10.47/+1.30/+1.16，5000/5500/6000 +4.36/+8.25/+10.47，方向支持（升高）；global RA E1/E2/E3 -2.88/-2.20/+0.27，5000/5500/6000 +4.09/-2.18/-2.88，噪声带内（降低）；local腕点 E1/E2/E3 +2.44/-0.36/-11.07，5000/5500/6000 +11.84/-11.55/+2.44，噪声带内（升高）；global腕点 E1/E2/E3 +1.37/-5.21/+0.63，5000/5500/6000 -2.19/-0.21/+1.37，噪声带内（升高）。
+- **F+@A1**（F+对F0（A1轴，A1F1对A1F0））：local RA E1/E2/E3 +3.92/+1.43/+5.98，5000/5500/6000 +8.80/+8.39/+3.92，噪声带内（升高）；global RA E1/E2/E3 -3.20/-3.92/+1.23，5000/5500/6000 -1.59/+0.42/-3.20，噪声带内（降低）；local腕点 E1/E2/E3 +12.06/+2.49/+15.90，5000/5500/6000 -0.88/+2.82/+12.06，方向支持（升高）；global腕点 E1/E2/E3 -21.44/-4.75/+2.68，5000/5500/6000 -6.40/-3.97/-21.44，噪声带内（降低）；绝对误差方向支持：local abs +16.08/+2.25/+19.51（升高）。
+- **F+@A2**（F+对F0（A2轴，A2F1对A2F0））：local RA E1/E2/E3 -3.25/-2.98/-3.87，5000/5500/6000 +0.79/-2.28/-3.25，噪声带内（降低）；global RA E1/E2/E3 -2.03/-0.73/-0.65，5000/5500/6000 -0.17/+0.06/-2.03，噪声带内（降低）；local腕点 E1/E2/E3 -16.94/-8.35/-7.98，5000/5500/6000 -32.90/-35.06/-16.94，方向支持（降低）；global腕点 E1/E2/E3 -6.95/-6.24/-0.09，5000/5500/6000 -5.77/-2.23/-6.95，噪声带内（降低）；绝对误差方向支持：local abs -20.13/-11.09/-14.66（降低）。
+
+其中F+@A0的local RA“方向支持”方向是**升高**（A0F1比A0F0差），不是改善；F+@A1的local腕点/abs方向支持同为升高，F+@A2的local腕点/abs方向支持为降低。
+
+**三读数RA（mm，E1自身递推/E2 C1 trace共同前态/E3 GT前态单步；E2对C1本身即E1；复制自`report/three_readouts.md`同一数据，取4位小数）：**
+
+- A0F0(=C1)：local 27.9903/27.9903/15.3511；global 21.0640/21.0640/4.8169；overall 24.2838/24.2838/9.7139
+- A0F1：local 38.4651/29.2869/16.5134；global 18.1802/18.8606/5.0873；overall 27.6099/23.7074/10.3989
+- A1F0：local 28.0036/27.4151/12.0303；global 15.5523/18.8423/4.3874；overall 21.3405/22.8275/7.9403
+- A1F1：local 31.9197/28.8434/18.0124；global 12.3499/14.9255/5.6221；overall 21.4472/21.3954/11.3819
+- A2F1：local 17.3200/19.4297/6.8512；global 8.3564/9.5261/3.8114；overall 12.5233/14.1300/5.2245
+- A2F0：local 20.5701/22.4049/10.7180；global 10.3901/10.2553/4.4626；overall 15.1224/15.9032/7.3705
+- C0：local 25.2345/25.9147/10.0722；global 13.4733/18.9872/4.8272；overall 18.9407/22.2075/7.2654
+- A0FΩd：local 4.2208/8.0756/3.2048；global 3.4158/4.1336/2.5908；overall 3.7901/5.9661/2.8762
+- A3F0：local 10.4759/12.3411/8.7779；global 4.1275/5.5503/3.7395；overall 7.0787/8.7071/6.0817
+- A0FΩo：local 4.5677/12.3870/3.4247；global 3.1045/5.2536/2.1758；overall 3.7847/8.5697/2.7564
+
+**E5晚期检查点（E1 RA，5000/5500/6000步，同一次训练）：**
+
+- A0F0(=C1)：local 29.8277/31.8622/27.9903；global 13.2912/15.9861/21.0640；overall 20.9784/23.3663/24.2838
+- A0F1：local 34.1877/40.1136/38.4651；global 17.3764/13.8079/18.1802；overall 25.1914/26.0365/27.6099
+- A1F0：local 28.2296/24.5090/28.0036；global 11.1920/10.6348/15.5523；overall 19.1122/17.0844/21.3405
+- A1F1：local 37.0293/32.9031/31.9197；global 9.6000/11.0544/12.3499；overall 22.3509/21.2111/21.4472
+- A2F1：local 20.8526/16.3041/17.3200；global 9.9865/9.1965/8.3564；overall 15.0378/12.5006/12.5233
+- A2F0：local 20.0595/18.5805/20.5701；global 10.1611/9.1387/10.3901；overall 14.7625/13.5279/15.1224
+- C0：local 27.4815/26.2461/25.2345；global 14.8430/15.4194/13.4733；overall 20.7182/20.4524/18.9407
+- A0FΩd：local 4.2946/4.1711/4.2208；global 3.6035/3.0743/3.4158；overall 3.9248/3.5842/3.7901
+- A3F0：local 14.7025/10.1547/10.4759；global 4.5682/3.3296/4.1275；overall 9.2793/6.5024/7.0787
+- A0FΩo：local 5.4216/5.0754/4.5677；global 3.2921/3.1009/3.1045；overall 4.2821/4.0188/3.7847
+
+**E4 GT钳位（local RA，mm；括号为相对自身递推的变化；分块GT前态，仅描述，不是可部署结果）：**
+
+- A0F0(=C1)：自身递推 27.9903，GT-pose 12.3692（-15.621），GT-translation 27.3311（-0.659）
+- A0F1：自身递推 38.4651，GT-pose 10.3066（-28.158），GT-translation 39.2161（+0.751）
+- A1F0：自身递推 28.0036，GT-pose 9.5634（-18.440），GT-translation 28.1866（+0.183）
+- A1F1：自身递推 31.9197，GT-pose 11.5697（-20.350），GT-translation 32.4822（+0.562）
+- A2F1：自身递推 17.3200，GT-pose 7.7328（-9.587），GT-translation 11.3883（-5.932）
+- A2F0：自身递推 20.5701，GT-pose 9.0199（-11.550），GT-translation 18.4103（-2.160）
+- C0：自身递推 25.2345，GT-pose 11.3041（-13.930），GT-translation 25.9383（+0.704）
+- A0FΩd：自身递推 4.2208，GT-pose 3.1922（-1.029），GT-translation 4.2194（-0.001）
+- A3F0：自身递推 10.4759，GT-pose 8.3054（-2.170），GT-translation 10.9452（+0.469）
+- A0FΩo：自身递推 4.5677，GT-pose 3.4621（-1.106），GT-translation 4.5409（-0.027）
+
+review的H6限定：`仅描述GT-pose/GT-translation钳位效应；不引入新的15mm硬门，不判定训练协议为唯一原因。`。读数：十个模型的GT-pose钳位都降低local RA（变化-28.16至-1.03mm），GT-translation钳位变化在-5.93至+0.75mm之间，A2F1（−5.93）、A2F0（−2.16）最大。
+
+**H5读出天花板：** A0FΩd的E1 local RA=4.2208 mm（预注册限5.0），GT前态单步local腕点=2.2096 mm（限10.0），`downstream_limit_signal=false`，解释字段“达到预注册oracle绝对读数”，含义是两项读数都在预注册限内、**没有下游读出/槽压缩/状态加法限位的信号**；限定：单seed oracle夹层读数，不能独立区分槽压缩、状态加法或损失的具体责任；不可部署。
+
+**零训练冻结权重干预（Δ=干预−未干预，RA mm，E1/E2/E3；括号为local腕点Δ）：**
+
+- A0F0(=C1) · 几何(dXYZ/zn)置零：E1 local +5.86/global +26.44（local腕点+2766.25）；E2 local -1.25/global +1.74（local腕点-39.38）；E3 local -3.26/global +3.31（local腕点-18.99）
+- A0F0(=C1) · H3置零：E1 local +3.76/global +90.03（local腕点+11068.43）；E2 local -3.48/global -0.50（local腕点-27.55）；E3 local -5.48/global +1.61（local腕点-19.18）
+- A0F0(=C1) · 残差槽置零：E1 local -1.39/global +6.75（local腕点+45.50）；E2 local -1.65/global -1.06（local腕点+6.05）；E3 local +0.70/global -0.06（local腕点+4.22）
+- A0F0(=C1) · A2路由跨喂(OOD)：E2 local +3.64/global +2.33（local腕点+19.13）；E3 local +2.42/global +1.19（local腕点+2.37）
+- A0F0(=C1) · A3路由跨喂(OOD)：E2 local +61.62/global +31.03（local腕点+1128.71）；E3 local +2.22/global +2.16（local腕点+2.51）
+- A0F1 · 几何(dXYZ/zn)置零：E1 local -1.90/global +29.46（local腕点+2965.63）；E2 local -0.28/global +1.27（local腕点-39.48）；E3 local -5.51/global +0.80（local腕点-7.94）
+- A0F1 · H3置零：E1 local -6.31/global +31.90（local腕点+10615.85）；E2 local -3.05/global +0.24（local腕点-17.43）；E3 local -2.68/global +7.60（local腕点+33.49）
+- A0F1 · 残差槽置零：E1 local +14.16/global +9.27（local腕点+28.18）；E2 local +6.31/global -0.04（local腕点+16.09）；E3 local +18.12/global +5.56（local腕点+27.04）
+- A0F1 · A2路由跨喂(OOD)：E2 local -1.12/global -1.50（local腕点+10.33）；E3 local +3.99/global +0.35（local腕点+9.38）
+- A0F1 · A3路由跨喂(OOD)：E2 local +32.35/global +9.77（local腕点+55.12）；E3 local +1.41/global +0.56（local腕点-0.55）
+- A2F1 · 几何(dXYZ/zn)置零：E1 local +9.79/global +22.47（local腕点+2272.50）；E2 local +5.81/global +9.87（local腕点-2.03）；E3 local +0.80/global +0.56（local腕点-34.67）
+- A2F1 · H3置零：E1 local +29.10/global +22.59（local腕点+8620.94）；E2 local +6.07/global +10.18（local腕点-12.22）；E3 local +9.88/global +7.63（local腕点-9.52）
+- A2F1 · 残差槽置零：E1 local +1.46/global +1.52（local腕点+1.55）；E2 local -0.14/global -0.12（local腕点+1.33）；E3 local +0.04/global +0.15（local腕点+1.34）
+- A3F0 · 几何(dXYZ/zn)置零：E1 local +16.50/global +22.19（local腕点+232.45）；E2 local +14.57/global +14.79（local腕点+61.21）；E3 local -1.31/global +1.77（local腕点-4.38）
+- A3F0 · H3置零：E1 local +33.03/global +26.18（local腕点+345.07）；E2 local +15.87/global +15.57（local腕点+61.50）；E3 local -1.59/global -0.11（local腕点-3.64）
+- A3F0 · 残差槽置零：E1 local -0.09/global -0.04（local腕点+0.16）；E2 local -0.24/global +0.05（local腕点+0.51）；E3 local -0.05/global -0.00（local腕点+0.34）
+
+E1下几何置零、H3置零使绝对腕点漂移极大（C1 local腕点Δ +2766.25 mm、+11068.43 mm），RA对齐指标不反映这类绝对漂移；E2/E3为单步读数。路由跨喂行均标OOD，不解释为结构优劣。
+
+**解释边界（review原文）：**
+
+- 单seed3407描述性比较；确定性复现不等于跨seed可靠性。
+- E2/E3与E1的incoming分布不同，差值不是可加的误差分解。
+- A3与FΩ使用不同oracle条件，跨臂差值不能作为无混杂的单模块因果归因。
+- 所有oracle及GT钳位不可部署；保留S39，不改变任何指标pointer。
+- H3置零干预保留原残差槽；它不等价于把主特征与残差都置零的纯state-only。
+
+review未给出H1–H4、H6的独立裁决字段；以上均为读数，H1–H4是否成立不在产物中判定。
+
+证据：[科学复核](../outputs/xcl/20261019/postprocessing/scientific_review.json)、[完整评估报告](../outputs/xcl/20261019/report/report.json)。
+
+
+<!-- EXPERIMENT_RECORD:XCL-20261019:END -->
+
+<!-- EXPERIMENT_RECORD:S44-PREREG:BEGIN -->
+<a id="s44-prereg-20261019"></a>
+## S44 · EvTree 预注册：位姿无关的事件运动证据 + 可观测性门控的子树提交（2026-10-19 23:50，写于任何 S44 探针结果之前）
+
+### 0. 授权、范围、命名
+
+- 用户 2026-10-19 23:4x 指令：执行计划 `/home/lyq/.claude/plans/pasted-content-id-fa8a-https-github-com-elegant-alpaca.md`（EvTree），物理 GPU 2–7 共 6 卡，CPU 全部可用。GPU 0 有其他用户进程（OVGGT），GPU 0–1 不使用。
+- 命名：本轮叫 **S44 · EvTree**。09-05 已删除的旧 `s44_meshroot`（5 人协议线）与本轮无关。产物 `outputs/s44/`，工具 `tools/s44/`，测试 `tests/test_s44_*.py`。新代码全部 opt-in，默认路径与 S39 / S43 逐位不变；本轮阶段 0 不改任何生产模块。
+- 协议不变（AGENTS.md）：9 人 72 序列训练；zgz_global / zgz_local 既是开发集也是测试集；只读 `splits_semkine.json`；只报末步；三种子 3407/3408/3409 同种子配对；主表由 `tools/report_table.py` 生成。
+- 执行顺序：**阶段 0（零训练、冻结权重）全部门先出结论**；阶段 1（2k 短训）、阶段 2（三种子 6000 步）只在 §4 的 GE0 决策允许时启动，且训练前另写追加登记。
+
+### 1. 估计器定义（阶段 0 共用，看结果后不改）
+
+**写端（逐事件、与位姿无关）**：事件时间 = `ms·1000 + tsub`（µs，序列自带 `*_tsub.npy`）。逐像素逐极性 SAE：`T_p(x,y)` = 该像素该极性最近一次事件的时间。查询时刻 `end`（ms）的 SAE 只用 `[max(end−299, 段首), end]` 内的事件（W_mem = 300 ms，按 S39 的裁段首规则截断到 valid run 起点）。SAE 的更新是 max，故任意分块写入与逐事件写入逐位一致（P0.6 单测）。
+
+**测量像素**：最近事件落在本步 `(end−50, end]` 内的（像素, 极性）。
+
+**平面拟合法向流**：以测量像素 c 为中心，取同极性 `(2r+1)²` 邻域中 `|T_n − T_c| ≤ Δ_fit` 的有效像素，最小二乘拟合 `T_n − T_c = a·dx + b·dy + d`。有效条件：有效邻居数（含中心）≥ 5；法向矩阵条件数 ≤ 1e4；速度 `s = 1/‖(a,b)‖` 在 [2, 2000] px/s；空间残差 `ε_px = RMS(残差)·s ≤ 0.5 px`。方向 `n̂ = (a,b)/‖(a,b)‖`（运动方向）。约束：`n̂ᵀ u̇ = s`，u̇ 为该表面点的像面速度。
+
+**归属（owner）**：
+- *oracle*：中心像素最近事件的 XAG 来源标签（`outputs/xag/sources`，GT 网格面 + 重心，source-v2），`xag_valid=False` 的进 dustbin。
+- *可部署*：由状态 x 的 MANO 778 顶点投影（K×0.375，与渲染相同）；可见性 = 顶点深度 ≤ 该像素 3×3 溅射 z-buffer + 10 mm；取半径 8 px 内最近的 ≤4 个可见顶点，权重 `softmax(−d²/2σ_o²)`，σ_o = 3 px，另加 dustbin 项 `−r_o²/2σ_o²`（r_o = 8 px）。
+
+**Jacobian 与求解**：`J_v = ∂u_v/∂θ`（2×51，51 维参数空间加性，float64 中心差分 ε = 1e-4，在状态 x 处）。每个测量 `A_c = n̂_cᵀ Σ_v π_cv J_v`，权重 `w_c = Σ_v π_cv`。速率 θ̇ 的后验：
+`Ω = Σ_c w_c A_cᵀA_c/σ_c² + λ_p Σ_v⁻¹`，`θ̇ = Ω⁻¹ Σ_c w_c A_cᵀ s_c/σ_c²`，`σ_c = σ_0 + κ·s_c`（σ_0 = 2 px/s），Huber（c = 2σ_c）IRLS 3 次。先验 Σ_v：72 条训练序列全部 valid 50 ms GT 增量（÷0.05 s 换成速率）的 51×51 协方差，向对角收缩 0.1。本步增量 `Δθ = θ̇·0.05 s`。
+
+**超参数只在训练受试者上选**：网格 r ∈ {2, 3} × Δ_fit ∈ {30, 100} ms × κ ∈ {0.3, 1.0} × λ_p ∈ {0.01, 0.1, 1, 10}（32 组）。选择集：9 人的 `{subj}_local` 与 `{subj}_global` 18 条基础序列，每 4 个 50 ms 步取 1 步；prev = GT(end−50) + 训练"小噪声"类（σ_t 5 mm、σ_r 0.05 rad、σ_pose 0.05 rad，rng 种子 0），可部署归属与 Jacobian 都在该 prev 处计算。目标：手指关节增量误差 `e_art`（定义见 §2）local、global 两类均值的平均，取最小者。zgz 只用于报告，不参与任何选择。
+
+### 2. 阶段 0 探针与门（阈值现在写定）
+
+记号：单步从状态 x（end−50 处）出发；`FK_h(θ)` = 根旋转、平移置零后的 21 关节（只含手指关节运动）。手指增量误差 `e_art = mean_21 ‖[FK_h(x_f+Δθ_f) − FK_h(x_f)] − [FK_h(GT_end) − FK_h(GT_prev)]‖`；零运动基线 `e_zero = mean_21 ‖FK_h(GT_end) − FK_h(GT_prev)‖`；比值 `R_art = Σe_art / Σe_zero`（按步求和）。层：oracle = GT prev + oracle 归属；可部署 = S39（seed3407 末步，S39 栈）闭环在 end−50 的状态 + 可部署归属；置乱 = 可部署层，但窗口内事件时间戳整体随机置换（像素、极性、数量不变）。主口径 zgz_local，zgz_global 同报。
+
+| ID | 内容 | 通过 | 否定 |
+|---|---|---|---|
+| P0.0 | 每个手指关节（15 个）的子树（`kinematic_gate.support_matrix`）在本步拥有的原始事件数（oracle 归属，面内最大重心顶点），zgz_local 每关节取中位数；同报有效平面拟合数、速度分箱 | 中位事件数 < 20 的关节 < 8/15 | ≥ 8/15 → C1 作废 |
+| P0.1 | 法向流可测性（三层） | 全过：oracle `R_art ≤ 0.7`；可部署 `R_art ≤ 0.7`；置乱保留 `ρ = (Σe_zero−Σe_shuf)/(Σe_zero−Σe_dep) < 0.5`；可部署逐关节非中心化相关 `r_j = Σ⟨Δθ̂_j,Δθ*_j⟩/√(Σ‖Δθ̂_j‖²Σ‖Δθ*_j‖²)` 的 15 关节中位 ≥ 0.5；≥ 10/15 关节的逐关节 `R_art,j ≤ 0.7`；GT 处偏差：oracle 层用 GT 速率时测量残差 `|均值| < 0.2·标准差` | oracle `R_art > 0.7`，或可部署 `r_j < 0.3` 的关节 ≥ 8/15，或置乱保留 ≥ 0.5 → C1 作废；其余为"部分"，由 P0.10 定 |
+| P0.2 | 可观测谱：可部署层每关节 3×3 信息块 `λmax(Λ_j)` 预测 `‖Δθ*_j‖ ≥ 2°` 的 AUC（zgz_local，15 关节合并），对照 G4 计数（最近 50 ms 事件像素中最近投影顶点属子树 j 的个数，8 px） | AUC ≥ 0.7 且比 G4 高 ≥ 0.1 | ≤ 0.6 → C2 的触发退化为死区 |
+| P0.3 | 渲染通道承载状态的程度：冻结 S39（与 S43）三种子，GT prev 处只扰动渲染输入（prev+δ，δ ∈ {5 mm, 3°根, 0.1 rad 手指}）对只扰动 prev_mlp 输入，比较 51 维 Δ 输出的变化幅度（分平移/根/手指） | 渲染路 ≤ prev_mlp 路的 25% → 架构 C 可行 | ≥ 70% → 架构 C 不成立（描述，不停止 A） |
+| P0.4 | 逐指池化读出：冻结 S43 三种子，A4 特征按前态网格投影归属池化（掌 + 5 指，各 256 维均值）+ 全局池化，岭回归预测手指 Δ（减去 prev_mlp 手指项），λ 由训练受试者留一受试者交叉验证选；同法只用全局池化作对照；zgz 上替换主干手指输出后跑 S39 栈闭环 | 仅记录 | 逐指版三种子 local 均值 ≤ 10.0 → 先走架构 D |
+| P0.5 | 连续时间增益：S43 异步运行时 h10，增益 `1−(1−a)^{Δ/50}`，计数改为自上次查询以来的事件数（三种子） | RA(h10) − RA(h50) ≤ 0.03 → "重复计数"归因成立（属 bug 修复，不计创新） | > 0.08 → 归因被否 |
+| P0.6 | 前缀等价（逐事件 vs 随机分块 SAE 与平面拟合逐位一致）；相邻查询 SAE 活跃像素值不变比例（hop 50 / 10 ms）；S39 闭环一步真实更新前后测量像素首选归属顶点改变比例 | 单测逐位一致；hop10 不变比例 ≥ 90%；归属改变 < 0.6 | 归属改变 ≥ 0.6 → 读端局部性不成立，只保留写端 |
+| P0.7 | GT 指尖 50 ms 位移沿光轴的能量占比；平面拟合速度与 GT 投影法向速度（oracle 归属）的相关与分速度箱误差 | 仅记录 | — |
+| P0.8 | 欠响应反事实：段内 `x̂_t = x̂_0 + k(GT_t − GT_0)`，x̂_0 为协议初值，k ∈ {0.65, 0.71, 1.0}，zgz_local RA | k=0.71 的误差 ≥ 0.7×10.27 → 欠响应是 local 主因之一 | < 0.4×10.27 → local 主要是绝对偏置，速率证据不对症（降低 C1 预期，不单独停止） |
+| P0.9 | S39 闭环前态误差：逐关节幅值、关节间相关，对照训练三类噪声 | 仅记录 | — |
+| P0.10 | **终门**：冻结 S39 三种子 6000 步权重，S39 栈不变，加手指快路径：网络仍读旧 prev，`x⁻ = prev`（手指 += Δθ̂_f，可部署归属与 Jacobian 在 prev 处），再以原 ramp1000 增益把 `x⁻` 向网络输出混合（`AdaptiveFilter` 以 x⁻ 作前态）；Δθ̂ ≡ 0 时逐位等于 S39 栈。超参数沿用 §1 的训练集选择，无训练；写入计数：‖Δθ̂_j‖ ≥ 1°（S43 偏离 7 的死区值）为写 | 三种子配对 local 均值差 ≤ −0.3 且 global 均值差 ≤ +0.1 且手指写入 ≤ 8/15 每查询 | local 改善 < 0.1 或 global 劣化 > 0.3 → 终止架构 A，转 D |
+
+P0.10 的等价前置：对照臂（Δθ̂ ≡ 0）必须逐步复现已存 S39 栈 npz（`outputs/dt3/gate_eval/ramp1000_w200/`）max|Δ| ≤ 1e-5、各种子 RA 差 ≤ 0.005 mm；不复现则先查实现，不报任何对比。描述性副臂（不进门）：快路径同时写根旋转（SO(3) 左乘）；以 S43 为慢干线。
+
+### 3. 不声称与已知限定
+
+- zgz 单受试者，开发 = 测试；超参数在训练受试者上选，P0.10 无任何 zgz 调参；单步探针与闭环都是描述性读数。
+- 可部署层的 S39 前态只来自 seed3407（P0.1/P0.2/P0.6），P0.10 三种子各用自己的闭环。
+- v2e 仿真事件、伪 GT（local 质量最差）；oracle 归属来自 GT 网格几何代理标签，不是物理事件身份。
+- 阶段 0 不声称事件驱动的时延或算量收益；P0.6 只验写端合同与读端局部性。
+
+### 4. GE0 决策（阶段 0 之后）
+
+1. P0.1 为"作废" → 删除 C1，转架构 D（逐指读出 + S42-B 自身前态训练 + 死区），训练前另登记。
+2. P0.1 非"作废" 且 P0.10 通过 → 阶段 1（EvTree-A：冻结 S39 慢干线，只训 ψ 与标量，2k × 3407/3408），训练前另登记数据通路与门（沿用计划 GE1）。
+3. P0.1 非"作废" 但 P0.10 不通过 → 终止架构 A；若 P0.4 达标则先走 D，否则报告并停止扩网。
+4. P0.4 达标（local ≤ 10.0）→ 无论 A 如何，D 先行或并行，归因时以 D 为 EvTree 必要性对照。
+
+**澄清（2026-10-20 00:2x，写于任何 S44 探针结果之前）**：P0.1 的"逐关节 `R_art,j`"取参数空间增量误差比 `Σ_t‖Δθ̂_j−Δθ*_j‖ / Σ_t‖Δθ*_j‖`（关节 j 的 3 维轴角增量，`Δθ*` 为 GT 增量）；与 `r_j` 同一组步。P0.1 可部署层的 S39 前态取 P0.10 对照臂（Δθ̂ ≡ 0，seed3407）实际记录的逐步前态，该对照臂须先通过 §2 的逐步复现门。
+
+**偏离 1（2026-10-20 00:3x，写于任何 S44 探针误差结果之前）**：实现自检时看到平面拟合有效率很低。看过的数字只有有效率，没有任何误差或门读数：zgz_local / zgz_global 每步测量像素中位 293 / 4370，有效 12% / 14%；训练 18 条基础序列抽样 216 步的拒绝原因分解为，邻居数与速度两条合计只拒 3–14%，空间残差 `ε_px ≤ 0.5 px` 一条拒掉 85–95%（`ε_px ≤ 1.0` 时有效 12–36%）。另核对 oracle 归属：GT 姿态下来源面重心点重投影到事件像素的距离中位 1.0 px、p90 1.4 px，标签与网格一致。处理：`EPS_PX_MAX` 不再固定为 0.5，改为并入 §1 的训练受试者选择网格 {0.5, 1.0, 2.0} px（网格由 32 组变为 96 组）；其余常数与选择目标不变，zgz 仍不参与选择。
+
+<a id="s44-phase0-results-20261020"></a>
+### S44 阶段 0 结果（预注册估计器；2026-10-20，产物 00:03—00:18）
+
+**等价前置通过**：P0.10 对照臂（Δθ̂ ≡ 0）对三种子已存 S39 栈 npz 逐步 max|Δ| = 0.0（RA 8.9115 / 8.5271 / 8.6899 原样复现）；S43 对照臂同样复现 9.2940 / 8.9698 / 9.3548。训练受试者选择结果：96 组中最优为 r=2、Δ_fit=30 ms、ε_px≤1.0、κ=1.0、λ_p=10（位于网格最强先验一端），目标 1.920 mm 对零运动 1.948 mm；local 2.507 对 2.647，global 1.334 对 1.248（global 比零运动更差）。
+
+| ID | 读数（zgz） | 门 | 裁决 |
+|---|---|---|---|
+| P0.0 | local 15 关节子树每步原始事件中位 18–93，< 20 的 2/15；有效拟合中位 2–13 | < 8/15 | 通过 |
+| P0.1 | `R_art`：local oracle 0.964 / 可部署 0.970 / 置乱 1.003；global 1.066 / 1.060 / 1.025。可部署 `r_j` 中位 0.105（15/15 关节 < 0.3），`R_art,j ≤ 0.7` 的 0/15；置乱保留 −0.09 | oracle ≤ 0.7 等 | **作废**（oracle 即不过） |
+| P0.2 | λmax AUC local 0.526 / global 0.454；G4 计数 0.531 / 0.473 | ≥ 0.7 且 +0.1 | 不过：触发退化为死区 |
+| P0.3 | 渲染路 / prev_mlp 路输出变化比：手指 0.13–0.16，根 0.30–0.45，平移 7.3–15.7（S39 与 S43 各三种子） | ≤ 0.25 / ≥ 0.7 | 手指可去耦；平移由渲染路承担，架构 C 不成立 |
+| P0.4 | S43 三种子闭环 local：原 fc 10.56 / 10.62 / 10.63；全局池化岭回归 10.59 / 10.77 / 10.89；逐指池化岭回归 10.71 / 11.04 / 11.07（均值 10.94） | ≤ 10.0 | 不过：逐指池化反而更差 |
+| P0.6 | 前缀等价单测逐位一致；相邻查询 SAE 不变比例 hop50 0.58 / 0.65，hop10 0.80 / 0.87（global / local）；一次真实更新后首选归属改变 global 0.75 / local 0.39 | 不变 ≥ 0.9；改变 < 0.6 | 写端合同成立；hop10 不变比例略低于门；global 读端局部性不成立 |
+| P0.7 | oracle 归属下测量法向速度与 GT 隐含法向速度相关：local 0.012、global 0.313；GT 方向相反占 29.7% / 2.4%；残差均值 / 标准差 1.11 / 0.64；local GT 法向速度 46% < 20 px/s，该段中位相对误差 12.2 | 仅记录 | 预注册尺度下 local 测量无信息 |
+| P0.8 | 段内欠响应反事实 local：k=0.65 13.37、k=0.71 11.65、k=1 5.95（只剩协议初值噪声） | k=0.71 ≥ 7.19 | 通过：S39 的 local 误差量级可由欠响应解释 |
+| P0.9 | 闭环前态手指关节误差中位 0.155 / 0.19 rad（global / local），p90 0.30–0.45；lag-1 自相关 0.72–0.81；训练小 / 大噪声类中位 0.077 / 0.46 | 仅记录 | 部署误差介于两类之间且是慢变偏置 |
+| P0.10 | 快路径（只写手指）对对照臂：local −0.016 / −0.011 / −0.005，global −0.008 / +0.001 / −0.002；每查询手指写入 local 1.6 / 15 | local ≤ −0.3 | **作废**（改善 < 0.1） |
+
+另记：GT 标签抖动——把每 ms GT 做 ±25 ms 滑动平均后，50 ms 手指增量变化 local 1.24 mm（相对 e_zero 3.05 mm）、global 0.56 mm（相对 1.13 mm）；即 50 ms 增量中约 40–50% 是高频标签成分，任何 50 ms 运动估计的可达 `R_art` 都受此限制。P0.5 待完成后补记。
+
+按 §4 规则 1，预注册估计器下 C1 作废、架构 A 终止。
+
+**事后敏感性（训练受试者，写于任何 P0b 的 zgz 读数之前，不改上表裁决）**：`tools/s44/p07_sens.py` 在 18 条训练基础序列（每 8 步取 1）上，oracle 归属、GT 前态处，比较测量法向速度与 GT 隐含法向速度（ε_px ≤ 1.0）：
+
+| 尺度（半径 px / Δ_fit ms / 记忆 ms） | local 相关 | global 相关 |
+|---|---|---|
+| 2 / 30 / 300（预注册选中） | 0.061 | 0.262 |
+| 2 / 100 / 300 | 0.273 | 0.470 |
+| 3 / 100 / 300 | 0.386 | 0.773 |
+| 4 / 100 / 300 | 0.420 | 0.863 |
+| 4 / 300 / 600 | 0.649 | 0.903 |
+| 6 / 300 / 600 | 0.683 | 0.947 |
+
+即预注册网格的空间与时间尺度对慢速 local 手指运动过小（local GT 法向速度多 < 20 px/s，5×5 邻域、30 ms 窗内边缘只移动不到 1 px）；作废的是"该尺度的估计器"，不是"事件法向流不含手指运动"。
+
+<a id="s44-p0b-prereg-20261020"></a>
+**偏离 2 / P0b 子轮预注册（写于任何 P0b 的 zgz 读数之前）**：保留上表全部裁决。新估计器只换测量尺度网格，其余定义、选择目标（训练受试者、可部署归属、GT+小噪声前态）、门（P0.1、P0.2、P0.10 原阈值）全部沿用：(r, Δ_fit, 记忆) ∈ {(4,100,300), (4,300,600), (6,300,600)} × ε_px ∈ {1.0, 2.0} × κ ∈ {0.3, 1.0} × λ_p ∈ {0.1, 1, 10, 100}（λ 网格向强先验端延伸一格，因上一轮选在端点）。选中者在 zgz 上跑 P0.1 三层与 P0.10 三种子；P0b 的 P0.10 通过才进入阶段 1，否则 C1 与架构 A 维持作废并按规则 1 转 D。
+
+<a id="s44-p0b-results-20261020"></a>
+### S44 P0.5、P0b 与诊断结果（2026-10-20，产物 00:10—00:41）
+
+**P0.5（S43 异步运行时，`--host-state`，三种子）**：h50 RA 9.308 / 8.983 / 9.361；原计数 h10 9.444 / 9.208 / 9.506；"自上次查询以来"计数 h10 9.473 / 9.177 / 9.549。h10 − h50 = +0.165 / +0.194 / +0.188（门 ≤ 0.03，> 0.08 否定）→ **否定**：`async_eval` 本已把增益换算到 hop，计数改为新增事件后退化依旧，hop 退化不是重复计数造成的。
+
+**P0b（偏离 2 的新尺度网格）**：训练受试者选择最优 r=4、Δ_fit=100、记忆 300、ε_px≤2.0、κ=1.0、λ_p=100（又落在最强先验端），目标 1.929 对零运动 1.948。zgz：`R_art` local oracle 0.992 / 可部署 0.993 / 置乱 1.000，global 1.004 / 1.003 / 1.000；15/15 关节 `r_j < 0.3`；λmax AUC 0.474 / 0.439；测量相关 local 0.222（预注册尺度 0.012）、global 0.583（0.313），残差均值 / 标准差 1.17 / 0.83。P0.10（三种子）local +0.017 / +0.017 / −0.026，global ±0.001；手指写入 0（增量全部小于 1°）。→ P0.1、P0.10 均**作废**。
+
+**诊断（训练受试者，事后，不改裁决）**：选择脚本改为 oracle 层（GT 前态 + GT 来源归属，λ_p 网格 0.001–10），`R_art` 最优 local 0.939 / 0.958 / 0.964、global ≥ 1.024（三种尺度）；λ_p 越小越差（λ_p = 0.001 时 local 5–9、global 13–15）。再把平移与根旋转速率直接给成 GT、只解 45 维手指（`--fix-root-gt`，r=4/Δ_fit=100）：最优 local 0.999、global 1.20。即：在完美归属、已知整手刚体运动的条件下，平面拟合法向流仍解不出每步手指关节运动；瓶颈在"事件证据 → 手指速率"的反演本身，不在 2D–3D 关联。zgz_local 的测量相关（0.22）还低于同尺度训练受试者（0.42）。
+
+**阶段 0 总裁决**：C1（位姿无关法向流证据 + Jacobian 读出）两轮均作废，架构 A 终止；C2 的信息触发退化为死区（P0.2）；架构 C 不成立（P0.3 平移靠渲染路）；P0.4 逐指池化不达标；"重复计数"归因被否（P0.5）。按 §4 规则 1 转架构 D。主表行：`outputs/semkine/s44p10_s39ff_main_row.json`（预注册尺度快路径，S39 冻结三种子）；P0b（大尺度）行为 `outputs/semkine/s44p10b_s39ff_main_row.json`。
+
+**P0.10 描述性副臂（预注册尺度，三种子，对各自对照臂）**：快路径同时写根旋转（S39）local +1.630 / +1.572 / +1.448、global +0.088 / +0.108 / +0.209，明显有害；以 S43 为慢干线只写手指 local +0.044 / −0.005 / +0.004、global ≈ 0，惰性。推理期死区（ε_f 1°、ε_r 0.5°）加在 S39 seed3407 上 RA 8.966 对 8.912（+0.054）。
+
+<a id="s44-d-prereg-20261020"></a>
+### S44-D 预注册：架构 D 的训练臂（2026-10-20，原文称写于任何 D 训练之前；D 训练启动于 00:32:02）
+
+- 依据：阶段 0 规则 1（C1 作废 → D）。D 原定为"逐指读出 + S42-B 自身前态训练 + 死区"；逐指读出在 P0.4 的零训练代理上使三种子 local 都变差（10.94 对 10.60），故本轮不训练该组件，D 只含 S42-B 与推理期死区。S42 只在 l3w192 主干上完成三种子 B；S39 主干（resnet18_l3）上的 B（`dzl3self_6k`）只有 s3407，本臂补齐三种子。
+- 臂 `s44d_dzl3self`：`configs/trk6/dzl3self_6k.yaml` 原样（= `configs/dt/dt_dz_l3.yaml` + `DATA.CLIP_*` + `TRACK.SELF_*`），种子 3407 / 3408 / 3409 各 fresh 6000 步，单卡 × 512 × 累积 2，bf16，`SEMKINE_FAST_PIPE=1`，GPU 2 / 4 / 5。只报末步（step 6000），不选点。
+- 评测：S39 栈（W200 裁段首 + ramp1000 + Count50，`tools/dt/filter_eval.py --raw --tf`，与 S39 / S42 完全相同）；主行 `evalx.py row --variant w200cfg`，主表 `tools/report_table.py`。死区（ε_f = 1°、ε_r = 0.5°，S43 偏离 7 的值）作为零训练附加读数，只描述。
+- 门（看结果前写定）：GD1 local 三种子均值 ≤ 9.90 且三种子对 S39 同种子配对均为负；GD2 global 均值 ≤ 7.46；GD3 RA ≤ 8.71。全过 → 记为"D 候选"，是否替换 S39 由用户决定；否则如实报告。S42 门的滞后与时延不在本轮门内（D 不改网络，时延与 S39 相同）。
+
+<a id="s44-d-result-20261020"></a>
+### S44-D 结果与本轮总结论（2026-10-20，产物 01:41—01:47）
+
+三种子均完成 fresh 6000 步（无失败、无续训）。S39 栈（`tools/trk6/screen_eval.sh`），主行 `outputs/semkine/s44d_dzl3self_w200cfg_main_row.json`：overall 8.704 / 8.735 / 8.853；local 10.129 / 10.223 / 10.399；对 S39 同种子配对 local −0.550 / +0.037 / +0.463（均值 −0.017），global +0.090 / +0.356 / −0.097（均值 +0.116），overall −0.208 / +0.208 / +0.163。TF（S39 栈）4.94 / 5.02 / 4.96。死区附加（ε_f 1°、ε_r 0.5°）overall +0.048 / +0.002 / −0.004，中性。
+
+门：GD1 local 均值 10.251 > 9.90 且配对只有 1/3 为负 → 不过；GD2 global 7.473 > 7.46 → 不过；GD3 RA 8.764 > 8.71 → 不过。D 不成为候选，S39 不变。与 S42 的同类记录一致：B 在 S39 主干上的收益落在种子差异之内（S42 l3w192 上为 −0.70 / −0.35 / −0.08）。
+
+主表（`tools/report_table.py` 生成）：
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S43：稀疏渲染–比对（S39 栈） | 10.60 | 7.99 | 9.37 | 6.60 | 9.21（9.29 / 8.97 / 9.35） | 8.39 ms | 0.127 G | 2.82 M |
+| S44 P0.10：S39 冻结 + 法向流手指快路径（预注册尺度，零训练） | 10.26 | 7.35 | 8.94 | 6.25 | 8.70（8.90 / 8.52 / 8.69） | 10.09 ms | 1.317 G | 2.80 M |
+| S44 P0b：S39 冻结 + 法向流手指快路径（大尺度，零训练） | 10.27 | 7.36 | 8.95 | 6.25 | 8.71（8.92 / 8.54 / 8.68） | 18.83 ms | 1.316 G | 2.80 M |
+| S44-D：S39 + 部署环路自身前态训练（三种子，6000 步） | 10.25 | 7.47 | 8.96 | 6.34 | 8.76（8.70 / 8.73 / 8.85） | 4.08 ms | 1.252 G | 2.80 M |
+
+\* 同 S39：W、滤波与证据门在 zgz 上选定。S44 两个零训练快路径行的 Latency 含中心差分 Jacobian（103 次 MANO FK），FLOPs = S39 thop + 快路径计数。
+
+**本轮结论**：(1) 计划的核心假设（C1：位姿无关的 SAE 法向流证据经 MANO Jacobian 读出每步手指运动）在本数据上被否定，两种尺度网格、oracle 归属、甚至给定 GT 整手刚体速率时都解不出每步手指增量；失败点是"事件证据 → 手指速率"的反演，不是 2D–3D 关联。(2) 冻结 S39 加快路径对 local 的影响 ≤ 0.03 mm，写根时有害（+1.5 mm）。(3) 架构 D（S39 + S42-B）三种子未过门。(4) 可确认的正面事实：S39 / S43 的 local 误差量级与"对真实运动约 0.7 的欠响应"一致（P0.8）；50 ms GT 手指增量约 40–50% 为高频标签成分；渲染通道承担平移纠正、手指纠正主要来自 prev_mlp（P0.3）。S39 保持正式基线。
+> **2026-10-20 核对补注（按 `outputs/s44/` 产物；原文不改）：**
+> - 本节四个小标题原写 “2026-10-20 01:xx / 02:xx / 02:xx / 03:xx”，是没有记录的占位，且晚于本文件当时的最后修改 01:47；现按产物时间改写。实际时间：`prior_rate51.json` 10-19 23:56:17，`p01_select/selected.json` 00:03:19，`p01/summary.json` 00:05:00，`s44p10_s39ff` 主行 00:17:46，`p0b_eval/summary.json` 00:22:37，`s44p10b_s39ff` 主行 00:34:25，S44-D 训练启动 00:32:02（`s44d_dzl3self_s3407/config_resolved.yaml`），S44-D 主行 01:46:13，最后产物 01:47:13。
+> - “澄清（00:2x）”“偏离 1（00:3x）”“S44-D 预注册”各自声称写于相应结果之前，但写作时间没有记录：P0.1 选择最早产物 00:02:12、zgz 读数 00:05:00，D 训练 00:32:02 已启动。这些“写于……之前”无法由产物核实，按原文保留。
+> - `tools/s44/evflow.py`、`p01_eval.py`（00:14:02）、`p01_select.py`（00:28:17）、`p10_replay.py`（00:32:16）的修改时间晚于各自已产出的结果；账本数字与产物一致，但复现阶段 0 前需确认这些修改不改变数值。
+> - P0.5 的 “h10 − h50 = +0.165 / +0.194 / +0.188” 是 “自上次查询以来” 计数（`p05/*_since_h10.json`）的差；sliding50 计数（`p05/*_sliding50_h10.json`）的差是 +0.135 / +0.225 / +0.145。两种都超过 0.08，否定结论不变。
+> - 诊断段 “λ_p = 0.001 时 local 5–9、global 13–15” 没有注明口径，按 `diag_oracle_select/` 三种尺度 × ε_px × κ 共 12 组复核未能复现该区间；原文保留，数字以产物为准。
+
+<!-- EXPERIMENT_RECORD:S44-PREREG:END -->
+
+<!-- EXPERIMENT_RECORD:XVM:BEGIN -->
+<a id="xvm-analysis-20261021"></a>
+## XVM · 顶点锚定的事件运动测量：XYZ 线复盘与方向收敛（2026-10-21 00:30，写于任何 XVM 探针结果之前）
+
+### 0. 授权、范围、命名
+
+- 用户 2026-10-20 提出八个问题（XYZ 线 778 顶点聚合、MeshGNN 感受野、关联与外包络（Aura Mesh）、坐标系、S43 复审、文献、本地资源、事件特化 MANO 卷积），批准计划 `/home/lyq/.claude/plans/pasted-content-id-315d-has-the-tingly-moler.md`；2026-10-21 指令"用 GPU 4–7（共四卡）执行整个计划，包括所有实验与完整训练"。只用物理 GPU 4–7；GPU 0–3 当时各有其他用户进程，不使用。CPU 全部可用。
+- 本轮叫 **XVM**（vertex-anchored event motion measurement）。产物 `outputs/xvm/`，工具 `tools/xvm/`，测试 `tests/test_xvm_*.py`，配置 `configs/xvm/`。新代码全部 opt-in，S39 / C1 / XCL 默认路径逐位不变；S39 不变，未经新门不替换。
+- 协议不变（AGENTS.md）：9 人 72 序列训练；zgz_global / zgz_local 既是开发集也是测试集；只读 `splits_semkine.json`；超参数与尺度只在训练受试者上选，zgz 只报告；主表由 `tools/report_table.py` 生成。
+
+### 1. 已有证据给出的判断（只引用既有产物，不含新读数）
+
+| 问题 | 判断 | 依据 |
+|---|---|---|
+| Q0 最新射线关联实验 | XCL 已完成（`COMPLETE_SCIENTIFIC_REVIEWED`）；协调器 `status.json` 停在 `COMPLETE_PENDING_SCIENTIFIC_REVIEW` 是陈旧状态 | [XCL 结果](#xcl-result-20261019)，`outputs/xcl/20261019/postprocessing/scientific_review.json` |
+| Q1 778 顶点聚合 | 在给定精确三维改正量时不是瓶颈：A0FΩd / A0FΩo local 4.22 / 4.57；FΩo ≈ FΩd，向未观测顶点传播无增益。缺口在上一级：A3F0（记录已近似真实位移）仍 10.48。限定：FΩ 输入含累计前态误差，不等于增量传感器的上限；A2 泄漏二维对应 | XCL 主表；`outputs/xcl/20261019/evaluations/*/e3*/report.json` |
+| Q2 感受野 | 3 层 1-ring = 3 跳；MANO 静息边长均值 7.9 mm，3 跳球半径约 29 mm，指尖 3 跳不出远节；到掌根 11–12 跳。F+ 全局注意力在真实关联下 local 变差（38.47 对 27.99）。真正起作用的是测量的时空支撑：S44 训练受试者上法向速度相关从 0.061（2 px / 30 ms / 300 ms）升到 0.683（6 px / 300 ms / 600 ms） | `assets/mano_right.npz` 实测；[S44 敏感性](#s44-phase0-results-20261020) |
+| Q3 外包络 | Aura Mesh（Jin、Kim、Lee，CGF 2018）是贴皮肤的四面体壳，用于两角色皮肤级碰撞语义；移植到此处与已有 16 px near 带重复、手指间壳重叠、不增加可观测量。只借"随蒙皮表面、度量半径、轮廓两侧对称"的原则，落实为逐顶点按深度缩放的收集半径与带符号的轮廓距离 | 论文全文；`semkine/xyz_mesh.py` `associate_rays` |
+| Q4 坐标系 | 无数值坐标系错误：FK、射线、关联、dXYZ、边向量都在相机系米制；问题在表示：绝对深度特征 `z_prior=(z−0.45)/0.1` 在 zgz_local 越界；命中记录 `n·dXYZ=0`、无位移信息；相机轴边向量不等变；根轴角加法；单一静态前态网格对应长记忆事件；MPJPE/MPVPE/RA 对齐口径不同 | 代码追踪（`model/model.py`、`model/mano_layer.py`、`semkine/xyz_mesh.py`） |
+| Q5 S43 | 作为异步执行模型（SAE O(1) 写入 + 独立查询）保留；渲染–比对观测模型在精度上不优于 S39，九项登记偏离以工程为主 | [S43](#s43-prereg)、S44 P0.3 |
+
+已知但未被既有记录写明的一项（读既有产物得出，不是新实验）：XCL E3（每步 GT 前态）下 C1 local 15.35，而同权重 H3 置零（只剩状态）9.87；即 GT 前态处 C1 的事件通路在注入误差。
+
+### 2. 收敛的方向（假设，不是结论）
+
+逐顶点的事件运动测量算子 + 固定运动学传输：对前态网格每个可见顶点 i，在像面按深度缩放的半径 ρ_i = f·r/z_i 内收集多时间尺度事件，以顶点投影法向框架 R_i 表达相对坐标、年龄与极性，学习的小型连续核输出二维位移 m_i 与 2×2 信息阵 Λ_i；再经投影运动学雅可比 B_i = ∂π(V_i)/∂x 做加权 Gauss–Newton 解 Δ = (Σ B_iᵀΛ̃_iB_i + P)⁻¹ Σ B_iᵀΛ̃_i m̃_i。替换 XYZ 的 φ + mean/max + 1-ring GNN；不用绝对深度与绝对像素坐标。新颖性的现实估计：不是 Nature 级；若三种子显著过门，证据支持一般 CV/机器人会议；无论结果如何，信息上限分析（标签噪声底、单目可观测性、孔径阶梯）单独成立。
+
+<a id="xvm-prereg-20261021"></a>
+## XVM 预注册：探针阶梯与训练门（2026-10-21 00:30，写于任何 XVM 读数之前；阈值现在写定）
+
+### 0. 共用定义
+
+- **端点网格**：XCL `endpoint_grid`，zgz_global 1386 + zgz_local 1204 = 2590 个端点；每段首端点的前一时刻为段首。**E3**：每步输入状态 = GT(前一端点)。**E1**：自身闭环，初值为 XCL A0FΩo E1 轨迹在各段首端点的输入（协议初值噪声，rng 0）。
+- **指标**：`mpjpe_ra_mm`（21 关节减腕点，`tools/xcl/evaluate.score`）；"local / global" 为对应序列均值。**R_art**（S44 定义）：只施加手指增量，`e_art = mean_21‖[FK_h(x0+Δ_f) − FK_h(x0)] − [FK_h(GT_end) − FK_h(x0)]‖`，`R_art = Σe_art / Σe_zero`，`e_zero = mean_21‖FK_h(GT_end) − FK_h(x0)‖`；FK_h 为根旋转与平移置零。
+- **观测顶点 O**：窗口 [end−49, end] 内 `xag_valid` 事件的 GT 来源面三个顶点（重心权重 > 0），质量 m_i = 重心权重和（`outputs/xag/sources`，source-v2，GT 几何代理标签，不是物理事件身份）。**轮廓顶点 C**：O 中在 x0 处 `|n̂_i·d̂_i| < 0.4` 的顶点（n̂ 顶点法向，d̂ 视线方向）；e1_i = n̂_i 在像面的投影方向（单位化）。
+- **解算**（P0c、P1–P3、P5 共用）：投影雅可比为 `tools/s44/evflow.Mano64.jacobian`（51 维加性参数，float64 中心差分 ε=1e-4）；三维雅可比同法；先验 P = 训练集 50 ms 增量协方差之逆（`outputs/s44/prior_rate51.json` 的速率精度 / 0.05²），λ_p = 1；测量噪声 σ_3D = 1 mm，σ_2D = 0.5 px；3 次 Gauss–Newton（每次在当前迭代点重算雅可比），51 维加性更新。
+
+### 1. C.0 信息上限（无训练，GPU 4–7 批量）
+
+| ID | 内容 | 用途 / 判读 |
+|---|---|---|
+| P0a | E3 下恒等预测（输出 = GT 前态）与常速度预测（GT 前态 + 上一 50 ms 增量）的 mpjpe_ra 与 R_art；zgz 与 18 条训练基础序列，分关节 | 参照；之后所有单步数字与恒等并列报告。若 C1 E3 明显差于恒等，则 C1 在 GT 前态处注入误差 |
+| P0b | 标签噪声：h ∈ {50, 100, 200} ms 手指增量（FK_h 关节空间）对 ±25 ms 盒式平滑 GT 增量的残差能量占比 ρ_h 与 R_art 下限 Σmean‖Δ_raw−Δ_smooth‖ / Σmean‖Δ_raw‖ | 只记录；P4 主监督目标现在固定为平滑 GT 的 50 ms 位移 |
+| P0c | 线性可观测性：E3，可见顶点集与 O 两种集合，σ ∈ {0.25, 0.5, 1, 2} px，后验 `Δ̂ = (H+P)⁻¹HΔ*`，OF = 1 − Σ‖e‖² / Σ‖Δ*‖²（FK_h 关节空间平方误差） | O、σ=0.5 px 下 zgz_local OF < 0.60 → 单目增量在构造上不足；≥ 0.85 → 足够 |
+| P0d | S39 栈闭环增益扫描：`x_k = x_{k−1} + g·(滤波输出 − x_{k−1})`，g ∈ {1.0, 1.1, …, 1.5}，(i) 51 维全部 (ii) 只手指；三种子，zgz | 诊断，不采纳任何 g：(ii) 最优 g 三种子 local 均值下降 ≥ 0.5 mm 且三种子同号 → "约 0.7 欠响应"可利用；否则该解释不可利用 |
+
+### 2. C.1 oracle 阶梯（零训练）
+
+| ID | 内容 | 通过 | 否定 / 含义 |
+|---|---|---|---|
+| Ω-R | 冻结 A0FΩo（step6000），A3 路由（GT 来源 + GT 深度）。R0：原生 GT 顶点改正量；R1：A3 记录 dXYZ 的逐顶点加权均值；R2：记录的材料点位移 X_gt − Σ_jA_jV_prev,j 的逐顶点加权均值；E1 与 E3 | R1 local E1 ≤ 5.5 → 固定均值聚合不丢位移，A3F0 缺口在 φ/学习/闭环 | R1 ≥ 8 → A3 记录或均值聚合丢位移；R2 − R1 量化面内偏移污染 |
+| P1 | O 上 GT 三维位移 → GN；单步（E3）与闭环（E1，测量 = V_gt(end) 在 O 上，同 FΩo 口径）；另在全部 778 顶点上做实现自检 | 自检单步 local < 0.1 mm；闭环 local ≤ 4.57（FΩo）→ 零参数精确传输不差于学习读出 | 自检不过 → 先修实现 |
+| P2 | O 上只给二维投影 GT 位移 → GN（单目经运动学耦合是否足够） | E3 zgz_local R_art ≤ 0.80 | ≥ 0.90 → 单目增量不足，只能靠积累/锚定 |
+| P3 | C 上只给法向一维分量 e1ᵀδu → GN | R_art ≤ 0.85；P3 − P2 > 0.15 → 孔径信息阵必要 | ≥ 0.92 → 孔径使该方向不成立 |
+| P3n | P3 的测量加高斯噪声使逐序列相关 c ∈ {0.9, 0.8, 0.68, 0.5, 0.42, 0.3, 0.22}（噪声 rng 0，解时 σ 取对应噪声）；线性插值得 R_art ≤ 0.85 所需相关 r* | r* ≤ 0.70 | r* > 0.90 → 需要远超任何已见测量质量的相关，方向被否 |
+| S44-L | 探索性、事后：S44 估计器在 (r=6, Δ_fit=300, 记忆 600) 尺度，ε_px ∈ {1, 2} × κ ∈ {0.3, 1} × λ_p ∈ {0.1, 1, 10, 100} 在训练受试者上选，zgz 报 P0.1 三层 | 只描述：R_art ≤ 0.9 说明 S44 的否定受尺度限制 | — |
+
+### 3. C.2 可学习性（决定性一级）
+
+**P4 测量算子**：训练受试者 ch / lfz / lpc / lr / ly / lyh / lyq 的 56 条序列训练，ycy / ylf 的 16 条序列作选择，zgz 只报告。样本 = 50 ms 网格端点；锚点 arm A = ±25 ms 平滑 GT(前一端点)；目标 = 可见顶点在平滑 GT(end) 与锚点处投影之差（像素）。输入：[end − W_mem + 1, end] 事件（截断到段首），近 50 ms 事件按步长取 ≤ 8192，更早事件取 ≤ 8192；每个可见顶点取半径 ρ_i = f·r/z_i 内最近 64 个事件；逐对特征 = 顶点框架相对坐标 / ρ_i、年龄 / W_mem、是否近 50 ms、极性、是否落在前态剪影内；顶点特征 = |n̂·d̂|。核 MLP(8→64→64) → 均值 + 最大 + log 计数 → 头 MLP → m（2）与 Λ 的 Cholesky（3），高斯 NLL（顶点框架、ρ_i 单位）。Adam 1e-3 余弦，batch 16 端点，12000 次迭代，seed 3407，无增强。尺度网格 r ∈ {1, 2, 4} cm × W_mem ∈ {50, 200, 600} ms（9 组，arm A）；按选择受试者上"有事件的轮廓顶点法向分量相关"选一组；该组另训 arm B（锚点加训练小噪声 σ_t 5 mm、σ_r 0.05 rad、σ_pose 0.05 rad，目标为到平滑 GT(end) 的投影差）。基线（同监督）：C1 的 φ + mean/max 记录通路（W=50，hit_first 关联在锚点网格上）；S44 平面拟合法向流（不训练）；顶点锚定 patch CNN（多尺度极性时间面 τ ∈ {10, 50, 200} ms，16×16 旋转到 R_i、跨 ±ρ_i）。报告：选择受试者与 zgz 上全二维与法向分量的相关、R²，分轮廓 / 内部、有无事件。
+
+| ID | 通过 | 否定 |
+|---|---|---|
+| P4 | 选中组在 zgz_local "有事件轮廓顶点"法向分量相关 ≥ r*（P3n），且 ≥ φ 通路 + 0.10，且选择受试者 → zgz_local 下降 < 0.15 | 所有尺度 zgz_local 相关 < 0.30 → 方向被否，按负结果连同信息上限写入账本 |
+| C1+sign | C1 加三类记录特征（带符号的深度缩放轮廓距离、二维投影法向、极性×符号；新权重在独立 RNG 作用域内零初始化，初值与 C1 逐位同函数），seed 3407 fresh 6000，2×512，严格 C1 数值合同，GPU 4–5；local E1 比 C1 27.99 改善 ≥ 3 mm | 改善 < 3 mm → 记录层"带符号测量"解释弱 |
+| P5 | P4 选中算子（7 人训练权重）+ P2 的 GN（以 Λ_i 加权），E3：zgz_local mpjpe_ra < 恒等（P0a）且 R_art ≤ 0.90 | > 恒等 + 1 mm → 停止 |
+| P6 | (b) GN 传输 对 (a) 在 P4 测量上训练的 LBS 槽读出（训练受试者、E3 式 GT+小噪声前态、FK 损失）：E3 单步与 E1 闭环，±50 mm / 0.1 rad 扰动后 20 步恢复 | (b) 与 (a) 的 E3 local 差 ≤ 0.5 mm 且恢复更好 → 采用 (b)；否则 (a)，贡献归于测量算子 |
+
+### 4. C.3 完整训练（只在 P4 与 P5 都通过时）
+
+两臂 × 三种子 3407 / 3408 / 3409，各 fresh 6000 步，数据协议不变：研究臂（训练增量协方差先验）、整合臂（S39 预测作先验锚）。每个 XVM 训练 1 卡 × 512 × 梯度累积 2（S39 / S44-D 配方，有效 batch 同 C1；XVM 无 BatchNorm），BF16，worker 12、prefetch 1。正式训练前各做 50 步真实 GPU 冒烟、完整验证与返回训练；失败保留、不续训。实现细节（损失权重、闭环 clip 长度、自身前态比例）在训练前另写追加登记，下面的门现在写定：
+
+- **研究门**：三种子均值 E1 local ≤ 20.57 且 RA ≤ 15.12（可部署方法胜过旧设计的 GT 关联 oracle A2F0）。
+- **采纳门**（S39 栈评估）：local ≤ 10.27、global ≤ 7.36、RA ≤ 8.71，三种子对 S39 同种子配对同号；local ≤ 9.3 记为"明确收益"线。是否替换 S39 由用户决定。
+
+### 5. GPU 4–7 调度与工程门
+
+S1：P0a+P0b → GPU4，P0c+P0d → GPU5，Ω-R、P1 → GPU6，P2、P3、P3n、S44-L → GPU7。S2：C1+sign 在 GPU4–5，P4 尺度网格与基线在 GPU6–7。S3：P5 / P6 与 C1+sign 评估。S4–S5：完整训练两波（4 + 2）。S6：每卡一个评估进程，先串行含 Latency 的主行，再两次 fresh 完整轨迹。启动器把 `CUDA_VISIBLE_DEVICES` 钉在 4–7 之一（C1+sign 为 4,5），拒绝其它编号，启动前检查目标卡无他人进程；状态 `outputs/xvm/status.json`。
+
+### 6. 不声称与已知限定
+
+- 单受试者 zgz，开发 = 测试；oracle（GT 来源、GT 深度、GT 前态）不可部署；GT 来源是网格几何代理标签；v2e 仿真事件、伪 GT（local 质量最差）。
+- C1+sign 与 Ω-R 只有 seed 3407，单 seed 描述性比较；P0d 在 zgz 上扫增益，只作诊断，不产生采纳候选。
+- 探针阶梯按顺序执行：P4 或 P5 不过则不启动 C.3，GPU 4–7 只完成信息上限分析，负结果照实写入。
+
+<a id="xvm-s1-results-20261021"></a>
+### XVM S1 结果：信息上限与 oracle 阶梯（2026-10-21，产物 `outputs/xvm/s1/`，GPU 4–7）
+
+全部按预注册定义执行，无训练、无选择；zgz 全部 2590 端点。单位 mm（R_art、OF、ρ、相关为无量纲）。
+
+**C.0 信息上限**
+
+| ID | 读数（zgz_local / zgz_global） | 判读 |
+|---|---|---|
+| P0a | E3 恒等预测 mpjpe_ra 4.41 / 2.43；常速度 6.53 / 2.25（R_art 1.43 / 1.69）；训练基础序列恒等 3.06 | 参照。XCL E3：C1 15.35、A3F0 8.78、C0 10.07、A0FΩd 3.20、C1 H3 置零 9.87。**C1 与全 oracle 的 A3F0 在 GT 前态处都比"什么也不做"差**；只有直接喂 GT 改正量的 FΩ 比恒等好 |
+| P0b | 50 ms 手指增量的标签噪声能量占比 ρ 0.148 / 0.257（训练 0.194），R_art 下限 0.41 / 0.50；100 ms 0.084 / 0.249；200 ms 0.035 / 0.176 | 与 S44 一致；50 ms 任何估计的 R_art 不低于约 0.4 |
+| P0c | 观测集 O、σ = 0.5 px 的线性可观测比 OF 0.931 / 0.990（可见集 0.966 / 0.953）；σ = 2 px 时 O 上 0.781 / 0.941 | **≥ 0.85，单目二维测量在构造上足够** |
+| P0d | S39 栈闭环增益 g ∈ 1.1–1.5：全 51 维与只手指两种，三种子 local 全部变差或持平（最好为 3409 手指 g=1.2 的 −0.008） | **"约 0.7 欠响应"不能用增益利用**；S39 的 local 误差不是可放大的同向欠响应 |
+
+**C.1 oracle 阶梯**（R_art 只在 E3 下按预注册判门）
+
+| ID | E3 mpjpe_ra（local / global） | E3 R_art local | E1 mpjpe_ra local | 门 |
+|---|---|---|---|---|
+| P1 自检（778 顶点全给 GT 三维位移） | 0.067 / 0.044 | 0.022 | — | 自检 < 0.1 通过 |
+| P1（O 上 GT 三维位移） | 0.28 / 0.013 | 0.089 | 0.32 | 闭环 0.32 ≤ 4.57（FΩo）**通过**：零参数精确传输远好于 FΩ 的学习读出（FΩ 有约 4 mm 的读出底） |
+| P2（O 上只给二维投影位移） | 1.13 / 0.054 | 0.277 | 2.00 | ≤ 0.80 **通过**：单目二维测量经运动学耦合足以解出手指增量 |
+| P3（轮廓顶点只给法向一维分量） | 2.70 / 0.48 | 0.583 | 7.55 | ≤ 0.85 **通过**；P3 − P2 = 0.31 > 0.15 → **孔径信息阵必要** |
+| P3n（P3 加噪到相关 c） | c=0.9：3.99；0.8：4.46；0.68：4.89；0.42：5.81 | 0.80 / 0.87 / 0.92 / 1.04 | — | local **r\* = 0.825**：不满足 ≤ 0.70，也未到 > 0.90 的否定线 → **中间**；global 上 c = 0.9 时 R_art 仍 5.26（整手运动占测量方差，手指只占一小部分），即 global 对测量质量的要求更苛刻 |
+| S44-L（S44 估计器，6 px / 300 ms / 600 ms，训练受试者选 ε 2 / κ 1 / λ 100） | — | 可部署 0.997（oracle 0.997） | — | 描述：大尺度下 oracle 归属的法向速度相关 local 0.417 / global 0.867，仍远低于 r\*，解出的手指增量无信息 |
+
+**Ω-R**（冻结 A0FΩo；A3 路由；只换投影层的输入）
+
+| 条件 | E1 local / global | E3 local / global |
+|---|---|---|
+| R0_base（原关联、原生 GT 改正量；工具自检） | 4.568 / 3.105（与 XCL 逐位相同） | — |
+| R0（A3 路由、原生 GT 改正量） | 5.03 / 3.21 | 3.81 / 2.23 |
+| R1（A3 记录 dXYZ 的逐顶点加权均值，即 A3F0 所见） | 7.77 / 4.53 | 7.16 / 4.64 |
+| R2（记录的材料点位移 z_gt·d − Σ_jA_jV_prev,j 的均值） | 5.96 / 3.28 | 5.05 / 2.87 |
+
+门：R1 E1 local 7.77 介于 5.5 与 8 之间 → 中间。R0 → R1 损失 2.74 mm，其中 1.81 mm 被 R2 收回：A3 记录的 dXYZ 混入了"事件点到顶点"的面内偏移（与位移同量级的 3–8 mm），逐顶点均值消不掉；按材料点位移聚合时固定均值只损失约 0.9 mm。这说明记录→顶点通路的主要问题是**记录表示**（相对顶点的绝对偏移而不是材料点的运动），不是均值聚合本身。
+
+**S1 小结**：信息上限不阻止该方向——单目二维逐顶点测量足够（P0c、P2），法向一维也可用但孔径信息必要（P3），精确运动学传输远优于学习读出（P1）。真正的门槛是测量质量：local 需要法向分量相关约 0.83（P3n），手工法向流在大尺度下也只有 0.42（S44-L），C1 / A3F0 在 GT 前态处甚至劣于恒等（P0a）。是否可学到 r\* 由 P4 决定。
+
+<a id="xvm-pi-addendum-20261021"></a>
+**追加登记 PI（2026-10-21 03:2x，写于任何 PI 读数之前；事后探索，不是门，不产生采纳候选）**：P4 未过，按预注册不启动 C.3。为回答"XVM 测量与绝对锚（S39）结合是否有用"，做一个零训练整合探针：S39 栈闭环（W200、ramp1000、Count50、协议初值 rng 0，与 P0d 对照逐位相同）；每步取 S39 滤波输出 x_S39，在上一步自身状态 prev 处用冻结的 P4 patch_r2（600 ms）测量 (m_i, Λ_i)，以 x_S39 为先验（精度 λ_S·P，P 为 50 ms 增量精度）、测量线性化于 prev，一次信息形式更新 `x = x_S39 + (Σ_i B_iᵀΛ̃_iB_i + λ_S P)⁻¹ Σ_i B_iᵀΛ̃_i (m̃_i − B_i(x_S39 − prev))`。λ_S ∈ {1, 4, 16} 三档全部报告、不选择；三种子 3407 / 3408 / 3409。只报告 zgz 主表口径（local / global / RA）及与各自 S39 控制臂的配对差。
+
+<a id="xvm-s2-results-20261021"></a>
+### XVM S2–S3 结果：可学习性、端到端单步、读出对照与整合探针（2026-10-21，产物 `outputs/xvm/s2/`、`outputs/xvm/s3/`）
+
+**P4 测量算子**（arm A，7 名训练受试者训练，seed 3407，12000 次迭代；表中为"有事件的轮廓顶点"法向分量相关，另列有事件顶点的二维相关）
+
+| W_mem (ms) | 头 | 参数 | 选择受试者 | zgz_local | zgz_global | 二维 local | 二维 global |
+|---|---|---|---|---|---|---|---|
+| 50 | XVM 核 r = 1 cm（**按预注册选中**） | 13445 | 0.630 | 0.343 | 0.769 | 0.227 | 0.627 |
+| 50 | XVM 核 r = 2 cm | 13445 | 0.625 | 0.348 | 0.754 | 0.217 | 0.600 |
+| 50 | XVM 核 r = 4 cm | 13445 | 0.600 | 0.307 | 0.732 | 0.201 | 0.589 |
+| 50 | C1 φ + mean/max 记录通路（基线） | 26117 | 0.467 | 0.166 | 0.604 | 0.098 | 0.398 |
+| 200 | XVM 核 r = 1 / 2 / 4 cm | 13445 | 0.610 / 0.622 / 0.589 | 0.341 / 0.318 / 0.253 | 0.719 / 0.751 / 0.715 | — | — |
+| 600 | XVM 核 r = 1 / 2 / 4 cm | 13445 | 0.548 / 0.532 / 0.510 | 0.307 / 0.272 / 0.233 | 0.648 / 0.625 / 0.597 | — | — |
+| 600 | 顶点锚定 patch CNN r = 2 cm（参照臂） | 34053 | **0.846** | **0.644** | **0.967** | 0.572 | 0.909 |
+| 600 | 顶点锚定 patch CNN r = 4 cm（参照臂） | 34053 | 0.841 | 0.614 | 0.969 | 0.541 | 0.942 |
+
+门（选中组 W_mem 50、r 1 cm）：zgz_local 0.343 < r\* 0.825 → 不过；对 φ 通路 +0.177 ≥ +0.10 → 过；选择受试者 → zgz_local 下降 0.287 > 0.15 → 不过；所有尺度 ≥ 0.30 的否定线未触发（有尺度 ≥ 0.30）。**P4 不通过（未被否定）**。按预注册公开报告：参照臂 patch CNN 明显更强（local 0.644、global 0.967），但同样不到 r\*、下降 0.20 > 0.15。逐对点集核在长记忆下变差（最近 64 个事件被旧事件占满，取均值/最大丢掉空间排列），时间面上的局部卷积随记忆变长而受益。
+
+**校准诊断**（事后，不是门）：patch r2 有事件顶点的平均马氏平方 local 1.33 / 2.55（轮廓 / 内部在两个序列上 1.1–2.6，校准时为 2），即边缘上大致校准；但 1-ring 相邻顶点的法向误差相关 local 0.70–0.72、global 0.68–0.74（核 r1 同量级）。P3n 假设逐顶点误差独立，r\* 偏乐观；把约 400 个强相关顶点当独立测量相加，信息被高估。
+
+**P5 端到端单步（E3，学习测量 + P2 的 Gauss–Newton，51 维加性，λ_p = 1）**
+
+| 测量 | E3 local mpjpe_ra / R_art | E3 global mpjpe_ra / R_art | E3 腕点 local / global | E1 local / global |
+|---|---|---|---|---|
+| 恒等（P0a） | 4.41 / 1.00 | 2.43 / 1.00 | 2.69 / 6.06 | — |
+| XVM 核 r1、50 ms（**预注册门**） | 4.35 / 0.978 | 2.84 / 1.61 | 2.76 / 4.91 | 发散（global 99 mm） |
+| patch r2、600 ms（描述） | 4.23 / 0.940 | 2.71 / 1.89 | 3.02 / 2.86 | 26.3 / 143（P6 b_e1） |
+
+门：local 4.35 < 恒等 4.41 但 R_art 0.978 > 0.90 → **P5 不通过**（未到"> 恒等 + 1 mm"的停止线）。global 上测量把腕点误差从 6.06 降到 2.86 mm（平移可测），却给几乎不动的手指注入噪声（R_art > 1）；闭环无绝对锚即漂移发散。
+
+**P6 读出对照**（patch r2 测量冻结）：(a) LBS 槽学习读出 6000 次迭代后 E3 local 4.43 / global 2.46（R_art 1.01，几乎不用测量），E1 发散；(b) 精确传输见 P5。±50 mm / 0.1 rad 扰动 20 步恢复：(a) local 8.7 → 18.3、global 9.5 → 28.5；(b) local 8.7 → 17.7、global 9.5 → 35.3（mpjpe_ra，第 0 / 20 步），两者都不收敛。判读：(b) 在 E3 上比 (a) 好 0.2 mm，恢复两者都失败 → 按门"(b) 差 ≤ 0.5 mm 且恢复更好"不满足后半条；本轮没有可采纳的读出，贡献不能落在读出上。
+
+**PI 整合探针**（事后登记见 [追加登记](#xvm-pi-addendum-20261021)；S39 栈闭环 + patch r2 信息形式更新，三种子，控制臂逐位复现 S39 8.911 / 8.527 / 8.690）
+
+| 种子 | 控制 local / global / RA | λ_S = 1 | λ_S = 4 | λ_S = 16 |
+|---|---|---|---|---|
+| 3407 | 10.68 / 7.38 / 8.91 | 31.76 / 85.13 / 60.32 | 31.48 / 95.23 / 65.60 | 26.06 / 50.63 / 39.21 |
+| 3408 | 10.19 / 7.09 / 8.53 | 29.93 / 75.72 / 54.44 | 28.99 / 59.87 / 45.52 | 24.14 / 52.26 / 39.18 |
+| 3409 | 9.94 / 7.61 / 8.69 | 30.45 / 90.08 / 62.36 | 28.42 / 67.74 / 49.46 | 22.52 / 63.57 / 44.49 |
+
+全部严重变差。机制：测量算子只在近 GT 锚点（平滑 GT，arm A）上训练；S39 自身状态的绝对平移误差约 35–45 mm（主要是深度），网格投影错位数像素，测量处于分布外却仍给出高信息；叠加约 0.7 的相邻误差相关，信息形式更新被测量压倒，闭环崩溃。这不是"测量无信息"，而是"锚点误差分布外 + 相关误差下的过度自信"。
+
+**P4 arm B**（选中组 W_mem 50、r 1 cm，锚点加训练小噪声 σ_t 5 mm、σ_r 0.05 rad、σ_pose 0.05 rad）：选择受试者 0.530（arm A 0.630），zgz_local 0.327（0.343）。小噪声锚点的代价在选择受试者上 −0.10、在 zgz_local 上 −0.016；PI 中 S39 自身状态的误差远大于这档噪声。
+
+<a id="xvm-c1sign-result-20261021"></a>
+**C1+sign**（`configs/xvm/xvm_c1sign_s3407.yaml`，C1 配方 + `MODEL.XYZ_SIGN: true`，GPU 4–5，2×512，严格 C1 数值合同，fresh 6000 步，2 h 3 min）。配对核验：37 个共有张量初值、全部样本索引与输入流 SHA、第 1–2 步共有梯度与 C1 逐位相同（`outputs/xvm/s2/c1sign/pairing_check.json`，完成回执 input_stream / indices SHA 与 C1 完全一致）。评估（`tools/xvm/eval_ckpt.py`，XCL 严格口径；两次 fresh E1 的状态数组 SHA 相同）：
+
+| zgz | C1（XCL） | C1+sign |
+|---|---|---|
+| E1 local / global / RA | 27.99 / 21.06 / 24.28 | 29.90 / 11.64 / 20.13 |
+| E3 local / global | 15.35 / 4.82 | 18.19 / 5.05 |
+| GT-pose 钳位 local | 12.37 | 14.71 |
+
+门：local E1 改善 ≥ 3 mm → 实际变差 1.9 mm，**不通过**；记录层带符号测量解释弱。global 改善 9.4 mm 只有单 seed，且 C1 的 global 本身对采样很敏感（同代码 dedicated 采样 13.25，见 [C1 复现结果](#xyz-c1-repro-result-20261018)），不归因。
+
+主表（`tools/report_table.py` 生成，主行 `outputs/semkine/xvm_c1sign_main_row_step6000.json`，别名 `xvm_c1sign_main_row.json`；默认评估口径与严格口径相差 ≤ 0.04 mm）：
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XYZ C1 可复现基线（seed3407） | 27.99 | 21.06 | 22.50 | 15.35 | 24.28 | 13.89 ms | 0.231 G | 0.46 M |
+| XVM C1+sign：C1 + 带符号轮廓记录特征（seed3407） | 29.86 | 11.65 | 23.30 | 9.48 | 20.12 | 13.29 ms | 0.232 G | 0.46 M |
+
+<a id="xvm-verdict-20261021"></a>
+### XVM 裁决与收敛方向（2026-10-21）
+
+**按预注册**：P4 不过、P5 不过 → **不启动 C.3 完整训练**（两臂 × 三种子未训练，`MODEL.ENCODER: xvm` 生产接线与逐事件增量 / Lie 回环测试也因此未实现）。C1+sign 不过。S39 不变。
+
+**2026-10-29解释范围勘误：** 下文保留当时结论，原始读数与停止决策不改。后续AGG778 R2／MRF将聚合与图算子的阴性结论限定在已测条件；P4的φ头与原C1及patch不是单因素同预算比较，0.166不构成冻结C1的信息上限；FΩ保留结构并重新训练投影与下游。H3置零仍保留残差事件、支持统计和prev48。当前统一解释见[研究稿附录T](网络结构与可观测性诊断研究.md#xyz-c1-bottleneck-synthesis-20261029)，不能继续将下文较强措辞当作已唯一定位的C1病因。
+
+**证据收敛出的结论**
+
+1. **778 顶点聚合与 MeshGNN 感受野都不是瓶颈。** 给定精确改正量，固定 LBS 读出即达 4.2–4.6 mm（FΩ），零参数精确传输更达 0.32 mm（P1）；3 跳 1-ring 无需扩大。XYZ C1 的损失在记录表示：命中记录无位移信息、A3 记录混入面内偏移（Ω-R：R0 5.03 → R1 7.77，按材料点位移聚合收回 1.81 mm），以及 φ 通路几乎学不到运动（P4：φ 0.166）。
+2. **单目逐顶点二维测量在信息上足够，难在测量质量。** P0c / P2 / P3 都通过；要把 local 手指增量误差比压到 0.85 以下，独立噪声下就需要法向相关约 0.83（P3n），而学到的测量误差在相邻顶点间相关约 0.7，实际要求更高。
+3. **"事件特化的 MANO 卷积"按原设想（点集连续核 + 池化）不成立；成立的是"顶点锚定、顶点法向框架、深度缩放的时间面局部卷积"。** 后者在 global 上法向相关 0.97、local 0.64，前者 0.34；但两者都没到 local 门槛。
+4. **测量 + 精确传输单独不能跟踪，与 S39 的朴素信息融合有害。** 无绝对锚即漂移；算子只见过近 GT 锚点，部署锚点（S39 绝对平移误差约 35–45 mm）下分布外且过度自信。
+
+**收敛到的单一方向（供用户决定是否另行授权；本轮不执行）**：保留"顶点锚定的事件测量 + 固定运动学信息传输"作为对 S39 的**速度/平移传感器**，而不是独立跟踪器。必要且只需三件事：(i) 测量算子用时间面局部卷积（不是点集核）；(ii) 在部署分布的锚点上训练（S39 自身闭环状态，S42-B 式），使其对数像素错位稳健；(iii) 信息输出建模相关误差（例如按部位的共享误差项，或对相邻顶点去相关），再做信息形式融合。决定性检验就是重做 PI：三种子对 S39 配对，global 与 RA 同向改善且 local 不变差。local 手指运动的每步事件证据弱（0.64），这条方向对 local 的提升预期有限；local 的剩余杠杆是跨步积累，而非单步测量。
+
+**新颖性**：不是 Nature 级。最近先例：Yuan 等 ICCV 2025（从事件邻域学习法向流，带不确定性）、FlowFace CVPR 2024（逐顶点二维测量 + 不确定性加权拟合）、WiLoR / PyMAF-X（顶点锚定读取）、Xue IJCV 2024、Ren ECCV 2024、E-3DPSM CVPR 2026。在检索范围内未见"原始事件 + 前态顶点锚定 + 各向异性信息 + 固定关节传输 + 手"的组合，但各部件均有先例。本轮最站得住的结果是信息上限分析（P0–P3n、Ω-R、校准与相关误差），以及"点集事件核弱于时间面局部卷积"这一对照。文献见 [网络结构分析附录 I](网络结构分析.md#appendix-i-xvm) 与 `outputs/xvm/literature/ledger.json`（71 篇，`novelty_search_complete=false`）。
+
+**工程与溯源备注**：(1) Ω-R 的 R2/E3 首次运行恰在一次 `git stash`（为核对测试基线）期间启动，因 `model.py` 暂时缺 XAG 键失败，未产生结果文件，已原样重跑；其余作业未受影响。(2) `tools/xvm/p4_data.py` 在 P4 训练进行中增加了 e3 模式（P5 / P6 用），非 e3 路径逻辑不变；三个 A 臂进程在修改前已加载旧模块，但其 receipt 记录的是修改后文件的 SHA。(3) `tests/test_xa_assoc.py`、`tests/test_xag_model.py` 的既有失败来自 10-19 归档已删除的 `configs/xa/`，与本轮修改无关；本轮新增测试 `tests/test_xvm_{ladder,c1sign,operator}.py` 全部通过。
+<!-- EXPERIMENT_RECORD:XVM:END -->
+
+<!-- EXPERIMENT_RECORD:SBA:BEGIN -->
+<a id="sba-prereg-20261022"></a>
+## SBA · 扫掠边界对齐：把 MANO 当作事件生成器（预注册，2026-10-22，写于任何 SBA 读数之前）
+
+### 0. 授权、范围、命名
+
+- 用户 2026-10-21 要求重新分析 S43、收敛到"一个统一机制、原创、对准清楚问题并有证据"的方法；2026-10-22 从三个方向互异的候选（A 生成式扫掠对齐、B 学习测量 + 精确传输、D 事件驱动顶点记忆）中经四视角评审与对抗评审收敛到 A；同日指令"Execute the plan"：执行 `/home/lyq/.claude/plans/pasted-content-id-ca61-reanalyze-s43-iterative-mccarthy.md`。只用物理 GPU 4–7，CPU 全量。
+- 本轮零训练（S0–P3）；P4（训练受试者上拟合模板边缘 / 可靠性）只在 P0–P3 全部通过时执行；不做 6000 步训练，不替换 S39。
+- 产物 `outputs/sba/`，工具 `tools/sba/`，核心 `semkine/sba.py`，测试 `tests/test_sba.py`（8 项，合成数据）。新代码 opt-in，生产路径不导入，S39 默认路径逐位不变。协议不变：9 人训练；zgz 开发 = 测试；任何常数与选择只在训练受试者上定，zgz 只报告。
+- 读数前已见内容（披露）：只有工程冒烟——训练序列 lyq_local / lyq_global 各一个窗口的计时（规划 + 面积 9–11 ms，单次求解 0.26–0.46 s）与该窗口的背景估计（远区背景处于下限 1e-5，前臂胶囊速率 2e-2 / 6e-3）；后者促成了"裁剪区均匀离群分量 η、由 S0 在训练受试者上拟合"的设计，写于任何门读数之前。没有任何 zgz 读数。
+
+### 1. 问题（来自既有证据，见计划文件 §1）
+
+迄今各线都把任务写成"从一个快照（时间面 + 一个静态前态渲染）学一个 50 ms 增量"：学习通路在精确前态处注入误差（XCL E3：C1 15.35 对恒等 4.41）；单边轮廓代价有深度伪极小（XDI：GT 起点漂 45 mm）；学到的逐顶点测量 local 法向相关 0.64 < 0.83 且相邻误差相关 0.7；部署锚点分布外使信息融合崩溃（PI：RA 39–66）。而给定逐顶点二维测量，精确运动学传输即足以解出手指（XVM P1/P2）。缺的是一个把事件解释为"关节式表面随时间运动的后果"的观测模型：在空间（沿边界）、时间（穿越时刻）、运动学上联合，并且既说明哪里有事件也说明哪里没有事件。
+
+### 2. 观测模型与求解（实现定义，`semkine/sba.py`；常数写定，不在 zgz 上调）
+
+- 窗口 (m_prev, m1]，5 ms 时间箱；轨迹 x(α) = x0 + α(x1 − x0)（加性 51 维，与 XDI / XVM 口径一致）；结点 x0 在 m_prev、x1 在 m1。
+- 事件生成曲线：可见的遮挡轮廓边（两相邻面在像面朝向相反；MANO 腕部开口边不计）。可见性：只被其他部位组（掌 / 五指，按主导 LBS 关节）在前方 10 mm 以上遮挡才算不可见（同部位的轮廓不会被自身遮挡；固定容差的同部位 splat 会误删轮廓，单测 sphere 已复现）。轮廓外侧 4 源像素处有更远（> 10 mm）的手表面 → 内部（自遮挡）边，否则剪影边。
+- 扫掠面积：每条边在相邻时间样本之间扫过的条带 ∫|d| dl（d = 外法向 · 端点位移，即表观轮廓的法向运动），面积元间距 1 源像素，双线性沉积在 640×480 源网格，再按数据集自身的 floor(3i/8) 并到 240×180（复现 3/3/2 增益与 0.44 px 偏移）。单测：平移球的扫掠面积 = 4δr（误差 < 6%），推进 / 后退各半且在正确一侧，零运动零面积。
+- 期望计数 λ = κ_sil·A_sil + κ_int·A_int + 背景；背景 = 远离手（裁剪框与前臂胶囊之外）估计的 b0 + 前臂胶囊（腕点沿 MCP 均值→腕方向 −1…+30 cm、半径 4.5 cm 的投影；手框外的胶囊事件给出自由速率）+ 裁剪区均匀离群分量 η ×（窗口裁剪区事件数）；可选 σ = 1 px 高斯模糊（轮廓失配容忍）；有符号模式下剪影边推进 / 后退分属两个极性（每窗剖面一个全局符号），内部边与背景按比例分摊。
+- 似然 Σ N log λ − λ（Poisson）；没有事件处的 −λ 就是负证据（XDI 代价缺这一项）。
+- 求解：起点结点（可选，带高斯先验）与终点结点的粗到精 Fisher 打分；雅可比为期望计数场的中心差分（1 mm / 2 mrad），每次迭代在基轨迹处冻结轮廓集、可见性与面积元数；Levenberg–Marquardt（相对 Hessian 对角的阻尼初值 1，接受后 ×0.3，拒绝 ×10，最多 4 次），试探点用重新规划的真实目标判定；每步截断 2 cm / 0.1 rad；增量先验 = S44 训练 50 ms 增量精度 × (50 / h)²。池化：跟踪 (4,2,1,1,1,1,1,1)，大扰动 (8,4,2,1,1,1,1,1)。状态先验 (5 mm, 0.05, 0.05 rad)；XDI 先验 (0.05 m, 0.3, 0.3 rad)；S39 锚 (0.02 m, 0.10, 0.15 rad)；绝对手指先验权 0.05（训练 GT 高斯，10% 对角收缩）。
+
+### 3. 阶梯、门与停止规则（阈值现在写定）
+
+**S0 审计（训练受试者；任何 zgz 地形 / 跟踪读数之前）**
+- S0a 合成正 / 负对照（`tools/sba/s0_audit.py synth`）：独立模拟器 = KSSF 精确三角光栅（640×480，每 ms GT 网格，不经扫掠代码）；手部对数亮度 −10·(z − 0.6)，背景 −1.5，阈值 0.2 的 v2e 式穿越，floor(3i/8) 并网格，全图均匀噪声 1e-4 / 源像素 / ms；lyq_local、lyq_global 各 30 窗（每 20 个端点取 1）；κ 逐假设剖面、η = 0.1（先验设定）。**门**：条件 A 下根 ±10° 与手指 ±20° 的 GT 优先率均 ≥ 0.90，z 线（−60…+60 mm，5 mm 步）|z\*| 中位 ≤ 5 mm；捐赠事件（≥ 40 mm 或 ≥ 15°）下 GT 优先率（根与手指的平均）≤ 0.60。不过 → 停止（实现或方法缺陷）。
+- S0b 标定与充分性（`calib`）：18 条训练基础序列每 8 个端点取 1，GT 轨迹；(κ_sil, κ_int, η) Poisson MLE；模糊 σ ∈ {0, 1} px 以受试者两折（ch/lfz/lpc/lr/ly 对 lyh/lyq/ycy/ylf）留出似然选。**门**：每事件偏差增益（对裁剪区均匀背景模型）中位在训练 local 与 global 都 > 0，且逐受试者 κ_sil（κ_int/κ_sil 比固定）的 CV ≤ 1.0。不过 → 停止。
+- 极性规则：剪影条带的极性一致性 max(s, 1−s) 中位在训练 local 与 global 都 ≥ 0.70 → P1–P3 用有符号模型，否则合并极性。离散度 = Pearson X² / 裁剪格数（≥ 1），只用作 P3 融合臂的拟似然尺度。
+- S0c：zgz_local 在 GT 轨迹上用训练 κ 预测的手部事件数 / 观测（裁剪区事件 − 背景）中位 ∈ [0.7, 1.3] → κ 固定；否则 P0 主变体与 P1–P3 改用逐窗剖面 κ（不停止，如实报告）。
+
+**P0 似然地形（零训练；`tools/sba/p0_landscape.py`；XDI 包库 zgz 2590 包 + 训练受试者 check 576 包）**
+- 条件 A：两个结点同时加 XDI 扰动（平移 z±50 / x±20 / y±20 mm；根绕相机轴 ±10°、腕点固定；手指（包序号 mod 15）±20°）与 z 线；条件 M：起点 GT，终点 = 保持或 GT 加步长级扰动（±5 mm、±3°、±5°）；条件 D：条件 A 的子集用捐赠包事件（≥ 40 mm / 15°）。三种似然变体：标定 κ、逐假设剖面 κ、单边（只 Σ N log λ，无 −λ）。
+- **门**（每个 zgz 序列，有信息包 = 窗口事件 ≥ 100，主变体由 S0c 定）：通过 = |z\*| 中位 ≤ 10 mm 且根 ±10° 与手指 ±20° 的 GT 优先率都 ≥ 0.70；**否定** = |z\*| 中位 > 20 mm 或任一优先率 < 0.50；捐赠对照有效 = 捐赠下优先率平均 ≤ 0.60。任一序列被否定或对照无效 → 停止。描述：单边变体（预期有偏）、条件 M（GT 对保持、步长扰动）、事件数分层 [0,300) / [300,1000) / [1000,3000) / ≥3000、check 域。
+
+**P1 E3 单步（零训练；`tools/sba/p1_e3.py`；zgz 全部 2590 端点）**：起点结点 = GT（固定），终点从保持出发；h = 50 ms（协议步）与 h = 200 ms（(end−200, end]，裁到段首）。恒等在同一次运行中重算。**门**：通过 = zgz_local mpjpe_ra(h50) < 恒等(h50) 且 zgz_local R_art(h200) ≤ 0.80；**否定** = zgz_local mpjpe_ra(h50) > 恒等 + 1.0 mm → 停止；其间为"部分"，继续。描述：global、有信息子集、XVM patch 参照（E3 4.23 / 2.71）。
+
+**P2 XDI 四门复跑（零训练；`tools/sba/p2_xdi.py`；zgz 2590 包）**：XDI 的同一扰动与评分（`tools/xdi/feasibility.py` summarize：平移用 51 维平移参数，根用测地角，对 GT(end)）；起点结点在 x_in 处带 XDI 先验，终点从 x_in 出发，宽池化。错内容对照改用 ≥ 40 mm / 15° 的捐赠包（XDI 的同序列远包在近静止的 zgz_local 上不是有效对照）。**门**（每个 zgz 序列）：P0a 干净安全 = 腕误差增量 ≤ 3 mm 且 |Δt| 中位 ≤ 5 mm；P0b 深度 = z±50 纠回中位各 ≥ 0.5；P0c 根 = 六个 ±10° 的逐包纠回中位 ≥ 0.5；P0d = 捐赠事件下 z±50 纠回中位 < 0.2。任一序列四门中两门以上不过 → 停止。
+
+**P3 闭环（零训练；`tools/sba/p3_loop.py`）**：独立臂 = 只用 SBA（协议初值噪声，初值种子 0 / 1 / 2，绝对手指先验权 0.05；权 0 的种子 0 作描述）；融合臂 = S39 原环（W200 裁段首、ramp1000、Count50、协议噪声 rng 0）之后接 SBA 后验（终点以 S39 输出为锚），三个 S39 种子；对照臂 = S39 原环，须逐位复现 8.911 / 8.527 / 8.690（差 ≤ 0.005），否则先查实现、不读任何对比。**门**：通过 = 独立臂 overall RA 三初值种子均值 ≤ 12.0 mm，且融合臂 overall RA 均值 ≤ 对照均值 + 0.3，且融合臂 local 均值 ≤ 对照 local 均值 + 0.3；**否定** = 独立臂 > 12.0 或融合 local 比对照差 > 0.3。主行经 `tools/sba/make_row.py` 生成后进入主表（`tools/report_table.py`），含 baseline 与 S39 行。
+
+**P4**（只在 P0–P3 全部通过时）：训练受试者上最大似然拟合模板附着边缘强度 ε(e) 与可靠性；重跑 P1–P3。本轮预算上限（S0–P4）20 GPU·h。
+
+### 4. 不声称与已知限定
+
+- 零训练机制检验，不是 S39 的替代；"优于 S39"仍须三种子配对 RA ≤ S39 − 0.2 且 3/3 为负。
+- 仿真事件（v2e，1000 Hz 帧率插值）与伪 GT（约 60 Hz）；单测试受试者；zgz_local 是全数据集最远、最稀的序列（0.72 m，约 57 px 手，每 50 ms 中位 659 事件）。
+- 加性 51 维轨迹（非流形）；部位组 z-buffer 可见性近似，同一手指节段间的自遮挡被忽略；模板材质边缘本轮为零（只在 P4 拟合）；极性只有全局符号（逐部位潜在亮度留作后续）。
+- 新颖性：组合"LBS 绑定关节模型的前向几何扫掠速率场 + 负证据 + 精确运动学伴随 + 信息形式融合"在已检范围未见，但各部件均有先例（Nehvi CVPRW 2021、Gu ICCV 2021、Gallego TPAMI 2018、Xue BMVC 2022 / IJCV 2024）；评审判定为增量到扎实会议级，不声称 Nature 级。
+
+<a id="sba-s0-results-20261022"></a>
+### SBA S0 结果（2026-10-22，产物 `outputs/sba/s0/`，GPU 4–5）
+
+**S0a 合成正 / 负对照：通过。** 独立模拟器的 60 窗（lyq_local、lyq_global 各 30）：条件 A 下 GT 对根 ±10° 的优先率 1.00、对手指 ±20° 0.975、对平移 1.00；z 线 |z\*| 中位 0 mm。捐赠事件下优先率根 0.48、手指 0.475、平移 0.53（随机水平），|z\*| 中位 45 mm——对照有效。实现与似然在已知生成器下以真值为最优。
+
+**S0b 标定与充分性：通过。** 2877 个训练窗（18 条基础序列每 8 个端点取 1）：留出似然选中模糊 σ = 1 px（每事件 −1.65 对无模糊 −2.01）；κ_sil 2.68、κ_int 1.76（事件 / 源像素²），裁剪区离群比例 η 0.358；逐受试者 κ_sil 的 CV 0.24（门 ≤ 1.0）；每事件偏差增益（对裁剪区均匀背景）中位 local 3.26、global 5.53 nats（门 > 0），即扫掠模型对真实事件的空间—时间分布有很强的解释力。Pearson 离散度 2.36（偏差离散度 0.52）。
+
+**极性规则：合并极性。** 剪影条带极性一致性中位 local 0.637（< 0.70）、global 0.804；global 中 95% 窗口取同一全局符号（手推进 → OFF），local 只有 64% 一致。按预注册规则 P1–P3 用合并极性。
+
+**S0c：不通过 → 剖面 κ。** zgz_local 在 GT 轨迹上用训练 κ 预测的手部事件数是观测的 2.43 倍（中位，1095 窗）：zgz_local 的每次穿越事件数显著低于训练受试者（与其事件稀疏、手更远一致）。按预注册，P0 主变体与 P1–P3 改用逐窗剖面 κ，不停止。
+
+<a id="sba-p0-results-20261022"></a>
+### SBA P0 结果：似然地形（2026-10-22，产物 `outputs/sba/p0/`，GPU 4–7，约 1.3 GPU·h 含 S0）
+
+主变体 = 逐窗剖面 κ（S0c 决定）。有信息包 = 窗口事件 ≥ 100。条件 A 为两个结点同时扰动，数字为 GT 优于扰动的包比例；z\* 为 z 线（−60…+60 mm）似然最大处。
+
+| 域（有信息包） | 根 ±10° | 手指 ±20° | 平移 | z\* 中位 | 捐赠下（根 / 手指） | M：GT 对保持（固定 κ） | M：步长扰动 平移 / 根 / 手指（固定 κ） |
+|---|---|---|---|---|---|---|---|
+| zgz_local（1095） | 0.841 | 0.578 | 0.839 | 45 mm | 0.546 / 0.510 | 0.607 | 0.875 / 0.912 / 0.616 |
+| zgz_global（1378） | 0.922 | 0.585 | 0.973 | 10 mm | 0.489 / 0.501 | 0.983 | 0.830 / 0.840 / 0.563 |
+| check（训练受试者，575） | 0.969 | 0.648 | 0.971 | 10 mm | 0.506 / 0.566 | 0.892 | 0.868 / 0.899 / 0.599 |
+
+**门：zgz_local 被否定**（|z\*| 中位 45 mm > 20 mm），手指优先率 0.578 未到 0.70；zgz_global 未否定也未通过（z\* 10 mm、根 0.922 过，手指 0.585 不过）；两个序列的捐赠对照有效（≈ 0.5）。**按预注册停止：P1、P2、P3、P4 均未执行，没有主行。**
+
+**描述（据同一批记录，事后，不改裁决）**
+- 深度偏置的方向与来源：zgz_local 上 90%（剖面 κ）/ 99%（固定 κ）的包偏好更远的手，z\* 带符号中位 +45 / +60 mm；单边变体（无负证据）+30 mm。训练受试者的 local 包（check）只有 +10 mm，global +5～+10 mm。这与 S0c（zgz_local 每次穿越的事件数只有训练标定的 1/2.4）同源：观测事件偏少时，似然靠缩小、推远手来减少预测扫掠面积，负证据反而加重这一偏置。XDI 的"推远更好"在生成式模型中仍然出现，原因从"单边代价"变为"事件率失配"。
+- 手指在所有域都识别不了：±20° 的手指扰动只在 58–68% 的包里不如 GT，训练受试者也只有 0.65；而在独立模拟器上是 0.975。结合 S0b（裁剪区离群比例 η = 0.36，local 极性一致性 0.64），真实（v2e）事件里手指部分主要不是遮挡轮廓的扫掠：褶皱、指甲、阴影等材质边缘与轮廓失配占了相当比例，零训练的轮廓模型对它们没有解释。
+- 整手运动可以识别：zgz_global 与训练受试者上，平移扰动 0.97、根扰动 0.92–0.97、z\* 5–10 mm；固定 κ 下 GT 运动对"保持"的优先率 global 0.983、check 0.892。剖面 κ 下 GT 对保持恒为 1.0 是剖面的产物（保持没有手部面积，剖面 κ 无从补偿），不作证据。
+
+<a id="sba-verdict-20261022"></a>
+### SBA 裁决（2026-10-22）
+
+- **按预注册**：S0a、S0b 通过；S0c 不过（改用剖面 κ）；P0 在 zgz_local 被否定 → 停止。P1–P3 与 P4 未执行，SBA 没有闭环结果、没有主行。S39 不变。
+- **机制层面确立的**：以 MANO 自身遮挡轮廓沿轨迹扫过的面积作事件生成模型，在已知生成器下以真值为最优（S0a），对真实训练事件的解释力远高于均匀模型（每事件 3.3 / 5.5 nats），并能从单个 50 ms 窗识别整手的平移与根旋转（global 与训练受试者 0.92–0.97）。
+- **被否定的**：零训练的轮廓扫掠模型能识别手指构型（全部域 0.58–0.68），以及在 zgz_local 上能定深度（+45 mm 偏置）。前者说明手指事件的主体不是遮挡轮廓，后者说明每次穿越的事件率在受试者 / 距离间不可迁移。
+- **未检验的**：计划中的 P4（训练受试者上拟合模板附着材质边缘与可靠性）正是针对手指事件的来源，但按门未执行；它与逐窗深度—事件率的联合估计是这条线唯一剩下的未检验杠杆，需用户另行授权。
+- **工程限定**：Fisher 打分求解器（P1–P3 才用，P0 只比较似然）在合成 MANO 单测上不稳定——GPU 原子加的浮点次序使求解路径不确定，`tests/test_sba.py::test_solver_recovers_mano_state` 约一半次数通过（根对齐关节误差 2.20 → 0.98–2.24 mm，失败时到 2.83 mm）；其余 7 项单测稳定通过。该测试保持原样、未放宽。若续做 P1–P3，须先换解析雅可比并使沉积确定化，再重验求解器。
+<a id="sba-d-prereg-20261022"></a>
+### SBA D 轮预注册：P0 的 zgz_local 深度偏置从何而来（2026-10-22，写于任何 D 读数之前）
+
+- 用户 2026-10-22 追加指令：分析 P0 为何停止（zgz_local 最优深度 +45 mm），并指出"都是 2D 上计算变化量，关深度什么事"；在分析基础上提出一个针对性创新点，然后训练，并执行 P4；只用 GPU 4–7（四卡）。
+- 回答"关深度什么事"：SBA 只算二维变化；P0 的 z 线只是一个让预测二维图样整体缩放（z 远 6% 即缩小约 6%）并向主点平移（约 6% 的离心距离）的旋钮。+45 mm 的含义是：zgz_local 的事件更符合"比标注投影更小、更靠近主点"的手部二维图样——这是二维配准失配，借深度旋钮读出，并非三维深度估计。它影响下游，是因为同样的二维位移在错误的尺度下对应错误的三维转角。
+- 读数前已见（披露）：P0 全部记录；以及据其做的探索——zgz_local 中 z\* 与标签抖动比几乎无关（抖动比三分位的 z\* 中位 +40 / +45 / +50 mm），与手指运动量弱负相关（Spearman −0.21），与事件数无关（−0.02）。修订前发现并已改正一个缺陷：前臂胶囊方向取的关节 (1, 4, 7, 10) 在 ManoLayer 的 OpenPose 关节序下是拇指 CMC、拇指尖、食指 DIP、中指 PIP，而不是四个掌指关节 (5, 9, 13, 17)；P0 结果用的是错误索引（`MCP_JOINTS_LEGACY`，勘误）。
+- 族（零训练，P0 的同一批包与剖面 κ；`tools/sba/d_diag.py`）：S 运动缩放（根块 s_r ∈ {0, 0.5, 1} × 手指块 s_f ∈ {0, 0.5, 1, 1.5}）；ZS 去根运动后的 z 线；O 整体二维偏移 ±3 px 网格；G 绕腕几何缩放 σ ∈ 0.92…1.08；T 标签—事件时间偏移 ±30 ms；K ±25 ms 平滑结点的 z 线；E κ 与离群比例同时剖面的 z 线；C 修正胶囊的 z 线；PH 内部像素（终点剪影内 ≥ 2 px、两结点均覆盖）的事件数对法向旋转 |dn|（明暗）与表面点二维位移 |du|（纹理流）的（偏）秩相关，以及极性 sign(ON − OFF) 由 sign(l·dn)（每段录制一个光照方向 l，偶数窗拟合、奇数窗评估）预测的准确率与像素打乱零假设；R 残差图（手部坐标系）。
+- 判读（现在写定，zgz_local 为主，训练受试者 check 为对照）：H1 标签运动偏大 = ZS 的 |z\*| 中位 ≤ 10 mm 或 S 的最优 s_r / s_f 中位 < 1；H2 二维偏移 = O 的最优偏移中位 |Δ| ≥ 1 px；H3 尺度 = G 的 σ\* 中位 ≤ 0.96；H4 时间偏移 = T 的 |τ\*| 中位 ≥ 10 ms；H5 标签噪声 = K 的 |z\*| 中位 ≤ 10 mm；H6 离群比例 = E 的 |z\*| 中位 ≤ 10 mm；H7 前臂胶囊 = C 的 |z\*| 中位 ≤ 10 mm；H8 明暗是手指证据主体 = 内部像素事件数与 |dn| 的偏相关（控制 |du|）> 0.1 且大于与 |du| 的偏相关，并且极性留出准确率 ≥ 0.65 且比打乱零假设高 ≥ 0.10。可同时成立多个；创新点只针对被确认的原因提出，并在任何训练读数之前另行预注册。
+<a id="sba-d-results-20261022"></a>
+### SBA D 轮结果：+45 mm 是标签—图像的二维尺度失配，手指证据被单一发射率高估（2026-10-22，产物 `outputs/sba/d/`，GPU 4–7）
+
+| 族（zgz_local；括号内 zgz_global / 训练 local / 训练 global） | 读数 | 判读 |
+|---|---|---|
+| ZS 去掉根运动后的 z\* | +45 mm（+10 / +10 / +5） | 深度偏置不靠根运动（H1 的深度部分否定） |
+| K 平滑结点（±25 ms）的 z\* | +45 mm（+10 / +10 / +5） | 不是标签抖动（H5 否定） |
+| E κ 与离群比例同时剖面的 z\* | +45 mm（+10 / +10 / +5） | 不是离群比例错配（H6 否定） |
+| C 修正前臂胶囊后的 z\* | +45 mm（+10 / +10 / +5） | 胶囊缺陷不是原因（H7 否定；勘误照记） |
+| T 标签—事件时间偏移 τ\* | 0 ms（+10 / 0 / 0） | 没有时间错位（H4 否定） |
+| G 绕腕几何缩放 σ\*（深度不变） | **0.94**（0.96 / 0.98 / 0.98） | **事件图样比标签投影小 6%；+45 mm / 0.72 m = 6.2%，与 z 线同一现象（H3 成立）** |
+| O 整体二维偏移 | 中位 (0, +1) px，零偏移只占 8%（(−1, 0) / (0, 0) / (0, 0)） | 小幅下移，次要（H2 边界成立） |
+| S 运动缩放 s_r\* / s_f\* | 0.5 / 0.5（1.0 / 0.5；0.5 / 0.5；1.0 / 0.5） | 模型对手指扫掠的预测约为事件所支持的 2 倍，所有域皆然；局部序列的根运动也一样 |
+| R 残差图 | 正残差占事件 25%，其中腕后（前臂侧）只 9%（全局与训练 31–37%）；事件的手部坐标半径 RMS 0.76 对模型 0.85 | zgz_local 的未解释事件在手内而非前臂；事件分布比模型更紧凑 |
+| PH 内部像素 | 事件数与法向旋转 \|dn\| 的偏秩相关 0.15（控制 \|du\|），与 \|du\| 的 0.10（global 0.17 / 0.52）；极性留出准确率 0.53 对打乱 0.51（训练 local 0.49 对 0.50） | 极性不能由单一光照下的明暗预测（H8 否定）：内部事件不是朗伯明暗通道 |
+
+**独立旁证（既有产物，未新跑）**：S39 存档的逐步预测（`outputs/dt3/gate_eval/ramp1000_w200/dt_dz_l3_s340{7,8,9}/`）把 zgz_local 的手放得更远 +40 / +50 / +30 mm（91–97% 的步更远），zgz_global +44 / +29 / +26 mm（96–100%）。一个学习式稠密网络和一个零训练生成式模型独立地给出同向、同量级的偏差。
+
+**分析结论**
+1. **"深度"问题是 zgz 标签与图像之间约 6% 的二维尺度失配**（伪 GT 的手型 / 深度与 RGB 图像不一致；zgz_local 的标签质量在 local 序列中本来最差，DT3 已记）。任何只看二维变化的方法都必须把这 6% 放到某个变量里：S39 和 SBA 都放到深度——主表的根对齐指标对深度不敏感，所以无害；若放进手指屈曲（缩小剪影的另一种方式）就会直接伤 RA。P0 的深度门测的是标签失配，不是跟踪失败；但它揭示了一个必须显式吸收的二维规范自由度（尺度）。
+2. **真正的未解问题是手指**：单一发射率下模型对手指扫掠的预测约为事件的 2 倍（所有域 s_f\* = 0.5），手指 ±20° 只在 58–68% 的包里可分辨；明暗不是答案（极性不可预测）。这指向逐部位的发射率差异（细手指、自遮挡低对比、材质边缘），也就是 P4 要学的东西。
+3. 两件事是同一个结构问题：**图像形成的冗余量（尺度规范、逐部位发射率、未解释事件率）与关节运动作用在同一组二维观测上**。固定这些量（S0 的单一 κ）或让网络隐式学习（S39 / S43）时，其失配会被吸收到错误的变量里——深度、手指运动幅度、或手指构型。
+<a id="sba-p4-prereg-20261022"></a>
+### SBA 第二轮预注册：冗余量正交的生成式事件推断 + P4 发射模型训练（2026-10-22，写于任何 P4 / Q0 读数之前）
+
+**创新点（一个）**：*冗余量正交的生成式事件推断*（nuisance-orthogonal generative event inference）。事件的生成式似然 ℓ(a, η) 同时依赖关节运动 a（手指 45 维与根）和图像形成冗余量 η = （二维尺度规范 σ、逐部位发射率 m_g、未解释事件率）。D 轮证明这些冗余量与关节作用在同一组二维观测上，任何固定或隐式学到的 η 的失配都会被吸收进错误的变量（S39 与 SBA 都把 6% 尺度失配吸收进深度；单一发射率使手指扫掠被高估 2 倍）。机制：关节只从 η 被剖面后的似然读取——对每个关节假设，η 以 P4 在训练受试者上学到的值为先验中心、按窗口重新估计；在高斯–牛顿形式下即用有效得分 s̃_a = s_a − I_aη I_ηη⁻¹ s_η 与有效信息 Ĩ_aa = I_aa − I_aη I_ηη⁻¹ I_ηa（Schur 补）更新关节，使关节估计对 η 的失配一阶不敏感（Neyman 正交）。它不是新增模块，而是对同一个生成式似然改变"哪些量由数据决定、哪些量必须与之正交"的推断方式；可推广到任何参数化关节体（SMPL、动物、机器人）与任何前向模型有不确定成像参数的传感器。
+- 新颖性的诚实说明：正交 / 有效得分（Neyman 1959；Chernozhukov 等 2018 双重机器学习）、剖面似然、SLAM 中的规范自由度处理都是经典工具；在事件相机的关节体跟踪中把图像形成冗余量（尺度规范、逐部位发射率）显式正交掉，在已检范围未见。评审口径仍是"扎实会议级候选"，"Nature 级"需要跨传感器、跨物体的证据，本轮不声称。
+
+**P4 训练（零 zgz 读数）**：发射模型 λ = Σ_c θ_c F_c + 背景 + η·均匀场，通道 = 剪影扫掠 × 6 部位组 + 内部扫掠 × 6 部位组 + 材质扫掠 × 96 个模板片（静息网格边中点 k-means，确定性；`semkine/sba_emission.py`）。数据 = 9 名训练受试者基础序列每 4 个端点取 1 的标签轨迹窗（`tools/sba/p4_cache.py`，模糊 1 px）；拟合受试者 ch / lfz / lpc / lr / ly / lyh / lyq，选择受试者 ycy / ylf。目标 = Poisson 负对数似然 + 相邻模板片的平滑罚（λ_s ∈ {0, 0.01, 0.1, 1}，以选择受试者留出似然选择）；GPU 4–7 四卡数据并行（torchrun / NCCL），全批 L-BFGS（对数参数，θ ≥ 0）。报告：选择受试者上每事件留出似然相对 S0 式两参数轮廓模型（同窗重拟合）的增益。
+
+**Q0 似然地形（新机制的零训练检验；P0 的同一批包；`tools/sba/q0_landscape.py`）**：每个假设都剖面冗余量：逐部位发射倍率 m_g（6 组，作用于该组的剪影、内部与多数边属于该组的材质通道）与离群率 η（凸 Poisson 回归），以及尺度 σ ∈ {0.90, 0.92, …, 1.04}（绕腕，深度不变）。变体：V0 = P0 模型复现；V1 = P4 θ、单一尺度剖面；V2 = V1 + m_g、η 剖面；V3 = V2 + σ 剖面（主变体）。假设：GT、根 ±10°（6）、手指 ±20°（2）、平移（6）、手指运动缩放 s_f ∈ {0.5, 1.5}，以及捐赠事件下的 GT / 根 / 手指。
+- **Q0 门**（每个 zgz 序列，有信息包，主变体 V3）：通过 = 手指 ±20° 与根 ±10° 的 GT 优先率都 ≥ 0.70 且捐赠对照有效（≤ 0.60）；**否定** = 任一序列手指优先率 < 0.60 → 停止。深度不进门（根对齐指标对深度不敏感，D 轮已说明其来源），z\*（σ 固定为 1 时）与 σ\* 只作描述。
+- 通过后依次执行 P1′（E3 单步）、P2′（XDI 四门）、P3′（闭环）：门与停止规则沿用第一轮（`#sba-prereg-20261022` §3），求解器在每次迭代的基轨迹处剖面 m_g、η，并把 log σ 作为带弱先验（标准差 0.05）的状态维。若 Q0 不过，停止并如实登记。
+<a id="sba-p4-results-20261022"></a>
+### SBA P4 训练结果：发射模型（2026-10-22，产物 `outputs/sba/p4/`，GPU 4–7 四卡数据并行）
+
+- 数据：训练受试者基础序列每 4 个端点取 1 的 5,746 个标签轨迹窗（`p4_cache.py`，8 个分片，约 30 s / 分片），拟合 7 人、选择 ycy / ylf；zgz 未读。
+- 拟合：全批 L-BFGS（对数参数），四卡 NCCL 全归约；平滑罚以选择受试者留出似然选中 λ_s = 0（0 / 0.01 / 0.1 / 1 的选择集每事件负对数似然 1.9637 / 1.9654 / 1.9706 / 1.9770）。
+- **选择受试者上每事件留出负对数似然 1.964，对同窗重拟合的两参数轮廓模型 2.029，增益 0.066 nats / 事件**；未解释事件比例 η 由 0.36 降到 0.28。
+- 学到的发射率：剪影边各部位相近（掌 2.41、食 2.10、中 1.97、小 2.16、无名 2.51、拇 2.71）；**自遮挡（内部）边差异极大**：掌 1.38、食 2.17、拇 1.71，而中指 0.66、无名指 0.58、小指 0.016——这正是 D 轮"单一发射率把手指扫掠高估约 2 倍"的来源。材质边（模板片）96 个中 79 个 > 0.05，中位 0.46、p90 1.21：表面附着的亮度边（褶皱、指甲等）是真实事件源。
+- 工程：本机 GPU 4–7 的 NCCL 点对点会挂起（四卡全归约测试超时），设 `NCCL_P2P_DISABLE=1` 后 0.35 s 完成；第一次拟合因此挂起 20 分钟后被终止重跑，结果只取重跑。
+<a id="sba-q0-results-20261022"></a>
+### SBA Q0 结果：冗余量正交推断在 local 上没有让手指可辨（2026-10-22，产物 `outputs/sba/q0/`，GPU 4–7）
+
+数字为 GT 优于扰动的包比例（有信息包）。V0 = P0 模型复现，V3 = P4 发射模型 + 逐部位发射倍率 / 离群率 / 尺度规范逐假设剖面（主变体）。
+
+| 域 | 手指 ±20°：V0 → V1 → V2 → V3 | 根 ±10°（V3） | 平移（V3） | 捐赠下 根 / 手指（V3） | σ\*（GT 处） |
+|---|---|---|---|---|---|
+| zgz_local（1095） | 0.579 → 0.581 → 0.535 → **0.570** | 0.870 | 0.854 | 0.530 / 0.495 | 0.94 |
+| zgz_global（1378） | 0.585 → 0.590 → 0.592 → **0.644** | 0.943 | 0.979 | 0.402 / 0.400 | 0.96 |
+| 训练拟合受试者 local / global | 0.626 → 0.590；0.714 → 0.770 | 0.941 / 0.992 | 0.959 / 0.982 | — | 0.98 / 0.98 |
+| 选择受试者 ycy / ylf local / global | 0.562 → 0.602；0.578 → 0.742 | 0.951 / 0.901 | 0.997 / 0.938 | — | 0.96 / 0.96 |
+
+**门：zgz_local 被否定（手指 0.570 < 0.60）→ 按预注册停止，P1′–P3′ 未执行，无主行。** zgz_global 未否定也未通过（0.644）。S39 不变。
+
+**描述（据同批记录与标签，事后，不改裁决）**
+- 冗余量正交推断在 global 上有效、在 local 上无效：global 的手指优先率在所有域都提高（zgz +0.06，训练拟合受试者 +0.06，留出受试者 +0.16），local 在所有域都停在 0.53–0.60（训练受试者也一样）。尺度规范 σ\* 稳定地在 zgz 0.94–0.96、训练 0.96–0.98，与 D 轮一致。
+- 按被扰动关节在窗内的标签转角分三档：优先率不随该关节运动增大而提高，反而略降（zgz_global 0.68 / 0.66 / 0.59，训练 global 0.88 / 0.77 / 0.65）。
+- 标签的关节级运动：每 50 ms 每关节转角中位，zgz_local 原始 5.5°、±25 ms 平滑后 4.0°（训练 local 5.2 / 3.9–4.0°，global 4.1 / 2.9–3.0°）——local 序列在关节层面并不比 global 慢，且约 27% 是高频标签成分。
+- 解读（假设，未检验）：local 的手掌静止、只有手指运动时，单个 50 ms 窗内的事件对手指构型的约束弱于标签自身的关节级噪声与模型失配；global 中整手运动使所有轮廓（含手指）都在扫掠，手指位置因此可读。也就是说，局部手指构型的可观测性取决于"有没有被运动照亮的轮廓"，而不是发射模型或冗余量处理是否正确。
+
+<a id="sba-r2-verdict-20261022"></a>
+### SBA 第二轮裁决（2026-10-22）
+
+- 用户问"都是 2D 上计算变化量，关深度什么事"：P0 的 +45 mm 不是深度估计，而是 zgz 标签投影与图像约 6% 的二维尺度失配（σ\* = 0.94 在深度不变时复现；S39 存档预测同向偏远 +30～+50 mm）。根对齐指标对它不敏感；它是一个必须显式吸收的二维规范自由度。
+- P4 训练完成（四卡）：发射模型在留出受试者上每事件提升 0.066 nats，揭示自遮挡边的发射率在中 / 无名 / 小指上远低于拇 / 食 / 掌，材质边是真实事件源。
+- 创新点（冗余量正交推断）在 global 上把手指可辨性从 0.58–0.71 提高到 0.64–0.77，但 zgz_local 的 Q0 门被否定（0.570），按预注册停止，没有闭环结果，S39 不变。
+- 两轮共同的结论：在本数据（v2e 由 60 fps RGB 仿真、约 60 Hz 伪 GT、zgz_local 手约 57 px）上，静止手掌下手指构型在单个 50 ms 窗内几乎不可由事件识别——学习式（S39 / S43 的手指输出来自 prev_mlp，XVM 学到的测量相关 0.64）与物理式（SBA 0.57）殊途同归。剩余杠杆是跨窗口积累（固定滞后多窗求解）与更高质量的标签；两者都需要另行授权的新实验。
+
+<a id="sba-why-20261022"></a>
+### SBA 停止原因复核：两个门测的是什么（2026-10-22，事后描述，不改 P0 / Q0 裁决）
+
+用户要求分析失败原因。只用既有 P0 / Q0 逐包记录与 GT 几何，无新似然读数、CPU；工具 `tools/sba/p0_visibility.py`，产物 `outputs/sba/p0v/`（3166 包逐假设的可见部位图变化面积，240×180 像素²，画家算法渲染；P0 主变体剖面 κ、有信息包）。它修正上面 D 轮与第二轮裁决中的两处解读。
+
+**1. 手指门测的是绕骨轴的扭转，不是手指构型。** P0 / Q0 的手指扰动沿用 XDI 定义（关节 = 包序号 mod 15，局部 x 轴，右乘）。R_full·R_x(θ) = R_{R_full·e_x}(θ)·R_full，即绕该节段当前骨向转 θ；本 MANO 模板静息骨向与 −x 的夹角：食 4–8°、中 10–11°、无名 11–18°、小 33–36°、拇 35–50°。所以它主要是扭转，DIP 档是指尖节段的纯滚动。
+
+| 域 | 可见变化中位：P0 手指 ±20°（扭转） | 参照：屈曲 ±20° / 外展 ±20°（不在 P0 中） | 根 ±10° / 平移 | 21 关节误差（mm）：扭转 / 屈曲 / 根 ±10° |
+|---|---|---|---|---|
+| zgz_local | 15.6 | 28.7 / 45.4 | 446 / 901 | 0.54 / 1.22 / 13.8 |
+| zgz_global | 24.0 | 45.8 / 126.6 | 1073 / 1807 | 0.51 / 1.28 / 15.3 |
+| 训练 check | 26.7 | 50.1 / 73.6 | 1063 / 1752 | 0.43 / 1.46 / 14.9 |
+
+GT 优先率随可见变化单调上升（P0，手指）：< 10 像素² 0.29–0.53，10–40 为 0.52–0.64，40–80 为 0.61–0.76，80–160 为 0.65–0.85；按关节级 DIP 0.48–0.54（所有域都是随机水平）、PIP 0.56–0.70、MCP 0.66–0.75。根扰动在 160–320 像素² 只有 0.47–0.82。P0 中，可见变化相同时 local 不比 global 差（训练 local / global 在 80+ 像素²：0.83 / 0.86；zgz 40–80 像素²：0.76 / 0.61）；整体差距主要来自扰动本身的大小（zgz_local 中位 15.6 对 global 24.0）。Q0 V3 只在 global 提高：训练 global 每档都升，DIP 的纯滚动也到 0.67（P4 的表面附着材质边随滚动移动）；local 不升（训练 local 40–80 像素² 0.61 对 global 0.75），这一点支持第二轮"local 缺扫掠轮廓"的解读，但只适用于 V3。
+- 结论：手指 0.58–0.65 的主因是探针造成的图像变化只有根 / 平移探针的 1/30–1/70，对应约 0.5 mm 关节误差（S39 local 10.27 mm）。这不能证明"与 MPJPE 相关的手指构型误差不可识别"；S0a 合成 0.975 是因为无噪声事件下亚像素变化也能分辨，0.70 门没有按探针可见度标定。Q0 的否定（< 0.60）落在同一探针上。第二轮裁决"静止手掌下手指构型几乎不可识别"应限定为"单关节 ±20° 扭转探针不可识别"。
+
+**2. 深度门测的是各段录制的标签—事件二维尺度差 × 距离，不是 zgz 特有。** Q0 在 GT 处剖面的 σ\* 在每段录制的 base / v2 / v3 / v4 中相同（共享标签；v4 的 K 不同，故不是内参误差），在录制间变化：ycy_local 0.93（训练受试者）、lyh_local 0.96、zgz_local 0.94、zgz_global 0.96、多数训练录制 0.98–0.99、lpc_local 1.01。按 z\* ≈ 深度 × (1/σ\* − 1) 预测，20 段录制上与 P0 z\* 的 Pearson 0.72：zgz_local 0.72 m（全部录制最远）预测 +46 对实测 +45 mm，ycy_local 0.64 m 预测 +48 对实测 +20 mm（32 包），lyh_local +27 对 +20 mm；σ\* 与深度的 Spearman −0.47。
+- 结论：P0 的停止来自"最远的录制 × 较大的录制级尺度差"，同类偏差也存在于训练录制，深度门实际在测标签—图像的一致性。剖面 κ 让总事件率自由（E 族再剖面离群率，z\* 仍为 +45 mm），所以 P0 首次报告中"事件率失配把手推远"的机制不成立；固定 κ 时多出的 +15 mm（+60 对 +45）才来自事件率。D 轮"zgz 标签特有约 6% 失配"应改为"录制级、训练中也有（0.93–1.01）"。
+
+**3. 仍未检验**：与 MPJPE 相关的手指误差（多关节屈曲 / 外展，按关节误差 3–5 mm 定尺度）在单窗内是否可识别；该检验应先在训练受试者上定门再读 zgz，需另行授权。
+
+<a id="sba-r3-prereg-20261022"></a>
+### SBA 第三轮预注册：与 MPJPE 相关的手指误差可辨性与跨窗积累（零训练地形；2026-10-22，写于任何第三轮 zgz 读数之前）
+
+**0. 授权与范围**
+- 用户 2026-10-22 指令"参考 docs 的研究结论重新设计实验"，批准计划 `/home/lyq/.claude/plans/please-refer-to-the-logical-hollerith.md`。
+- 本轮只执行零训练地形（E0 / E1 / E3 / E2 / E8）。条件段（求解器修复、固定滞后求解、闭环）只预注册（§7），不实现、不运行，待地形裁决后另行授权。
+- 物理 GPU 2–7，CPU 全量；启动时若 GPU 2–3 被占用则只用 4–7。
+- S39 与全部默认路径不变。新代码 opt-in：`tools/sba/r3_probe.py`（E0）、`r3_lik.py`、`r3_e1.py`、`r3_e8.py`、`tests/test_sba_r3.py`（33 项）、`outputs/sba/run_r3.sh`；产物 `outputs/sba/r3/`。
+- 冻结文件 SHA 与全部常数写入 `outputs/sba/r3/protocol.json`；任一 GPU 入口对不上即拒绝启动。
+- 协议不变：9 人训练、zgz 开发 = 测试；门与常数只在训练受试者上定，zgz 只报告。
+
+**1. 要回答的问题**（承 `#sba-why-20261022`）
+- 第一二轮的手指门测的是绕骨轴扭转（约 0.5 mm 关节误差），深度门测的是录制级标签—事件尺度差 × 距离。
+- 两个问题因此仍未回答：(a) 按关节误差定尺度的解剖手指误差（5 / 10 mm）在单个 50 ms 窗内能否由事件识别；(b) 若单窗不足，≤ 200 ms 的跨窗积累（每个事件只用一次）是不是杠杆（`#sba-r2-verdict-20261022` 的"剩余杠杆"）。
+
+**2. 读数前已见（披露）**
+- (1) 第一二轮全部记录（S0 / P0 / D / P4 / Q0 / p0v）与 `#sba-why` 的可见变化—优先率曲线。
+- (2) 设计评审对既有产物的只读分析：
+  - Q0 V3 手指优先率对 p0v 可见面积的 logistic：只用 fit 受试者拟合，logit = −0.97 + 0.44·ln(1+A) + 0.84·[global]；
+  - 30–40 个 zgz GT 姿态上四指协同的根可解释能量；
+  - 每 mm 的可见面积；
+  - Q0 捐赠 0.24–0.40；
+  - Q0 σ\* 网格边缘堆积（zgz_local 15 % 落在 0.90）；
+  - GPU 5 上 2 个包的计时（无假设比较）；
+  - zgz_local 3–5 个 GT 姿态的二分原型。
+- (3) E0 全量结果（只用 GT 几何，无事件），见 §3 的表。
+- (4) 工程自检（只用训练受试者 check，产物在 scratch，不入账）：
+  - selftest：2 包 × 3 假设（clean、twist ±20）与 Q0 V2 一致（≤ 2.5e-4 nats）；包含这 2 包上的对数似然值。
+  - E1 冒烟 9 个 check 包、E8 冒烟 4 条 check 链：只看了耗时、有限性与收敛率。
+- (5) 工程发现：Q0 的投影牛顿（`q0_landscape.profile`）在权重压在 0 边界时不收敛（捐赠事件下 47 % 的剖面在 40 步后仍在振荡）。第一二轮的捐赠优先率（如 zgz_global 0.24–0.40）因此可能受未收敛影响。本轮改为带活动集与回溯的投影牛顿（同模型、同起点、同岭项，单调上升），在 Q0 收敛的问题上结果相同：真实包相差 ≤ 1.5e-11 nats，内点最优合成问题相差 ≤ 1e-8。最后一步相对步长 > 1e-6 的剖面记为失败（NaN，计为平局并计入失败率）。
+- 没有任何第三轮 zgz 似然读数。
+
+**3. E0 探针契约**（`r3_probe.py`，CPU，3166 包）
+- **解剖坐标系**：由所录制 betas 的静息几何定义。
+  - 掌法向 n = (食指 MCP − 腕) × (小指 MCP − 腕)，定向使 mean pose 的指尖朝 +n。
+  - 每指 b = MCP→指尖投影到掌平面。屈曲轴 b × n，MCP / PIP / DIP 共轴，+ 为向掌心弯。
+  - 外展轴 ±n，+ 为远离中指；中指 + 为朝食指。
+  - 拇指 CMC 对掌轴：把 CMC→指尖方向（掌坐标系，取包的终点结点）转向"掌心 + 30 mm·n"的最短弧轴。
+- **扰动原语**：在父坐标系左乘 exp(θa)，即 full = 残差 + hands_mean，R ← exp(θa)R，残差 = log R − hands_mean，铰链固定在近端节段。
+- **幅度**：在终点结点上用真实 FK 二分（[0, 80°]，18 步，≤ 2 %）定，起点结点用同一角度（及同一轴、同一根补偿）。主条件 A 为两结点同偏移。
+
+| 假设 | 定义 | 目标误差 |
+|---|---|---|
+| pip / mcpf / mcpa | 单个长指（序号 mod 4）的 PIP 屈曲 / MCP 屈曲 / MCP 外展 | 该指 4 个 OpenPose 结点的腕对齐平均位移 5、10 mm |
+| thm | 拇指 CMC 对掌 | 拇指 4 结点 5、10 mm |
+| syn | 四长指 MCP : PIP : DIP = 1 : 1 : 0.67 | 21 关节腕对齐平均 3、5、10 mm |
+| synrc | syn 去掉其最小二乘根旋转（同一关节度量，一次精化）后再二分 | 21 关节 5、10 mm |
+| root / trans | 根绕相机轴（序号 mod 3，腕固定）/ 横向平移（序号 mod 2） | 21 关节 5、10 mm / 恰为 5、10 mm |
+| tw | 旧探针（局部 x，±20°，关节 = 序号 mod 15） | 回归与近零参照 |
+| fsw | 同录制另一包的手指块（自然方向），根与平移不变 | 自然 D（记录） |
+| gauge0.97 / 1.03 | 网格绕腕缩放（深度不变），在 σ·s 处计分 | 规范自由度阳性对照 |
+| synM | syn 只加在终点结点（增量误差） | 描述 |
+| sm25 | 两结点换成 ±25 ms 平滑 GT | 标签抖动哨兵 |
+
+- **E0 有效性（已通过）**：
+  - 二分达标 0.9998（门 ≥ 0.999）；FK 线性 err(2θ)/err(θ) ∈ [1.8, 2.1] 的比例 0.962（门 ≥ 0.95）。
+  - 模板屈曲指尖朝 n 的余弦最小 0.989（门 ≥ 0.98）；外展侧向 0.999；对掌缩短指尖—目标距离。
+  - 食 / 中 / 无名指的 twist 在模板上 ≤ 0.65 mm（门 < 1 mm；小指与拇指的局部 x 不是扭转，只报告）。
+- **E0 几何（可见部位图变化面积中位，240×180 像素²；括号内为 ≥ 40 像素²的比例）**：
+
+| 假设 | zgz_local | zgz_global | check local | check global |
+|---|---|---|---|---|
+| 单指屈曲 5 mm（pip / mcpf） | 26 / 23（0.16 / 0.04） | 43 / 40 | 36 / 38 | 50 / 47 |
+| 单指屈曲 10 mm | 46 / 44（0.60 / 0.58） | 86 / 80 | 69 / 76 | 100 / 94 |
+| 外展 5 / 10 mm | 60 / 106 | 127 / 234 | 99 / 176 | 137 / 247 |
+| 拇指对掌 5 / 10 mm | 65 / 113 | 122 / 221 | 119 / 222 | 132 / 243 |
+| 协同 3 / 5 / 10 mm | 67 / 110 / 217 | 126 / 213 / 426 | 111 / 179 / 343 | 137 / 224 / 449 |
+| 去根协同 5 / 10 mm | 150 / 278 | 299 / 560 | 247 / 454 | 317 / 593 |
+| 根 5 / 10 mm | 252 / 456 | 464 / 848 | 383 / 707 | 587 / 1062 |
+| 旧 twist ±20°（21 关节 0.23–0.38 mm） | 17 | 24 | 28 | 24 |
+
+- 单指屈曲多半沿视线方向，单目下图像变化小：zgz_local 5 mm 仅约 25 像素²，外展约为其 2.5 倍。
+- 协同 5 mm 的根可解释能量中位为 0.60 / 0.73 / 0.59 / 0.72，故门用去根协同。
+
+**4. E1 / E3：单窗似然地形**（`r3_e1.py`）
+- **包**：P0 / Q0 同一批（zgz_local 1204、zgz_global 1386、check 576），有信息 = 窗口事件 ≥ 100。窗口由 GT 轨迹建立，所有假设与捐赠共用。
+- **似然**：P4 发射模型（`outputs/sba/p4/fit_raw_b1.json`）的 6 组扫掠特征；每个假设剖面 m_g（6）与 η（变体 mg，主）。描述变体：m1（单倍率）、geo（去掉 96 个材质通道）。
+- **σ 规范**：网格 0.86…1.06（11 点，步 0.02），保存每个假设 × σ 的剖面对数似然。三种处理：
+  - P：逐假设取最大（3 点抛物线精化），主处理；
+  - R：录制级 σ_r，用同录制另一半（zgz 交替 20 包块；check 交替基包）的 clean 似然和交叉拟合；
+  - C：每包 clean 最优 σ（oracle）。
+  - 深度 / z_pred = 深度·(1/σ_r − 1) 只描述，不进门。
+- **捐赠（错内容）**：从 index + n/2 起第一个 GT 终点相差 ≥ 40 mm（腕）或 ≥ 15°（根）的行，事件重定时到本窗。裁剪区事件数 ≥ max(100, n/2)，> 2n 时稀疏化到 n（确定性种子）。在同一特征上计分 clean、pip / mcpf / mcpa ±10、synrc ±5、root ±10、fsw。
+- **描述**：Poisson 孪生上限（在 σ = 1 由 clean 的 λ̂ 生成事件、同样计分）与模型内 KL 可见度。
+- **统计**：每序列在有信息包上，计 ± 平均的 GT 优先率（平局与失败计 0.5，失败率须 < 2 %）。95 % 块自助：zgz_local 按 run_id；zgz_global 按 20 包块；check 按"录制 × 基包"，v2–v4 同组；2000 次，种子 20261022。
+  - 某格通过：P 与 R 两种处理都满足 点估计 ≥ 门 且 下界 ≥ 门 − 0.04。
+  - 某格否定：P、R、C 三种处理都满足 点估计 < 门 且 上界 < 门 + 0.04。
+- **训练前置门**（fit 受试者 ch / lfz / lpc / lr / ly / lyh / lyq 的 check 包，local 与 global 分开；ycy / ylf 作一致性；通过前不读 zgz）：
+
+| 门 | 要求 | 不过 |
+|---|---|---|
+| G0.1 | root 5 mm ≥ 0.80 | 停止、查实现 |
+| G0.2 | 捐赠各族（pip10、mcpf10、mcpa10、synrc5、root10、fsw）∈ [0.40, 0.60] | 停止、查实现 |
+| G0.3 | 规范对照 s = 0.97 / 1.03：P ∈ [0.40, 0.60] 且 R ≥ 0.75 | 停止、查实现 |
+| G0.4 | 失败率 < 2 %，clean 的 σ\* 落在网格边缘 < 5 %，起点结点幅度在 ±15 % 内的比例 ≥ 90 % | 停止、查实现 |
+| G0.5 | Q0 复现：twist ±20、Q0 的 8 点网格、严格 >，与 Q0 V3 相差 ≤ 0.03（fit 0.590 / 0.770，sel 0.602 / 0.742） | 停止、查实现 |
+| G0.6 | 剂量反应 pref(10) ≥ pref(5) + 0.03（单指屈曲、协同） | 标记 |
+| G0.7 | ycy / ylf 比 fit 低不超过 0.10 | 标记 |
+
+  - 前置门通过而某训练域的格被否定 → 模型缺陷，该 zgz 域不读（`zgz_allowed.json`）。
+- **E1 格与裁决**（每个 zgz 序列，local / global 不合并）：
+
+| 格 | 定义 | 通过 | 否定 |
+|---|---|---|---|
+| F5 | 单长指屈曲（pip ±5 + mcpf ±5）5 mm | ≥ 0.70 | — |
+| F10 | 同上 10 mm | ≥ 0.75 | < 0.58，且该域 F10 可见面积中位 ≥ 40 像素²；否则记"探针受限" |
+| S5 | 去根协同 synrc ±5（21 关节 5 mm） | ≥ 0.70 | < 0.58 |
+
+  - 通过 = 有效 ∧ F5 ∧ F10 ∧ S5。有效 = F10 与 S5 族的捐赠优先率 ∈ [0.40, 0.60]，且失败率 < 2 %。
+  - 否定 = F10 或 S5 被否定。
+  - 其余为部分，包括探针受限 → E8。
+  - 外展、拇指、原始协同、根、平移、twist、3 mm、synM、fsw、gauge、sm25 只描述。
+  - 依据：优先率 ≈ Φ(d/2σ_T)，0.70 ⇔ 一个窗把该档分辨在一档以内；0.58 是近不可见 twist 的得分；根 ±10°（约 14 mm）为 0.84–0.97。
+
+**5. E2 / E8：跨窗积累**（`r3_e8.py`）
+- **链**：终点包 t 与同 run 的 t−3…t 四行（结点每 50 ms），窗 (k_j, k_{j+1}]，每个事件只在一个窗里。
+  - 完整四链（终点有信息过滤前）：zgz_local 563（每 run 隔一包取）、zgz_global 692、check 568。
+  - K = 1 / 2 / 4（50 / 100 / 200 ms）用同一包集合。
+  - 事件格拼接，m_g、η 共享；σ 共享，取 E1 R 处理 σ_r ± {0, 0.02, 0.04} 共 5 点。
+- **假设**：clean、pip / mcpf ±5（F5）、synrc ±5、root ±5，同一偏移加在全部结点；另有 mcpf ±5 只加在终点结点（结构零：前三窗与 clean 相同）。
+- **条件**：
+  - 自然（等时间）K = 1 / 2 / 4；
+  - 等唯一事件 K = 2 / 4：把 K 窗事件均匀稀疏化到终点窗的裁剪区事件数，5 个种子取平均；
+  - 时间打乱 K = 4：在 200 ms 内置换时间戳；
+  - 捐赠链 K = 1 / 4：远链逐窗重定时，计数匹配。
+- **信息**：Î = (ΔLL₊ + ΔLL₋)/d²；r200 = 中位 Î(K=4) / 中位 Î(K=1)，理想为 4。
+- **E8 门**（主族 F5，P 处理，配对）：
+  - 通过 = g200 = pref(K=4) − pref(K=1) ≥ +0.06，且 r200 ≥ 2，且 pref(K=4) ≥ 0.70，且捐赠 K=4 ∈ [0.40, 0.60]；
+  - 否定 = g200 ≤ +0.02 且上界 ≤ +0.04；
+  - 其余为部分。
+  - 归因（描述）：等事件增益 ≥ 0.5·g200 → 扫掠多样性；打乱保留 ≥ 80 % → 非时间顺序；终点结构零 |g| ≤ 0.03（≥ 0.05 则标记"冗余量共享冒充信息"）。
+
+**6. 判读树**（每个 zgz 序列）
+- 前置门不过 → 停止、查实现。训练域被否定 → 停止，判为发射模型缺陷。
+- E1 通过 → 条件段模式 1（单窗单步）。
+- E1 部分 / 探针受限 且 E8 通过 → 条件段模式 2（固定滞后）。
+- E1 否定，或 E1 部分且 E8 否定 → 停止，登记有限定的负结果；下一提案为 A-exact-small 合成（`docs/网络结构分析.md` J.5.3），区分表示损失与物理不可观。
+- 条件段均需用户另行授权。
+
+**7. 条件段（只预注册，本轮不实现）**
+- **求解器先验证**：新增 `semkine/sba_det.py` / `sba_jac.py` / `sba_lag.py`，原求解器不改。
+  - 改动：int64 定点沉积；试探与基线同为 float64 的接受判据（`semkine/sba.py` 第 660 / 673 行精度不一致）；仅对 SBA 调用关闭 TF32；前向模式解析雅可比。
+  - 门 V1：`test_solver_recovers_mano_state` 场景 20 次逐位一致且 20/20 通过。
+  - 门 V1b：20 个种子 ≥ 18/20。
+  - 门 V2：解析与 float64 中心差分 < 1e-2。
+  - 门 V3：KSSF 合成纠回（z ±50 ≥ 0.8、根 ±10° ≥ 0.8、synrc ±5 ≥ 0.6、捐赠 < 0.2）。
+  - 门 V4：K = 1 与 `solve_orth` 差 ≤ 0.1 mm。
+  - 门 V5：边缘化玩具 ≤ 1e-6。
+  - 门 V6：成本。
+  - 门 V7：默认路径 SHA 不变。
+- **固定滞后**：结点每 50 ms、滞后 200 ms，事件只用一次；增量先验；起点为上一步边缘；S39 锚只加在 x_K、不持久化；m_g 共享、η 逐窗，Schur 消元；σ_r 为录制级随机游走（初值 sd 0.05，每步 0.01）。
+- **阶段门**：
+  - R3-P1 沿用第一轮数字：zgz_local mpjpe_ra(h50) < 恒等 且 R_art(h200) ≤ 0.80；> 恒等 + 1 mm 停止；捐赠下优于恒等则无效。
+  - R3-P1L：R_art ≤ 0.80 且 < 恒等(h200)，且捐赠 R_art ≥ 0.95。
+  - R3-P2：XDI P0a–P0d，加 P0e（5 mm synrc / 屈曲纠回中位 ≥ 0.5，捐赠 < 0.2）。
+  - R3-P3：对照臂须先复现 8.911 / 8.527 / 8.690（差 ≤ 0.005）；独立臂 ≤ 12.0；融合 overall 与 local ≤ 对照 + 0.3；前 200 步腕或 RA 中位恶化 > 3 mm 即中止该臂；φ 缩放；分块位移上限。
+- 预算 ≤ 20 GPU·h。采纳仍需三种子配对 RA ≤ S39 − 0.2 且 3/3 为负。
+
+**8. 负结果许可什么、不许可什么**
+- **许可**：F10 或 S5 被否定（有效性满足、三种 σ 处理都低于 0.58、F10 可见面积 ≥ 40 像素²）只许可一句话：在零训练、GT 条件、单窗剖面似然、P4 发射模型、v2e 仿真事件与 WiLoR + RGB-D 伪 GT 标签下，在这两段录制上，GT 轨迹相对 ≤ 10 mm 的解剖手指扰动的优先率不高于近不可见的旧 twist。
+- **不许可**：
+  - 事件中手指构型不可观（真实传感器、更长窗口、其他发射模型、学习模型都未涉及）；
+  - 求解器无法纠回（优先率是局部单侧成对检验，不是可恢复性）；
+  - local 本身缺信息（zgz_local 手最小、最远、标签最差）；
+  - 低于 10 mm 或可见面积 < 40 像素² 的情形；
+  - 其他录制或受试者；
+  - 真值恢复（标签与事件来自同一段 RGB）。
+- 通过也只许可"在所述档位、此数据假设下似然层面可检出"，跟踪结论须等条件段。
+
+**9. 预期**（探索性，按 §2(2) 的面积曲线写下，供核对）
+- zgz_local：F5 ≈ 0.61、F10 ≈ 0.67、S5 ≈ 0.77 → 部分。
+- zgz_global：若重现 −0.13 的泛化差，F5 ≈ 0.69、F10 ≈ 0.73、S5 ≈ 0.78 → 边界。
+
+**10. 成本**：E1 约 4–5 GPU·h，E8 约 2–3 GPU·h（上限 12 GPU·h，六卡约 1.5 h）。
+
+<a id="sba-r3-pregate-20261022"></a>
+### SBA 第三轮训练前置门：local 两项未过 → 按预注册停止，zgz 未读（2026-10-22，产物 `outputs/sba/r3/e1/result_check.json`，GPU 2–7，约 0.9 GPU·h）
+
+- **运行**：E1 只跑了 check 包（576 包，有信息 575），六卡约 9 分钟。前置门 `PREGATE_FAIL` → `zgz_allowed.json` 两域均为 false；`run_r3.sh` 按设计停止（R3_STOP_PREGATE）。没有任何 zgz 似然被计算或读取，E8 未运行。
+- **前置门**（fit 受试者）：
+
+| 门 | local | global |
+|---|---|---|
+| G0.1 root 5 mm ≥ 0.80 | 0.83 过 | 0.86 过 |
+| G0.2 捐赠各族 ∈ [0.40, 0.60] | **synrc5 0.605 不过**（其余 0.46–0.55） | 0.47–0.57 过 |
+| G0.3 规范对照 P ∈ [0.40, 0.60]、R ≥ 0.75 | P 0.53；**R 0.722 不过** | P 0.42、R 0.77 过 |
+| G0.4 失败率 / σ 边缘 / 幅度实现 | 0 / 3.6 % / 0.994 过 | 0 / 0.4 % 过 |
+| G0.5 Q0 复现（twist，严格 >） | 0.585（Q0 0.590）、sel 0.602（0.602）过 | 0.770（0.770）、sel 0.742（0.742）过 |
+| G0.6 剂量反应（标记） | 未标记 | 未标记 |
+| G0.7 ycy / ylf 低于 fit 超过 0.10（标记） | 标记 | 标记 |
+
+- **按预注册查实现（只用训练数据）：未发现实现缺陷，两项均为边界的数据性质。**
+  - G0.3：规范假设在 σ_k 的似然等于 clean 在 σ_k·s 的插值（相对差中位 2e-3，插值量级），P 处理 0.53 也说明规范被正确吸收。R 处理不足 0.75 是因为逐包最优尺度围绕录制级 σ_r 抖动：fit local 有 49 % 的包 |σ\*_C − σ_r| > 0.015，固定 3 % 的缩放常与 σ_r 一样合理。块自助 95 % 区间 [0.665, 0.779] 跨过门槛。
+  - G0.2：计数匹配正常（捐赠 / 目标裁剪区事件数中位比 0.97，36 % 被稀疏化）。0.605 的块自助 95 % 区间 [0.544, 0.661] 跨过 0.60。偏离有符号依赖：错内容事件下，屈曲（+）假设比伸展（−）更常输给 GT（mcpf +10 / −10 为 0.63 / 0.40，synrc +5 / −5 为 0.63 / 0.58）；真实事件下同样不对称（synrc +5 / −5 为 0.89 / 0.56）。这是似然对足迹大小的系统偏好，± 平均只部分抵消，是模型性质，不是代码错误。
+- **训练受试者上的格（描述；P / R / C 三种处理）**：
+
+| 域（有信息包） | F5 | F10 | S5 | 外展 5 | 原始协同 5 | 根 5 | 旧 twist | 孪生上限 F10 |
+|---|---|---|---|---|---|---|---|---|
+| fit global（224） | 0.80 / 0.82 / 0.82 | 0.92 / 0.92 / 0.92 | 0.91 / 0.93 / 0.95 | 0.96 | 0.91 | 0.86 | 0.78 | 1.00 |
+| fit local（223） | 0.69 / 0.72 / 0.74 | 0.81 / 0.84 / 0.83 | 0.72 / 0.83 / 0.88 | 0.89 | 0.79 | 0.83 | 0.58 | 0.99 |
+| sel global（64） | 0.64 / 0.68 / 0.65 | 0.75 / 0.77 / 0.76 | 0.81 / 0.87 / 0.92 | 0.92 | 0.64 | 0.84 | 0.77 | 1.00 |
+| sel local（64） | 0.62 / 0.66 / 0.67 | 0.71 / 0.76 / 0.74 | 0.66 / 0.72 / 0.80 | 0.83 | 0.77 | 0.73 | 0.62 | 0.92 |
+
+  - fit global 三格全过且有效；fit local F10、S5 过，F5 部分，但有效性因 G0.2 失败。
+  - 在训练受试者上，按关节误差定尺度的手指误差在单个 50 ms 窗内可以识别（10 mm 为 0.71–0.92），旧 twist 只有 0.58–0.78。第二轮裁决"静止手掌下手指构型在单窗内几乎不可识别"在训练受试者上不成立；留出受试者（ycy / ylf）低 0.06–0.17。
+  - 标签哨兵：raw GT 对 ±25 ms 平滑 GT 的优先率 0.37–0.50，即事件更常支持平滑标签。
+- **状态**：按预注册"前置门不过 → 停止、查实现"已停止。查实现未发现缺陷，是否以及如何继续读 zgz 需要用户决定。冻结协议与全部门未改。
+- **偏离（用户 2026-10-22 决定，写于任何 zgz 读数之前）**：读 zgz，全部冻结门不改，把上述两项前置门未过登记为公开偏离（`outputs/sba/r3/e1/deviation_pregate.json`）。
+  - `zgz_allowed.json` 改为两域 true（状态 `PREGATE_DEVIATION_USER_APPROVED`）。按冻结规则，两个训练域都未被否定，只差前置门标志。
+  - zgz 某域要判通过，仍须其自身捐赠有效性落在 [0.40, 0.60]。
+  - 剩余阶段由新脚本 `outputs/sba/run_r3_continue.sh` 执行，内容与冻结的 `run_r3.sh` 后半段相同；冻结的 `run_r3.sh` 在此路径按设计停止，不改。
+  - 所有 zgz 结论都须附带这一偏离。
+
+<a id="sba-r3-results-20261022"></a>
+### SBA 第三轮结果：E1 / E3 / E8（2026-10-22，产物 `outputs/sba/r3/{e1,e8}/`，GPU 2–7，共 8.7 GPU·h）
+
+以下 zgz 数字都在 `#sba-r3-pregate-20261022` 的前置门偏离下读出。冻结门全部未改。
+
+**E1：单窗、按关节误差定尺度的手指扰动**（有信息包；P / R / C 三种 σ 处理；方括号为 P 的 95 % 块自助区间）
+
+| 序列（有信息包） | F5 单指屈曲 5 mm | F10 单指屈曲 10 mm | S5 去根协同 5 mm | 捐赠 F10 / S5 | 裁决 |
+|---|---|---|---|---|---|
+| zgz_global（1378） | 0.718 [0.700, 0.737] / 0.722 / 0.738 | 0.853 [0.836, 0.869] / 0.858 / 0.870 | 0.934 [0.915, 0.951] / 0.956 / 0.963 | 0.503 / 0.522 | **通过** |
+| zgz_local（1095） | 0.649 [0.617, 0.687] / 0.655 / 0.694 | 0.757 [0.717, 0.796] / 0.764 / 0.787 | 0.719 [0.667, 0.761] / 0.741 / 0.824 | 0.503 / 0.493 | **部分**（F10、S5 过，F5 未到 0.70） |
+
+- 可见面积：zgz_local F10 中位 45 像素²（≥ 40，否定条件可适用），S5 155；zgz_global 75 / 296。失败率 0；clean 的 σ\* 落在网格边缘 6.6 % / 0.6 %。
+- 回归：旧 twist（Q0 网格，严格 >）0.578 / 0.644，与 Q0 V3 的 0.570 / 0.644 一致。
+- 描述（P 处理，zgz_local / zgz_global）：
+  - 外展 5 mm 0.78 / 0.95，10 mm 0.84 / 0.99；
+  - 拇指对掌 5 mm 0.73 / 0.91；
+  - 原始协同 3 / 5 / 10 mm 0.64 / 0.74 / 0.88 与 0.66 / 0.76 / 0.95；
+  - 根 5 mm 0.74 / 0.80；
+  - 单指 PIP 10 mm 0.80 / 0.91，MCP 10 mm 0.71 / 0.80；
+  - 仅终点协同（增量）5 mm 0.68 / 0.77；
+  - fsw（自然手指块）0.97 / 0.97；
+  - 规范对照 0.51 / 0.50；
+  - 孪生上限 F5 0.95 / 1.00。
+- 变体：去掉材质通道（geo）或单倍率（m1）只改 ≤ 0.02。
+- 按可见面积分层（zgz_local F10）：10–20 像素² 0.58，20–40 像素² 0.68，40–80 像素² 0.82，80–160 像素² 0.87。
+- zgz_local 逐 run：F10 中位 0.81，去掉最大 run 后 0.77。
+- 标签哨兵：raw GT 对 ±25 ms 平滑 GT 的优先率 0.42 / 0.41，即事件在 58–59 % 的包里更支持平滑标签。
+- 捐赠（收敛剖面）：zgz 各族 0.48–0.54，fsw 在 local 为 0.37。第二轮 Q0 报告的 zgz_global 捐赠 0.24–0.40 应视为未收敛剖面的产物（`#sba-r3-prereg-20261022` §2(5)）。
+
+**E3（描述）**：录制级 σ_r 为 zgz_local 0.951、zgz_global 0.959，z_pred = 深度·(1/σ_r − 1) 为 37 / 24 mm。各格假设下的 σ\* 与 GT 下的差中位 ≤ 0.008，即 σ 剖面没有吸收手指扰动。
+
+**E8：跨窗积累**（F5，P 处理，配对；K = 1 / 2 / 4 即 50 / 100 / 200 ms）
+
+| 域（链数） | pref K=1 / 2 / 4 | g200 [95 %] | r200（信息比） | 纯方差预期 K=4 | 等事件 K=4 | 打乱 K=4 | 仅终点 g200 | 捐赠 K=4 | 裁决 |
+|---|---|---|---|---|---|---|---|---|---|
+| zgz_local（510） | 0.685 / 0.691 / 0.711 | +0.026 [+0.004, +0.046] | 6.37 | 0.888 | 0.694 | 0.676 | +0.116 | 0.527 | **部分** |
+| zgz_global（689） | 0.750 / 0.759 / 0.762 | +0.011 [−0.002, +0.024] | 4.24 | 0.918 | 0.760 | 0.730 | +0.070 | 0.498 | **否定** |
+| fit local（215） | 0.719 / 0.751 / 0.791 | +0.072 [+0.019, +0.131] | 11.8 | 0.976 | 0.775 | 0.742 | +0.088 | 0.468 | 通过 |
+| fit global（224） | 0.819 / 0.827 / 0.845 | +0.026 [−0.015, +0.068] | 4.98 | 0.979 | 0.844 | 0.730 | +0.054 | 0.480 | 部分 |
+
+- 纯方差预期 = Φ(Φ⁻¹(pref K=1)·√r200)。
+- 去根协同 5 mm：zgz_local 0.733 → 0.783，zgz_global 0.933 → 0.954。根 5 mm：+0.03 / +0.01。
+
+**描述（事后，不改裁决）**
+1. **10 mm 级的手指误差在单个 50 ms 窗内可以识别**：F10 为 0.76 / 0.85，S5 为 0.72 / 0.93，外展 10 mm 为 0.84 / 0.99；旧 twist 只有 0.58 / 0.64。第二轮裁决"静止手掌下手指构型在单窗内几乎不可识别"在两段 zgz 上都不成立，那是扭转探针的结论。5 mm 单指屈曲在 zgz_local 上不可靠（0.65）：它多半沿视线方向，可见变化只有约 25 像素²。
+2. **跨窗积累受偏差限制，不是方差限制。** 200 ms 的似然信息是 50 ms 的 4–6 倍（r200 4.2–6.4），但优先率只升 0.01–0.03；纯方差下应升到 0.89 / 0.92。GT 输掉的包在更多事件下继续输——事件与标签之间存在系统性分歧（伪 GT 误差或模型错设），积累只让它更自信。标签哨兵（事件更支持 ±25 ms 平滑标签）与此一致。这意味着固定滞后积累不是 local 的主要杠杆，标签 / 模型偏差才是。
+3. **仅终点结构零被违反**：+0.07 至 +0.12，所有域都被标记。单窗内逐部位倍率 m_g 与 η 的剖面会吸收一部分手指证据（手指移动后，该部位的倍率重新拟合）；跨窗共享冗余量能部分收回。这是单窗冗余量剖面的可测代价，下一步的求解器应把 m_g 作为跨窗共享的慢变量。
+4. 训练 local 上积累确有收益（fit +0.07，sel +0.14），zgz_local 只有 +0.03；zgz_local 的偏差比训练受试者更大。
+
+<a id="sba-r3-verdict-20261022"></a>
+### SBA 第三轮裁决（2026-10-22）
+
+- **按预注册**（附前置门偏离）：
+  - zgz_global：E1 通过 → 判读树指向条件段模式 1（单窗单步求解；求解器先验证），需用户另行授权。E8 否定（g200 +0.011），只作描述。
+  - zgz_local：E1 部分，E8 部分。预注册判读树只覆盖"E8 通过 → 模式 2"与"E8 否定 → 停止"，**部分 + 部分没有预注册路线**：既没有许可固定滞后求解，也没有触发停止。下一步需用户决定。
+- 无主行，无闭环结果；S39 不变。
+- **确立的**：在 P4 生成模型与剖面冗余量下，与 MPJPE 相关的 10 mm 手指误差和 5 mm 去根协同误差在单个 50 ms 窗内可以由事件识别（zgz_global 0.85–0.93、zgz_local 0.72–0.76，捐赠对照 ≈ 0.5）。
+- **否定或限制的**：(a) 第二轮的"手指构型单窗不可识别"（只对扭转探针成立）；(b) "跨窗积累是 local 剩余杠杆"——信息随窗长增长 4–6 倍，优先率只升 0.01–0.03，偏差限制；(c) 第二轮 Q0 的捐赠数值（未收敛剖面）。
+- **限定**：前置门偏离；zgz 开发 = 测试；每域一段录制；标签与事件来自同一段 RGB，"GT 优先"只表示与标签一致；P4 θ 对 fit 受试者同样本；优先率是局部成对检验，不是求解器可恢复性。
+<!-- EXPERIMENT_RECORD:SBA:END -->
+
+<!-- EXPERIMENT_RECORD:AGG778:BEGIN -->
+<a id="agg778-prereg-20261024"></a>
+## AGG778 预注册：XYZ-C1「聚合 778」模块的隔离检验（2026-10-24，写于任何读数之前）
+
+**授权与范围（用户 2026-10-24）。** 用户问"单独看看聚合 778 这个模块到底有没有问题，怎么做理想实验才能充分证明"，批准计划 `/home/lyq/.claude/plans/xyz-c1-778-docs-inherited-hamming.md`，并选择 **A–C 先跑、随后自动进入 D，D 段单 seed3407（描述性）**；只用物理 GPU 4–7，CPU 全量。S39 不变；新代码全部 opt-in（`tools/agg778/`、`semkine/agg778.py`、`MODEL.XYZ_AGG`），C1 默认路径逐位不变（`tests/test_agg778_model.py`）。源码 / 配置 / 参照的 SHA 冻结于 `outputs/agg778/protocol.json`，每个 GPU 入口校验。
+
+**模块边界 M。** `semkine/xyz_mesh.py:521–569`：记录权重 w = q·A；记录特征 13 维（tok7 | dXYZ = (z·d − V[vid]) / 0.01 | zn | valid | hit）；φ = `rel`（13→64→128）；加权均值 + 不加权 amax + log1p(mass) + 二值 has（O）；`vin`（257→128，无偏置）→ H0（778×128）。输入（`associate_rays`、≤2048 stride、50 ms token）与下游（3 层 MeshGNN、LBS 槽 + 残差槽、读出）在本研究中固定。M 内六个因素：分箱（F-bin，每事件 ≤4 顶点）、记录表示（F-rep，无 A_k、顶点相对 dXYZ）、φ、池化（F-pool）、质量语义（F-mass，peak 不随权重、支持二值）、压缩（F-vin）。结论逐因素给出。
+
+**已见数字的披露。** 写本节前已读：XCL 主表与 E1–E5 / 冻结干预（C1 E1 local 27.99、E3 15.35、H3=0 E3 9.87；A3F0 E1 10.48、E2 12.34、E3 8.78；FΩo / FΩd E1 4.57 / 4.22）；XVM P0a 恒等 E3 local 4.41、Ω-R（E3 local R0 3.81 / R1 7.16 / R2 5.05）、P4（obs_contour 法向相关：C1 形式 0.166 / 0.604，核 r=1 cm 0.343 / 0.769）、P3n；本轮只读代码审查（P4 的 C1 形式与核臂同时改了分箱、特征、池化、可见性、头容量和事件预算 2048 对 8192；PhiHead 在 2048 预抽样后算 token，而 C1 先在整窗算 token 再抽样；P4 的"observed"≈visible 99.4 %，且 C1 在无记录顶点上计分）。本轮工程冒烟（不是结果）：Stage A 每集 32 包的工程检查全部通过；B / C / D 代码在 ≤64 端点、≤3 步上跑通（只看到损失）；P4 复现路径在 zgz 每序列前 16 个端点上与 P4 自身管线一致（global 0.1146 对 0.1142，local 0.0379 对 0.0379）；D 变体原生训练 10 步 + 完整验证冒烟（只看是否跑通与显存）。B / C / D 的任何假设读数均未读。
+
+**相对已批准计划的设计细化（读数前）。**
+1. A1 / A2 容差按评估路径的数值分辨率：池化后的 x（fp64 累加后转 fp32）≤ 1e-6 相对；φ、vin、H0（fp32 矩阵乘）≤ 1e-5。计划中的 1e-9 低于 fp32 φ 的分辨率，不可达。
+2. V1（包内置乱位置、保留每行时间 / 极性）是**仅位置**分解臂，不是空置：事件位置本身带运动信息（A3 下还带 GT 深度）。有效性前提中的空置只用 V0（仅计数）与 V2（供体事件）。
+3. A3 索引语义的 LBS 检查：部位一致率 ≥ 0.90 且随机置换 ≤ 0.30（部位交界处顶点硬部位本就可能与面多数部位不同）。
+4. Stage A 与 Stage B 并行计算以省墙钟；B 只在 A 通过后读取（A 失败 → 不读 B、停止）。
+5. P4 复现 = 用本工具链对 P4 已训练的核头（`outputs/xvm/s2/p4/A_m50`，xvm_r1）在 P4 自身设置下重新计分，不重训。
+6. B-task 尾部的输入投影无偏置并乘支持集 O；残差槽取自该条件的冻结模块（T0 置零）。
+
+### Stage A：实现正确性（零训练，GPU 4）
+
+C1（A0）与 A3F0（A3）各在三组包上：zgz 256 个端点 × {E3 锚点、C1 严格轨迹 incoming}，拟合受试者 256 个端点 × R-noise 锚点。
+- **A1** 独立 NumPy float64 池化（`np.add.at` / `np.maximum.at`）对模块自身 φ 的捕获 x、H0、O；φ 由捕获记录 float64 重算；探针记录构造 `heads.c1_records` 与模块实际编码的记录逐元素一致。
+- **A2** 记录顺序、批组成（B=1 对混批）、padding、零权排除（q=0 对掩去）、空顶点恰为 0、记录复制（均值 / peak 不变，log-mass 恰移到 log1p(2m)）。
+- **A3** 命中记录 Σ A_k V[vid_k] = z·d（≤ 1e-5 m）；面的三条边都在 `ring_idx`；A3 记录的 LBS 主部位一致率。
+- **A4**（描述）peak argmax 被 w < 0.05 记录占据的比例、支持集中质量 < 0.05 的比例、每顶点记录数、hit / valid / 残余质量比例。
+- **A5**（描述）同包训练数值（bf16 autocast + fp32 累加）对评估数值的输出差（RA mm）；C1 与 A3F0 的 zgz 完整闭环在两种数值下各一次——评估数值的闭环须与 XCL E1 逐位一致（工具链校验），二者之差是闭环数值噪声底。
+- **门**：A1–A3 全部通过；任一失败 → 结论"有问题：实现缺陷"，停止，修复与后续另行授权。
+
+### Stage B：隔离信息审计（冻结 C1 / A3F0，只训练新下游 / 探针；GPU 4–7）
+
+**共同设置。** 事件 = C1 的 50 ms 窗（模型自身 ≤2048 stride 与整窗 token）；锚点：训练 = 上一端点 GT + C1 `PREV_NOISE_MODE: mixed`（`SemKineDataset._sample_prev_noise` 本身，rng 3407）；评估 = E3（上一端点 GT）、R-noise（同分布，rng 777，按 small / large / directed 分层）、E2 / R-loop（C1 严格轨迹 incoming，仅 zgz）、E1（仅 B-task，XCL 初始噪声 rng 0，全部端点）。拟合 = ch, lfz, lpc, lr, ly, lyh, lyq（56 序列，71,388 端点）；选择 = ycy, ylf（每第 4 个端点，5,111）；zgz 全 2,590 端点只报告。每臂 3 个探针种子，同一条件内所有头共享批次与锚点、各自 Adam 与裁剪（10），bf16-mixed 训练、fp32 评估、确定性算法。
+
+**B-task（任务层）。** 下游 = C1 自身尾部结构的新实例（无偏置输入投影 × O → 3 层 `XYZMeshLayer` → `lbs_slot_pool` → 17 组 `slot_proj` → `fc1(+prev48)` → 零初始化 `fc2`），C1 损失（mse_51d，log10），4000 步 × 128 包，Adam 2e-3，预热 300，余弦到 2 %。
+- 臂：T0 仅状态；T1 log1p(mass) + has；T2 冻结 H0；T3 冻结 vin 前 x；T4 = R1 记录 dXYZ 逐顶点加权均值（A3）；T5 = R2 材料点位移逐顶点加权均值（A3）；T6 = R0 支持集上 GT ΔV；T6σ = R0 + N(0, σ²)，σ = 3 / 6 / 12 mm。
+- 对比（臂 a − 臂 b，mm，正 = a 更差）：G_learn = T2 − T5（A3），G_rep = T4 − T5，G_vin = T2 − T3，G_rec = T5 − T6，G_total = T2 − T6，事件信息量 = T0 − T2。
+- **门**（zgz，逐域，E3 为主、R-noise 共同主）："实质" = |Δ| ≥ 1.5 mm（local）/ 1.0 mm（global）且 95 % 块 bootstrap 区间不含 0、3 个种子同号、R-noise 同号；"可忽略" = 区间落在 ±0.75 / ±0.5 内；其余"未定"。E2 / E1 只描述。
+
+**B-vertex（算子层）。** 3000 步 × 64 包，Adam 1e-3，同调度；目标 = 锚点顶点坐标系二维位移 / ρ（ρ = f·0.02 / z，P4 约定，可见顶点高斯 NLL）+ 3D ΔV / L_REL（MSE，λ = 1）。两种读出：逐顶点 MLP；逐顶点头 + 3 层新 GNN。
+- 臂：V0 仅计数（空置）；V1 仅位置（分解，描述）；V2 供体事件（同序列半段外的窗，空置）；V3 冻结 H0；V4 冻结 vin 前 x；V5 C1 形式 φ 重学；V6 = V5 + A_k + 材料点面内偏移（表示）；V7 = V5 + 质量一致池化（加权均值、加权 RMS 代替不加权 max、软支持 min(mass, 1)）；V8 = V5 + 扇出分箱（带内图像最近 8 顶点，σ = 8 px）；V9a / V9b XVM 核 r = 1 cm，2048 / ≤8192 事件；V10a / V10b 固定 R1 / R2（A3）。V0–V2 与 V9b 只 MLP 读出。
+- 主指标 = GT 来源所属且可见的轮廓顶点（cos < 0.4）上的法向位移相关（与算子无关的支持集）；另报 R²、3D、has_C1 与可见分层、运动分量、噪声类分层。
+- 因素对比（变体 − 基线，Δ相关）：matpt = V6 − V5，mass = V7 − V5，fanout = V8 − V5，vin = V4 − V3；另报 φ 重学 V5 − V4、邻域上限 V9a − V3、事件预算 V9b − V9a。
+- **门**："实质" = Δ ≥ 0.05、区间不含 0、3/3 同号；"可忽略" = 区间落在 ±0.02 内。
+
+**有效性前提**（任一不满足 → 停止排错、不出结论、不进 D）：T6 的 E3 local ≤ 4.41（两条件）；T6σ 单调且 σ12 − σ0 区间 > 0；工具链冻结模块自身单步 E3 复现 XCL E3（±0.01 mm）；|V0|、|V2| 相关 ≤ 0.05（zgz E3 与 R-noise，两条件）；P4 复现 |Δ| ≤ 0.02（两条 zgz 序列）。
+
+**D 臂选择输入（只用选择受试者，不读 zgz）。** 每个因素的效应 = {A0, A3} × {E3, R-noise} × {mlp, gnn} 八格 Δ相关的均值；"实质" = 效应 ≥ 0.05 且八格中过半区间 > 0。
+
+### Stage C：稳健性（零训练，描述）
+
+C1 事件率均匀稀释到保留 1、1/1.5、1/2.4、1/4；C2 A3 记录按比例 p ∈ {0, 0.1, 0.25, 0.5} 改派到 1-ring 邻点或他部位顶点；C3 冻结 C1 上逐事件相对 q × U(0.5, 1.5)、去掉 w < 0.05 的记录。唯一预注册标志：保留 1/2.4 使 T2 的 E3 local 变差 ≥ 1.5 mm 而 T6 变差 < 0.5 mm → "事件率敏感是聚合缺陷"。
+
+### Stage D：系统内配对重训（自动执行，单 seed3407，描述性）
+
+- 变体（`MODEL.XYZ_AGG`，`semkine/agg778.py` 子类，只在记录 / 池化段分支；新参数在隔离 RNG 作用域、零初始化，共享 37 个初值与对照逐项相同）：matpt、mass、fanout、vin。
+- 臂：按选择受试者效应排序，第 1 名在 A3 与 A0 配方各训一次，第 2 名（若实质）只在 A3；最多 3 次；无实质因素时第 1 名在 A3 / A0 各一次作确认（预期噪声带内）。A 失败或 B 有效性失败不进 D。
+- 合同：A3 臂对 `xcl_a3f0_s3407`、A0 臂对 `xyz_c1_stable_s3407` 配对（初值、逐 rank 实际索引流、逐步包指纹核验）；seed 3407、fresh 6000、2×512、BF16、legacy_none、worker 12 / prefetch 1、原损失 / Adam / LR / 调度、严格确定性、`NCCL_P2P_DISABLE=1`；50 步预检；fail-closed，不 resume。
+- 读数：E1 主行（九列表，A3 行标 oracle）、E1 两次 fresh、E2、E3、E4、E5（5000 / 5500）。
+- **门（XCL 单 seed 规则）**："方向支持" = |ΔE1| ≥ 5 mm（local）/ 8 mm（global）/ 10 mm（wrist）且 E1 / E2 / E3 同号、5000 / 5500 / 6000 至少两点同号；否则"噪声带内"。H3=0 护栏：E3 变好但臂的 E3 不优于对照 H3=0 E3 时标注"可能只是更少依赖事件"。不宣称可靠性 PASS，不选点，不择优重训。
+
+### 判读树与结论格式
+
+1. A 失败 → "有问题：实现缺陷"。
+2. B 有效性失败 → 测量工具无效，排错，不出结论。
+3. A3 B-task：G_learn 实质 → 学到的模块丢了无参数聚合即可保留的信息，B-vertex 定位因素；G_learn 可忽略且 G_rep 实质 → 问题在顶点相对的记录表示而非池化；二者都可忽略且 G_rec 实质 → 聚合不是问题，缺口在记录携带的信息（关联与事件证据）。
+4. A0：G_total 与 V9a − V3 给可部署条件下聚合能挽回的上限；事件信息量判断事件通路的净作用。
+5. D 给 H-sys 的描述性读数。
+- 结论格式："聚合 778：实现[正确 / 缺陷]；信息[无实质损失 / 损失 X，主要来自 Y]；学习[是否欠拟合]；系统内[方向支持 / 噪声带内]（单 seed）"。
+
+**阴性结果许可什么、不许可什么。** "可忽略"只许可"在 50 ms、C1 的事件与关联下，C1 的聚合（训练所得与其形式）不丢失同一记录集里固定或更强算子能取回的逐顶点 / 任务信息"；不许可"XYZ 整体没问题"，也不许可"修好关联或证据后聚合仍不重要"。D 段单 seed 的"噪声带内"不能证明不存在 < 5 mm 的系统内效应。oracle（A3、R0、R2）不可部署。
+
+**预注册预期（不约束裁决）。** 依 Ω-R 与 P4，预期 A3 下 G_rep 实质（顶点相对表示）、G_learn 可能实质；zgz_local 上邻域上限与 C1 模块的差距可能实质。
+
+<a id="agg778-results-20261024"></a>
+### AGG778 结果（2026-10-24）：A 通过；B 的有效性前提未全部满足 → 按预注册停止，不出裁决，未进 D
+
+产物：`outputs/agg778/{a,b_task,b_vertex,c}/`、`outputs/agg778/b_summary.json`；协议 `outputs/agg778/protocol.json`（冻结于 2026-10-23 17:17 UTC，此后 81 个冻结文件未改）。GPU 4–7，约 14 GPU·h。
+
+**Stage A：实现正确性（全部通过）。** C1（A0）与 A3F0（A3）各三组 256 包。
+- A1：独立 float64 池化与模块 x 的相对误差 ≤ 6.2e-8（门 1e-6）；φ 的 float64 重算 ≤ 4.4e-7、vin ≤ 1.6e-6（门 1e-5）；探针记录构造与模块实际编码的记录逐元素相同（误差 0）；支持集相同。
+- A2：记录顺序 ≤ 6e-9；批组成 x ≤ 1.7e-7、H0 ≤ 1.8e-6；padding、零权排除恰为 0；空顶点恰为 0；记录复制后 mean / peak 不变（≤ 7e-9），log-mass 恰为 log1p(2m)（≤ 9e-8）。
+- A3：命中记录的重心点 = z·d（≤ 3.4e-6 m）；面的三条边都在 1-ring；A3 记录 LBS 主部位一致 0.946–0.951（随机置换 0.090–0.095）。
+- A4（描述）：peak argmax 被 w < 0.05 记录占据 7.5–8.1 %（A0）/ 12.3 %（A3）；支持集中质量 < 0.05 的顶点 1.3–2.3 %；每个支持顶点中位 6.4–7.5 条记录（p90 25–35）；A0 hit 比例 E3 0.68 / 闭环 0.62 / 训练噪声 0.41，残余质量 7–30 %。
+- A5（描述）：同包训练数值（bf16 + fp32 累加）对评估数值的单步输出差中位 0.66–0.87 mm（A0，最大 8.2）、0.44–0.47 mm（A3）。闭环：两个冻结模块的评估数值闭环与 XCL E1 逐位一致；训练数值闭环 C1 local 28.27（+0.28）/ global 21.76（+0.69），A3F0 10.47 / 4.10（≈ 0）。
+- P4 复现（B 的有效性前提之一，此处一并列出）：global 0.76863 对 0.76861，local 0.34287 对 0.34297（通过）。
+
+**Stage B 有效性前提。**
+
+| 前提 | A0 | A3 |
+|---|---|---|
+| 工具链复现 XCL E3（±0.01 mm） | 通过（15.3511 / 4.8169） | 通过（8.7779 / 3.7395） |
+| 天花板 T6 E3 local ≤ 4.41（恒等） | **不过**（5.27） | 通过（3.97） |
+| T6σ 剂量-反应单调且 σ12 − σ0 > 0 | 通过（5.27 / 5.73 / 5.88 / 6.46；+1.19 [1.02, 1.36]） | 通过（3.97 / 4.45 / 5.00 / 5.70；+1.73 [1.58, 1.87]） |
+| 空置 V0（仅计数）\|相关\| ≤ 0.05，E3 / R-noise | **不过**（0.264 / 0.288） | 通过 / **不过**（0.009 / 0.064） |
+| 空置 V2（供体）\|相关\| ≤ 0.05，E3 / R-noise | 通过 / **不过**（0.012 / 0.155） | 通过 / **不过**（0.020 / 0.183） |
+| P4 复现 \|Δ\| ≤ 0.02 | 通过 | 通过 |
+
+按预注册：任一前提不满足 → 停止排错、不出结论、不进 D。`d_stage.py select` 本身不检查该标志，按规则人工不启动 D。
+
+**排错（事后描述，不改任何门）。** 没有发现实现缺陷：A 全部通过，工具链对 XCL 的 E1 逐位、E3 精确复现，P4 复现到 1e-4。不过的前提来自前提本身的设定：
+1. **探针下游在 E3 带"去噪先验"偏置。** 下游按 C1 的训练分布（GT + mixed 噪声）训练，学会了对锚点做纠偏；在干净锚点上会做出虚假的纠正。只看状态的 T0 在 zgz_local E3 为 8.61，恒等为 4.41（选择受试者 global 上，T6 9.85 对恒等 2.70）。A3 的天花板能压到恒等之下，A0 的不能，因为 A0 的支持集与残差槽带来更多不可迁移成分。剂量-反应单调，说明这把尺仍能分辨信息差，但"天花板 ≤ 恒等"在 A0 不可达。
+2. **"仅计数"在 C1 关联下不是运动空置。** 哪些顶点收到记录（射线命中 / 带内近邻）本身就编码了边缘相对锚点的移动方向和锚点误差：A0 下 E3 为 0.264、R-noise 为 0.288；A3（GT 面路由）下 E3 为 0.009。
+3. **供体事件在 R-noise 下不是空置。** 同一录制内手在画面中的典型位置相对稳定，供体事件因此携带"噪声锚点相对典型位置"的信息（0.155 / 0.183）；在 E3 下它是合格的空置（0.012 / 0.020）。
+
+**描述性读数（前提不全 → 不构成裁决）。**
+
+B-task，zgz E3 RA（mm，local / global，3 种子均值）：
+
+| 臂 | A0（冻结 C1） | A3（冻结 A3F0，oracle） |
+|---|---|---|
+| 恒等（不更新） | 4.41 / 2.43 | 4.41 / 2.43 |
+| T0 只给状态 | 8.61 / 7.70 | 8.61 / 7.70 |
+| T1 计数 + 残差槽 | 9.20 / 4.72 | 11.05 / 6.93 |
+| T2 冻结 H0 | 21.63 / 4.56 | 11.80 / 2.86 |
+| T3 冻结 vin 前 x | 23.08 / 4.64 | 12.97 / 2.91 |
+| T4 = R1 固定均值（顶点相对） | — | 5.52 / 2.98 |
+| T5 = R2 固定均值（材料点） | — | 5.20 / 2.81 |
+| T6 GT ΔV（支持集） | 5.27 / 2.97 | 3.97 / 2.40 |
+
+- A3 对比（臂 a − 臂 b，mm）：
+  - G_learn = T2 − T5：local **+6.60 [6.10, 7.12]**，三个种子 +6.10 / +6.37 / +7.34；R-noise +4.95，E2 +2.40，E1 +6.41。global +0.05 [−0.08, +0.19]。
+  - G_rep = T4 − T5：+0.32 / +0.18。
+  - G_vin = T2 − T3：−1.17 / −0.05。
+  - G_rec = T5 − T6：+1.22 / +0.41。
+  - 选择受试者 E3 上，T2 与 T5 基本相同（local 4.93 对 4.83，global 9.07 对 9.48）；zgz_local 的大差距不出现在训练人群留出受试者和 zgz_global 上。
+- A0：zgz_local 上冻结 H0 使下游比只看状态差 13.0 mm（T2 21.63 对 T0 8.61），global 上反而好 3.1 mm。
+
+B-vertex，zgz E3，GT 来源所属可见轮廓顶点的法向位移相关（GNN 读出；MLP 读出拿不到顶点坐标系，对 3D 特征不公平，只作参考）：
+
+| 臂 | A0 | A3 |
+|---|---|---|
+| V3 冻结 H0 | 0.262 | 0.853 |
+| V4 冻结 vin 前 x | 0.258 | 0.832 |
+| V5 C1 形式重学 φ | 0.318 | 0.936 |
+| V6 + A_k / 材料点 | 0.316 | 0.934 |
+| V7 质量一致池化 | 0.280 | 0.913 |
+| V8 扇出分箱 | 0.414 | 0.658 |
+| V9a / V9b XVM 核 2048 / 8192 事件 | 0.496 / 0.490 | 同左 |
+| V10a / V10b 固定 R1 / R2 | — | 0.876 / 0.890 |
+| V0 仅计数（MLP） | 0.264 | 0.009 |
+
+- A0 在错误锚点下（R-noise / 闭环），H0 0.415 / 0.352，核 0.363 / 0.350：大位移时按关联分箱不差于固定半径聚集。
+- 事件预算 2048 对 8192：−0.008，可忽略（P4 的预算混杂对结论无影响）。
+- 选择受试者因素效应（D 的选择输入）：matpt +0.034，mass −0.036，fanout −0.080（A0 正、A3 GNN 强负），vin −0.001；均未达"实质"。若 B 有效，按规则 D 应只跑 matpt 在 A3 / A0 各一次作确认。
+
+Stage C（描述）：
+- **事件率**：保留 1/2.4 时，T2 变差 +0.10（A0）/ +0.52（A3）mm，T6 变差 +0.27 / +0.22 mm，事件率标志不触发。
+- **关联噪声（A3）**：10 % 记录改派到其他部位，所有基于记录的臂都崩溃（local：T2 25.9、T5 35.3），T6 不受影响；1-ring 内改派影响温和（T5 从 5.2 到 6.5，p = 0.5）。
+- **质量语义（冻结 C1）**：去掉 w < 0.05 的记录，输出变 0.31 / 0.61 mm（global / local）；逐事件相对 q × U(0.5, 1.5)，输出变 0.93 / 3.32 mm。
+
+**这些描述指向（不是裁决）。**
+1. 实现正确。
+2. 在干净记录（A3）上，C1 的池化形式几乎不丢逐顶点信息：重学 φ 的 C1 形式 0.936，不低于固定均值 0.876–0.890；matpt / mass / vin 变化 ≤ 0.02。固定均值在任务层接近 GT 天花板（5.2 对 3.97）。任务层的大缺口集中在**训练所得模块的特征迁移到 zgz_local**（T2 11.8 对 T5 5.2），在选择受试者与 zgz_global 上不出现。这与已知的 local 深度分布外（XDG）一致：学到的记录特征含绝对量（zn、token 绝对坐标），固定均值只含相对位移。
+3. 可部署关联（A0）下，C1 分箱给出的小运动逐顶点信息低（0.26–0.32），不高于支持集模式本身；事件中心扇出（0.41）与顶点锚定聚集（0.50）能取回更多。即在小运动时，"哪些事件进哪个顶点"是信息损失的位置；大偏差时关联分箱不差于固定半径聚集。
+4. 关联错派跨部位 10 % 即可毁掉所有基于均值的聚合；对逐事件 q 敏感（local 3.3 mm）。
+
+S39 不变；无新主行。
+
+<a id="agg778-r2-prereg-20261024"></a>
+### AGG778 第二轮（R2）预注册：修正测量工具，正式检验池化形式、迁移、分箱（2026-10-24，写于任何 R2 探针读数之前）
+
+**授权。** R1 停在 B 的有效性前提后，用户选择"重设计一轮（需新预注册）"，并批准计划（`/home/lyq/.claude/plans/xyz-c1-778-docs-inherited-hamming.md`，R2 版）。只用物理 GPU 4–7，CPU 全量；D 段自动执行、单 seed3407、臂预先固定。S39 不变。R1 已结案：将被改动的 R1 冻结文件（`semkine/agg778.py`、`tests/test_agg778_model.py`）已归档到 `outputs/agg778/r1_source_archive/`，SHA 与 R1 协议一致；R1 的结果节不改写。R2 冻结于 `outputs/agg778/r2/protocol.json`。
+
+**写本节前已知。**
+- R1 全部数字。
+- R2 草案的独立评审：在 CPU 上用 R1 产物做了代理复现。读 prev48 的只看状态下游在干净锚点下也劣于恒等（zgz +0.35～0.5 mm，ycy_global 劣化 8–13 mm）；R1 的 zgz_local 缺口主要是常数偏置（A3 下 T2 的平均 51 维 delta 局部范数 0.485，T5 为 0.114；去掉偏置后 T2 从 10.05 降到 6.26、T5 从 4.80 降到 4.15）。
+- R2 试点（只用选择受试者，不读 zgz）：通过：T0s 与恒等相差 ≤ 0.0003 mm（local 3.2595 对 3.2596，global 2.6976 对 2.6973）；T6 为 A0 1.83 / 1.57、A3 1.81 / 1.55 mm（local / global），恒等为 3.26 / 2.70。据此冻结 V3 为"zgz T6 ≤ 恒等"（`outputs/agg778/r2/pilot/summary.json`）。
+- R2 冒烟（≤64 端点、3 步，只看到损失）。
+
+**测量工具（相对 R1）。**
+1. 每臂一个新的 C1 尾部结构下游，**不读 prev48**，保留锚点网格的边几何。
+2. 残差槽一律置零；只有桥接臂 M13R / MabsR 用同一 φ 重建残差槽。
+3. 体制：
+   - E3：干净锚点训练与评估，为主；
+   - noise：只在 A3，C1 的 mixed 噪声，训练 rng 3407、评估 rng 777，复现 R1 的 P2。
+4. 4000 步 × 128，Adam 2e-3，余弦到 2 %，裁剪 10，bf16-mixed 训练、fp32 评估，确定性算法；种子数见臂表（标 1 者为描述性）。
+5. 选择受试者 ycy、ylf（每第 4 个端点）与 zgz 全部端点各评估一次；另报每臂常数偏置与去偏置 RA（描述）。
+6. R2 与 R1 的数字不可比（下游不同）。
+
+**臂（`tools/agg778/r2_task.py` 的 `GROUPS`）。**
+
+| 条件 / 体制 / 组 | 臂（种子数） |
+|---|---|
+| A3 / E3 / g1 | T0s(3) T6(3) T6s12(3) T2(3) T2abs(3) T4(3) T5(3) |
+| A3 / E3 / g2 | DN(3) M13(3) M13i(3) Mabs(3) Mcore(3) |
+| A3 / E3 / g3 | Mpol(1) Mrate(1) Mmass(1) M13R(3) MabsR(3) |
+| A3 / E3 / gb | M13 @8000 步(1)，预算护栏 |
+| A3 / noise / g1 | T0s(3) T2(3) T4(3) T5(3) M13(3) Mabs(3) |
+| A0 / E3 / g1 | T0s(3) T6(3) T6s12(3) T6fan(3) T6K(3) T2(3) T2abs(3) |
+| A0 / E3 / g2 | DN(3) M13(3) M13i(3) Mabs(3) |
+| A0 / E3 / g3 | M13fan(3) M13fan4(3) Mabsfan(3) K(3) |
+
+臂的含义（记录列：tok7 [x/W, y/H, 极性, t/dt, log1p(dt_ie), SAE 同, SAE 异] | dXYZ | zn | valid | hit）：
+- T0s：无事件、无状态。
+- T6 / T6s12：支持集上的 GT ΔV，及其加 12 mm 噪声版。
+- T6fan / T6K：扇出 / 核支持集上的 GT ΔV。
+- T2：冻结 H0。
+- T2abs：冻结 φ 与 vin，记录 x/y/zn 置零后重算 H0。
+- T4 / T5：固定 R1 / R2 均值。
+- DN：供体事件 → 重学 C1 形式。
+- M13：重学 C1 形式。
+- M13i：φ 与 vin 从冻结模块初始化后继续训练。
+- 置零类：Mabs 置零 x/y/zn；Mcore 只留 dXYZ + valid；Mpol 置零极性；Mrate 置零 dt 与 SAE；Mmass 置零 hit 与 log-mass。
+- 扇出：M13fan 为 m = 8，M13fan4 为 m = 4，Mabsfan 为扇出 + 绝对量置零。
+- K：XVM 核特征，2048 个 C1 事件、可见顶点、r = 1 cm。
+
+**有效性前提**（`tools/agg778/r2_summarize.py`；按条件 × 体制判定，某条件不过只作废依赖它的假设）：
+- V1：冻结模块自身单步复现 XCL E3（±0.01 mm）。
+- V2：|T0s − 恒等| ≤ 0.1 mm（zgz 与选择受试者，local / global）。
+- V3：T6 ≤ 恒等（zgz，local 与 global）。
+- V4：T6s12 − T6 的 local 区间 > 0。
+- V5：DN − T0s ≥ −0.5 mm（local / global）；|DN − T0s| ≤ 1.0 只作诊断。
+- 适用范围：H-F 与 A3 的 H-T 用 A3 / E3 的有效性；噪声复现用 A3 / noise 的 V2；H-B 与 A0 的 H-T 用 A0 / E3 的有效性。
+
+**对比与门**（E3 RA，a − b，正 = a 更差；按端点配对，种子平均，块 bootstrap）：
+- "实质"：|Δ| ≥ 1.5 mm（local）/ 1.0 mm（global），区间不含 0，每个种子同号（单种子臂不能判实质）。
+- "可忽略"：区间落在 ±0.75 / ±0.5 内，且每个种子的差都在带内。
+- **H-F**（A3 / E3）：M13 − T4 为主；M13 − T5、Mcore − T4 为辅。zgz 与选择受试者都报。
+- **H-T**：
+  - 复现：T2 − T5（A3，E3 与 noise）。
+  - 实例：T2 − M13i、M13i − M13、T2 − M13（A3 与 A0）。
+  - 输入：T2 − T2abs、M13 − Mabs、M13 − Mcore。
+  - 子归因（描述）：M13 − Mpol / Mrate / Mmass；桥接 M13R − MabsR、M13R − M13；预算护栏 M13@8000 − M13。
+  - "H-T 被支持"：T2 − T2abs 或 M13 − Mabs 在 zgz_local 实质为正，且选择受试者 local |Δ| < 0.75，所在条件有效。
+- **H-B**（A0 / E3，小运动）：
+  - 主对比：M13 − M13fan、Mabs − Mabsfan。
+  - 描述：剂量 M13 − M13fan4；支持集信息 T6fan − T6、T6K − T6；M13 − K。
+  - "H-B 被支持"：M13 − M13fan 在 zgz local 或 global 实质为正，选择受试者同号，A0 有效。
+
+**D（系统内确认，自动，单 seed3407，描述性，≤3 次，臂预先固定）。**
+- 新增 opt-in 变体 `XYZ_AGG: noabs`：记录置零 x/W、y/H、zn；残差槽 token 置零 x/W、y/H；与 MabsR 对应。
+- 触发：
+  - H-T 在任一有效条件下被支持 → `agg778r2_noabs_a3_s3407` 与 `agg778r2_noabs_a0_s3407`；
+  - H-B 被支持 → `agg778r2_fanout_a0_s3407`；
+  - 所在条件无效的臂拒绝启动；没有触发 → 不进 D。
+- 合同与读数同 R1 的 D：配对 C1 / A3F0，fresh 6000，严格确定性；E1 主行、E1 ×2、E2、E3、E4、E5。
+- 门：XCL 单 seed 规则（local 5 / global 8 / wrist 10 mm，E1 / E2 / E3 同号，5000 / 5500 / 6000 至少两点同号），外加 H3=0 护栏。
+
+**阴性结果许可什么、不许可什么。**
+- H-F "可忽略"：许可"在同一批干净记录上，C1 的 φ + 池化形式不比固定均值丢任务信息"；不许可对可部署关联下的结论。
+- H-T "未支持"：只说明在本探针协议下没有找到由绝对输入或冻结实例造成的迁移缺口。
+- H-B 只覆盖 E3 小运动。
+- D 段单 seed 的"噪声带内"不能证明不存在 < 5 mm 的效应。
+- oracle（A3、T6、T5）不可部署。
+
+**预注册预期（不约束裁决）。**
+- H-F 可忽略（R1 P1）。
+- A3 的 T2 − T5 在 E3 与 noise 下复现为实质；实例效应（T2 − M13i）可能实质；输入归因不确定。
+- H-B 的扇出在 A0 小运动下可能实质。
+
+<a id="agg778-r2-results-20261025"></a>
+### AGG778 R2 结果（2026-10-25）：有效性全过；H-F 可忽略，H-T、H-B 未支持 → 不进 D
+
+`outputs/agg778/r2/summary.json`（`tools/agg778/r2_summarize.py probes`，CPU）。8 个探针进程于 10-24 13:18–18:40 全部完成。A0_e3_g3 两次 CUDA OOM（与其它探针同卡），现场保存在 `outputs/agg778/r2/failed/A0_e3_g3_oom{1,2}/`，均无读数；第三次单独在 GPU 6 上以同一冻结代码 / 配置 / 环境跑完。汇总于 10-25 01:2x 才运行：本会话的守望循环用 `pgrep -f` 匹配到了自己，不会退出（与 `#aura-wait-amendment-20261024` 描述的是同一个 shell），GPU 4–7 因此空闲约 6.8 h。另一个守望（pid 766261，`until [ $(ls probe/*/result.json …) -ge 8 ]`）在仓库根目录运行，相对路径永不匹配，同样没有触发；两个守望都已于 10-25 01:25 停止。D 选择 `outputs/agg778/r2/d/selection.json` 为 `arms: []`，`r2_run.sh d` 的 train / evaluate 无事可做。
+
+**有效性**（三个条件 × 体制全部有效）：
+- V1（单步复现 XCL E3，±0.01）：A0、A3 均过。
+- V2（|T0s − 恒等| ≤ 0.1）：A3/E3、A0/E3、A3/noise 均过。
+- V3（zgz T6 ≤ 恒等）：T6 为 2.01 / 0.94，恒等为 4.41 / 2.43（A0、A3 相同）。
+- V4（T6s12 − T6 local）：A0 +1.60 [1.46, 1.75]，A3 +1.68 [1.54, 1.82]。
+- V5（DN − T0s）：两条件 |Δ| < 1e-4 mm，供体事件在 E3 下不帮忙。R2 的 DN 只在 E3 下跑；R1 的 0.16–0.18 是噪声锚点体制下的数（R1 在 E3 下为 0.012 / 0.020），两者不可比。事后诊断：DN 的读出层在两条件都塌缩为常数（fc1 激活单元 0–1 / 256，与无事件的 T0s 相同），即训练后完全忽略供体事件。
+
+**zgz E3 RA**（mm，local / global，种子平均）：
+
+| 臂 | A3 / E3 | A0 / E3 | A3 / noise |
+|---|---|---|---|
+| 恒等（锚点不更新）= T0s = DN | 4.41 / 2.43 | 4.41 / 2.43 | 17.49 / 17.98 |
+| T6（支持集 GT ΔV，天花板） | 2.01 / 0.94 | 2.01 / 0.94 | – |
+| T4 / T5（固定 R1 / R2 均值） | 3.66 / 1.49；3.52 / 1.42 | – | 8.02 / 5.37；7.86 / 5.29 |
+| T2（冻结 H0）/ T2abs | 3.52 / 1.34；3.15 / 1.32 | 4.27 / 1.61；4.15 / 1.59 | 7.70 / 4.97；– |
+| M13（重学 C1 形式）/ M13i | 3.21 / 1.29；3.41 / 1.26 | 4.21 / 1.64；4.32 / 1.63 | 7.85 / 5.10；– |
+| Mabs / Mcore | 3.16 / 1.26；3.51 / 1.43 | 4.24 / 1.87；– | 7.46 / 5.16；– |
+| M13fan / M13fan4 / K | – | 4.18 / 1.67；4.16 / 1.68；4.21 / 1.71 | – |
+
+**对比**（zgz，a − b，mm，95 % 块 bootstrap；选择受试者的分类见 `summary.json` 的 `classes`，主对比与 zgz 一致，全部"可忽略"）：
+- **H-F**（A3/E3）：M13 − T4 = −0.45 [−0.54, −0.38] / −0.20 [−0.24, −0.16]；M13 − T5 = −0.31 / −0.12；Mcore − T4 = −0.15 / −0.06。全部"可忽略"，C1 形式略好于固定均值。
+- **H-T**：
+  - 复现 T2 − T5：A3/E3 为 +0.00 [−0.07, +0.07] / −0.07；noise 为 −0.15 / −0.32（T2 略好）。R1 的"T2 11.8 对固定均值 5.2"缺口在修正后的工具下（含噪声锚点复现）不复现，与评审代理复现的解释一致：读 prev48 的下游 + 常数偏置。
+  - 实例：T2 − M13i、M13i − M13、T2 − M13 的 |Δ| ≤ 0.31。
+  - 输入：T2 − T2abs = +0.37 [+0.31, +0.43]（A3 local），M13 − Mabs = +0.05。
+  - 全部"可忽略"；A0 global 的 M13 − Mabs = −0.23 为"未定"。逐种子为 +0.07 / +0.00 / −0.76，来自 A0 Mabs 种子 2 的读出层塌缩（fc1 激活 0 / 256，输出恒为偏置，训练损失与 T0s 逐位相同）；另两个种子无差别，所以这不是"绝对量有用"的证据。H-T 在 A3、A0 均未支持。
+- **H-T 子归因（描述）**：极性、dt / SAE、计数置零，桥接 M13R − MabsR / M13R − M13，预算护栏 M13@8000 − M13，全部 |Δ| ≤ 0.16。
+- **H-B**（A0/E3）：
+  - M13 − M13fan = +0.03 / −0.03；M13 − M13fan4 = +0.04 / −0.04；T6fan − T6 = −0.14 / −0.01；T6K − T6 ≈ 0；M13 − K ≈ 0。全部"可忽略"。
+  - Mabs − Mabsfan global +0.19 为"未定"，逐种子 −0.13 / −0.07 / +0.78，来自同一个塌缩的 Mabs 种子 2。
+  - H-B 未支持。
+
+**裁决（按预注册）。**
+- H-F 可忽略：在同一批干净记录上，C1 的 φ + 池化形式不比固定均值丢任务信息。
+- H-T 未支持：本探针协议下，没有找到由绝对输入或冻结实例造成的迁移缺口。
+- H-B 未支持（只覆盖 E3 小运动）：扇出与核支持集都没有增益。
+- 没有触发，不进 D。
+- 预注册预期中"T2 − T5 复现为实质""扇出可能实质"两条均未出现。
+
+**描述（不改裁决）。**
+- 学到的特征在 oracle 关联（A3）下把 zgz local 从 4.41 降到 3.2，距 GT ΔV 天花板 2.0 还差 1.2 mm（global 1.29 对 0.94）。
+- 在 C1 自己的关联（A0）下只降到 4.2，距天花板 2.2 mm（global 1.64）。
+- 聚合形式、绝对量、实例与分箱都解释不了这两段缺口；A0 与 A3 之差（local 1.0 mm）指向关联而非聚合。oracle 不可部署。S39 不变。
+
+**事后诊断：探针读出层的激活**（汇总之后做，不是预注册读数，不改裁决；`outputs/agg778/r2/diagnostics/tail_activity.json`）。每个 E3 探针下游在 64 个选择受试者端点（GT 前态）上的 fc1 ReLU 激活比例：
+- T6 / T6fan / T6K：26–28 %；
+- A3 记录类臂（T2、T2abs、T4、T5、M13、M13i、Mabs、Mcore、子归因与桥接臂）：10–15 %；
+- T6s12：3.3–3.8 %；
+- A0 记录类臂（T2、T2abs、M13、M13i、Mabs 种子 0 / 1、M13fan、M13fan4、Mabsfan、K）：1.1–1.6 %；
+- T0s、DN、A0 Mabs 种子 2：0（只剩偏置）。
+
+解读：
+- 激活随输入的信息量单调变化：T6 > A3 记录 > T6s12 > A0 记录 > 无信息。
+- A0 下各种聚合（含冻结 C1 自己的 H0）同样低，说明 A0 的弱增益来自记录本身信息少，不是某一种聚合或探针失效。
+- 唯一的完全塌缩是 A0 Mabs 种子 2。
+
+<!-- EXPERIMENT_RECORD:AGG778:END -->
+
+<!-- EXPERIMENT_RECORD:MRF:BEGIN -->
+<a id="mrf-prereg-20261024"></a>
+## MRF 预注册：XYZ-C1「提升感受野」（MeshGNN）模块的隔离检验（2026-10-24，写于任何读数之前）
+
+**授权与范围（用户 2026-10-24）。** 用户要求继续分析 XYZ-C1：现在的感受野具体是多少，单独检验"提升感受野"模块有没有问题、对模型的影响，并参考 docs 与实验记录设计能充分证明的理想实验。用户批准计划 `/home/lyq/.claude/plans/xyz-c1-meshgnn-receptive-field-mrf.md` 的排期：A 立即在 CPU 上做；B 排在 AGG778 R2（含其 D 段）全部结束之后，并先读 R2 的有效性；A–C 约 37 GPU·h；**D 段单 seed3407**。只用物理 GPU 4–7，CPU 全量。S39 不变；新代码全部 opt-in（`semkine/mrf.py`、`tools/mrf/`、`MODEL.XYZ_RF`），C1 默认路径逐位不变（`tests/test_mrf.py`）。源码 / 配置 / 参照的 SHA 冻结于 `outputs/mrf/protocol.json`，每个入口校验。
+
+**模块边界 G。** `semkine/xyz_mesh.py:572–581`：相机系边几何 g = (V_l − V_j, |V_l − V_j|) / 5 mm → 共享边嵌入 gemb；3 轮 `XYZMeshLayer`（`:324–351`）：m_{l→j} = S_l σ(W_g gemb_jl + c) ⊙ W_m H_l，S′ = S ∨ any(S_l)，H′ = H + S′ relu(W_s H + 受支持邻居均值)；输出 H3 与 S 交给 `lbs_slot_pool`（`:354–375`，槽均值与 peak 都在 S 上取）。上游（关联、记录、φ、池化、vin → H0，即 AGG778 的模块 M）与下游（LBS 槽、残差槽、17 槽压缩、读出）固定。G 内四个因素：有记录顶点之间的消息传递、支持扩张（把特征外推到无记录顶点并参与槽池化）、深度（3 个残差非线性）、3D 边门控。
+
+**已见数字的披露。** 写本节前已读：
+- 本研究的 CPU 描述性预检（`outputs/mrf/precheck_20261024/`，冻结 C1，未读精度）：名义 3 跳；3 跳球中位 38 个顶点、欧氏半径中位 29 mm；像面约 14 / 11 px（global / local）；直接支持 O 每 50 ms global 480 / local 285，3 轮后 S global 756 / local 714；有记录顶点学到的更新 ΔH 的雅可比能量自身 92–94 %、1 跳 6–8 %；外推顶点占槽池化权重 global 0.37 / 0.41、local 0.61 / 0.66（E3 / E2）；读出梯度落在外推顶点 0.24–0.56；有记录顶点证据经自身 / 其他有记录 / 外推顶点 66–76 % / 11–16 % / 8–23 %。
+- XCL 主表与 E1–E5 / 冻结干预（C1 E1 local 27.99、E3 15.35、H3=0 E3 9.87；A3F0 E1 10.48、E2 12.34、E3 8.78；FΩo / FΩd E1 4.57 / 4.22、E3 3.42 / 3.20）；XCL A0F1 − A0F0（F+）local E1 / E2 / E3 +10.47 / +1.30 / +1.16、global E1 −2.88；10-17 旧非确定性 XAG 同一对比 local −5.4 / global +1.6；XVM 相邻顶点测量误差相关约 0.7；AGG778 R1 全部数字（含 Stage C：A3 记录 10 % 跨部位错派使 T2 local 25.9）；S37 EDGE6 双种子 −2.1 / +3.4 mm。
+- AGG778 R2 的预注册与试点（只用选择受试者）。R2 的正式探针读数**未读**（写本节时 R2 探针仍在运行）。
+- 本轮工程冒烟（不是结果）：`tests/test_mrf.py` 35 项通过；Stage A 冒烟（每个模型 zgz_global E3 前 32 包）A1–A5 全部通过、A8 通过；B 的 14 个进程与 B-vertex 在 CPU 上 ≤16 端点、3 步跑通（只看到损失；CPU 冒烟用 fp32，因为 CPU 的 bf16 autocast 不支持 F+ 注意力的浮点掩码，GPU 路径在 XCL 已用过）；B / B-vertex 汇总在冒烟产物上空跑通过（只核结构）。B / C / D 的任何假设读数均未读。
+
+**相对已批准计划的设计细化（读数前）。**
+1. H-U 主对比改为 L3np − N0d（两边都不外推，只差有记录顶点之间的消息传递）；L3 − N0d 作"总效应"（对应 D 的 `self3`）。计划写的 L3 − N0d 同时含外推与消息传递。
+2. 同一输入族、同一种子序号下，各 G 臂的共同参数初值逐项相同（每族一个种子基数，额外块在 CPU 分叉里最后构建），G 之间的对比是配对的。
+3. D 段单 seed（用户决定）：门换成 XCL 单 seed 规则，不补训 C1 3408 / 3409；计划中三种子的"可移除"判定不再适用。
+4. D 臂只按选择受试者触发（zgz 只报告）。`global` 不新训：XCL 已有同配方 seed3407 的 A0F1（F+）；Gg − Gl 被支持时 D 训 `global_loc`（容量匹配的局部注意力对照），与 A0F1 和 C1 两边比较。尺寸对比被支持时 D 训 `ring4np`（K12np 的系统内版本）。
+5. V5（精确输入下各 G 等价）在 zgz 与选择受试者、local 与 global 四格都要求"可忽略"。
+6. T6ap 的支持集取 O ∩ 轮廓（|n̂·d̂| < 0.4），输入为 GT 像面位移在像面法向上的分量 / ρ（ρ = f·1 cm / z）与像面法向方向（2 维）。T6out：每包 O 的 10 %（四舍五入）换成另一硬部位随机 O 顶点的 GT 位移。
+7. B-vertex 探针输入为 [特征, |n·d|, O, 该特征自身的支持]；损失为可见受支持顶点的二维高斯 NLL（P4 约定，ρ = f·2 cm / z）+ 全部受支持顶点的三维 MSE（λ = 1）；E3 锚点。外推参照两种：`H0near`（3 轮前沿均值，即复制最近的有记录顶点）与 `H0smooth`（3 轮"自身 + 受支持邻居"均值）。
+8. K12np / K12 的 4 跳球按目标顶点分块并做激活检查点（与稠密 4 跳球一致，测试容差 1e-5）；Gl 的注意力只在"自身 ∪ 1-ring"上计算（与稠密掩码注意力一致，1e-5）。
+9. A 全部在 CPU 上做（A6 的 bf16 是 CPU autocast，只描述）；A8（`pytest tests/test_mrf.py`）是 B / D 的工程前提。
+10. `model/model.py` 被 AGG778 R2 的协议冻结（R2 的 D 段每次启动都校验）。`MODEL.XYZ_RF` 接线固定为三处精确插入（`tools/mrf/wiring.py`），协议记录插入前后的 SHA；只在 R2 完整结束后由 `tools/mrf/d_stage.py apply-wiring` 应用（先检查 R2 汇总、D 选择、全部读数都在且无 R2 进程）。A–C 校验插入前的文件，D 校验插入后的文件。
+11. B 有 14 个进程，加 2 个 B-vertex 进程，经 `tools/mrf/gpu_queue.py` 排队：每卡至多 2 个、空闲显存 ≥ 20 GiB 才派发；CUDA OOM 的进程保留现场后单卡重跑（同代码同配置），其他失败保留不重试。正式 B 前在 GPU 上做每进程 3 步 + 64 端点的冒烟（只看显存与耗时）。
+
+### Stage A：实现正确性（零训练，CPU）
+
+C1（A0）与 A3F0（A3）各在 zgz 每第 10 个端点 × {E3、E2（C1 严格轨迹 incoming）}、选择受试者每第 40 个端点 × E3 上：
+- **A1** ring 等于独立构造的面边集合且对称；跳数矩阵与 4 跳球等于 scipy BFS。
+- **A2** 每包每轮 S_k 等于 O 的 k 跳精确膨胀；捕获的 S 等于 S3。
+- **A3** 独立 float64 NumPy 三轮（边嵌入、门控、受支持邻居均值、残差、S）与模块 H1–H3 的相对误差 ≤ 1e-5，S 逐位相等；模块自身捕获的 H3 与重算一致。
+- **A4** ∂H3_j/∂H0_i 在跳数 > 3 处恰为 0（自身项非零）；读出对 S 外的梯度恰为 0；S 外 H3 恰为 0，O 外 H0 恰为 0。
+- **A5** 顶点重编号、批组成、ring 填充槽改写后结果不变（≤ 1e-5，S 逐位相等）。
+- **A6**（描述）bf16 autocast 对 fp32 的 H3 相对差；**A7**（描述）预检各量在两个模型上正式重跑；**A8** `pytest tests/test_mrf.py`。
+- **门**：A1–A5 全过；任一失败 → 结论"实现缺陷"，停止。A8 不过 → 修工具，不读 B。
+
+### Stage B：隔离信息审计（GPU 4–7）
+
+测量工具 = AGG778 R2：下游不读 prev48、残差槽置零、保留锚点的边几何；bf16 训练、fp32 评估、确定性算法；4000 步 × 128，Adam 2e-3，预热 300，余弦到 2 %，裁剪 10；拟合 7 人；评估选择受试者 ycy / ylf 每第 4 个端点与 zgz 全 2590 端点。臂 = 输入族.G。
+
+| G | 变体 | 有记录顶点之间的消息 | 外推 | 感受野 |
+|---|---|---|---|---|
+| N0d | 3 个逐顶点残差层（只 W_s），S = O | 无 | 否 | 0 跳 |
+| L3 | C1 原样 | 1-ring | 是 | 3 跳 |
+| L3np | C1 三轮，S 固定为 O | 1-ring | 否 | 3 跳 |
+| K12np | 三轮，邻接换成 4 跳球，S = O，参数同 L3 | 4 跳球 | 否 | 12 跳 |
+| K12 | 同 K12np，S 在 4 跳球上扩张（描述） | 4 跳球 | 是 | 12 跳 |
+| Gg | L3 每轮后接 XAG `GlobalResidual`（F+ 原件） | 全手 | 是 | 全手 |
+| Gl | 同 Gg，注意力限于自身 ∪ 1-ring（容量匹配） | 1-ring | 是 | 6 跳 |
+| N0 / Dfix / Lg0 | 无层；无参数前沿均值外推 3 轮 + 3 个逐顶点层；L3 边几何置零（均为描述） | | | |
+
+输入族：M（新 φ + C1 池化，与 G 一起训练，主）；H（冻结模块自身的 H0）；T0s（无事件无状态，校准）；T6（O 上 GT ΔV / 1 cm）；T6s12（加 12 mm 逐轴噪声）；T6out；T6ap。
+
+| 条件 / 体制 / 进程 | 臂（种子数） |
+|---|---|
+| A3、A0 / E3 / m1 | M.N0d(3) M.L3(3) M.L3np(3) |
+| A3、A0 / E3 / m2 | M.K12np(3) M.K12(1) |
+| A3、A0 / E3 / m3 | M.Gg(3) M.Gl(3) |
+| A3、A0 / E3 / m4 | M.N0(1) M.Dfix(1) M.Lg0(1) H.N0d(1) H.L3(1) H.L3np(1) |
+| A3、A0 / E3 / t1 | T0s.L3(3) T6.L3(3) T6s12.L3(3) T6.{N0d, L3np, K12np, Gg, Gl}(各 1) |
+| A3 / E3 / c1 | T6s12.{N0d, K12np, Gg}(各 3) T6out.{N0d, L3, K12np, Gg}(各 3) |
+| A3 / E3 / c2 | T6ap.{N0d, L3, K12np, Gg}(各 3) |
+| A3、A0 / noise / n1 | T0s.L3(3) M.N0d(3) M.L3(3) M.L3np(3) M.Gg(3) |
+
+noise 体制 = C1 的 mixed 前态噪声（训练 rng 3407、评估 rng 777）。A0 = 冻结 C1 + C1 关联；A3 = 冻结 A3F0 + full_oracle 关联（oracle，不可部署）。
+
+**B-vertex**（A0、A3 各一个进程）：冻结模块的 H0、H1、H2、H3 与 H0near、H0smooth，线性与 2 层 MLP 探针各 3 个种子；3000 步 × 64，Adam 1e-3，预热 300，余弦到 2 %，裁剪 10。读数（zgz 与选择受试者，块 bootstrap）：拥有 GT 事件的可见轮廓顶点的法向位移相关（AGG778 主指标）；O 与 S3\O 上的可见轮廓法向相关；O、S3\O 可见、S3\O 不可见上的三维位移 R²。
+
+**有效性前提**（按条件 × 体制判定；某项不过只作废依赖它的假设）：
+- **R2 前置**：AGG778 R2 同一条件的 V2（E3 还要 V3）不过 → 不读本研究该条件的 B，先报告。R2 没有 A0 / noise，该条件只用本研究自己的 V2。
+- **V1** 冻结模块自身单步复现 XCL E3（±0.01 mm；A0 15.3511 / 4.8169，A3 8.7779 / 3.7395）。
+- **V2** |T0s.L3 − 恒等| ≤ 0.1 mm（zgz 与选择受试者，local / global）。
+- **V3** T6.L3 ≤ 恒等（zgz，local 与 global）。
+- **V4** T6s12.L3 − T6.L3 的 local 区间 > 0（zgz）。
+- **V5** 每个 G ∈ {N0d, L3np, K12np, Gg, Gl}：T6.G − T6.L3 在 zgz 与选择受试者、local 与 global 均"可忽略"。不满足的 G：其真实特征对比标"容量 / 优化混杂"，不触发 D。
+
+**对比与门**（E3 RA，a − b，正 = a 更差；按端点配对，种子平均，20 端点块 bootstrap 95 %，2000 次）：
+- **门**："实质" = |Δ| ≥ 1.5 mm（local）/ 1.0 mm（global），区间不含 0，每个种子同号（单种子臂不能判实质）；"可忽略" = 区间在 ±0.75 / ±0.5 内且每个种子都在带内；其余"未定"。zgz 与选择受试者分别判。
+- **H-U（消息传递）**：M.L3np − M.N0d。**总效应**：M.L3 − M.N0d。
+- **H-P（外推）**：M.L3 − M.L3np；noise 体制同一对比作复现。
+- **H-S（尺寸）**：M.K12np − M.L3np；M.Gg − M.Gl（全局，容量匹配）。
+- **描述**：M.K12 − M.L3、M.Gg − M.L3、M.K12 − M.K12np、M.N0 − M.N0d（深度）、M.Dfix − M.N0d、M.Dfix − M.L3（无参数外推对学到的外推）、M.Lg0 − M.L3（边几何）。
+- **H-K（共适应，描述）**：H.L3 − H.N0d、H.L3np − H.N0d、H.L3 − H.L3np，对照 M 版本。
+- **H-C（能力，A3 支持集）**：X ∈ {T6s12, T6out, T6ap} 上 X.L3 − X.N0d、X.K12np − X.L3、X.Gg − X.L3。
+- **B-vertex**：逐层增益 H3 − H0、H1 − H0，以及 H3 − H0near、H3 − H0smooth：Δ ≥ 0.05 且区间不含 0 为实质，区间在 ±0.02 内为可忽略。
+
+### Stage C：零训练干预（描述；GPU 4–7）
+
+- **C1 截断**：冻结 C1 / A3F0 从第 k+1 轮起消息置零（逐顶点更新保留），k = 0, 1, 2，支持照常扩张（k?e）或固定为 O（k?f）；k3f = 三轮都固定支持（冻结权重上的 noprop）。
+- **C2 池化**：LBS 槽只在 O 上池化（poolO，G 不变）。
+- 以上与原样（orig）各在 E3、E2、E1（XCL E1 合同）上跑完整 2590 包；训练好的模块上的分布外干预，只描述。
+- **C3 稀疏度**：B 的 A0 / A3 M.N0d、M.L3、M.L3np（E3，3 种子）在每包均匀稀释到 1、1/1.5、1/2.4、1/4 的 zgz 上的 E3。
+- **C4**：每包外推权重份额与冻结模块 E2 / E3 误差的 Spearman 相关（每域）。
+
+### Stage D：系统内配对重训（单 seed3407，描述性）
+
+- **变体**：`MODEL.XYZ_RF` ∈ {self3, noprop, ring4np, global_loc}（`semkine/mrf.py` 的 `MRFXYZMeshNet`；`self3` 构建但冻结消息、门与边嵌入；`global_loc` 的块与 F+ 的初值相同）。C1 默认路径逐位不变，构建后的随机流与 C1 相同（测试）。
+- **臂**（只读选择受试者，由 `tools/mrf/summarize.py` 的 `d_triggers` 自动选出，规则预先固定）：
+  - 总是 `mrf_self3_a0_s3407`；
+  - H-P 被支持（M.L3 − M.L3np 在选择受试者 local 或 global 实质，任一方向；同条件 noise 体制选择受试者同号；V5 含 L3np）→ `noprop`；
+  - M.K12np − M.L3np 在选择受试者实质为负（12 跳更好），V5 含 K12np、L3np → `ring4np`；
+  - M.Gg − M.Gl 在选择受试者实质为负，V5 含 Gg、Gl → `globalloc`；
+  - 两个条件都触发时用 C1 配方（a0），只在 A3 触发时用 A3F0 配方（a3）；可选臂至多 2 个，按选择受试者 |Δ| / 门槛排序。
+- **合同**：同 AGG778 D（AGG778 R1 的训练 / 评估包装原样复用，只换注册表）：与同配方对照配对（共享初值逐项相同，逐 rank 实际索引与逐步包指纹核验），fresh 6000，2×512，BF16，legacy_none，worker 12 / prefetch 1，原损失 / Adam / LR / 调度，严格确定性；50 步预检 + 完整验证；fail-closed，不 resume。GPU 4–5、6–7 两组。
+- **读数**：主行（`tools/report_table.py` 九列，含 baseline、S39、C1 行）；E1 两次 fresh、E2、E3、E4（gt_pose）、E5（gt_transl）、E1 @5000 / 5500。对照读数取 XCL 现有评估（C1、A3F0；`globalloc` 另与 A0F1 比较）。
+- **门（XCL 单 seed 规则）**："方向支持" = |ΔE1| ≥ 5 mm（local）/ 8 mm（global）/ 10 mm（wrist），且 E1 / E2 / E3 同号、5000 / 5500 / 6000 至少两点同号；否则"噪声带内"。H3=0 护栏：E3 变好但不优于对照的 H3=0 E3 → 标"可能只是更少依赖事件"。
+
+### 判读树与结论格式
+
+1. A 失败 → 实现缺陷。
+2. B 某条件有效性失败 → 该条件的测量工具无效，不出该条件的结论。
+3. H-U、H-P、H-S 在 zgz 均"可忽略" → G 在功能上是逐顶点变换，3 跳既非瓶颈也非问题；D 的 `self3` 给出系统内的描述。
+4. H-P 实质且 L3np 更好（外推有害）→ 问题在支持扩张；D 跑 `noprop`。L3 更好 → 外推有用。
+5. H-S 被支持且 Gg − Gl 实质 → 感受野不足；若只有 K12 − L3 或 Gg − L3 实质、容量匹配的对比可忽略 → 收益来自容量或外推，不是感受野。
+6. H-C：能力格中 L3 ≈ N0d → 结构上不会利用邻域（设计或优化问题）；能力格有效、真实特征上无效 → 信息受限（相邻误差相关）。
+7. H-K：冻结与重学的结论不同 → 冻结对比只反映共适应。
+
+结论格式："提升感受野（MeshGNN）：实现[正确 / 缺陷]；有效感受野[X 跳]；消息传递[有 / 无实质作用]；外推[有益 / 有害 / 可忽略]；尺寸[无实质作用 / 有，来自 Y]；能力[能 / 不能利用邻域]；系统内（单 seed3407）[方向支持 / 噪声带内]"。
+
+**阴性结果的边界。**
+- "可忽略"只许可"在 50 ms、C1（或 A3）的记录与关联、本探针协议下"的说法，不许可"修好测量后感受野仍不重要"。
+- 像面测量支撑（关联带宽、时间窗）不在本研究范围，属 AGG778 / XVM。
+- oracle（A3、T6 系列）不可部署。
+- D 单 seed 的"噪声带内"不能证明不存在 < 5 mm 的效应，也不能证明 `self3` 可移除。
+
+**预注册预期（不约束裁决）。** 预检显示有记录顶点的有效感受野约 1 跳且权重小，预期 H-U 可忽略；H-P 在 local 可能有害或可忽略；H-S 可忽略；能力格中 T6out 可能显出 L3 优于 N0d（局部一致性剔除离群）；B-vertex 中 H3 − H0 在 O 上可忽略，S3\O 上 H3 与 H0near 相近。
+
+<a id="mrf-a-result-20261024"></a>
+### MRF Stage A 结果（2026-10-24）：通过，实现正确
+
+`outputs/mrf/a/result.json`（CPU，597 s；协议 `outputs/mrf/protocol.json` 校验通过）。C1（A0）与 A3F0（A3）各 5 组包（zgz_global / zgz_local × E3 / E2，各 139 / 121 包；选择受试者 E3 516 包）：
+- **A1–A5 全过**：ring = 面边集合（2315 条，对称），跳数矩阵与 4 跳球 = scipy BFS；每包每轮 S_k = O 的 k 跳精确膨胀；float64 NumPy 三轮与模块 H1–H3 相对误差最大 1.1e-6（门槛 1e-5），S 逐位相等；跳数 > 3 处雅可比恰为 0、读出对 S 外梯度恰为 0、S 外 H3 与 O 外 H0 恰为 0；重编号逐位一致，批组成 ≤ 1e-7，ring 填充槽改写后逐位不变。A8：`tests/test_mrf.py` 35 项通过。
+- **A6（描述）**：CPU bf16 autocast 下 S 上 H3 的相对差 A0 0.006–0.007、A3 0.007–0.020。
+- **A7（描述，正式重跑预检）**：A0 与预检一致（有记录顶点学到的更新 ΔH 自身 92–94 %、1 跳 6–8 %、2 跳 ≤ 0.04 %；槽权重外推份额 global 0.37 / 0.41、local 0.61 / 0.66，E3 / E2）。A3F0 结构相同（自身 94 %、1 跳 5–6 %；外推份额 global 0.42、local 0.64），但有记录顶点证据经外推顶点到达输出的份额更高（global 19–21 %、local 29–31 %，A0 为 7–21 %），手指块读出梯度落在外推顶点 0.51–0.59。三轮门控均值 A0 0.32 / 0.41 / 0.46，A3F0 0.22 / 0.38 / 0.47。
+- 按判读树第 1 条：实现正确，进入 B（排在 AGG778 R2 全部结束之后）。
+
+<a id="mrf-b-result-20261025"></a>
+### MRF Stage B 结果（2026-10-25）：有效性全过；消息传递、外推、4 跳尺寸均可忽略；注意力两臂在真实特征上塌缩，不可解读；D 只跑 self3
+
+**产物与运行。**
+- 汇总：`outputs/mrf/b/summary.json`、`outputs/mrf/b_vertex/summary.json`（`tools/mrf/summarize.py b / bvertex`，CPU）。
+- 16 个进程（14 组 + 2 个 B-vertex）于 10-25 01:28–08:24 在 GPU 4–7 上跑完，每卡 ≤ 2 个，无失败、无 OOM。
+- 启动于 R2 完整结束之后（`#agg778-r2-results-20261025`）。r2gate（`outputs/mrf/r2gate.json`）：A3/E3、A0/E3、A3/noise 的 R2 有效性全过；A0/noise 没有 R2 条件，只用本研究的 V2。四个条件都读。
+
+**有效性**（四个条件 × 体制全部有效）：
+- V1：单步复现 XCL E3，A0、A3 均过。
+- V2：|T0s.L3 − 恒等| ≤ 0.1，四个条件均过。
+- V3：T6.L3 为 2.04 / 0.94（A3）、2.03 / 0.94（A0），都 ≤ 恒等 4.41 / 2.43。
+- V4：T6s12.L3 − T6.L3 的 local，A0 +1.52 [1.38, 1.65]，A3 +1.61 [1.47, 1.75]。
+- V5：A0、A3 下，N0d、L3np、K12np、Gg、Gl 全部可忽略（T6.G − T6.L3 的 |Δ| ≤ 0.33）。
+
+**zgz E3 RA**（mm，local / global，种子平均；恒等 4.41 / 2.43）：
+
+| 臂 | A3 / E3 | A0 / E3 |
+|---|---|---|
+| M.N0d（逐顶点 3 轮，无消息） | 3.40 / 1.36 | 4.21 / 1.61 |
+| M.L3（C1 原样） | 3.21 / 1.29 | 4.21 / 1.64 |
+| M.L3np（有消息，不扩张支持） | 3.34 / 1.29 | 4.24 / 1.62 |
+| M.K12np（4 跳球，不扩张） | 3.21 / 1.26 | 4.20 / 1.64 |
+| M.K12（4 跳球 + 扩张，1 种子） | 3.08 / 1.24 | 4.21 / 1.66 |
+| M.Gg / M.Gl（全局 / 局部注意力，见塌缩一节） | 4.26 / 2.20；4.22 / 2.22 | 4.27 / 1.91；4.41 / 2.43 |
+| M.N0 / M.Dfix / M.Lg0（1 种子） | 3.37 / 1.28；3.44 / 1.39；3.28 / 1.27 | 4.29 / 1.62；4.17 / 1.62；4.18 / 1.65 |
+| T6.L3 / T6.N0d（GT ΔV） | 2.04 / 0.94；2.30 / 0.96 | 2.03 / 0.94；2.36 / 0.94 |
+
+**对比**（zgz，a − b，mm，95 % 块 bootstrap；选择受试者上的分类与此相同）：
+- **H-U 消息传递**（M.L3np − M.N0d）：A3 −0.06 / −0.07，A0 +0.03 / +0.01，可忽略。总效应 M.L3 − M.N0d：A3 −0.20 / −0.06，A0 −0.00 / +0.03，可忽略。
+- **H-P 外推**（M.L3 − M.L3np）：A3 −0.14 / +0.00，A0 −0.03 / +0.02，可忽略。noise 复现：A3 +0.07 / +0.36，可忽略；A0 local −0.43 为"未定"（种子 −1.02 / +0.54 / −0.80），global −0.25。
+- **H-S 尺寸**：
+  - M.K12np − M.L3np：A3 −0.13 / −0.02，A0 −0.04 / +0.02，可忽略。
+  - M.K12 − M.L3、M.K12 − M.K12np：|Δ| ≤ 0.13。
+  - M.Gg − M.Gl 不可解读，见塌缩一节。
+- **描述**：M.N0 − M.N0d（深度）、M.Dfix − M.N0d / M.L3（无参数外推）、M.Lg0 − M.L3（边几何），|Δ| 全部 ≤ 0.24。
+- **H-K 共适应**（H 臂 1 种子）：
+  - A3：H.L3 − H.N0d = −1.11 [−1.30, −0.91]（zgz local；选择受试者 −0.18），M 版为 −0.20。H.N0d 为 4.68，劣于恒等。冻结特征下换掉 G，zgz local 约损失 1 mm，重学后消失。
+  - A0：H 对比全部可忽略。
+- **H-C 能力格**（A3）：
+  - X.L3 − X.N0d：T6s12 +0.01 / +0.17，T6out −0.30 / −0.04，T6ap −0.12 / −0.02。
+  - X.K12np − X.L3、X.Gg − X.L3：|Δ| ≤ 0.25。
+  - 全部可忽略。
+
+**注意力两臂在真实特征上塌缩（预注册未预见，按事实登记）。**
+- **现象**：M.Gg、M.Gl 的 12 个种子中有 8 个（A3：Gg/0、Gg/2、Gl/1、Gl/2；A0：Gg/0、Gl/0、Gl/1、Gl/2）在预热结束后（约 300–500 步，学习率升到 2e-3）退化为常数输出：
+  - 预测与锚点的最大偏差 ≤ 5e-2；
+  - 训练损失与零更新逐位相同（4000 步时 −1.1408）；
+  - zgz RA 等于恒等。
+- **其余 4 个种子**：A3 为 3.84–3.95 / 1.73–1.81，仍劣于 M.L3 的 3.21 / 1.29；A0 为 4.20 / 1.62–1.69。
+- **范围**：同样的 Gg / Gl 在 GT 输入（T6、T6s12、T6out、T6ap）与 noise 体制（M.Gg）上训练正常，其它 14 组没有塌缩。V5 只在 GT 输入上检查容量，没有覆盖真实特征上的优化失败。
+- **含义**：
+  - H-S 的 M.Gg − M.Gl 只反映塌缩：A0 global −0.52 为"未定"，种子 0.00 / −0.81 / −0.75；A3 的种子为 +0.62 / −0.70 / −0.00。描述项 M.Gg − M.L3（A3 +1.05 / +0.90）同样只反映塌缩。两者都不能作为"注意力 / 全局感受野无作用"的证据。
+  - `globalloc` 没有触发，与此一致。
+- **描述（不在门内）**：noise 体制下 M.Gg − M.L3，A3 为 −1.30 / −1.41（global 实质，3 种子同号）；A0 为 +1.64（local 实质）/ +0.50。
+
+**B-vertex**（zgz，lin / mlp 两种读出；Δ ≥ 0.05 且区间不含 0 为实质，±0.02 以内为可忽略）：
+- **O 上（有记录顶点），主指标为拥有 GT 事件的可见轮廓法向相关**：
+  - A0：H0 0.34 / 0.44 → H3 0.38 / 0.48，+0.04，未定。H3 − H0near ≈ 0，可忽略；H3 − H0smooth 为 −0.07 / −0.05。
+  - A3：mlp 读出 0.33 → 0.54，+0.21，实质，且高于 H0near 0.37、H0smooth 0.42；lin 读出 +0.02。
+- **S3\O 上（外推顶点），三维位移 R²（不可见 / 可见，mlp）**：
+  - H3：A0 为 0.004 / 0.007，A3 为 0.14 / 0.23。
+  - 无参数 H0near：A0 0.04 / 0.03，A3 0.51 / 0.56。
+  - 无参数 H0smooth：A0 0.05 / 0.04，A3 0.59 / 0.64。
+  - A3 下 H3 − H0near 为 −0.33～−0.40（实质）：学到的外推特征远不如直接拷贝最近有记录顶点的 H0。
+
+**判读（按判读树）。**
+- 第 2 条：四个条件都有效，全部可读。
+- 第 3 条：H-U、H-P 与 H-S 的 4 跳部分在 zgz 都可忽略 → G 在功能上是逐顶点变换，3 跳既不是瓶颈也不是问题；系统内描述待 D 的 `self3`。H-S 的注意力部分因塌缩不可解读。
+- 第 6 条：能力格中 L3 ≈ N0d → 本协议下 G 在结构上不利用邻域（预注册的读法）。附注：LBS 槽池化本身已经在多个顶点上平均，能力格检验的只是 G 在池化之外有没有额外增益。
+- 第 7 条：H-K 在 A3 zgz local 上冻结与重学的结论不同（单种子）→ 冻结对比反映的是共适应。
+- B-vertex：外推在逐顶点信息上低效（不如无参数近邻），但在任务层（H-P）可忽略 → 外推既无益也无害。
+- **预注册预期对照**：
+  - H-U、H-S（4 跳）可忽略：成立。
+  - H-P 可忽略，local 上没有出现有害。
+  - T6out 上 L3 略好于 N0d（−0.30），未达门。
+  - B-vertex 的"O 上 H3 − H0 可忽略"在 A3 mlp 读出下不成立（+0.21）；"S3\O 上 H3 与 H0near 相近"不成立（远低于 H0near）。
+
+**D 选择**（`d_triggers`，只读选择受试者）：
+- 只有 `mrf_self3_a0_s3407`（必跑）。
+- `noprop`、`ring4np`、`globalloc` 都没有触发：选择受试者上 M.L3 − M.L3np、M.K12np − M.L3np 没有实质；M.Gg − M.Gl 见塌缩一节。
+- C 于 08:25 由串联脚本自动开始。
+
+<a id="mrf-c-result-20261025"></a>
+### MRF Stage C 结果（2026-10-25，描述）：冻结模块离不开自己的消息与外推（共适应），重学的探针不需要；稀疏度不放大消息传递的作用
+
+`outputs/mrf/c/summary.json`：8 个进程，10-25 08:25–08:36，GPU 4–7，无失败。每项都跑完整 2590 包。这些是冻结权重上的分布外干预，只作描述。
+
+**工具链**：原样（orig）的 E3 精确复现 XCL（A0 15.351 / 4.817，A3 8.778 / 3.739）；E1 复现 XCL E1（A0 27.99 / 21.06）。
+
+**C1 截断与 C2 池化**（zgz RA，mm，local / global）：
+
+| 干预 | A0 E3 | A0 E1 | A3 E3 | A3 E1 |
+|---|---|---|---|---|
+| orig | 15.35 / 4.82 | 27.99 / 21.06 | 8.78 / 3.74 | 10.48 / 4.13 |
+| k0e（消息全置零，支持照常扩张） | 16.44 / 7.79 | 29.85 / 14.95 | 18.59 / 5.00 | 27.04 / 7.99 |
+| k1e | 18.53 / 7.17 | 30.54 / 16.35 | 17.76 / 5.41 | 22.07 / 5.97 |
+| k2e | 16.22 / 6.12 | 29.83 / 16.14 | 15.91 / 4.18 | 17.78 / 4.90 |
+| k0f（无消息，支持固定为 O） | 21.44 / 7.22 | 39.81 / 24.40 | 21.44 / 9.16 | 20.47 / 8.90 |
+| k3f（冻结权重上的 noprop） | 17.63 / 4.17 | 41.84 / 111.07† | 20.62 / 8.52 | 21.29 / 7.81 |
+| poolO（槽只在 O 上池化） | 18.55 / 4.26 | 42.18 / 111.07† | 23.28 / 8.66 | 23.70 / 7.87 |
+
+† A0 的 global 闭环发散（绝对误差约 73 m）；k1f、k2f 同样发散。
+
+- **A3F0**：任何截断都让 local 大幅变差（E1 从 10.5 升到 17.8–29.8）。B 中重学的 M.N0d 与 M.L3 只差 ≤ 0.2，所以冻结模块对自身消息 / 外推的依赖是共适应（与 H-K 一致），不是功能上的必要。
+- **A0 单步 E3**：固定支持（k3f、poolO）让 global 略好（4.17 / 4.26 对 4.82），local 变差（17.6 / 18.6 对 15.4）。
+- **A0 闭环**：固定支持会让 global 发散 → 冻结 C1 的闭环稳定依赖外推顶点。k0e 的闭环 global 好 6.1 mm（14.95 对 21.06），local 差 1.9 mm；但它在单步 E3 / E2 上 global 反而变差（7.79 / 21.76）→ 这是闭环效应，不是单步更准。
+
+**C3 稀疏度**（B 的 m1 臂，E3，zgz local，3 种子平均；每包均匀稀释）：
+
+| 保留比例 | A3 N0d / L3 / L3np | A3 L3 − N0d | A0 N0d / L3 / L3np | 冻结模块 A3 / A0 |
+|---|---|---|---|---|
+| 1 | 3.40 / 3.21 / 3.34 | −0.20 | 4.21 / 4.21 / 4.24 | 8.78 / 15.35 |
+| 1/1.5 | 3.46 / 3.28 / 3.38 | −0.19 | 4.22 / 4.20 / 4.24 | 8.93 / 15.96 |
+| 1/2.4 | 3.54 / 3.36 / 3.46 | −0.18 | 4.23 / 4.22 / 4.26 | 9.23 / 16.68 |
+| 1/4 | 3.65 / 3.46 / 3.57 | −0.19 | 4.30 / 4.28 / 4.34 | 9.75 / 17.55 |
+
+- 消息传递的差（L3 − N0d）不随稀疏增大；global 下三臂在各稀疏度相差 ≤ 0.06。
+- 稀释到 1/4 时，重学探针只变差约 0.1–0.25；冻结模块变差 1.0 / 2.2。
+
+**C4**（每包外推权重份额与冻结模块误差的 Spearman）：
+- A0：E3 local 份额 0.61、ρ 0.37；global 0.37 / 0.25。E2 local 0.66 / 0.28；global 0.41 / 0.58。
+- A3：E3 local 0.63 / 0.25；global 0.42 / 0.17。E2 local 0.63 / 0.53；global 0.42 / 0.05。
+- 外推份额高的包误差更大，可能与稀疏包混杂。
+
+D 于 08:36 由串联脚本自动开始：接线回执 `outputs/mrf/d/wiring_applied.json`（`model/model.py` 的 SHA 等于冻结的插入后 SHA `f5716a1b…`）；选择 `outputs/mrf/d/selection.json` = [`mrf_self3_a0_s3407`]；GPU 4–5 先预检，再正式训练。只有一臂，GPU 6–7 在训练期间空闲。
+
+<a id="mrf-d-result-20261025"></a>
+### MRF Stage D 结果与总裁决（2026-10-25）：self3 在 C1 上 RA global 方向支持（主要是闭环效应），local 与腕部噪声带内；提升感受野在功能上是逐顶点变换
+
+**执行**（`outputs/mrf/d/`）：
+- `mrf_self3_a0_s3407`，GPU 4–5：预检 50 步 PASS（08:39）→ 正式 6000 步 PASS（10:26）→ 9 项评估（GPU 4–7，10:30 完成）。
+- 配对核验 PASS（`receipts/formal_mrf_self3_a0_s3407.json`）：两个 rank 的 37 个共享张量初值逐项相同，实际索引相同，6000 步逐步小字段相同；self3 没有新张量。
+- E1 两次 fresh 逐位一致。
+- 汇总 `outputs/mrf/verdict.json`；主表 `outputs/mrf/main_table.md` 由 `tools/report_table.py` 的行函数生成，用 CLI 重新生成后逐字一致。
+
+**主表**（zgz，E1 闭环部署，单 seed3407）：
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XYZ C1（seed3407） | 27.99 | 21.06 | 22.50 | 15.35 | 24.28 | 13.89 ms | 0.231 G | 0.46 M |
+| MRF 去掉跨顶点消息与外推（self3） on C1（seed3407） | 25.31 | 11.79 | 21.82 | 9.03 | 18.07 | 13.42 ms | 0.116 G | 0.46 M |
+
+- Params 0.46 M 含 0.062 M 建而不用的参数：消息、门、边嵌入照建，是为了与 C1 共享初值和随机流，但冻结、不参与前向。实际使用约 0.40 M。
+- FLOPs 从 0.231 G 降到 0.116 G，省下的是消息与边嵌入的计算。
+
+**门**（XCL 单 seed 规则；对照 C1 `xyz_c1_stable_s3407` 的 XCL 评估；Δ = self3 − C1，mm，负 = self3 更好）：
+
+| 指标 | E1 | E2 | E3 | E1@5000 | E1@5500 | 门槛 | 判定 |
+|---|---|---|---|---|---|---|---|
+| RA local | −2.68 | −1.18 | +0.69 | +5.00 | −0.74 | 5 | 噪声带内 |
+| RA global | −9.28 | −1.65 | −0.15 | −0.28 | −3.17 | 8 | **方向支持（self3 更好）** |
+| 腕部 local | +18.65 | +0.81 | −7.37 | +19.32 | −1.02 | 10 | 噪声带内 |
+| 腕部 global | +16.06 | −2.26 | −0.24 | −3.42 | −1.27 | 10 | 噪声带内 |
+
+- H3=0 护栏未触发：self3 的 E3 local 为 16.04，比 C1 的 15.35 差，不满足"E3 变好"（C1 的 H3=0 E3 local 为 9.87）。
+
+**描述（不改判定）**：
+- **global 的改善几乎全在闭环。**
+  - 进入状态相同时，self3 只略好：E2（喂 C1 自己的闭环轨迹）好 1.65，E3（喂 GT 前态）好 0.15。
+  - 前态平移换成 GT（gt_transl）时，self3 仍好 7.4（12.93 对 20.33）；前态姿态换成 GT（gt_pose）时略差（5.22 对 4.98）。
+  - 所以差别来自 C1 自己的姿态递推在 global 上的漂移，不是单步测量更准。这与 B（消息传递、外推在测量上可忽略）和 C（冻结 C1 的闭环稳定依赖外推）一致。
+- **C1 的 global 闭环在后期检查点上不稳。** 5000 / 5500 / 6000 步时 C1 依次为 13.29 / 15.99 / 21.06，self3 为 13.01 / 12.82 / 11.79；5000 步时两者只差 0.28。"方向支持"主要反映 C1 最后检查点的闭环漂移；单 seed 区分不了"self3 更稳"和"C1 这个检查点不好"。
+- **绝对误差变差。**
+  - E1 腕部 local 92.07 对 73.43，global 46.02 对 29.96；绝对 MPJPE local 102.27 对 86.61，global 45.52 对 36.17。RA 改善的同时，平移漂移更大。
+  - gt_pose 下腕部同样更差（global 39.66 对 35.82），说明 self3 的平移递推更差。
+  - 按规则仍在噪声带内（E3 方向相反）。
+
+**总裁决**（判读树第 1、3、6、7 条）：
+
+> 提升感受野（MeshGNN）：实现正确；有效感受野约 1 跳（结构上限 3 跳；有记录顶点学到的更新 92–94 % 来自自身，1 跳 5–8 %）；消息传递无实质作用；外推可忽略；尺寸无实质作用（4 跳球；全局注意力对比因训练塌缩不可解读）；能力不能利用邻域（GT 输入的能力格中 L3 ≈ N0d）；系统内（单 seed3407）RA global 方向支持（self3 更好，主要是闭环效应），RA local 与腕部噪声带内。
+
+- 第 3 条：G 在功能上是逐顶点变换，3 跳感受野既不是瓶颈，也不是问题。
+- 第 6 条：给 GT 输入时消息传递也帮不上 → 结构上不会利用邻域（设计或优化问题），不能当作信息受限的证据。
+- 第 7 条：冻结（C）与重学（B）结论不同 → 冻结干预只反映共适应。
+- **边界**（照预注册）：
+  - 阴性结论只在 50 ms、C1 / A3 的记录与关联、本探针协议下成立。
+  - 单 seed 的"噪声带内"不能证明不存在 < 5 mm 的效应，也不能证明 self3 可移除。
+  - 系统内的"方向支持"是单 seed 描述，不据此替换 C1 或 S39。
+- S39 不变。`model/model.py` 保留 MRF 接线（`MODEL.XYZ_RF` opt-in，默认路径逐位不变），AURA 的接线脚本接受这个状态。
+- **待用户决定**：B 中 M.Gg / M.Gl 在真实特征上塌缩。要解读 Gg − Gl，需登记偏离后用较低 LR 重跑这两臂。
+- MRF 于 10:30 全部结束；AURA 编排器 10:34 接手 GPU 4–7（r2gate、V6 通过，C 队列开始）。
+<!-- EXPERIMENT_RECORD:MRF:END -->
+
+<!-- EXPERIMENT_RECORD:AURA:BEGIN -->
+<a id="aura-prereg-20261024"></a>
+## AURA 预注册：XYZ-C1「关联」（事件射线 × 手部外包围）的隔离检验（2026-10-24，写于任何 B / C / D 读数之前）
+
+**授权与范围（用户 2026-10-24）。** 用户要单独看看 XYZ-C1 的关联：它确定"事件射线"与 MANO 手周围区域的相交关系、判断事件是否发生在手周围；外包围网格的顶点作为 GNN 的节点，把"2D 事件的发生"引入 3D GNN（参考 Aura Mesh），要求参考 docs 与实验记录设计能充分证明的实验。用户批准计划 `/home/lyq/.claude/plans/cosmic-launching-cupcake.md`。只用物理 GPU 4–7，CPU 全量；D 段单 seed3407；A、B 立即在 CPU 上做，GPU 段排在 AGG778 R2（含其 D）与 MRF（B / C / D）全部结束之后。S39 不变；新代码全部 opt-in（`semkine/aura.py`、`tools/aura/`、`MODEL.XYZ_AURA`），C1 默认路径逐位不变（`tests/test_aura.py`）。源码 / 配置 / 参照的 SHA 冻结于 `outputs/aura/protocol.json`，每个入口校验。
+
+**模块边界 A**（`semkine/xyz_mesh.py:172–320` `associate_rays`，hit_first；`model/model.py:2617` 调用；无参数、no_grad，条件于前态 FK 网格）：
+- 候选 = 角距最近的 16 个投影顶点及其邻接面；表面 = 候选面上最近的正向交点（正反面都算），重心分权，q = 1，z = 交点深度。
+- 外包围（near）= 无交点、在像面 16 px 带内：参照 = 最近候选；同集（参照 3 px 内）只用来定 zfront；前层（zfront + 1 cm）作用于全部入带候选；按角距取前 4 个；高斯 σ = 8 px；q = 首个成员（不是参照）的核值；z = 成员最近点深度的核均值。
+- 否则 none，进残差槽。w = qA 写成顶点记录，r = 1 − q 进残差槽。外包围记录与表面记录写在同一组 778 个 MANO 顶点上，只靠 hit 位区分，没有单独的壳节点。
+- 带宽的度量尺寸（渲染焦距 226 px）：zgz_global 约 38 mm，zgz_local 约 49–52 mm。
+
+**已见数字的披露。**
+- 写本节前已读：XA（S37）P1–P3 全部数字；XCL 主表、三读数与冻结干预；AGG778 R1 全部数字、R2 预注册与试点（选择受试者 E3 恒等 3.26 / 2.70、T6 1.83 / 1.57）；MRF 预注册与 Stage A；SBA D（σ\* 0.94 / 0.96 / 0.98）；XVM、S44；Aura Mesh 原文。
+- 两份独立评审读了 R2 试点汇总、R2 训练日志中的 log10 损失（只作余量旁证）与运行耗时 / 显存、SBA D 的 σ\*；未读任何 R2 评估读数或 MRF B。
+- 工程冒烟（不是结果）：A 每集 32 包，无未解释的不一致；B 在 4 个 zgz 包上看了计数（手部 / 非手 valid、部位一致、M、串扰、方向覆盖），只为确认统计正确；C 的 13 个进程在 CPU 上 3 步 × 8 包、16 个评估端点，只看了损失与有限性；C2 16 个端点；shufG / shufP 在 12 个 zgz 包上的伙伴局部性（中位 30 / 6.4 px，16 px 内 22 % / 79 %，同部位 14 % / 100 %）；mM 的半径来自拟合受试者 GT 锚点的顶点深度（数据统计，0.5177 m）。
+- B / C / D 的任何假设读数均未读。
+
+**相对已批准计划的设计细化（读数前）。**
+1. **P2 由 shufP 改为 shufG。** 实现后测得部位内置换的伙伴中位只差 6.4 px、79 % 在 16 px 内，它检验的是 6 px 尺度的细绑定；全包置换的伙伴中位 30 px、同部位只有 14 %，才是"事件是否绑在对的外包围节点上"的检验。shufG 升为 3 个种子（E3 与 noise），shufP 3 个种子作次要对比。E3 下锚点正确，评审担心的"全局事件云偏移"泄漏基本不存在；noise 下的 shufG 只作描述。
+2. **D 的触发集去掉 split 与 contour。** 二者在探针里是单种子描述臂，不能判实质；D 的结构性变体只保留 shell（无新参数，共享初值与随机流同 C1）。
+3. **A3 的数值容差。** float32 Möller–Trumbore 在相机原点射线下有约 |P0| / |e| ≈ 100 的抵消放大，条件正常的面上重心误差可达 2e-5。容差取 A 1e-4 / cond、z 2e-6 / cond（cond = 相对行列式，下限 1e-3）；不一致只能是平局（第 16 / 17 名、重心边界、带宽 / 前层阈值在 1e-5 相对裕度内）。A2 的"生产对光栅"不单独设门（它等于 A1 已解释的遗漏加光栅松弛）。
+4. **B 的口径。**
+   - 标签就地渲染（P1 规则，与 R3 共用每毫秒 GT 网格），不落中间文件；R3s / E3s 用 σ\* 缩放网格重新渲染的标签。
+   - noise 锚点与 C 的评估锚点逐端点相同（rng 777，同一顺序）；拟合集只做 R3 / E3 / noise。
+   - "距离检测器" = 事件到最近投影锚点顶点的像素距离。
+   - 捕获半径 R½ 取三个量：软召回（手部事件 E[q]）、精确部位一致率、方向 AUC − 0.5。
+5. **C 的规模与配对。**
+   - 155 个探针头、13 个进程（表见下）。
+   - 同族同种子序号的共同参数初值相同：T0s 50000、T6 50100、T6s12 50200、M / MR / shell / split / j16 50300、occ 50400，加种子序号。对比按共同种子序号配对。
+   - A/A 组只换批次顺序（loader 3408）。
+   - noise 训练的臂另报 E2 单步（描述）；E3 组中的 M@c1、MR@c1、MR@surf、MR@b8、MR@b32、M@p2dh 另报 E3σ（描述）。
+6. **V6 的执行。** 在 GPU 上由 `tools/aura/v6_check.py` 于 C 段开始前执行，用 64 个包：
+   - c1 的重写与模块自身的关联逐位相同；
+   - 全部变体与置换在确定性模式下两次结果相同；
+   - 另报 CPU 对 CUDA 的不一致率（描述）。
+7. **D 的实现。**
+   - shuffle 在系统内用包标识（sequence_id、t_end_us）的确定性哈希置换，不碰全局随机流。
+   - 接线是四处插入。插入前接受 R2 冻结的文件（`38449090…`）或 MRF 接线后的文件（`f5716a1b…`），插入后分别对应 `0ee4195c…` / `ecc24acf…`。
+   - 接线只在 R2 与 MRF 都完整结束后应用。
+
+**关联变体**（全部无参数、no_grad，在锚点网格上计算；c1 的重写与库函数逐位相同）：
+
+| 代号 | 定义 |
+|---|---|
+| c1 | 原规则（上述钉死的代码事实） |
+| surf | 只保留表面命中，其余进残差 |
+| b8 / b32 | 带宽 8 / 32 px（σ = 带宽 / 2），候选集不变 |
+| mM / m10 / m20 | 度量带：候选集与参照 / 同集 / 前层同 c1（角距）；入带 = 顶点到射线的垂直距离 ≤ r，核 σ = r / 2；q = 首个成员的度量核值。r = 0.03662 m（16 px × 拟合集中位深度 0.5177 m / 中位焦距 226.2 px）/ 1 cm / 2 cm |
+| aura10 / aura20 | Aura Mesh 式度量壳：命中同 c1；否则在候选面中取射线到三角形最小距离 δ（三条边的线段–射线距离）最小的面（平局取更前），δ ≤ r 时记录该面 3 个顶点，按脚点重心分权，q = 1 − (δ / r)²，z = 射线上最近点深度，hit = 0；r = 1 / 2 cm |
+| p2dvis / p2dh / p2d | 2D 邻近：先取 z-buffer 可见顶点，再在 16 px 内取最近 4 个投影顶点，σ 8 px，q = 最近者核值，z = 核均值最近点深度，hit = 0；p2dh 加回 c1 的剪影位；p2d 不做可见性（描述） |
+| vis | c1，但 16 个候选先去掉 z-buffer 不可见顶点，再选参照与前层 |
+| ctr | 现有 `mode="contour"`，ctr 标志作零初始化的旁路输入（描述） |
+| shell | c1 关联；外包围记录写到 778 个壳节点 V + 1 cm n̂（dXYZ 相对壳节点），图 = 皮肤 1-ring + 壳 1-ring + 皮肤–壳竖边，壳节点用皮肤顶点的 LBS 权重 |
+| split | c1 关联；表面与外包围记录分两组通道池化（描述） |
+| shufG / shufP | 包内已关联事件之间的确定性错位置换（全包 / 同一硬部位内）：事件保留自身 token 与射线，取伙伴的 vid / A / q / hit，z 按自身射线到借来顶点的最近点深度重算；支持集与每顶点质量逐项不变 |
+| occ / occ_tot / occ_surf / occD | 只给占据：[log1p 表面质量, log1p 外包围质量, has] / [log1p 总质量, has] / 只用表面记录 / 供体窗事件（同录制半程外）在当前锚点上的 occ |
+| j16 | 每个事件归到最近的投影关节节点（16 个，LBS 加权重心），记录同 c1 格式，按关节池化直接进 16 个关节槽，不经顶点图 |
+| none | 全部事件进残差槽（探针尺下只作校准） |
+| A1 / A2 / A3 | `route_association` part_route / face_route / full_oracle（oracle）：A1、A2 对未知来源退回 c1、保留 c1 的 q 与 z；A3 去掉未知来源事件、召回已知事件、换 GT 深度 |
+
+### Stage A：实现正确性（零训练，CPU）
+
+包集：zgz 每第 10 个端点 × {E3、E2}；选择受试者每第 40 个端点 × E3；拟合受试者每第 200 个端点 × 噪声锚点（rng 777）。
+- **A1** 对全部 1538 个面暴力求交（同一个 `ray_triangle`），与生产路径比较命中、面与深度：
+  - 不一致只能是等深平局，或 16 候选近似遗漏了更近的面（该面不在候选面集内）；
+  - zgz E3 上遗漏 ≤ 1 % 的暴力命中事件。
+- **A2** 锚点网格的光栅化 z-buffer 在事件像素处：覆盖与暴力命中不一致 ≤ 0.1 % 的事件（三角边松弛）。
+- **A3** 独立 float64 NumPy 按钉死的代码事实重写 hit / near：vid / valid / hit 相同，A / q / z 在上述容差内，不一致只能是平局。
+- **A4** 语义检查：
+  - 质量守恒；hit ⇒ q = 1；near ⇒ 0 < q ≤ 1；none ⇒ r = 1；z > 0；
+  - 命中点 = z d（1e-5 m）。
+- **A5** 事件顺序、批组成、padding、分块大小的不变性（CPU 逐位）。
+- **A6** `pytest tests/test_aura.py`。
+- **A7（描述）** 外包围记录落在背面（n·d > 0）或被遮挡顶点上的比例；首个命中面是背面的比例；关联统计。
+- **门**：A1–A6 全过；任一失败 → "实现缺陷"，停止。
+
+### Stage B：关联作为算子（零训练，CPU，描述）
+
+- **端点**：zgz 全 2590；选择受试者每第 4 个；拟合受试者每第 20 个。
+- **事件**：模型自己的 ≤ 2048 抽样。
+- **标签**：每个事件自身毫秒的 GT 网格按 P1 规则渲染（内部 / 剪影 / 深度不连续 / 非手、部位、深度），外加 XAG 来源面（材料点）。
+- **锚点体制**：
+  - R3、E3、noise；
+  - E2（zgz）；R3s / E3s（zgz，σ\* 缩放）；
+  - 从 E3 出发的扫描（zgz、选择受试者）：相机 x / y / z 平移 5 / 10 / 20 / 40 mm；绕腕像面内旋转 0.05 / 0.1 / 0.2 rad；绕腕缩放 0.94 / 1.06；手指姿态噪声 0.05 / 0.1 / 0.2 rad。
+- **规则**：c1、surf、b8、b32、mM、m10、m20、aura10、aura20、p2dvis、p2dh、vis、ctr、A1。
+- **读数**：
+  - 检测：手部 / 非手的 valid 率与 E[q]，按到手距离分层；q 判别手 / 非手的 AUC 减去"距离检测器"的 AUC；进 mesh 质量中非手的份额。
+  - 对应：精确 / 手指组部位一致率、M、材料点误差、跨指串扰。
+  - 深度：z − 来源深度；z − GT 材料点在射线上的深度（纯绑定）。
+  - 覆盖：|O|，以及拥有 GT 事件的可见轮廓顶点的覆盖。
+  - 方向 AUC：(m_外包围 − m_表面) / (m_外包围 + m_表面) 对 GT 像面法向位移符号，按 |位移| 分层、报覆盖；它是机制，不是任务价值。
+  - 捕获半径 R½。
+- **工具链核对**：zgz E3 的 c1 复现 P1 的 M(local) 6.31 % 与精确部位一致率 80.56 %（±0.01 pp）；不过则先排查口径，B 不出描述。
+- **措辞标志**：E3 手部 valid < 0.95；外包围跨指串扰 > 20 %；E2 精确一致率 < 0.6 × E3；q 的 AUC − 距离 AUC < 0.02。
+
+### Stage C：任务层隔离（GPU 4–7）
+
+**测量工具** = AGG778 R2：每臂新 φ + C1 池化 + C1 尾部，不读 prev48，保留锚点的边几何；M 臂残差槽置零，MR 臂用自身 φ 由该关联的 (1 − q)·mask 重建残差槽；4000 步 × 128，Adam 2e-3，预热 300，余弦到 2 %，裁剪 10；bf16 训练、fp32 评估，确定性算法；拟合 7 人，选择受试者每第 4 个端点，zgz 全 2590 只报告。冻结 C1 只提供 FK、射线、token、自身关联与 V1。
+
+| 进程 | 臂（种子数） |
+|---|---|
+| e3 / cal | T0s(3) T6@c1(3) T6s12@c1(3) T6@{surf, b32, mM, aura10, p2dvis, A3}(各 2) |
+| e3 / occ | M@c1(3) occ(3) occD(3) occ_tot(2) occ_surf(2) M@shufG(3) M@shufP(3) |
+| e3 / geo | M@p2dh(3) M@p2dvis(2) M@p2d(1) M@shell(3) M@vis(2) M@ctr(1) j16(2) |
+| e3 / aura1 | MR@c1(3) MR@none(2) MR@surf(3) M@surf(2) MR@b8(2) MR@b32(2) |
+| e3 / aura2 | MR@mM(2) MR@m10(2) MR@aura10(3) MR@m20(1) MR@aura20(1) MR@split(1) |
+| e3 / oracle | M@A1(3) M@A2(2) M@A3(2) |
+| e3 / aa | M@c1(3)，批次顺序 loader 3408（A/A） |
+| noise / cal | T0s(3) T6@c1(3) T6s12@c1(2) T6@{surf, b32, aura10, A3}(各 2) |
+| noise / occ | M@c1(3) occ(3) occD(2) M@shufG(3) M@shufP(3) |
+| noise / aura1 | MR@c1(3) MR@none(2) MR@surf(3) MR@b8(2) MR@b32(2) |
+| noise / aura2 | MR@mM(2) MR@m10(2) MR@aura10(3) MR@m20(1) MR@aura20(1) M@p2dh(2) M@shell(2) |
+| noise / oracle | M@A1(3) M@A2(2) M@A3(2) j16(2) |
+| noise / aa | M@c1(3)，loader 3408 |
+
+noise 体制 = C1 mixed 前态噪声（训练 rng 3407、评估 rng 777）。
+
+**有效性前提**（按体制判定；某项不过只作废依赖它的对比）：
+- **R2 前置**：AGG778 R2 的 A0 / E3 V2、V3、V5 不过 → 不运行、不读本研究的 C，先报告。
+- **V1**：冻结 C1 的单步复现 XCL E3（15.3511 / 4.8169，±0.01 mm）。
+- **V2**：|T0s − 恒等| ≤ 0.1 mm（zgz 与选择受试者，local / global；E3 与 noise）。
+- **V3**：T6@c1 ≤ 恒等（zgz；E3 与 noise）。
+- **V4**：T6s12@c1 − T6@c1 的 local 区间 > 0（zgz；E3 与 noise）。
+- **V5**：occD − T0s ≥ −0.10·H（E3，供体占据不得帮忙）；noise 下只报告。
+- **V6**：见细化 6。
+- **V7**：MR@none − 恒等 ≤ +0.10·H（E3）；不过则所有 MR 对比标"残差槽混杂"，不判门。
+- **V8**：置换的支持集与每顶点质量与 c1 逐项相同（测试），伙伴局部性见 B。
+- **V9**：A/A（M@c1′ − M@c1）在每个（评估集 × 域 × 体制）上为"可忽略"；不过的格子，门槛提到 max(0.25·H, 2 × |A/A 区间端点|)。
+
+**门**（a − b，正 = a 更差；按端点配对，按共同种子序号配对后种子平均，20 端点块 bootstrap）：
+- H = 恒等 − T6@c1（种子均值），按（评估集 × 域 × 体制）分别算。
+- **实质**：|Δ| ≥ max(0.25·H, 0.25 mm)，95 % 区间不含 0，每个种子同号（≥ 2 个种子）。
+- **可忽略**：区间在 ±0.10·H 内，每个种子都在带内；其余"未定"。
+- 每臂另报实现率 ρ = (恒等 − 臂) / H。
+
+**主对比**（zgz 的 local / global 共 12 个检验，Holm 校正，10000 次重采样的双侧 p；选择受试者须同号，否则记"只在 zgz 实质"）：
+- **P1 占据**（E3）：occD − occ。
+- **P2 绑定**（E3）：M@shufG − M@c1。
+- **P3 3D**（E3）：M@p2dh − M@c1。
+- **P4 外包围带**（noise）：MR@surf − MR@c1。
+- **P5 度量壳**（noise）：MR@aura10 − MR@c1。
+- **P6 正确性**（noise）：M@c1 − M@A1。
+
+**次要对比**（同门，不校正）：
+- **占据**：occ_tot − occ、occ_surf − occ、occ − M@c1、noise 下 occD − occ。
+- **绑定**：M@shufP − M@c1、M@shufG − M@shufP、M@shufG − occ（E3 与 noise）。
+- **3D**：M@p2dvis − M@p2dh、M@p2d − M@p2dvis、noise 下 M@p2dh − M@c1。
+- **外包围**：
+  - E3 下的 P4 / P5，以及 M@surf − M@c1；
+  - MR@b8 / MR@b32 − MR@c1，MR@mM − MR@c1，MR@m10 − MR@mM，MR@aura10 − MR@m10，MR@m20 / MR@aura20 − MR@c1。
+- **节点**：M@shell − M@c1、MR@split − MR@c1。
+- **可见性**：M@vis − M@c1、M@ctr − M@c1。
+- **余量**：
+  - E3 下 M@c1 − M@A1；
+  - M@A1 − M@A2、M@A2 − M@A3（只界定 oracle 信息）；
+  - 稳健性 = noise 下 (M@c1 − M@A3) 减 E3 下的同一差（逐端点配对）。
+- **粒度**：j16 − M@c1。
+- **天花板**：T6@X − T6@c1。
+- **校准**：MR@none − MR@c1。
+
+另报（描述，不判门）：noise 的 small / large / directed 分层、E2 单步、E3σ。
+
+**C2 背景注入**（描述，只评估）：
+- 对象：E3 训练的 MR@c1、MR@surf、MR@b32、MR@mM、MR@aura10、M@p2dh。
+- 做法：每包加入其事件数 10 % / 30 % 的均匀背景事件（rng 9090 + 端点，按时间排序，来源置为未知）。
+- 读数：zgz 单步 RA 的变化。
+
+### Stage D：系统内配对重训（单 seed3407，描述）
+
+- **变体**：`MODEL.XYZ_AURA` ∈ {none, shuffle, surf, b8, b32, mmatch, m10, aura10, p2dh, vis, shell}。
+- **臂**：
+  - 总是 `aura_none_a0_s3407`、`aura_shuffle_a0_s3407`：none 去掉整条 mesh 支路，保留 prev48；shuffle 保留占据、打乱绑定；shuffle − none 预先声明为系统内的占据价值。
+  - 至多 1 个可部署变体，只按选择受试者触发：探针（MR@surf / b8 / b32 / mM / m10 / aura10 对 MR@c1；M@p2dh / shell / vis 对 M@c1）在 E3 或 noise 下实质更好、另一体制不实质更差、所在体制有效；按 |Δ| / 门槛排序取第一。
+- **合同**：同 MRF / AGG778 的 D。
+  - 与 `xyz_c1_stable_s3407` 配对：共享初值、逐 rank 实际索引、逐步包指纹；
+  - fresh 6000，2×512，BF16，legacy_none，worker 12 / prefetch 1；原损失 / Adam / LR / 调度；严格确定性；
+  - 50 步预检 + 完整验证；fail-closed，不 resume；GPU 4–5、6–7。
+- **读数**：九列主行（含 baseline、S39、C1）；E1 两次 fresh、E2、E3、E4（gt_pose / gt_transl）、E5（5000 / 5500）。
+- **门**（XCL 单 seed 规则）：
+  - |ΔE1| ≥ 5 mm（local）/ 8 mm（global）/ 10 mm（腕点），E1 / E2 / E3 同号，5000 / 5500 / 6000 至少两点同号 → "方向支持"（变差或变好都记）；否则"噪声带内"。
+  - H3=0 护栏：C1 的 H3=0 E3 local 9.87。
+
+### 判读树与结论格式
+
+1. A 失败 → 实现缺陷。
+2. B 按措辞标志描述检测、对应与捕获范围。
+3. C 某体制有效性失败 → 该体制不出结论。
+4. 占据与绑定：
+   - P1 实质 → "2D 事件的发生"本身在 3D 节点上带任务信息；外包围占多少看 occ_tot / occ_surf。
+   - occ ≈ M@c1 → 价值几乎全在占据。
+   - P2 实质 → 事件内容只在正确绑定时有用；可忽略 → 绑定无所谓（配合局部性统计）。
+5. 3D：
+   - p2dvis 比 p2dh 差 → 剪影位有用。
+   - P3 可忽略 → 射线–表面几何相对"可见 2D 邻近 + 剪影位"不多给信息。
+6. 外包围：
+   - P4 实质 → 前态有误差时外包围带有用。
+   - P5 的方向说明 Aura Mesh 式度量壳与胖像素带孰优。
+   - 剂量与 noise 分层给出捕获范围的取舍；shell 优于 c1 → 外包围单独成节点有用。
+7. 余量：
+   - P6 可忽略 → 部位级错派不是限制。
+   - P6 只在 noise 下实质 → 问题在对前态误差的稳健性。
+   - A2 / A3 只界定 oracle 信息。
+8. D：none / shuffle "方向支持" → 关联在系统内的作用（按方向写）；"噪声带内" → 看不出 ≥ 5 mm 的作用。
+
+结论格式："关联（射线–外包围）：实现[正确 / 缺陷]；检测[…]；对应[…]；捕获范围[…]；占据[…]；绑定[…]；3D 几何[…]；外包围设计[…]；余量[…]；系统内（单 seed3407）[…]"。
+
+**阴性结果的边界。**
+- "可忽略"只许可"在 50 ms、C1 记录 / 池化 / 尾部、本探针协议下"的说法；不涉及顶点锚定聚集或学习式关联（AGG778 / XVM）。
+- 探针尺下的 MR@none 没有锚点与状态，只作校准；系统内的 none 才回答"去掉关联"。
+- shell 检验壳节点，aura10 检验度量壳关联；Aura Mesh 的四面体壳坐标与 BBW 蒙皮没有字面复现。
+- oracle（A1–A3、T6 系列）不可部署；A2 绕过孔径问题，是超物理上界。
+- B 的读数受标签质量限制（几何代理，zgz 有约 6 % 的标签–图像尺度差）。
+- D 单 seed 的"噪声带内"不能证明不存在 < 5 mm 的系统内效应。
+
+**预注册预期（不约束裁决）。**
+- A 通过；外包围记录有可观比例落在背面或被遮挡顶点上。
+- B：c1 在 local 几乎接受全部带内背景，度量外包围降低跨指串扰，平移捕获范围约等于带宽。
+- C：P1 实质；P2 实质为正；P3 可忽略或小；P4 在 noise 下实质；P5 在 noise 下为正（胖带的捕获作用），E3 下可能反号；P6 在 E3 接近 0、noise 下更大。
+<a id="aura-a-result-20261024"></a>
+### AURA Stage A 结果（2026-10-24）：A3 两个事件未解释 → 按预注册"A 失败即停止"，未读 B，GPU 段未启动；诊断为审计口径缺口，不是实现缺陷，待用户决定
+
+`outputs/aura/a/result.json`（CPU，四个包集并行；协议 `outputs/aura/protocol.json` 校验通过）。共 2,404,491 个事件，其中暴力求交命中 1,331,573 个。
+
+| 门 | 结果 |
+|---|---|
+| A1 对规格（全部 1538 个面暴力求交） | 通过：未解释不一致 0。16 候选近似漏掉更近的面 3,268 个、漏掉命中 48 个，全部可解释；zgz E3 漏掉占暴力命中的 0.30 %（预算 1 %，XA 曾记 ≤ 0.4 %） |
+| A2 光栅剪影 | 通过：光栅覆盖与暴力命中在事件像素处的不一致 0 |
+| A3 float64 独立重写 | **不过**：平局 6,149 个（0.25–0.29 %），容差违规 0，**未解释 2 个** |
+| A4 语义 | 通过：违规 0 |
+| A5 不变性 | 通过：顺序 / 批组成 / padding / 分块逐位一致 |
+| A6 测试 | 通过（40 项） |
+
+**A3 的两个未解释事件。**
+- 二者是同一个包（ycy_local，端点 48339）里同一像素先后触发的两个事件，生产与参照都是外包围（near）事件，选中的 4 个顶点相同 {450, 444, 464, 451}，只是 450 与 444 的先后相反。
+- 两个顶点到射线的角距在 float64 下相差 7.6e-9（相对 1.5e-6），float32 舍入把它们的次序反了过来。
+- 两边的加权记录集合逐项相同（权重差 < 1e-6），q 差 1.2e-8。
+- 原因：预注册的平局清单只列了"第 16 / 17 名"的候选边界，没有列"前 16 名内部的次序平局"；A3 又按记录槽位逐项比较，而外包围记录的槽位按角距排序。这是审计口径的缺口，不是 `associate_rays` 的实现缺陷。
+- 按预注册，A 的任一门失败 → 结论"实现缺陷"并停止。上面的诊断说明这个结论不成立，但门不在读数后修改。
+
+**处理。**
+- 已停止：B 在 CPU 上的计算照常进行，但在用户决定前不读；GPU 段（C / C2 / D）未启动。
+- 待用户决定：是否公开登记偏离（把"前 16 名内部的次序平局"补入 A3 平局清单，或按加权记录集合比较），视 A 为通过并继续。
+
+**A7（描述）。**
+- 外包围记录落在背面顶点（n·d > 0）上的比例：zgz E3 21.2 %、E2 24.2 %、选择受试者 22.9 %、拟合噪声锚点 26.2 %；落在 z-buffer 被遮挡顶点上的只有 1.2–1.8 %。即约四分之一的外包围记录写在剪影轮廓另一侧的背面顶点上，原设计合同要求剔除背面，实现没有剔除。
+- 首个命中面是背面：0.08–0.15 %。
+- valid 比例：zgz E3 0.96、E2 0.96、选择受试者 0.84、拟合噪声锚点 0.78。hit 比例分别为 0.67、0.59、0.60、0.39。
+<a id="aura-a-amendment-20261024"></a>
+### AURA 协议修订：A3 平局清单补入"前 16 名内部的次序平局"，正式重跑 Stage A（2026-10-24，用户决定"修审计后重跑 A 再继续"）
+
+- 修订内容：A3 的 float64 参照把"16 个角距候选中相邻两名的平方角距相对差 ≤ 1e-5"也记为平局（它会改变外包围记录的槽位次序与 q = 首个成员的核值）。只改 `tools/aura/a_audit.py`，SHA `c9744f9b…` → `11cad366…`；门本身（A1–A6 全过）不变。
+- 原协议归档为 `outputs/aura/protocol_v1_20261024.json`，A 第一次运行归档为 `outputs/aura/a_v1_20261024/`（结果见[上一节](#aura-a-result-20261024)）；修订记录写在 `outputs/aura/protocol.json` 的 `amendments`。
+- 修订前已读：只有 A 第一次运行。B 未读，GPU 段未运行。
+- 接下来：在 CPU 上正式重跑 A；通过后读 B，并在后台启动 GPU 段（等 AGG778 R2 与 MRF 全部结束）。
+<a id="aura-a2-result-20261024"></a>
+### AURA Stage A 重跑结果（2026-10-24，修订后的审计）：通过，实现正确
+
+`outputs/aura/a/result.json`（CPU；修订后协议校验通过）。同一批 2,404,491 个事件。
+- A1：未解释 0；16 候选近似遗漏可解释 3,268 + 48 个，zgz E3 占暴力命中 0.30 %（预算 1 %）。
+- A2：光栅松弛 0。
+- A3：平局 12,839 个（0.53 %；补入"前 16 名内部的次序平局"后比第一次的 6,149 个多），未解释 0，容差违规 0。一致事件上 float32 对 float64 的最大差：A 4.7e-4（掠射命中）、q 3.5e-7、z 6.5e-6 m。
+- A4 违规 0；A5 不一致 0；A6 测试 40 项通过。
+- A7（描述）同第一次：外包围记录落在背面顶点上 21–26 %、在被遮挡顶点上 1.2–1.8 %，首个命中面是背面 0.08–0.15 %。
+
+按判读树第 1 条：实现正确，B 可读，GPU 段按排期执行。
+<a id="aura-b-result-20261024"></a>
+### AURA Stage B 结果（2026-10-24）：关联作为算子（零训练，描述）
+
+产物 `outputs/aura/b/{stats_zgz,stats_sel,stats_fit}.npz`、`summary.json`（CPU，40 进程；zgz 33 min、选择受试者 70 min、拟合受试者 8 min）。下列数字均是模型自己的 ≤ 2048 抽样事件。
+
+**工具链核对：通过。** zgz E3 的 c1 复现 P1：M(local) 6.312 %（P1 6.31 %），精确部位一致率 80.564 %（P1 80.56 %）。
+
+**zgz 主要读数**（local / global）：
+
+| 量 | c1 E3 | c1 闭环 E2 | c1 噪声锚点 | 备注 |
+|---|---|---|---|---|
+| 手部事件 valid | 1.000 / 1.000 | 1.000 / 0.996 | 0.935 / 0.907 | 只有表面（surf）E3 为 0.796 / 0.731：约 1/4 的手部事件靠外包围带进入 |
+| 非手事件 valid | 0.956 / 0.596 | 0.973 / 0.635 | 0.840 / 0.538 | 但非手事件只占 mesh 质量的 2.9 % / 5.8 %（E3） |
+| q 判别手 / 非手的 AUC 减"距离检测器" | +0.010 / +0.008 | −0.012 / +0.003 | +0.006 / +0.001 | 外包围的选择性几乎全来自"离最近投影顶点多远" |
+| 精确部位一致率 | 0.806 / 0.881 | 0.481 / 0.647 | 0.454 / 0.527 | R3（事件时刻 GT 网格）0.853 / 0.939；A1（部位 oracle）E3 0.859 / 0.940 |
+| M（手指轮廓 → 掌） | 6.3 % / 1.3 % | 10.9 % / 2.7 % | 11.6 % / 7.9 % | contour 规则 E3 0.7 % / 1.1 % |
+| 跨指串扰（外包围事件的记录跨 ≥ 2 指） | 11.6 % / 14.6 % | 17.1 % / 10.5 % | 11.8 % / 11.8 % | aura10 1.4 % / 2.4 %，A1 3.5 % / 3.9 % |
+| 材料点误差中位（mm） | 4.8 / 4.3 | 16.3 / 11.3 | 14.8 / 13.3 | — |
+| z − 来源深度中位（mm） | −0.5 / −0.5 | −75.5 / +10.5 | +2.5 / −0.5 | local 闭环前态偏深 7.5 cm |
+| 方向 AUC（占据的内 / 外之分对法向位移符号） | 0.533 / 0.602 | 0.492 / 0.569 | 0.580 / 0.553 | E3σ（σ\* 缩放）0.636 / 0.620；p2dh E3 0.570 / 0.702、E3σ 0.714 / 0.708；A1 0.546 / 0.682 |
+
+**各规则（zgz E3，local / global）。**
+- **外包围带的价值**：surf 的精确一致率 0.632 / 0.659（c1 0.806 / 0.881），方向 AUC 恒为 0.5（无外包围记录就没有内 / 外之分）。
+- **度量与 Aura Mesh 式外包围**：
+  - m10、aura10 把非手接受降到 0.30 / 0.19、0.31 / 0.19，手部 valid 仍 ≥ 0.993；
+  - aura10 把跨指串扰从 11.6 % / 14.6 % 降到 1.4 % / 2.4 %，一致率不变（0.798 / 0.876）；
+  - mM 在 local 的接受率介于 c1 与 m20 之间。
+- **3D 与 2D**：p2dvis / p2dh 的一致率 0.818 / 0.873（c1 0.806 / 0.881），材料点误差略大（4.8 / 5.8 mm），但方向 AUC 明显更高（p2dh 0.570 / 0.702）。即 c1 把剪影内的事件按命中面重心写到面内顶点上，而 2D 邻近把它们写到最近的可见（多为轮廓）顶点，后者保留了更多"轮廓向内移"的信息。
+- **可见性**：vis 与 c1 几乎相同（一致率、串扰、方向都在 0.01 内），A7 中被遮挡的外包围记录本来只有 1–2 %。
+
+**捕获范围**（从 E3 出发；c1 精确部位一致率降到 E3 一半时的扰动幅度）：
+- c1：像面内平移 x / y 约 19 / 19 mm（local）、25 / 23 mm（global）；像面内旋转约 0.2 rad；沿深度平移到 40 mm 一致率仍有 0.73 / 0.78。
+- 其他规则：surf 12–16 mm；m10 / aura10 15–18 mm；A1（部位 oracle）27–32 mm。
+- 手部事件的软召回在 40 mm 内都不降到一半（外包围带的度量宽度约 4–5 cm）。
+- 方向 AUC 的 R½ 不可解读：E3 起点只比 0.5 高 0.03–0.10，曲线不单调。
+- 闭环 E2 的 local 一致率 0.481，约相当于 14 mm 的像面平移误差。
+
+**训练域参照**（c1，E3，local / global）：
+- 拟合受试者：一致率 0.846 / 0.874，M 4.3 % / 1.4 %，非手 valid 0.404 / 0.549，方向 AUC 0.520 / 0.627。
+- 选择受试者：一致率 0.822 / 0.877，非手 valid 0.156 / 0.437，方向 AUC 0.537 / 0.600。
+- local 的方向信号弱，不只是 zgz 的标签尺度问题。zgz_local 的非手事件几乎都在外包围带内（0.956，训练 local 只有 0.16–0.40）。
+
+**措辞标志**：
+- 干净前态下丢手部事件：否。
+- 外包围重叠（串扰 > 20 %）：否（E2 local 17.1 %）。
+- 闭环下对应塌陷（E2 一致率 < 0.6 × E3）：local 是（0.481 < 0.484，边缘），global 否。
+- 外包围的选择性只来自距离：两个域都是。
+
+**置换伙伴的局部性**（zgz E3，全部端点；V8 的描述）：
+- shufG：中位 26.5 px，16 px 内 28 %，同部位 13.5 %，同手指组 22 %；
+- shufP：中位 5.5 px，16 px 内 83 %，同部位 100 %。
+
+这些是算子层的描述，不是任务层结论。任务层由 C 回答，GPU 段排在 AGG778 R2 与 MRF 之后，已由 `tools/aura/orchestrate.py` 在后台等待。
+
+<a id="aura-wait-amendment-20261024"></a>
+### AURA 协议修订 2：编排器的等待条件（2026-10-24 23:44 +08，工程修订，不涉及读数）
+
+- **现象**：AGG778 R2 的 8 个探针进程到 18:40 已全部完成（A0_e3_g3 两次 OOM 后单卡重跑完成），但 R2 的汇总（`r2_summarize.py`）与 D 没有启动。R2 会话的守望循环 `until ! pgrep -f "tools/agg778/r2_task.py" ...`（pid 861138，14:45 起）用 `pgrep -f` 时匹配到自己的命令行，所以永不退出。
+- **对本研究的影响**：编排器判断"R2 / MRF 无进程"原来也用 `pgrep -f`，会被同一个守望 shell 挡住——R2 完成后编排器也会一直等下去。
+- **修订**：`tools/aura/common.py::_alive` 只把某个 argv 元素就是该目录下脚本路径（相对路径，或含该路径的绝对路径）的进程算作在运行；只在命令字符串里提到该路径的 shell 不算。用真实进程与假进程核对过：argv 中有脚本路径 → 算运行；只在命令字符串里提到 → 不算；该守望 shell → 不算；编排器自身（`tools/aura/`）→ 算运行。
+- **范围**：只改等待条件；测量、门、臂、种子都不变。协议 `amendments` 第 2 条记录前后 SHA（`common.py` 改为 `068431d0…`），修订前的协议归档为 `outputs/aura/protocol_v2_20261024.json`。
+- **编排器**：原进程停在 wait 步（没有启动任何 GPU 作业），已停止并用修订后的代码重启，状态见 `outputs/aura/orchestrator.json`。
+- **修订时已读**：只有 Stage A（修订后）与 B；C、C2、D 都没有运行，也没有读数。
+
+<a id="aura-results-20261025"></a>
+### AURA C / C2 / D 结果与裁决（2026-10-25）
+
+**运行。** 编排器 10-25 10:34 等到 R2 与 MRF 完成。之后依次跑完：
+- V6 通过。
+- C 段 13 个进程：10:35–18:09，无失败、无 OOM。
+- C2：18:09–18:11。
+- D：none 与 shuffle 并行训练，18:11–20:19；两臂预检、正式训练与配对核验均 PASS。
+- D 评估：20:19–20:26。
+- final：20:26。
+
+协议未作第 3 次修订：10-25 15:xx 曾向用户提出"跑完 C 后砍掉 C2 / D"的简化，用户未选，原排期照常执行。
+
+产物：
+- `outputs/aura/c/summary.json`
+- `outputs/aura/c/background/summary.json`
+- `outputs/aura/d/selection.json`
+- `outputs/aura/verdict.json`
+- `outputs/aura/main_table.md`
+
+本节由 AGG778 会话在用户询问时据这些文件整理，未改动任何汇总。
+
+**有效性。**
+- E3 与 noise 两个体制均有效：V1–V5、V7 通过。
+- V9 的 A/A 只在 e3 / sel / global 一格不为可忽略（−0.055 [−0.118, −0.001]），该格的门槛按预注册抬高；zgz 的 A/A 各格均可忽略。
+- 余量 H（zgz，local / global）：E3 为 2.41 / 1.50 mm，noise 为 9.03 / 11.10 mm。
+
+**主对比**（zgz；a − b，正 = a 更差；mm；括号为 95 % 区间；选择受试者同号）：
+
+| 对比 | local | global |
+|---|---|---|
+| P1 占据 occD − occ（E3） | +0.09（0.04, 0.14），可忽略 | **+0.72（0.53, 0.95），实质** |
+| P2 绑定 M@shufG − M@c1（E3） | +0.21（0.14, 0.29），未定 | **+0.66（0.49, 0.86），实质** |
+| P3 3D M@p2dh − M@c1（E3） | −0.01，可忽略 | −0.05，可忽略 |
+| P4 外包围带 MR@surf − MR@c1（noise） | **+7.38（6.26, 8.53），实质**（sel +0.86） | +1.17，未定（门槛 2.78） |
+| P5 度量壳 MR@aura10 − MR@c1（noise） | **+4.86（4.06, 5.67），实质**（sel +0.65） | +0.63，可忽略 |
+| P6 正确性 M@c1 − M@A1（noise） | +0.39，可忽略 | +0.24，可忽略 |
+
+12 个检验中除 P3 local 外 Holm 都拒绝零假设；分类以门（实质 / 可忽略带）为准。
+
+**次要读数**（zgz）：
+- **占据**：occ − M@c1 两个域都可忽略，说明任务价值几乎全在"哪些顶点有事件"。
+  - occ_surf − occ 在 global 实质，即只算表面命中的占据更差。
+  - 打乱绑定比只给占据更差：shufG − occ 在 E3 global、noise local 实质。
+- **外包围**：
+  - E3 下 MR@b8 / b32 − MR@c1 都可忽略。
+  - noise 下 b8 在 local 实质更差（+2.79）；b32 在 local 为 −0.74（−1.05, −0.44），偏好但未达门槛 2.26，记"未定"。
+  - M@shell − M@c1 在两个体制下都可忽略，外包围单独成节点没有增益。
+- **天花板**：E3 下 T6@{A3, b32, p2dvis} − T6@c1 都可忽略，支持集本身不限制信息。
+- **粒度**：noise 下 j16 − M@c1 在 local 实质更差。
+- **D 触发**：9 个可部署变体在选择受试者上都没有实质更好，所以 D 只有两个总跑臂。
+
+**C2 背景注入**（描述）：加入 10 % / 30 % 的均匀背景事件后，6 个族的 zgz 单步 RA 变化都 ≤ 0.04 mm（local）/ 0.04 mm（global）。
+
+**D**（单 seed3407，对 `xyz_c1_stable_s3407`，XCL 单 seed 规则）：
+
+| 臂 | RA local ΔE1 / E2 / E3 | RA global ΔE1 / E2 / E3 | 腕点 global ΔE1（5000 / 5500） | 分类 |
+|---|---|---|---|---|
+| none（去掉关联，全部事件进残差槽） | −0.12 / −0.33 / −6.53 | −1.46 / −2.13 / +0.54 | **+1752（+3979 / +2962）** | 四项都在噪声带内 |
+| shuffle（包内置换，占据不变） | +0.35 / +0.58 / +0.99 | −3.33 / −0.92 / +2.53 | +8.2 | 四项都在噪声带内 |
+
+- none 的闭环绝对腕点在 zgz_global 发散：E1 1782 mm，C1 约 30 mm；三个检查点同号。
+- none 的单步 E2 / E3 腕点与 C1 相当（+0.27 / −0.87），按规则仍记"噪声带内"。
+- 描述上，去掉关联后单步不变，但闭环的绝对平移失去锚定，相对姿态（RA）不受影响。这只是单 seed 读数。
+- H3=0 护栏：none 的 E3 local 为 8.82，shuffle 为 16.34；C1 H3=0 为 9.87。
+
+主表：`outputs/aura/main_table.md`（PCA6、S39、C1、none、shuffle 五行）。
+
+**裁决**（预注册格式）：
+- 实现：正确。
+- 检测：外包围对手 / 非手的选择性只来自距离（B）。
+- 对应：E3 部位一致 0.81 / 0.88，闭环降到 0.48 / 0.65（B）。
+- 捕获范围：像面平移约 19–25 mm（B）。
+- 占据：在 global 带任务信息，local 可忽略；价值几乎全在占据（occ ≈ M@c1）。
+- 绑定：global 实质，打乱比只给占据更差；local 未定。
+- 3D 几何：相对可见 2D 邻近 + 剪影位可忽略。
+- 外包围设计：前态有误差时，C1 的像素外包围带在 zgz_local 明显优于只用表面（+7.4 mm）和 Aura Mesh 式度量壳（+4.9 mm）；壳节点、可见性、带宽剂量都没有增益。
+- 余量：部位级错派不是限制（P6 可忽略）。
+- 系统内（单 seed3407）：none 与 shuffle 都在噪声带内；none 的闭环绝对腕点发散（描述）。
+
+结论：C1 的关联没有可部署的改进空间，现行像素外包围带已经是测过的选项里最好的。S39 不变，C1 不替换。
+
+**边界。**
+- "可忽略"只在 50 ms、C1 记录 / 池化 / 尾部、R2 探针工具下成立。
+- P4 / P5 的效应主要在 zgz_local；选择受试者同号但只有 0.65–0.86 mm。
+- D 是单 seed，"噪声带内"不能排除 < 5 mm 的系统内效应。
+- `model/model.py` 现含 MRF 与 AURA 两处 opt-in 接线（`outputs/aura/d/wiring_applied.json`），默认路径不变。
+
+**补充**（AURA 会话据同一批文件核对，描述性，不改裁决）：
+- zgz_local 噪声前态下 c1 本身也几乎不优于恒等：M@c1 17.44、MR@c1 17.43，恒等 17.49 mm。所以 P4 / P5 的"优于"是窄带变体在这里做了更多错误修正（MR@surf 24.81、MR@aura10 22.29），不是外包围带多给了信息。
+- E3 global 下，占据的收益（恒等 2.43 → occ 1.71）约 2/3 来自外包围记录：只算表面命中的 occ_surf 为 2.19。
+- none 的单步 E3 local 比 C1 好 6.53 mm（8.82 对 15.35，也优于 C1 H3=0 的 9.87）；上文"单步不变"只指腕点。
+- zgz_global 是单个 1386 端点的连续序列。none 的腕点误差按十分位单调升高（123 → 3790 mm），是逐步漂移，不是偶发跳变；给 GT 平移（E4 gt_transl）时腕点 5.6 mm。shuffle 不漂移（38 mm）。
+<!-- EXPERIMENT_RECORD:AURA:END -->
+
+
+<!-- EXPERIMENT_RECORD:KSTAR:BEGIN -->
+<a id="kstar-prereg-20261025"></a>
+
+## K★ 预注册：MANO 顶点/关节算子方向的 CPU 零训练杀死阶梯（2026-10-25，写于任何 K★ 阶梯读数之前）
+
+### §0 来历、范围与披露
+
+- **来历**：用户 2026-10-25 指令「执行这个 plan，先 CPU debug 好了，再进行训练；卡能挤就挤，不能挤就排队」。计划 `/home/lyq/.cursor/plans/mano_顶点关节算子十方案_battle_27767ea2.plan.md`。
+- **前置**：60 + 12 专家两轮 battle 已完成，综合见 `docs/网络结构分析.md#k-battle-20261025`，产物在 `outputs/kbattle_20261025/`。
+- **方案选择**：按计划默认规则（K★ + 前 3 且可零训练探针者）。两轮的结论是 K★ 整包 no-go，只授权 K7 一线的 CPU 阶梯，所以本预注册只登记这一条阶梯与其后的条件 GPU 段。
+  - K6 后置：等 AURA C / D 读出。
+  - K10 后置：真实数据需用户另行决定。
+  - K3 降为卫生项，本轮不执行。
+- **主假设 H★**：在 SELECT 两位受试者（ycy、ylf）上各自成立，同时满足：
+  - 一个在偏离锚点上训练的顶点锚定时间面测量头（C1-lite）使 E3 RA-MPJPE 至少比恒等低 0.2 mm；
+  - 它的 art-only 读数去除 lag-2 持续性后偏相关 ≥ 0.45。
+
+  阶梯 KS0–KS5 判断值不值得为 H★ 开 GPU。
+- **不变**：S39 不变；划分、`model/model.py`、`semkine/xyz_mesh.py` 与 R2 / MRF / AURA 的冻结文件都不动。新代码只新增 `tools/kstar/*.py`，只读 import 冻结模块。
+- **预注册前读数（披露）**：第一轮指令直到 10-25 03:0x 才禁止数据分析。此前及部分专家违反指令，做过以下只读 CPU 读数。这些数字只作假设来源，**不得用于设定或调整本预注册的任何阈值**；若阶梯读数与它们重合，只作描述。
+
+  | 谁 | 读了什么（未入账） |
+  |---|---|
+  | P1-E6 | 冻结 `A_m600/patch_r2` 在 zgz：r_n clean 0.645 / 0.967；逐像素极性互换 0.479 / 0.838；全局翻转 0.633 / 0.960；只留近 50 ms 0.576；删内部 ≥ 2 px 0.363；删轮廓带 0.470 |
+  | P2-E1 | zgz GT 持续性：相邻 50 ms 法向增量自相关 local 0.543（根冻结 0.431）/ global 0.974；法向位移中位 0.21 px |
+  | P2-E3 / E4 | S39 prev 网格比 GT 小 4.5–4.7 %；C1 闭环 62 % 的包顶点误差 > 6 px；2D 平移 oracle 使一致率 0.617 → 0.709 |
+  | P1-E1 / E3 / E4 / E5 / E7 / E9 / E10 | zgz / ycy / lyq 事件统计（时间戳成簇、重数、发射弹性）；SAM2 掩膜最优尺度 0.99 / 1.00；F_k 与 GT 速度 Spearman 0.72–0.82；S39 存档 RA 对 ±40 ms 时移 ≤ 0.37 mm |
+  | P1-E2 / E3 / E8 / E10 | 协议外 `evrealhands12`：BA 率、事件统计、标签时间戳 |
+  | P2-E5 | zgz 标签清单 `validation.metrics` |
+  | 合成玩具 | P2-E2 / E7 / E8、P3-E1 / E2、P4-E1 / E2 / E4 / E5 / E6、P5-E2 / E3：不碰数据 |
+
+  逐份原文见 `outputs/kbattle_20261025/r1_P*_E*.md` 的【亲测】/【R1 读数】段。主代理本轮的工程冒烟（`--smoke`）只打印形状与耗时，不打印任何效果数字。
+
+### §1 统计单位与数据
+
+- **受试者**：门只在 FIT7（ch、lfz、lpc、lr、ly、lyh、lyq）与 SELECT（ycy、ylf）上判。zgz 只有两类用途：
+  - KS1 的单向杀伤（存档只有 zgz）；
+  - 全部阶梯结束后一次性报告。
+- **SELECT 的样本内问题**：
+  - SELECT 两人逐人各自过线（min 规则），不平均。
+  - 冻结头 `A_m600` 用 FIT7 训练，所以 SELECT 是留出，但 XVM 曾用它选臂。
+  - S39 / C1 在 9 人全量上训练，对 SELECT 是样本内，所以 S39 在训练受试者上的闭环态不能当作诚实前态。
+- **种子与区间**：
+  - zgz 上的模型比较以种子为单位（3 对 3 两样本 t，df 4，80 % 功效：MDE = 3.04·√(2/3)·SD_seed，SD_seed 由 KS0 给出）。
+  - 块自助区间只描述端点抽样：KS1 用 20 端点块，KS2–KS4 用（序列, 1 s）组。
+- **记号**：art-only 目标 = 根与平移保持锚点、手指取终点的顶点法向位移；lag-2 持续性 = 同一顶点在 [end−150, end−100] 的法向位移（与目标的 ±25 ms 平滑箱不重叠）。
+
+### §2 阶梯（顺序执行；判读由 `tools/kstar/decide.py` 写 `outputs/kstar/<stage>/decision.json`）
+
+| 步 | 工具 / 数据 | 门（全部在此写死） | 失败的默认动作 |
+|---|---|---|---|
+| **KS0** A/A | `aa_audit.py`；S39 三种子 zgz 存档 | 描述：SD_seed、τ_int、MDE | 无 |
+| **KS1** 融合天花板（单向） | `fusion_ceiling.py`；S39 三种子存档 + GT；增量 = GT 增量 + 噪声，噪声按 R_art 等价档 κ ∈ {0, 0.5, 0.80, 0.87, 0.94}；分组常数增益（平移 / 根 / 手指）在被评数据上网格搜索，是乐观上界；κ ∈ {0, 0.87} 另报 5 折按 run 留出的增益 | **杀 A**：κ = 0 时三种子均值的 RA 改善在 zgz_local 与 zgz_global 都 < 0.6 mm。**杀 B**：κ = 0.87 时 zgz_local 改善 < 1.1 mm，或三种子不全为负，或留出改善 < 在样本内改善的一半。**工具有效性**：V0 评测器 RA 复现存档（< 1e-3 mm）；V1 增益 0 逐位等于 S39；阳性对照（白噪声锚）每格改善 ≥ 2 mm；阴性对照（时间置乱增量）改善 < 0.2 mm | 杀 A 或 B：K★ 精度线终止，**不开 GPU**；KS2–KS4 只作描述性诊断（K7 的测量科学）照常执行 |
+| **KS2** 陈旧性 / 持续性 | `head_probe.py stale`；冻结 `patch_r2`；SELECT 全部序列每 4 个端点的连续端点对；时间面变体 R0 / R1（只留 ≥ 50 ms 前）/ R2（只留近 50 ms）/ R3（窗内时间戳置乱）/ P1（逐像素极性互换）/ P2（全局翻转） | local、逐受试者，任一命中即杀：ρ_stale = r(R1)/r(R0) ≥ 0.70（art 目标）；R0 去 lag-2 持续性偏相关 < 0.45；r(R3)/r(R0) ≥ 0.50。**对照**：无事件持续性预测器（lag-1 位移）必须不过偏相关门；真目标 + c = 0.9 噪声必须过。对照不符 → 工具缺陷 | 杀：C1 判为预测器 / 外推器；K★ 作跟踪方案终止，不融合、不开 GPU |
+| **KS3** 相关噪声 r\* | `corr_rstar.py`；FIT7 + SELECT 基础序列每 8 个端点；XVM P3n 加按跳数相关的噪声（ρ1 ∈ {0, 0.7} 与 KS2 测得的残差跳数剖面）；`ind`（按独立加权，部署形态）与 `gls`（已知相关）两种求解 | 门统计量：测得的 local 剖面 + `ind` 下，local 序列 r\*_E3（E3 RA 比恒等低 0.2 mm 时的法向相关）的中位数。> 0.95 → local 单步测量路线死；0.90–0.95 → local 不开 GPU；≤ 0.90 → 作为 KS6 的测量目标。**工具有效性**：V0 zgz 上 ρ = 0 的 `ind` 复现账本 r\* 0.825 ± 0.02；V1 ρ = 0 时 `gls` ≡ `ind` | 死 / 仅 global：删 local 主张 |
+| **KS4** PA-fit | `head_probe.py pafit`；冻结 CNN 特征，在 FIT7 上闭式岭重拟合读出（λ 按 FIT 受试者 4 折选择），分无增广与锚点偏移增广（概率 0.8：平移 ≤ 25 mm / 深度 ± 45 mm / 根 ≤ 11°）两种，目标分微分与新息；SELECT 每 8 个端点评偏移 {0, 5, 10, 14, 19, 25} mm、深度 + 45 mm、根 5° / 11°；`capture` 模式给冻结头的同类曲线（描述） | local、逐受试者：增广新息读出在 14 mm 的偏移斜率 b_off < 0.30 → 判信息受限（无可恢复的位置信息）。增广微分读出 r 在 14 mm 比 clean 降 > 0.10 → 捕获须靠重训 CNN（设计信息，不杀） | 信息受限：C1 只能做锚点邻域的微分精修，结合 KS1 无杠杆 → 不开 GPU |
+| **KS5** 功效 | `decide.py ks5` | 可达增益 = KS1 κ = 0.87 的 zgz_local 改善；< 1.5 × MDE_local → KS6 只许单 seed 描述 | 不杀 |
+
+**KS6 GPU 段**：只有 KS1 通过、KS2 通过、KS3 为 pass（中位 ≤ 0.90）、KS4 为 pass 时才进入。
+- **门**（现在写死）：
+  - C1-lite debug（单 seed 3407，200 → 2000 步）：SELECT 每人 local 的 E3 RA ≤ 恒等 − 0.2 mm；去 lag-2 持续性偏相关 ≥ 0.45；测得的 r ≥ KS3 的 r\*_E3。
+  - 过 debug 后，与 S39 融合在 zgz 一次读：S39 三种子配对，3 / 3 同号改善、均值 ≤ −0.2 mm，且 local 不变差。
+  - 确证 C1 种子排除 3407。主行用 `tools/make_s36_row.py`，报表只用 `tools/report_table.py`。
+- **训练配方**：偏离锚点 G\*、诚实前态（训练受试者内 3 折 OOF 的 S39 重训态，或 G\* 注入，只在训练划分内按受试者留出，不新建划分文件）、因果尾随目标、极性增强。具体在进入 KS6 前以协议修订登记，**门不改**。
+- **GPU**：只用物理 GPU 4–7；挤用条件见 §5。
+
+### §3 阈值来源
+
+| 门 | 值 | 来源 |
+|---|---|---|
+| KS1 杀 A | 0.6 mm | 2 × dt_dz_l3 五种子 RA SD 0.27【账本 `#dt2-verdict`】 |
+| KS1 杀 B | 1.1 mm | S41 P0-c 的 −1.1 mm 线（约 4 × 0.27）【账本 `#s41-prereg`】 |
+| KS1 κ = 0.87 | R_art 0.87 | XVM P3n c = 0.8 ≈ r\* 线的手指增量相对误差【账本 `#xvm-s1-results-20261021`】 |
+| KS1 κ = 0.94 | — | 冻结 patch r2 的 E3 local R_art 0.940【账本 `#xvm-s2-results-20261021`】 |
+| KS1 白锚 / 置乱 | 2 / 0.2 mm | 工具有效性约定（本预注册） |
+| KS2 ρ_stale 0.70、偏相关 0.45、置乱 0.50 | — | K-Battle R2 检察官 P1 / P6（相对比，非 zgz 绝对读数） |
+| KS3 0.95 / 0.90 | — | R2 P6 检察官（三份独立玩具推导 0.96–0.995；0.90 线沿 XVM 预注册） |
+| KS3 E3 −0.2 mm | — | S42 / S43 采纳门惯例 |
+| KS4 b_off 0.30、降幅 0.10 | — | R1 P4-E8 / P2-E9、R2 P6 检察官 |
+| KS5 1.5 × MDE | — | R2 P6 检察官 |
+| KS6 −0.2 mm、3 / 3 | — | S42 / S43 先例 |
+
+没有一个门取自已读的 zgz 读数。KS1 用 zgz 存档，但只许单向杀伤：它的通过只说明「上界不低」，不放行任何主张。
+
+### §4 停止规则
+
+- 失败分两类：
+  - **工具缺陷**：有效性条件或对照不过。该门降为描述性；允许一次重设计，但须新预注册，并保留本次失败。
+  - **结果失败**：对照全过而主门不过。按表中默认动作终止，不得二读 zgz，不得加长、换 seed 或改门。
+- 任何续做都需用户另行决定，并作为新研究重新预注册。
+- 这一条写在前面，是因为本仓库过去多次把「门不过即停」转成续做（AURA A3、AGG778 R1 → R2、SBA P0 → R3）。
+
+### §5 条件更新与资源
+
+- **其它研究的读数**：MRF D（进行中）、AURA C / C2 / D（排队）的读数不改 KS0–KS5 的任何门；它们只影响后置的 K6 / E1。
+- **CPU**：KS0–KS5 全部 CPU，不占 GPU。
+- **GPU**（KS6 才需要）：只用物理 4–7。
+  - 不挤占 MRF / AURA D 段的串行时延测量窗口。
+  - 挤用时，该卡在本作业启动后须仍有 ≥ 20 GiB 空闲（MRF / AURA 队列的接收条件），否则排队。
+
+### §6 冻结
+
+- `tools/kstar/freeze.py` 写 `outputs/kstar/protocol.json`，内容包括：
+  - 本节文本的 SHA-256；
+  - `tools/kstar/*.py` 与所 import 冻结模块的 SHA；
+  - S39 存档、冻结 heads.pt、划分文件的 SHA；
+  - git HEAD 与 `git status` 摘要（工作树未提交）；
+  - 所读数据文件的 (size, mtime_ns)。
+- 每个探针读数前都调用 `verify_protocol()`；文本或文件一变即拒绝运行。
+
+<!-- KSTAR-PREREG:END -->
+
+<a id="kstar-results-20261025"></a>
+
+## K★ 阶梯结果与裁决（2026-10-25；读数在预注册与冻结之后）
+
+### 执行记录
+
+- 驱动 `tools/kstar/run.sh`（后台、全部 CPU、`CUDA_VISIBLE_DEVICES=""`），10-25 09:44 启动、11:55 结束；每个探针读数前 `verify_protocol()` 通过。日志 `outputs/kstar/logs/`，读数 `outputs/kstar/<stage>/result.json`，判读 `decision.json`。
+- 顺序：KS0 → {KS1, KS2, KS3-V0} 并行 → {KS3, KS4, KS4-capture} 并行 → `decide.py ks1…ks5`。
+- **两处判读 / 读数工具的工程修订**（登记于 `outputs/kstar/protocol.json` 的 `amendments`，只改键路径，不改任何门与读数）：
+  1. `decide.py ks4()` 读的是结果顶层而不是 `readings` 子键，正式运行时 `KeyError`（`decide ks4 rc=1`）；修订后重判（12:01）。
+  2. `corr_rstar.py measured_profile()` 查找的键缺少 `all|` 前缀，KS2 的残差跳数剖面没有被读到，正式 KS3 的「测得剖面」实际为 [1, 0, 0, 0, 0]（= ρ0）。按预注册 §4 这是工具缺陷：KS3 的门降为描述；用真实剖面（hop1 0.838、hop2 0.598、hop3 0.247、hop4 0）的补跑写到 `outputs/kstar/s3_corr_rstar_measured/`，只作描述，正式 `decision.json` 保留。
+
+### 读数（门全部按预注册 §2；zgz 只在 KS0 / KS1 的存档上读，其余在 FIT7 / SELECT 上判）
+
+| 步 | 读数 | 裁决 |
+|---|---|---|
+| **KS0** A/A | 种子级 SD：zgz_local 0.379 / zgz_global 0.261 mm；3 对 3 MDE：local 1.149 / global 0.793 mm；6 个种子对里 4 个的 20 端点块自助区间不含 0（块自助过于自信）；τ_int local 26–45、global 9–11 个端点 | 描述：统计单位 = 种子 |
+| **KS1** 融合天花板 | 工具有效：V0 复现存档 3e-5 mm、V1 增益 0 逐位等于 S39、白噪声锚阳性 −8.06～−9.13 mm、置乱阴性 ≈ 0。κ = 0（理想 GT 增量）：zgz_local −2.43 / zgz_global −1.12 mm；κ = 0.5：−0.33 / −0.10；**κ = 0.87（r\* 质量）：zgz_local −0.156（三种子 −0.170 / −0.143 / −0.156；5 折按 run 留出 −0.145）、zgz_global −0.019**；κ = 0.94：−0.134 | 杀 A（两域 < 0.6）未触发；**杀 B 触发**（local < 1.1 mm）→ 融合 / C4 精度主张删除，不开 GPU |
+| **KS2** 陈旧性 / 持续性 | 冻结 `patch_r2`、SELECT local、art 目标：ρ_stale ycy 0.430 / ylf 0.455（杀线 ≥ 0.70）；去 lag-2 持续性偏相关 0.462 / 0.503（杀线 < 0.45）；时间置乱 −0.004 / −0.014（杀线 ≥ 0.50）。对照：无事件持续性预测器 0.425 / 0.386（未过门，符合）；真目标 + 噪声 0.886 / 0.890（过门，符合）。附带：残差跨顶点相关 hop1 0.838、hop2 0.598、hop3 0.247、hop4 −0.117；残差 lag-1 0.189 | **pass**：该头在测当前运动而非外推，但只比持续性高约 0.1 |
+| **KS3** 相关噪声 r\* | V0：zgz ρ = 0 `ind` r\* 0.823（账本 0.825 ± 0.02）✓；V1：ρ = 0 时 `gls` ≡ `ind`（3e-11）✓。正式运行（实际 ρ = 0，见修订 2）：local 9 条基础序列 r\*\_E3 0.857 / 0.918 / 0.948 / 0.953 / 0.959 / 0.960 / 0.964 / 0.965 / 0.972，中位 0.959；ρ = 0.7 下 `ind` 0.945–0.978。**描述性补跑**（真实剖面 local [1, 0.838, 0.598, 0.247, 0]，`outputs/kstar/s3_corr_rstar_measured/`，12:58 完成）：`ind` r\*\_E3 0.950–0.978，中位 0.970；`gls` 九条序列全部 > 0.99（比 `ind` 更差——GLS 在正确协方差下应不劣于独立加权，疑为 `gls` 求解器实现问题，只作描述，任何"相关精度"方案须先用线性高斯合成单元测试验证该求解器） | **local_dead**（ρ = 0 下中位已 > 0.95；真实剖面下 0.970）；门按 §4 降为描述 |
+| **KS4** PA-fit | 冻结 CNN 特征、FIT7 岭重拟合读出、SELECT local：14 mm 偏移的增广新息读出斜率 b_off ycy 0.054 / ylf 0.051（杀线 < 0.30）；增广微分读出 r clean → 14 mm 0.564 → 0.490 / 0.663 → 0.590（降 0.074 / 0.073 < 0.10）；clean 新息读出 r 随偏移单调降（0.565 / 0.664 → 25 mm 0.071 / 0.064） | **information_limited**：顶点锚定 patch 特征没有可恢复的位置信息，只有锚点邻域的微分信息；捕获不需重训 CNN |
+| **KS5** 功效 | 可达增益 0.156 mm 对 1.5 × MDE_local = 1.72 mm | 确证不可能；GPU 段即使开也只能单 seed 描述 |
+
+### 裁决
+
+- **K★ / K7 线按预注册终止，KS6 GPU 段不开，S39 不变。** 触发：KS1 杀 B、KS3 local 死、KS4 信息受限（KS2 通过）。
+- 科学读数：顶点锚定时间面头是真实但微弱的**增量型**测量（KS2），而 S39 的剩余误差是慢变偏差（根 / 平移 lag-1 0.9–0.98、手指约 0.7），所以任何增量型快路径在本数据上的 RA 上界只有理想 2.4 / 1.1 mm、可达 0.16 mm（KS1），且在 14 mm 偏移处没有位置信息（KS4）。单步 local 增量测量路线对法向相关的要求 > 0.95（KS3），而相邻顶点残差相关 0.84 只会抬高它。
+- 对原计划 §6.3 杀死测试的回答：「r_n 停在 < 0.65 且 K9 不升」与「融合无杠杆」两条都命中。
+- 后续：用户 10-25 指令改为「把十方案重新包装成专用于 mesh / MANO 卷积网络的创新点，结合 docs 优化计划；初期方案仍为十个」；重设计产物在 `outputs/kbattle_20261025/v2/`，任何新读数须先新预注册。
+
+<!-- EXPERIMENT_RECORD:KSTAR:END -->
+
+<!-- EXPERIMENT_RECORD:MV2:BEGIN -->
+<a id="mv2-decisions-20261025"></a>
+
+## 十方案 v2（专用于 MANO 表面 / 运动学树的事件卷积网络）：用户决定登记（2026-10-25）
+
+- **来历**：K★ / K7 线终止后（`#kstar-results-20261025`），用户 2026-10-25 指令"把十方案重新包装成专用于 mesh / MANO 卷积网络的 Nature 级创新点，结合 docs 优化计划，根据实验记录的问题提出自己的创新；初期方案仍为十个；调研由用户做，agent 只负责包装与提出"；并明确"与已发表方法等价不是否决理由，关键是有效包装且 work"。用户随后完成附录 L 调研（`网络结构分析.md#mesh-v2-research-20261025`）。
+- **计划**：`/home/lyq/.claude/plans/enumerated-exploring-quilt.md`（批准于 2026-10-25），R3 后覆盖写回 `/home/lyq/.cursor/plans/mano_顶点关节算子十方案_battle_27767ea2.plan.md`（旧版快照 `outputs/kbattle_20261025/plan_snapshot.md`）。十方案 M1–M10 与 v2 简报 / 阶梯读数 / 挖掘产物在 `outputs/kbattle_20261025/v2/`，R3 产物在 `outputs/kbattle_20261025/v3/`。
+- **用户决定**：
+  1. 评审：重现第一轮规模的两轮 battle（R1 60 + R2 12，约 3–4 小时、较高 token 成本），**生成式**——专家在任一轴（包装成立 / 探针检验主张）判 no-go 的槽位必须提出同槽位替代方案，十个槽位始终十个。
+  2. 写回：覆盖原 cursor 计划文件。
+  3. **数据协议修订**：EvRealHands（`/data1/lyq/code/mesh/EventHands/data/evrealhands12/`，10 人 80 条，DAVIS346 346×260，15 Hz 标签，快动作只有 2D）解禁为**只作最终测试**——不选点、不调参、不进 zgz 主行、单独一表报告；51 维转换、2D / 3D 真值分档与 K / 像素合并 / 时钟清单另行计划并登记后才能读数。2026-10-04 的"协议内不用"原文保留，自本条起修订；9 人训练、zgz 开发 = 测试、`splits_semkine.json` 不变。E-VLA-MultiLight（第二关节体候选）核查与自录真实数据暂未决定。
+  4. **A1 只读核查授权**：允许只读访问伪 GT 流水线（`/data1/lyq/data/hand_data/WiLoR/…`）、v2e 脚本（`/data1/lyq/data/hand_data/v2e/…`）与原始 RGB-D / 标签 / 事件文件，做附录 L.A 的"最小后续核验"与单因素对照；只读、不改任何数据、不改 K、不重标标签；结论登记为 Stage 0 记录（本块内追加 `#mv2-stage0-…`）。
+- **执行边界**：本次只执行 R3 → 写回 → Stage 0 → 登记；预注册（`#mv2-prereg-…`）、CPU 探针、GPU debug 与训练另待用户指令。S39 不变；`model/model.py`、`semkine/xyz_mesh.py` 与 R2 / MRF / AURA 冻结文件不改。
+
+<a id="mv2-r3-result-20261025"></a>
+
+### R3 两轮生成式 battle 结果（2026-10-25；附录 M `网络结构分析.md#r3-battle-20261025`）
+
+- 规模与第一轮相同：R1 60 位专家（6 团 × 10 领域）、R2 12 位反驳者；规则改为两轴裁决（包装是否成立 / 探针是否检验主张），任一轴 no-go 须在同槽位提替代方案。72 份 JSON 全部通过 `tools/kbattle/aggregate_v3.py check`，`data_read` 全为 none；R1 墙钟 52 min、R2 8 min。**偏离**：子代理实际为会话默认模型而非计划的 `claude-sonnet-5-5` high（自定义代理类型未被会话识别），与第一轮不可跨轮比较。
+- 结果：M1 两轮无 no-go（平均排名 1.60，60 条条件并入计划）；**M2 替换**（R1 探针轴 37 / 60、R2 12 / 12 no-go）→ RGQ·MSCN（`P2-E5-R1` + `P2-E9-R1`，R2 评分 2.50 / 4）；**M6 替换**（R2 探针轴 9 / 12 no-go）→ KSCS·GSCD（`P5-E5-R1` 3.00 + `P1-E7-R1` 2.50，诊断、无 GPU 臂）；M9 探针重写（PSQ 3.25、SORL 2.50、PAS / CAF / LBA 2.25）；M7 包装 55 / 60 go；M3 / M4 / M5 / M8 / M10 保留并按少数否定意见修订探针（见计划各节"R3 修订"）。
+- 评分与替代均为意见 / 提案，不是有效性证据；替代方案门里标【占位 / 待验证】的阈值须在预注册前以 FIT7 或账本先验定值，不得取自 zgz。计划 v2.1 已覆盖写回 `/home/lyq/.cursor/plans/mano_顶点关节算子十方案_battle_27767ea2.plan.md`，副本 `outputs/kbattle_20261025/v2/03_plan_v2.md`。
+
+<a id="mv2-stage0-20261025"></a>
+### mv2 Stage 0 来源闭合（A1 / A2 / A3；2026-10-25，只读，CPU，描述，不改任何裁决）
+
+用户 2026-10-25 授权只读核查（不改数据、不改 K、不重标标签），执行附录 L.A（`#mesh-v2-audit-20261025`）「最小后续核验」未执行部分。产物 `outputs/mv2/stage0/`（`report.md` 全文；`receipt.json` 含读过文件的 sha256、脚本与参数、git status 与 16 个数据 / 代码目录 mtime 前后快照，均未变；无 GPU、无训练；由子代理执行，其报告 .md 由主代理按子代理回传原文落盘）。证据标签：【实物】本轮读到 / 算出；【源码】；【推导】；【未核验】。
+
+- **A1(a) 身份链：部分闭合。** 5 条录制（zgz_local / zgz_global / ycy_local / lyq_local / lpc_local）上，mesh manifest ↔ mesh.npz ↔ betas（`subject_beta_sha256` 由 float32-LE 字节重算一致）↔ hand_data51 aux ↔ AEDAT 事件（逐行重放 0 差异）↔ SAM2 掩膜（`mask_tree_sha256`、bag 时间戳摘要、geometry sha 与清单重算一致）↔ 深度 / RGB PNG（6 帧 / 录制与 bag 原始载荷逐像素相同）↔ bag CameraInfo K（= mesh K = aux K，20 录制同一 K，D = 0）↔ 时间戳一一对应【实物】。缺：`sequence_refined.npz`、`validation.json`、subject_shape NPZ、raw WiLoR、逐 run 配置 / 日志（`/data1/lyq/data/.runtime` 不存在，222 GB `hand_data.zip` 亦无）。
+- **A1(b) 投影交换图：数学部分闭合。** 并格约定 (iii)（整数粗像素射线）相对 640×480 源像素中心的均值偏差精确 −0.4375 px（按源列余数相位均值极差 [−0.875, 0]；3 / 3 / 2 列组中心偏移 0.375 / 0.4375 / 0.5）；折算「绕腕尺度」\|σ−1\| 0.5–1.0 %（按手跨 60–85 px）/ 1.0–1.6 %（真实手形最小二乘）【实物】。σ\* 工具沉积面积用约定 (ii)，不经 (iii)【源码】。
+- **A1(c) σ\* 单因素（CPU，仓库工具零改动；账本 56 个已存包逐包 σ\* 复算 56 / 56 一致）：** 在 zgz_local / ycy_local / zgz_global / lyq_local / lpc_local（80 / 80 / 48 / 80 / 48 包，配对）上，Δσ\*：相位 ±0.4375 px ≤ 0.013；fx,fy ±1 % ≤ 0.011；cx,cy ±0.5 px ≤ 0.004；三角光栅 vs 3×3 溅射 ≈ 0（1×1 溅射 +0.007…+0.035）；betas 第一主成分 ±1 SD（手长 ∓4.7 %）±0.044…±0.058——唯一量级够的因素（zgz_local 0.943→0.996、ycy_local 0.946→0.998）【实物】。同批 RGB 帧上标签 / SAM2 掩膜尺度 σ_mask\* = 0.998–1.028（20 录制中位 1.019，与深度 ρ = +0.08）、深度残差 \|中位\| ≤ 1.5 mm（循环性：优化器用了同一掩膜与深度）；账本事件侧 σ\*（0.93–1.01，未重算）与录制深度 Spearman −0.49（p = 0.027）；10 受试者 betas[0] 标准差仅 0.14 SD（手长 ±0.65 %）【实物】。
+- **A1(d) 结论：部分闭合。** 「约 6 % 尺度剖面差」不是标签—RGB-D 尺度错误，不是 K 倍率 / 主点、并格相位或光栅化；是事件侧 σ\* 相对标签 / RGB 的录制级缺口（zgz_local 0.943 对掩膜侧 1.015，zgz_global 0.961，ycy_local 0.946，lyq_local 0.984，lpc_local 1.013；20 录制事件侧中位 0.98），并非 zgz 特有、也非全局 6 %。手尺寸（betas）是数值上够的敏感度而非被识别的原因；v2e 事件边缘响应 vs SBA 的 σ 滋扰参数 vs 手尺寸无法分摊，**不可闭合**（历史 runtime 缺件；无不依赖 MANO 与发射模型的事件边缘实测）。
+- **A2 标签时间特性：** 源帧 59.67 Hz、间隔 16.63–17.13 ms（非精确固定帧率；与附录 L 表逐位一致）；1 ms 标签 = 对约 60 Hz 优化后伪标签的 PCHIP / RotationSpline 再插值（`prepare_hand_data.py:42–105`，段间不插值；zgz_local 90 段、长度中位 3 帧）；优化器速度 / 加速度权重 3.5×10⁻⁴ / 3×10⁻⁶（L1 型速率，`sequence_optimizer.py:211–212`），窗口 16 / 8，gap 0.1 s。1 ms 信号 > 30 Hz 功率占比：手指 0.46–0.62 %、根旋转 0.24–0.63 %、腕点 0.03–1.72 %（样条镜像，非信息）；60 Hz 样本自身 15–30 Hz 带占比：手指 17–22 %、根 9–22 %、腕 0.4–19 %（真运动与逐帧抖动不可分）【实物】。
+- **A3 事件生成 provenance：部分闭合。** 事件目录无 v2e manifest / 命令 / 日志，`.runtime` 不存在；间接证据：AEDAT4 头（`MonoCameraWriter`、`source = DVXplorer_sample`、640×480、LZ4）、MP4 容器标签（`0.15 thresholds; 1.5x 60Hz hand bbox; tmix=true`）、18 训练录制的 54 个变体 sidecar（`v1_run_id = hand_data_v2e_b96_20260806`、batch 96、阈值 0.15、16 个 v2e 文件哈希 = 当前工作树、git `cac6384`；zgz 无变体、无此项）。AEDAT 重放与 hand_data51 逐行 0 差异；成簇统计（zgz_local 98.01 %、zgz_global 99.86 %、ycy_local 98.51 %）与附录 L 前 2000 ms 表复现。当前 `batch_bag_v2e.py` 常数与 00c 一致；00c 的参数清单来自旧单跑构造器（`:806–852`，batch 8、无 bbox 过滤、含 `--dvs_exposure`），批构造器（`:1853–1890`，batch 96、bbox ×1.5）与 sidecar / MP4 标签一致；插帧倍数在同一 batch 内共享（`slomo.py:378–407`）。`emulator.py` / `slomo.py` mtime 早于事件且哈希 = sidecar【推导】。【未核验】历史 command / config / 日志与 zgz 基础流源视频哈希。
+- **不可闭合项：** refined / subject_shape / raw WiLoR / 逐 run 配置与日志；手的真实尺寸；事件边缘响应独立实测；zgz 基础流的 v2e run 级记录与源视频哈希；标签—事件时钟绝对偏移；RGB 域读数的循环性。
+- 范围：只描述，不改 K 与任何裁决，不建议重标标签；账本中引用「约 6 % 尺度剖面差」处，证据级别以本条为准。
+
+
+<a id="mv2-exec-auth-20261026"></a>
+
+### 执行授权（2026-10-26）
+
+- 用户指令"GPU2-7，全量cpu现在开始执行方案"：执行十方案 v2.1 的 Stage 1–6。只用物理 GPU 2–7（六卡），CPU 全量。执行前核查：GPU 0–7 全部空闲（14 MiB），AURA 编排器 10-25 12:26 UTC 已完成（`outputs/aura/orchestrator.json` step `complete`；AURA C / D 结果未见登记于本账本，由其所属研究另行登记）。
+- 预注册锚点 `#mv2-prereg-20261026`（写于任何新读数之前），冻结 `outputs/mv2/protocol.json`。
+
+<a id="mv2-prereg-20261026"></a>
+
+## MV2 预注册：十方案 v2.1 的零训练探针与 GPU 阶梯（2026-10-26，写于任何新读数之前）
+
+### §0 来历、范围与披露
+
+- **来历**：用户 2026-10-26 指令"GPU2-7，全量cpu现在开始执行方案"，执行十方案 v2.1（`/home/lyq/.cursor/plans/mano_顶点关节算子十方案_battle_27767ea2.plan.md` §B；登记 `#mv2-decisions-20261025`、`#mv2-r3-result-20261025`、`#mv2-stage0-20261025`、`#mv2-exec-auth-20261026`）。只用物理 GPU 2–7，CPU 全量。
+- **范围**：本预注册登记 M1–M10 的全部零训练探针（工具在 `tools/mv2/`，判读函数为各工具的 `decide()`，汇总 `tools/mv2/decide.py` 写 `outputs/mv2/decisions.json`）与 GPU 阶梯（S3 debug、S4 6000 步配对、S5 条件臂）。M7 的 Stage 0 已完成（`#mv2-stage0-20261025`），其后果作为本预注册的约束写入各方案。
+- **不变**：S39 不变；划分只用 `splits_semkine.json`；`model/model.py`、`semkine/xyz_mesh.py`、`semkine/train.py`、`dataset.py`、`eval_track.py`、`model/config.py`、`tools/make_s36_row.py`、`tools/report_table.py` 与 R2 / MRF / AURA / K★ 冻结文件不改。新代码只在 `semkine/slr.py`（`SLRModel(MNISTModel)`，`MODEL.SLR*`，opt-in，`tests/test_slr.py` 7 项：默认路径与 S39 逐位相同、参数 2,802,645、开启后零初值时与 S39 函数相同且不消耗全局随机数、梯度到达、错键拒绝、入口替换）、`tools/mv2/`、`configs/mv2/`。训练与评估经 `tools/mv2/slr_entry.py` 替换类后调用原入口。
+- **已有读数披露（写本节时已知，不得用于设定或调整任何门）**：
+  - K★ 阶梯（`#kstar-results-20261025`）：KS1 理想增量 −2.43 / −1.12 mm、r\* 质量 −0.156；KS2 冻结 patch 头偏相关 0.46 / 0.50、残差跨顶点相关 hop1 0.838 / hop2 0.598 / hop3 0.247 / hop4 −0.117；KS3 r\*\_E3 中位 0.959（真实剖面描述性 0.970、GLS > 0.99）；KS4 14 mm 新息斜率 0.054 / 0.051。
+  - Stage 0：事件侧 σ\* 录制级缺口（zgz_local 0.943 … lpc_local 1.013）、σ_mask\* 0.998–1.028、betas ±1 SD → Δσ\* ±0.05、标签 > 30 Hz 功率 ≤ 1.7 %。
+  - R3 battle：72 位评审只读文档与源码，未读数据（`#mv2-r3-result-20261025`）。
+  - 工程预检：`configs/mv2/mv2_slr_precheck.yaml` 60 步训练（GPU 2，`outputs/mv2/precheck/`），只验收能否训练、峰值显存 10 GB、约 2.65 batch/s；日志里打印的训练 / 验证损失不作任何读数。各工具 `--smoke` 只打印形状、计数与耗时；S3 检查器在预检权重上的冒烟只打印字段名。
+- **实现代理的开发期读数（逐条披露；均不得用于设定或调整任何门，冻结前未据此改动任何常数）**：
+  - M3 / M8 实现代理在开发中对正式路径做过小切片运行（≤ 4 条录制、≤ 8 个端点），看到了判读字符串：FBW descriptive、EXPO tool_defect、SMG descriptive、SRCA kill、PF descriptive、TBC tool_defect（只有 4 条录制），其中 TBC 进入 T1 分支（意味着这 4 条录制的合并 p95 ≥ 0.40 mm）；另看到合成世界里 ESIM 式与 v2e 式响应的符号（正 / 负）。未读数值、未调常数、开发输出已删除。这违反了实现简报"冻结前不产生效应读数"的规则，如实登记；正式运行按草稿原样执行。
+  - M5 实现代理在 FIT7 `ch_local` 两个锚点（窗 50 / 200 ms）上打印过 Fisher 混叠诊断；未读 SELECT、未读任何恢复 / 间隙 / 收缩统计。
+  - M4 实现代理从 FIT7 GT 标签（未读事件）得到设计备注：local 轮廓法向速度中位 |v_n|·50 ms ≈ 0.28 px、global 录制几乎没有内边类。
+  - M6 实现代理只读过窗口重叠 s_ij 的几何分位与合成对照（合成窗口噪声 D ≈ 0.25、拉普拉斯几何对照 0.02–0.05、iid ≈ 0；合成 J 残差份额 ≈ 0.93），未读真实残差的任何统计。
+  - M9 / M10 实现代理：PSQ 冒烟在 FIT7 `lyh_local` 上核对 phase-0 闭环与 `evalx.run_sequence` 逐位相同（只输出 identical）；SDG 冒烟读过 EvRealHands 一个最小 trial 的 .evc（帧数是否匹配、坐标范围、极性取值）与 trial 0 / `ycy_global` 的事件计数与计时，未打印任何分布或距离，未读其标签与评测文件，未做模型推理；SAD 在 FIT7 `ch_global` / `lyh_local` / `ch_local` 上只核验剂量与计时。
+  - 主会话：M1 / M2 探针冒烟只打印形状与耗时；S3 检查器冒烟只打印字段名；`semkine/slr.py` 的可见性在 M9 实现代理指出布尔下标会触发成本账杀线后，于冻结前换成逐位等价的静态形状实现（`visible_static`，`tests/test_slr.py` 新增等价性测试，共 8 项通过）——这是依据源码事实的工程修正，不依据任何读数。
+  - 账本既有的 DT2 `rootanc` / `rooth`（`#dt2-verdict`）、S42 carry（`#s42-verdict`）、XDI、SBA、AURA、MRF、AGG778 读数，各探针的先验引用都标出锚点。
+
+### §1 数据、单位与统计
+
+- 受试者：FIT7（ch、lfz、lpc、lr、ly、lyh、lyq）用于拟合与标定；SELECT（ycy、ylf）用于门。只用基础录制 `<subj>_local / _global`，不用 `_v2/_v3/_v4` 训练变体。zgz 只在 S4 主行（一次性报告）与 M5 之外的明确条目中出现；探针一律不读 zgz。
+- S39 在 9 人全量上训练，SELECT 对 S39 是样本内、对 FIT7 上拟合的读出是留出；所有门的解读按此限定。
+- 区间：（序列, 1 s）块自助 2,000 次，种子 20261026；受试者只有 2 名 SELECT，不对受试者做自助；种子以"三种子各自同号"作附加条件。zgz 上的模型比较以种子为单位（KS0：种子 SD local 0.379 / global 0.261 mm；3 对 3 MDE local 1.149 / global 0.793 mm，是规划近似、非门槛）。
+- 每个工具在任何读数前调用 `tools/mv2/common.py::verify_protocol()`（文件、检查点、本节文本的 SHA），结果文件独占写入。
+
+### §2 各方案的探针与门
+
+（下列各节为各工具的预注册；"门"一律在 FIT7 / SELECT 上判；阈值来源写在各节。）
+
+### M1 表面提升读出 SLR（工具 `tools/mv2/pa_probe.py pa1 | pa2 | pa3`；GPU 臂 `semkine/slr.py`）
+
+**共同样本**：冻结 S39 三种子（`outputs/semkine/dt_dz_l3_s{3407,3408,3409}` step 6000）；FIT7 + SELECT 的 18 条基础录制（不含 `_v2/_v3/_v4` 训练变体），评测器 50 ms 网格上每段第一步之后每 8 个端点取一个（FIT7 2,204 / SELECT 635 个端点 / 种子）；W200 事件图（`semkine.eval_track.build_lnes`，裁到段首）；前态 prev = GT(end − 50 ms)（E3 单步，`tools/trk6/carry_probe.py` 的构造）。`tools/mv2/common.py::s39_forward_taps` 取 layer1–3 特征，并在每次运行中与 `model(X, P)` 逐位核对。S39 在 9 人全量上训练，所以 SELECT 对 S39 是样本内；所有读出只在 FIT7 上拟合、在 SELECT 上判，它们回答的是"训练分布内冻结特征图是否还有 GAP 之外、与 mesh 锚定有关的线性信息"，不回答新受试者泛化。
+
+**PA1 可兑现空间证据**
+- 前态：prev = GT(end − 50) ⊕ S39 自己的训练前态噪声（`TRACK.PREV_NOISE_MODE: mixed`，按 `SemKineDataset._sample_prev_noise` 逐样本以种子 (20261026, 序列哈希, 端点序号, 99) 抽取）。目标 Δ = GT(end) − prev（51 维）。
+- 读出臂（GAP 块恒在场，各臂都是 GAP ⊕ 臂块）：`gap`（layer3 全局平均池化，256）；`rootanc21`（rung 0，DT2 `rootanc` 的复现：layer2 在 FK(prev) 21 关节处双线性采样 + 归一像面坐标 + 界内标志，2,751）；`tile`（按 FK 腕点配准的 9×9 规则网格、半径 = 可见顶点到腕点投影的最大距离，在 layer1–3 采样，36,288，非 mesh 空间读出对照）；`lift_mean`（可见界内顶点的 layer1–3 采样均值 + 覆盖率，449）；`lift_vert`（逐顶点单点采样，348,544）；`lift_win`（逐顶点 5 点窗：中心与 ±ρ 沿 u、v，ρ = fx·10 mm / z，窗内平均）；`lift_ring`（lift_win 的面 1-ring 可见加权平滑）；`lift_lbs`（lift_win 按 LBS 权重 × 可见性汇聚到 16 关节 + 覆盖率，7,184；主臂，与 GPU 臂结构对应）。对照：`ctl_vshuffle`（每样本随机置换顶点身份后 LBS 汇聚）、`ctl_shift10`（采样点整体沿随机方向偏 10 mm 等效像素）、`ctl_tshuffle`（lift_lbs 特征换成同序列另一样本的）、`ctl_noise`（同维白噪声）。
+- 标准化与求解：各维按 FIT7 行 z-score，块按 1/√d 缩放（每块对核的迹贡献相同）；对偶（核）岭，中心化，λ_rel ∈ {1e-4, 1e-3, 1e-2, 1e-1, 1, 10} × tr(K)/n，以留一 FIT7 受试者的平均 RA（prev + 预测的根对齐关节误差，mm）选择；在 SELECT 上报 RA 与平移 / 根 / 手指三块的 R²。df 配平对照：`lift_lbs` 取使有效自由度等于 `tile` 的 CV 最优 df 的 λ（二分）。
+- **主对比（唯一）**：每个 SELECT 样本 err(lift_lbs) − err(tile)（三种子的均值），local 与 global 各一，（序列, 1 s）块自助 2,000 次，单侧 p = 自助均值 ≥ 0 的比例，两域 Holm（0.025 / 0.05）。
+- **门**：某域通过 = Holm 显著、均值 < 0、95 % CI 上界 < 0、三种子各自均值 < 0、df 配平版均值 < 0；且无一域显著变差（CI 下界 > 0）。工具有效性：`ctl_tshuffle − gap` 与 `ctl_noise − gap` 的均值都 ≥ −0.05 mm（零模型不得优于 GAP），否则 PA1 记 tool_defect（描述）。mesh 特异性：`lift_lbs − ctl_vshuffle` 与 `lift_lbs − ctl_shift10` 的均值都 < 0。**杀**：两域都不通过。功效说明：1.5 × MDE_local = 1.72 mm 是三种子确证所需；PA1 通过只放行探索性单 seed GPU debug。其余各臂相对 gap / tile 的差、rung 0、df、R² 只作描述。
+- 阈值来源：0.025 / 0.05（Holm，α = 0.05）；−0.05 mm 零模型容差为本预注册约定（KS0 种子 SD 0.379 的约 1/8）；MDE 来自 KS0（`#kstar-results-20261025`）。
+
+**PA2 捕获范围（位置型信息）**
+- 前态条件：clean、像面平移 5 / 10 / 14 / 19 / 25 mm（垂直于腕射线的随机方向）、沿腕射线 ±45 mm、根旋转 5° / 11°（随机轴、相机系左乘），逐样本以 (20261026, 序列哈希, 端点, 条件) 播种；**每个条件都重跑冻结 S39 前向**（S39 输入含前态渲染）。FIT7 增广：每样本以 0.8 概率随机赋一个偏移条件、否则 clean；SELECT 每样本全部 9 个条件。读出 `gap` / `tile` / `lift_lbs`，同 PA1 的标准化、求解与 λ 选择。
+- 统计量：b_off = 1 − carry，carry = ⟨J(out_c) − J(out_0), J(prev_c) − J(prev_0)⟩ / ‖J(prev_c) − J(prev_0)‖²，out = prev + 读出预测；平移 / 深度偏移用绝对关节（含平移），旋转偏移用根对齐关节；三种子平均；S39 自身输出的 1 − carry 作上限参照。
+- **门（t14，SELECT 全部）**：diff = b_off(lift_lbs) − max(b_off(gap), b_off(tile))；过 = diff ≥ 0.10 且（序列, 1 s）块自助 95 % CI 下界 > 0；**天花板规则**：若 max(b_off(gap), b_off(tile)) ≥ 0.90，PA2 记 ceiling（不可判别，不作门，M1 的放行只看 PA1）；否则杀。其余条件、分域、按录制 σ\*（Stage 0 / `outputs/sba/p0v`）分层只作描述。阈值来源：0.10 与 0.30 线（KS4 `#kstar-results-20261025` 的冻结 patch 头 b_off 0.054 / 0.051）、0.90 天花板为本预注册约定（S39 自身 carry 根 0.05 / 0.13、手指 0.04 / 0.10，`#s42-verdict`）。
+
+**PA3（描述）**：SELECT 每个手指子树，因果"被运动照亮的轮廓"代理（可见顶点像面法向速度 |n·v|，v 取 GT(end − 100) → GT(end − 50) 的 FK 投影差）与子树 2 px 内事件数，作为"S39 单步使根对齐关节误差下降"的预测量的 AUC；不设门。
+
+**M1 GPU 放行**：PA1 = pass 且 PA2 ∈ {pass, ceiling} 且 PA1 工具有效且 mesh 特异，且 M9 的 SORL / LBA 静态账对 SLR 通过（0 主机同步、0 数据相关形状算子、0 图断裂）。否则 M1 不开 GPU，降为 M3 / M4 的读出载体并记录。
+
+**GPU 臂（放行后）**：`configs/mv2/mv2_slr.yaml` = S39 配方（`configs/dt/dt_dz_l3.yaml`：单卡、批 512 × 累积 2、bf16、Adam 4e-3、warmup 500、cosine、6000 步、同增强与前态噪声）+ `MODEL.SLR*`（layer1–3、投影 32、隐藏 64、1 轮 1-ring、度量半径 10 mm、软可见性、零初值末层；新增 86,826 参数），经 `tools/mv2/slr_entry.py train` 训练。S3 debug：seed 3407，`MAX_STEPS 6000` 跑到 2000 即停；停止条件（只停不放行）：SELECT 上 E3 RA ≤ S39@2000 步 + 0.3 mm 且 carry（根 / 手指）≤ S39@2000 + 0.05，且无发散；S39@2000 用 `dt_dz_l3_s3407-step=2000.ckpt`。S4：继续到 6000 步，与 S39 seed 3407 配对，zgz 一次性报告（`tools/mv2/slr_entry.py evalx row … --variant w200cfg`，主行 + `tools/report_table.py` 九列表）；方向支持 = local ≤ −0.3 mm 且 global ≤ +0.2 mm（S42 单种子 6k 门，描述性）；效应 ≥ 1.5 × MDE（local 1.72 mm）才补 seed 3408 / 3409。
+
+### M2 射线规范商读出 + 度量尺度协变邻域（工具 `tools/mv2/pa_probe.py rgq | mscn`）
+
+**PA-RGQ**：同 M1 的样本（FIT7 + SELECT，E3 前态）。前态沿腕射线刚性移动使腕点到 w / σ（σ ∈ {0.94, 0.97, 1.03, 1.06}，像面尺寸约 ×σ、绕腕），重跑冻结 S39；读数 = 输出的根对齐关节相对 σ = 1 输出的平均位移（mm，对平移盲 = 非 t_z 通道的串扰）与 t_z 响应比（沿腕射线的输出修正 / 所需修正）。第二种扰动形状（Stage 0 要求）：渲染前态时把 betas[0] 改为使手长约 ×σ（Stage 0：+1 SD ≈ −4.7 % 手长），只作描述。**门**（σ = 0.94，SELECT 全部，三种子各自均值）：全部 ≥ 1.149 mm（local MDE）→ pass；全部 ≥ 0.379 mm（local 种子 SD）→ weak（只许 GPU 单 seed 描述）；否则 kill（S39 对规范冗余不敏感，商读出无可收，深度只能报告不能纠正）。阈值来源 KS0。
+
+**PA5-MSCN**：FIT7（门）与 SELECT（描述）基础录制。事件绕渲染主点缩放 s ∈ {0.94, 0.97, 1.03, 1.06}（240×180 网格上最近邻），前态渲染与顶点投影用 fx, fy × s 的 K；读三种逐顶点特征（layer1–3 各用固定种子正交投影到 64 维）：`fixedwin`（layer2，±6 px 五点窗）、`fixedlayer`（layer2 中心）、`metric`（ρ = fx·10 mm / z 五点窗，层级按 log2(ρ / 3 px) 在 layer1–3 间连续插值）；对照 `metric_zperm`（逐顶点深度置换后的度量窗）。漂移 D_x(s) = Σ‖f_x(缩放) − f_x(原)‖ / Σ‖f_x(原) − f_x(A/A)‖，A/A = 同一前态、事件窗提前 10 ms。R = D(metric) / D(fixedwin)，R_z = D(metric_zperm) / D(fixedwin)，（序列, 1 s）块自助。**门**（FIT7，s = 0.94 与 1.06，每个种子）：R 的 95 % CI 上界 ≤ 0.80，且 R_z 的 CI 含 1（度量收益不是平滑），且 D(fixedwin) ≥ 1.5（探针敏感）→ pass；任一 R ≥ 0.95 → kill；不敏感 → untestable（M2 判为不可检验，终止）；其余 → descriptive。注意：图像缩放与沿射线平移只差约 1.1 px 视差，判读写"手变大"而非"深度协变"。阈值来源：0.8 / 0.95 来自计划 §3 M2（20 % 降幅为可见效应下限），1.5 来自 KS0 A/A 经验。
+
+**M2 GPU 放行**：只在 M1 放行之后，作为 M1 子类内的单变量因子臂：PA-RGQ ∈ {pass, weak} → RGQ 读出分解 + prev σ 扰动训练臂；PA5 = pass → `MODEL.SLR_SCALE: metric` 对 `fixed`（6 px）的因子臂。σ 扰动族形状受 Stage 0 约束（绕腕缩放与小手两种都报）。
+
+### M3 材料点事件积累 MPES 的 CPU 零训练探针：预注册草稿（FBW / SMG / EXPO）
+
+> 状态：草稿，供主会话合并进唯一的 `#mv2-prereg-20261026` 并冻结。实现：`tools/mv2/iwe.py`（IWE 工具）、`tools/mv2/m3_probes.py`（三个探针 + `decide()`）。
+> 冒烟（`python tools/mv2/m3_probes.py --smoke`，日志 `outputs/mv2/smoke/m3/smoke.json`）只打印形状 / 计数 / 耗时与内部单元检查的通过与否，没有任何效应读数。正式运行 `python tools/mv2/m3_probes.py --probe {fbw,smg,expo} --out outputs/mv2/<probe>` 首先调用 `common.verify_protocol()`，冻结文件不存在时直接退出。
+> 来源：计划 §3 M3「R3 修订」三条（`P2-E2-R1` FBW、`P3-E10-R1` SMG、`P1-E2-R2` 删失校正曝光积累）；账本锚点 `#sba-r3-results-20261022`、`#xvm-s1-results-20261021`、`#kstar-results-20261025`。
+
+#### 0. 共同约定
+
+**数据。** 只用基础录制 `<subj>_local`、`<subj>_global`（不含 `_v2/_v3/_v4`）。FIT7 = ch, lfz, lpc, lr, ly, lyh, lyq（14 条），SELECT = ycy, ylf（4 条）。**不读 zgz。** 事件取 `hand_data51` 的 `_events.npy` + `_offsets.npy` + `_tsub.npy`（µs 级时间 = ms 桶 × 1000 + tsub），标签取 `pos51`（1 ms，51 维）。betas / K 取该录制的 aux；渲染 K × 0.375（模型的 `_intrinsics`）。S39 检查点不被读取（M3 三个探针都不依赖网络）。零训练，全部 CPU（`CUDA_VISIBLE_DEVICES=""`），解释器 `EventHandsTrain`。
+**种子。** 全局 20261026；每个样本的随机性由 `crc32(序列, 端点, 用途)` 派生（`iwe.seed_of`），与进程调度无关；池输出按 (序列, 端点, 角色) 排序后再聚合。bootstrap：以「序列 + 5 s 端点块」为组整体重采样，2000 次，种子 20261026。
+
+**IWE 工具的定义（`iwe.py`，所有探针共用）。**
+- 手轨迹 `Traj`：MANO FK（`tools/sba/common.py::Ctx`，评估器的 51 维解码）每 2 ms 一个样本，顶点投影到渲染像素（K × 0.375），顶点可见性 `semkine.aura.visible`（3×3 顶点溅射 z-buffer，1 cm 容差，每 6 ms 刷新），遮挡轮廓 `semkine.sba.contour_entries`（每 4 ms 提取）。样本之间对投影顶点做时间线性内插。
+- 事件位置：240×180 格子的精确源像素中心（`semkine.sba.make_grid` 的 `cx_src / cy_src` × 0.375，Stage 0 A1(b) 的约定 (ii)，均值无偏；网络约定 (iii) 有 −0.4375 px 的平均偏移，本工具不用）。
+- 材料点指派 `assign`：事件自己的时刻、假设轨迹下，最近的可见顶点（≤ `R_NEAR` = 4 px，否则不指派）；再在该顶点的相邻三角形里取「最小重心坐标最大且朝前」的面，重心坐标截断并归一；保留事件与投影材料点之间的残差。
+- warp `displacement / warp`：p' = p + Σ b_i (u_i(t_ref) − u_i(t))，即事件所在面的三个顶点从事件时刻到参考时刻的像面位移（逐子树复合：每个面带着其顶点所属部位的 FK 运动）。未指派的事件恒等 warp。轮廓通道可只取位移的法向分量（孔径一致）。
+- IWE：双线性溅射（整数格点），`var` = 子树外接盒内 IWE 的方差（计划所写的对比度）；`conc` = P (ΣI² − 自项) / N²，对事件数标度无关，仅用在事件集随假设变化的场合（SMG）。碰撞诊断：warp 的面积对数比、点云面积比、`var × 面积比²`（Shiba 式面积归一）。
+- 纹理 / 轮廓分流：事件在自己时刻距 FK 轮廓线 ≤ 2 px 为轮廓事件，其余被指派事件为纹理事件。
+- 零模型 `shuffle_times`：
+  - `cluster`（本稿对计划「簇内置乱 / 簇保持置换」的操作化，M3 三探针与 PF 的**主零模型**）：同一时间戳的事件构成一簇；整窗内各簇互换时间标签（簇大小与公共时间层保持，簇之间的时间关联被毁）；
+  - `interval`：事件只在自己的源帧间隔（16.7 ms）内互换时间戳（子帧零模型，SRCA / TBC 用）；
+  - `window`：整窗事件级置换（公共时间层使其无效，只留作诊断）。
+  - 其它对照：`thin_index`（等事件数）、`swap_polarity`（逐像素随机一半翻转 / 全局翻转）、`uniform_noise_like`、`add_flash`。
+- 合成单元检查（`iwe.selftest`，22 项，冒烟必须全过）：溅射质量守恒与暴力解、对比度次序、指派与材料点恢复、GT warp 优于未 warp 与反向 warp、时间置乱降低对比度、三个零模型的保持性质、极性翻转不变性、等事件 / 闪光 / 噪声计数、轮廓带成员、面积诊断。
+
+**披露（写在任何探针读数之前）。** 开发期间的工程运行：(a) `iwe.selftest`、各 `_chk_*` 只用标签与合成事件；(b) 在 ≤ 8 个端点（ch、ycy 两个受试者）上跑过每个探针的完整路径以检查布线与耗时，其间只打印形状、键名与耗时；**但是 `run_formal` 末行会打印裁决字符串，因此这些微小切片的 `decide()` 字符串（FBW descriptive、EXPO tool_defect、SMG descriptive）被看到了**；它们建立在 4–8 个样本之上，没有登记、没有用来调任何常数，输出目录已删除。M3 部分没有读过任何统计量数值。
+
+**样本量与步长（声明）。** 端点网格 = 评估器的 50 ms 网格（每个 run 跳过第一步），取每第 `every` 个：FBW `every` = 8（间隔 400 ms，要求 ≥ 601 ms 历史）：FIT7 2174 + SELECT 627 = 2801 个端点；SMG FIT7 `every` = 8（≥ 201 ms 历史）2204 个、SELECT `every` = 4 共 1272 个，合成对照 FIT7 `every` = 32 共 540 个、SELECT `every` = 8 共 635 个；EXPO 终点 `every` = 6：3808 条链（过滤前，终端窗 ≥ 100 事件才算有信息）。步长是为了让正式运行落在 ≤ 6 h 内的声明值，不按读数调整；若主会话要更密，可整体乘 2（见 §4）。
+
+#### 1. FBW：聚焦盆地宽度门（`P2-E2-R1`）
+
+**目的。** 把「积累在多大的 warp 误差内有效」做成可测量：每个手指子树在窗长 T 下的 IWE 对比度对解剖性 FK warp 误差 δ 的盆地半宽 w_s(T)，与闭环式 warp 误差的 p95 比，得到可积累窗长 T*_s；M3 的 GPU 臂只在 T*_s 内积累。回答的是「积累在什么误差内成立」，不是再测一次偏差受限（E8）。
+
+**数据与样本。** FIT7 + SELECT 全部基础录制（门只在二者合并的 9 受试者上读，无拟合；阈值来自账本）。每端点取 [end−600, end] 的 FK 与事件。事件先裁到 GT 手范围 ± 14 px，再对 600 ms 窗整体均匀截取至 ≤ 30000（种子固定，所有 T 与所有假设共用同一截取，T 窗取其中末 T ms 的事件）。
+
+**事件集（子树成员）。** GT 轨迹下被指派（最近可见顶点 ≤ 4 px）到某部位顶点的事件为该部位成员（神谕成员，所有假设共用，这样每个单元的事件数恒定）；五个手指子树 thumb / index / middle / ring / pinky，另有「四长指并集」`long4`。通道：all / texture / contour（以 GT 轮廓带 2 px 分，轮廓通道只取法向位移）。
+
+**假设（persistent 偏移）。** 取 E0 解剖扰动（`tools/sba/r3_probe.py`：`make_frame / bisect / apply`，只读调用）：长指 PIP 屈曲、MCP 屈曲（符号 ±），拇指对掌（`thm`），去根协同（`synrc`，作用于四长指，仅作 `long4` 的描述单元）。幅度在**窗末端姿态**上二分，使该手指 4 个 OpenPose 节点的腕对齐平均 FK 关节误差等于 δ ∈ {2, 5, 10, 14, 19} mm（synrc 为 21 关节平均）；同一角度（及根补偿）加到窗内所有 FK 样本。假设下重新指派事件并重新 warp。另有 PREV_NOISE 三类（small / large / directed，`TRACK.PREV_NOISE_MODE: mixed` 的三类，常数取 S39 `config_resolved.yaml`，抽样逐行复现 `SemKineDataset._sample_prev_noise`）× 4 个种子，作为整状态的持续偏移。
+
+**统计量。**
+1. 对比度：C_{s,T,ch}(h) = 子树 s 在通道 ch 的成员（末 T ms）经假设 h 的 warp 到参考时刻 end+1 后，IWE 方差（盒 = GT warp 到参考的成员位置并上原位置，± 10 px；末端参考）。无 warp 的 C_0 = 原位置的方差。单元事件数 < 20 记为 NaN。
+2. 偏好率 pref：1[C(GT) > C(h)]（平局 0.5），对家族与符号取平均；F5 单元 δ = 5，F10 单元 δ = 10；逐样本取平均后做块 bootstrap。
+3. 聚焦增益曲线：R̄_δ = mean(C(h)/C(GT))，r̄_0 = mean(C_0/C(GT))，Ḡ(δ) = (R̄_δ − r̄_0) / (1 − r̄_0)（Ḡ(0) = 1；r̄_0 ≥ 1 视为无增益，w = 0）。
+4. 盆地半宽 w_s(T) = Ḡ 首次跌到 0.5 以下的 δ（线性内插；Ḡ(19) ≥ 0.5 时右删失为 19；Ḡ(2) < 0.5 时为 0），含块 bootstrap CI。
+5. 闭环式 warp 误差 e95_s：PREV_NOISE **small** 类、各子树所属手指 4 节点的腕对齐平均误差的 p95（与 δ 同一度量）；描述：directed / large 两类、以及按 zgz 与训练闭环误差之比（12.53 / 4.48）放大的版本。账本里 S39 闭环误差分布没有可读的逐子树存档，故以 PREV_NOISE 作为闭环式噪声代理（计划 §3 M3 与 §9 的口径）。
+6. T*_s = max{T ∈ {50,100,200,400,600} : w_s(T) ≥ e95_s}（无则 0）。
+7. SBA 偏好率参照：`outputs/sba/r3/e1/result_check.json` 中训练受试者校验包的 F5（P 臂）偏好率，按有信息包数加权并合并 fit + select，分 local / global（工具运行时读取并写入结果；账本值 local 0.679、global 0.766）。
+
+**对照与零模型。**
+- 簇保持时间零模型（主）：GT 轨迹下，把事件时间标签按 `cluster` 置换（2 次抽样取平均）后重算 C_gt；检验量 = mean[log(C_gt/C_0)] 在真实与零模型下的配对差（块 bootstrap CI）。
+- 等事件数：T = 400 的成员事件均匀稀疏到 T = 100 的事件数，重算 F5 / F10 偏好率（描述，用于归因）。
+- 无 warp：C_0（即上面的增益参照）；极性：本探针的 IWE 是计数图，对极性恒不敏感，不另跑极性实验（见 §5）。
+- 通道分流：texture（门所读）、all（有效性与描述）、contour（描述）。
+
+**门（每个域各自判；总判：两域都过 = pass，两域都杀 = kill，任一域 tool_defect = tool_defect，其余 descriptive）。**
+- 有「足够事件」的子树（T = 200 单元事件数中位 ≥ 20 且有效样本 ≥ 20）至少 3 个，否则该域 descriptive（欠功效，不当作杀）。
+- **通过**：有效子树中 T*_s ≥ 200 ms 的至少 3 个，且这些子树 T = 200、F5 的合并偏好率 ≥ 0.8 × 该域 SBA F5 偏好率。
+- **杀死**：有效子树中 T*_s < 100 ms 的至少 3 个，或合并偏好率 < 0.5 × SBA 偏好率 → M3 降为 M8 的 warp 组件。
+- 阈值来源：3/5、0.8、0.5 与 200、100 ms 为计划 §3 M3 的预注册承诺（200 ms = W200 现状 `#dt3-verdict`）；SBA 偏好率来自 `#sba-r3-results-20261022` 的校验包读数；盆地边 0.5 与 F5 / F10 单元的定义是本稿的操作化（不来自读数）。
+
+**工具有效性（all 通道、T = 200、五指合并，不满足 = tool_defect，绝不是 pass）。** (1) GT warp 优于无 warp：偏好率 CI 下界的中位数 > 0.5；(2) GT warp 优于簇保持时间零模型：配对对数优势 CI 下界的中位数 > 0；(3) 失败端点比例 ≤ 2 %。
+
+**预计 CPU 时间。** 每端点 ≈ 28 s（98 个解剖假设 + 12 个 PREV_NOISE + 零模型，单线程）；2801 端点 ≈ 22 核·小时，140 进程理想墙钟 ≈ 10 min（含聚合）。
+
+**与计划 §3 的差异及理由。**
+1. 主扰动族为窗内**持续偏移**（与闭环状态误差同构；E8 的 persistent 族），不是随时间变化的斜坡：持续偏移通过 (a) 指派错配与 (b) 位移场的二阶失配（∝ 真实位移 ∝ T）使盆地随 T 变窄，这正是 T*_s 要测的；斜坡扰动留给 M8 的 PF。
+2. 计划写「闭环 warp 误差取 S39 在训练受试者闭环的子树 FK 位置误差」；仓库里没有逐子树闭环存档，且 S39 在这些受试者上样本内。本稿用 PREV_NOISE small 类做代理，并同时报告 directed / large 与 zgz 比例放大的 T*（描述）。
+3. 计划的 SBA 偏好率「0.65–0.92」含 zgz 读数；本稿取训练受试者校验包（不读 zgz）的 F5。
+4. 子树事件集用 GT 神谕成员以保持每格事件数恒定；假设下的指派与 warp 仍是假设自己的（可部署部分）。
+5. 单参考（末端）；多参考（起 / 中 / 末）与碰撞正则放在 PF。
+6. 簇保持零模型而不是「事件级全窗置乱」（公共时间层使后者无效，计划已指出）；对「簇内置乱」字面（同一时间戳内置乱）是恒等操作，故操作化为整窗的簇间时间标签置换，并在 §0 写明。
+
+#### 2. SMG：表面锐度梯度位置新息（`P3-E10-R1`）
+
+**目的。** 检验「FK(前态) 复合 warp 后的纹理事件图的锐度对位姿偏离的梯度」是否携带位置型新息：KS4 的 b_off（预测对创新偏移的斜率）在 14 mm 像面偏移处只有 0.054 / 0.051（门 0.30）；若 SMG 过门，它才是 KS1 封顶的增量侧之外的位置信息源。
+
+**数据。** FIT7 拟合、SELECT 判；两个域分别读（local / global）。窗 W = 200 ms（末 200 ms 事件，裁到 GT 手范围 ± 26 px，均匀截取 ≤ 20000，同一截取用于该样本的所有锚点）。
+
+**锚点与扰动。** 锚点 = GT 窗轨迹加整窗持续的刚体偏移（根平移 tx, ty, tz 与根转向量，右乘；与 `tools/kstar/head_probe.py::perturb` 同约定）。
+- SELECT 读出锚点：clean；像面平移 5 / 10 / 14 / 19 mm 各 2 个随机方向；根旋转 5° / 11° 各 2 个随机轴（每样本 13 个）。
+- FIT7 拟合锚点（每样本 4 个）：clean 一个 + 3 个增广抽样，增广 = {clean 20 %、KS4 random_spec 40%（平移 ≤ 25 mm、深度 ± 45 mm、根旋转 ≤ 11°）、PREV_NOISE 混合 40%（small / large / directed，概率取 S39 的 `PREV_NOISE_P_*` = 0.5 / 0.3 / 0.2，只取根平移与根旋转块）}。
+
+**特征（每个事件集、每个锚点 18 维）。** 对被指派的事件按假设轨迹 warp 到参考时刻 end+1，计算对数对比度 b = log conc。特征 = [b，log 事件质量；对 8 个（自由度, 步长）组合 (tx:3 / 8 mm，ty:3 / 8 mm，tz:8 mm，三个旋转各 2.5°) 的对称有限差分：(L₊ − L₋) 与 (L₊ + L₋ − 2b)]，即梯度与曲率。每个锚点 17 次对比度评估。事件集：
+- `tex_hyp`（主，可部署）：被指派且在**假设**轮廓带（2 px）之外的纹理事件；
+- `con_hyp`：假设轮廓带内的轮廓事件（法向 warp，描述）；
+- `all_hyp`：全部被指派事件（描述）；
+- `tex_orc`：以 GT 轨迹的指派与 GT 轮廓带定义的纹理集合（非部署，神谕可见性对照）；
+- `tex_nowarp`：同 `tex_hyp` 成员但不 warp（无 warp 对照）；
+- `tex_signed`：`tex_hyp` 成员的极性有符号 IWE，其零世界是**极性互换**（逐像素随机一半翻转）的 `tex_signed_pol`。
+
+**读出。** 每域、每事件集一个岭回归（特征标准化、截距不惩罚）：6 维根偏移校正（平移 mm、旋转 rad）← 18 维特征；λ ∈ {1e-3, 1e-2, 1e-1, 1, 10} 由 FIT7 内按受试者分 4 折选，再全量重拟合；零世界（簇保持时间置换后的特征）另拟合一个同样的读出（在置换特征上训练与读出）。
+**统计量。** 每个读出单元（t5/t10/t14/t19/r5/r11）：预测对真校正的 OLS 斜率 b_off（带截距；平移取 x、y 两分量合并，旋转取三分量合并），块 bootstrap CI；与零世界读出的配对差 b_off − b_off^null（含 Holm-2 的 98.75 % 区间）；方向命中率 = 预测校正与真校正的内积 > 0 的比例（CI）。
+**对照。** 簇保持时间零模型（主）；等事件数（SELECT 的 clean 与 t14 锚点：200 ms 事件稀疏到末 50 ms 的事件数，用真世界读出读）；无 warp（`tex_nowarp`）；极性互换（`tex_signed`）；神谕可见性（`tex_orc`）；理想事件正对照：FIT7 / SELECT 上用 GT 轨迹的**合成表面事件**（随机可见前向面、随机重心、位置 = 材料点投影）走完全相同的流程（FIT7 取每 32 个端点，SELECT 每 8 个）。
+
+**门（每域在 SELECT 的 `tex_hyp` 读，t14 单元；总判同 FBW）。**
+- **通过**：b_off(14 mm) ≥ 0.30，且 b_off − b_off^null 的 CI 下界 > 0，且方向命中率 CI 下界 > 0.5。
+- **杀死**：b_off(14 mm) ≤ 0.10；或 b_off − b_off^null 的 CI 下界 ≤ 0；或「只在神谕可见性下有斜率」（`tex_orc` b_off(14) ≥ 0.30 而 `tex_hyp` < 0.30）。
+- 阈值来源：0.30 = KS4 预注册门；0.10 = 与 KS4 实测 0.054 / 0.051 同量级的杀线（计划 §3 M3 写明）；0.5 = 随机命中率；零模型 CI 为通用规则。
+
+**工具有效性。** 理想合成表面事件的正对照在同一流程下 b_off(14 mm) ≥ 0.30（门值本身；否则连理想事件都读不出，tool_defect）；失败端点比例 ≤ 2 %。
+
+**预计 CPU 时间。** 每个锚点（真 + 零世界）≈ 8.5 s。FIT7 2204 样本 × 4 锚点 ≈ 21 核·小时；SELECT 1272 样本 × 13 锚点 ≈ 39 核·小时；等事件对照 ≈ 5 核·小时；合成正对照 ≈ 12 核·小时。合计 ≈ 77 核·小时，140 进程理想墙钟 ≈ 33 min。
+
+**与计划 §3 的差异及理由。**
+1. 位姿块限于根平移 / 旋转（6 自由度）：计划另写「掌、指」块，但 KS4 的口径与门只涉及像面平移与根旋转；指块只在 FBW / PF 里作解剖扰动。
+2. 读出按自由度（回归 6 维校正），b_off 沿用 KS4「预测对创新偏移」的斜率定义但改为分量合并；KS4 是顶点法向分量。
+3. 扰动「取 TRACK.PREV_NOISE_* 三类」用作 FIT7 增广的一部分（根块）；SELECT 的读出锚点是 KS4 口径的显式偏移（5 / 10 / 14 / 19 mm、5° / 11°），这样 14 mm 单元与 KS4 同口径。
+4. 等事件对照取末 50 ms 的事件数；计划未规定，取与单窗基线对齐的口径。
+5. 极性互换在计数 IWE 上恒为恒等，故另设有符号 IWE（`tex_signed`）的极性互换世界作为真正的对照（描述）。
+6. 窗内偏移是 persistent 的：刚体平移使 FK 位移场几乎不变（透视的二阶项除外），位置信息主要来自指派范围（哪些事件落在被偏移的网格上）与 warp 的二阶失配。**这使 SMG 很可能被杀**；这是合法的读数，但提醒主会话：KS4 / XDI 的先例同向。
+
+#### 3. EXPO：删失校正的材料点曝光积累（`P1-E2-R2`）
+
+**目的。** E8 判定跨窗积累「偏差受限」（200 ms 信息是 50 ms 的 4–6 倍而优先率只升 0.01–0.03）。检验：偏差是否来自发射率错设——把单发射率换成类别标定发射率，再加删失 / 老化，200 ms 的优先率是否上升。
+
+**数据与样本。** FIT7 + SELECT 的基础录制；终点 = 50 ms 网格上在 run 内有 3 个前驱窗的端点（链 = 终点前 4 个 50 ms 窗，节点 end−200 … end），每第 6 条。终端窗事件 ≥ 100 才有信息（E8 的 `MIN_EVENTS`）。FIT7 用于选 (ρ, κ_c)，SELECT 判。
+
+**CPU 移植。** `tools/sba/r3_e8.py` 的 GPU 依赖只在 `run()` 的 `require_gpu`；窗、特征（`semkine/sba_emission.features`）、Newton（`r3_lik.newton`）都是 torch 算子，本稿在 CPU 上调用同一套函数（只读）。σ 规范固定为 1（E3 描述：σ\* 与 GT 下的差中位 ≤ 0.008，σ 剖面没有吸收手指扰动；GPU 版的 5 点 σ 网格省去，5 倍成本）。
+
+**假设（E0 解剖扰动，5 mm）。** clean；pip ±5、mcpf ±5（长指轮换：链序号 mod 4）；synrc ±5。五个节点全部加同一偏移（persistent）。
+
+**发射臂。**
+- (a) 单发射率：`m1`（P4 的 θ_c 形状 + 一个全局倍率 + η，每个假设各自剖面，链内共享）；
+- (b) 类别标定：`mg`（六个部位倍率 m_g + η，E8 的原口径）；
+- (c) = (b) + 删失 + 老化：窗 j 的对数似然乘权 ρ^(3−j)（幂似然，ρ ∈ {1.0, 0.7, 0.5}）；窗内格子按**假设无关**的并集曝光掩膜删失：Ē(u) = max_h Σ_g G_g(u)，仅保留 Ē ≥ κ_c · max Ē 的格子（κ_c ∈ {0, 0.01, 0.05}，对数似然的格点和与总量都只在保留格上取）。(ρ, κ_c) 的 9 个组合在 FIT7 上以 K = 4 的 F5 优先率最大者选定，SELECT 只读选定组合；(1.0, 0) 恒等于 (b)（有效性检查）。
+
+**统计量。** 优先率 pref = 1[LL(clean) > LL(h)]（平局 0.5，未收敛 0.5）对 F5 = {pip±5, mcpf±5} 平均；K = 1 / 2 / 4（50 / 100 / 200 ms，链内共享冗余量）。增量 Δ_arm = pref_arm(K=4) − pref_a(K=4)，逐链配对，块 bootstrap CI（含 Holm-2 的 98.75 % 区间）。累积增益 g200 = pref(K=4) − pref(K=1)（E8 口径，描述）。S5 单元（synrc ±5）描述。
+**对照与零模型。** 簇保持置换（ms 桶级：占用的 ms 桶互换时间标签，`cluster_perm_ms`，主零模型）及 E8 的事件级全窗置乱（诊断）；等事件数：K = 2 / 4 的事件按终端窗事件数均匀稀疏（3 次抽样）；极性：似然对极性求和，本身对极性恒不敏感。零模型下同样的 Δ 记为 Δ_null。
+**门（SELECT，200 ms，F5；每域；总判同 FBW）。**
+- **通过**：max(Δ_b, Δ_c) ≥ 0.02，其 Holm-2 CI 下界 > 0，且其超出零模型 (Δ − Δ_null) 的 95 % CI 下界 > 0。
+- **杀死**：max Δ ≤ 0.01，或其 Holm-2 CI 下界 ≤ 0（偏差不来自发射率错设，M3 降为 M8 的 warp 组件）。
+- 其余 descriptive。
+- 阈值来源：0.02 取 E8 在 zgz 的实测增量量级（0.011–0.026），0.01 为同一读数的下沿；CI 与零模型防止自动过。
+
+**工具有效性（任一不满足 = tool_defect）。** (c)(ρ = 1, κ = 0) 与 (b) 逐位相等；clean 对数似然有限的链 ≥ 99 %；(b) 的 K = 1 优先率（FIT7 + SELECT 合并）与 E8 校验包 K = 1 的 F5 优先率（`outputs/sba/r3/e8/result.json`：local 0.694、global 0.779，加权）相差 ≤ 0.10（回归容差：样本与 E8 不同、无 σ 剖面）；(b) 的真优先率不低于其簇保持零模型；失败链 ≤ 2 %。
+
+**预计 CPU 时间。** 每条链 ≈ 41 s（28 次特征评估 + Newton）；3808 链 ≈ 43 核·小时，140 进程理想墙钟 ≈ 19 min。
+
+**与计划 §3 的差异及理由。**
+1. 计划写「(a) 单发射率 Poisson（E8 原口径）」。E8 的原口径其实是 `mg`（P4 的 θ_c 已是类别标定，六个部位倍率逐假设剖面）。本稿把 (a) 实现为 E1 / E8 已有的单倍率变体 `m1`（账本把它叫「单倍率」，单窗上与 `mg` 差 ≤ 0.02），(b) 即 E8 的 `mg`。
+2. 计划的「删失 / 老化」未给出可计算定义。本稿的操作化是：删失 = 假设无关的并集曝光掩膜（避免「某假设自己预测不到的格子被删」造成对错误假设的免责）；老化 = 窗权 ρ^age。由于并集掩膜对似然比较近乎中性，**信息主要来自 (a → b) 与老化**；这一点预先写明。
+3. σ 规范固定为 1，不做 σ 剖面。
+4. 零模型为簇保持置换（ms 桶），而不是 E8 的事件级全窗置乱。
+5. 单链指（pip / mcpf 的手指）按链序号轮换，与 E0 按包序号轮换同构。
+
+#### 4. 运行时估计与冻结清单建议
+
+- 三个探针的核·小时：FBW 22 + SMG 77 + EXPO 43 ≈ 142；140 进程理想墙钟 ≈ 1 h（实际按 50 % 并行效率 ≈ 2 h），在 ≤ 6 h 之内；步长整体乘 2 仍在 ≈ 4 h 之内。
+- 建议冻结的文件：`tools/mv2/iwe.py`、`tools/mv2/m3_probes.py`、`tools/mv2/common.py`；只读依赖 `tools/sba/{r3_probe,r3_lik,r3_e8,r3_e1,common,p0_landscape,p0_visibility}.py`、`semkine/{sba,sba_emission,aura,xyz_mesh,lie}.py`、`outputs/sba/p4/{fit_raw_b1.json,patches.npy}`、`outputs/sba/r3/e1/result_check.json`、`outputs/sba/r3/e8/result.json`、`outputs/semkine/dt_dz_l3_s3407/config_resolved.yaml`。
+- 产物：`outputs/mv2/{fbw,smg,expo}/{result.json,receipt.json,raw.pkl}`；`result.json["decision"]` 为 `decide()` 的输出。
+
+#### 5. 已知风险与不能主张
+
+- FBW：IWE 方差在每格 18–93 事件（local 单窗）下信噪比很低，大量子树可能不过门，这是合法的杀读数；v2e 的事件时间戳来自插帧，盆地可能比真实传感器乐观。
+- SMG：持续偏移下刚体平移不改 FK 位移场，位置信息来自指派覆盖；与 KS4 / XDI 先例同向，预期难过门。
+- EXPO：E8 的偏差若来自标签 / 配准（σ、段偏置）而不是发射率，探针必杀；类别率在训练受试者上拟合，不迁移到 zgz。
+- 三个探针都不能主张：偏差受限被解决、0.93 ms 簇是统一时间分辨率、盆地宽度是位置信息、跨受试者泛化。
+
+### MV2 · M4「遮挡轮廓一维测量 CNM」R3 探针——预注册草案（2026-10-26，写于任何正式读数之前）
+
+> 草案作者：实现子代理。主会话据此写入统一预注册并按 SHA-256 冻结 `tools/mv2/m4_contour.py`。本草案对应的工具只做过合成数据单测与 FIT7 小切片冒烟（只打印形状、计数、耗时、通过 / 失败），**没有任何 M4 效应读数**。
+> 计划来源：`/home/lyq/.claude/plans/enumerated-exploring-quilt.md` §3 M4「R3 修订（探针）」；R3 条目 `P3-E5-R2`、`P2-E4-R2`、`P3-E1-R1`、`P4-E8-R2`（`outputs/kbattle_20261025/v3/r2_selected_entries.md`）。账本背景：`#xdi-20261014`（XDI 无参数轮廓新息失败）、`#sba-p4-results-20261022`（发射率）、`#aura-b-result-20261024`（内 / 外占据与跨指串扰）、`#mv2-stage0-20261025`（σ\* 为录制级事件侧偏差）。
+
+#### 0. 范围与约束
+
+- 零训练，仅 CPU（`CUDA_VISIBLE_DEVICES=""`，不用 GPU）；工具 `tools/mv2/m4_contour.py`，启动 `python tools/mv2/m4_contour.py --out outputs/mv2/m4_contour [--stage extract|analyze|all] [--workers N]`；先 `common.verify_protocol()`。
+- 数据：`common.load_seq` 的 FIT7 = ch, lfz, lpc, lr, ly, lyh, lyq（拟合 / 标定常数）与 SELECT = ycy, ylf（判门）的 **基础录制** `<subj>_local`、`<subj>_global`；**不读 zgz**（代码断言），不读 `_v2/_v3/_v4`；冒烟只读 FIT7 `lyq_local` 的前 14 包。
+- 前态 = GT(end − 50 ms)（`common.SeqSamples` 的 E3 单步约定，诚实前态不在本探针范围）；FK 用冻结 S39 检查点内的 MANO 层（`common.load_s39` / `fk_surface`），betas / K 取自各录制 aux。
+- 种子 `SEED = 20261026`；逐包随机数由 `crc32(序列名)`、端点、零模型编号派生（与调度顺序无关）；bootstrap 2000 次，种子 `SEED + 平移毫米数`。
+- 不改任何现有文件；产物只写 `outputs/mv2/m4_contour/`（`cache/*.pkl.gz` 逐包缓存、`extract_log.json`、`result.json`（`common.save_json` 独占写）、`receipt.json`）。
+
+#### 1. 目的
+
+三个 R3 探针共享同一次抽取（真实事件、GT 前态、FK 可见轮廓）：
+
+1. **E5（P3-E5-R2）错设 / 伪真值偏移**：各发射类别的法向有符号偏移 b_c，δσ = b / R，三明治 A⁻¹BA⁻¹ 与 VIF；判断一维轮廓通道是否被「事件框—MANO 投影」错设封死（也是 σ\* 的一维对照）。
+2. **E4（P2-E4-R2）CNHV 假设体偏置分解**：±16 px 法向假设体的模峰偏置、包内抖动、能否被「全局平移 + 绕掌心尺度 + 延迟 × 速度」三族 nuisance 解释（FIT7 拟合、SELECT 判），以及峰度相对零模型。
+3. **E1（P3-E1-R1）类别偏差一维 PDA 门**：b_c 在 FIT7 → SELECT 的稳定性与去偏、NIS 校准，以及前态像面平移 5 / 10 / 14 / 19 / 25 mm 的位置恢复（PDA 相对最近轮廓点基线的斜率差，14 mm 为主）。
+4. **E8（P4-E8-R2）描述**：同一分解里「绕腕尺度」系数的 σ 复现范围与录制间离散。
+
+M4 的角色：M1 的位置型通道 / 受控对照。本探针回答的是「在真实事件上，一维法向测量是否有可校准的位置信息」，**不是** 部署精度。
+
+#### 2. 数据与样本
+
+| 项 | 规定 |
+|---|---|
+| 端点 | 每个有效段的 50 ms 网格端点（跳过段内第 1 个，无 prev），**每 4 个取 1（步长 200 ms，W200 窗不重叠）**，相位 0；`common.endpoints(aux, every=4)` |
+| 样本数（取包后；n_sil < 20 的包丢弃并计数） | FIT7 共 4427 包（local 约 2100 / global 约 2330）；SELECT 共 1272 包（ycy / ylf 各 local + global） |
+| 事件 | `common.load_seq` 的 (x, y, p)（240×180 已 floor(3i/8) 并格）+ 同目录 `<seq>_tsub.npy` 的亚毫秒时间；窗 `[end − w + 1, end]`，`w = min(200, end + 1 − run_start)` |
+| 事件时间 τ | `τ = (ms·1000 + tsub − (end − 49)·1000) / 1000` ms；W200 内 τ ∈ [−150, 50)；prev 时刻在 τ = 0（窗内最后 50 ms 为「步内事件」） |
+| 事件坐标 | 并格 LUT：`X = 0.375·make_grid.cx_src[x]`，`Y = 0.375·cy_src[y]`（连续渲染平面，平均相位 0.4375 px；3/3/2 增益周期），与顶点 `uv = K·0.375` 同一坐标 |
+| 视图 | **V200** = 全部 8 个 25 ms 时段（W200，门所用）；**V50** = τ ∈ [0, 50)（W50，描述）；**Vc50** = τ ∈ [−25, 25)（以 prev 时刻为中心的 50 ms，描述 / 时间分辨统计） |
+| 平移条件 | SELECT 全部包；FIT7 每 4 个包（`i % 4 == 0`）；每个包 × 5 个幅度，方向 φ 由 `rng_for(序列, 端点, 100+k)` 均匀抽取 |
+| 错窗伙伴 | 同录制同步长下第 `(i + N//2) mod N` 个包的 W200 事件（τ 以其自身 prev 为准），用于 `wrongwin` 零模型 |
+
+#### 3. 共同定义
+
+**3.1 轮廓（FK(GT prev)）**。遮挡边与可见性取 SBA（`semkine.sba.contour_entries`：面朝向相反的非边界网格边，部位组顶点溅射 z-buffer 可见性）；类别在 **精确三角光栅**（`semkine.kssf.KSSF.rasterize`，240×180）上判定：边中点沿外法向 1.5 px 处的像素为背景 → **silhouette（sil）**；为手表面且深度比边中点远 ≥ 10 mm（SBA 的 `INT_DZ`）→ **internal（int，自遮挡内边 / 深度不连续边）**；其余（同深度手表面或更近）为歧义边，丢弃。**material（mat）** = SBA 的 `material_entries`（可见、两面均朝向相机的非轮廓边，`sba_emission.py`，即 SBA P4 的「材质边」）。每条选中的网格边是一个轮廓点（边中点，渲染 px），外法向 = SBA 的 `-side·rot90(边向量)`，sil / int 在同类边之间按共享顶点平滑；mat 的法向取边的垂直方向并按「远离掌心」定向（其符号无物理含义，见 §11）。点属性：类别、部位组、法向、**法向速度 v_n**（GT prev→end 的边中点位移在法向的投影 / 50 ms，px/ms，外为正）、**径臂 rad = (p − c_palm)·n**（掌心 = 关节 0, 5, 9, 13, 17 三维均值的投影）、绕腕径臂、`sn`（平移条件下模型轮廓相对 prev 的法向位移）。
+**3.2 一维条带与偏移**。事件属于点 i 的条带当且仅当 `|(e − p_i)·t_i| ≤ 1 px` 且 `d = (e − p_i)·n_i ∈ [−16.5, 16.5)`（t 为切向）。偏移 d 以 0.25 px 细箱（132 箱）计数；「1 px 假设体」= 每 4 个细箱合并（中心 −16 … 16，共 33 箱，步长 1 px）。同一事件可落入多个点的条带（跨指 / 跨段串扰保留，**不做射线截断**，见 §11）。**软去重**：一个事件在同一类内的所有条带配对共享总权重 1（每对权重 = 1 / 该事件在该类的配对数；各类分别计），之后所有「对数」都是加权有效事件数。理由：相邻条带（间距 2–3 px）与交叉段会把一个事件重复计数约 6–8 次，不去重时三明治的 VIF 量到的是这个重复度而不是错设（合成良设定事件下 VIF 6.2 → 去重后 1.9）。零模型沿用真实数据的配对权重，不重算。
+**3.3 段（segment）**。`(类别, 16 px 网格, 法向 45° 分箱)` 的点集；段内 V200 加权有效对数 ≥ `N_SEG_MIN = 50` 才参与。段属性取点均值（法向单位化）。
+**3.4 模峰**。1 px 假设体经 [1 2 1]/4 平滑后的 argmax 加抛物线亚箱精修；峰度 = 最大 / max(中位数, 1)。
+**3.5 混合模型（FIT7 冻结）**。事件箱概率 `P_k(θ) = (1 − β)·G_k(θ, s) + β·q_k`，G 为截断高斯（箱内归一化），q 为 **经验杂波表** = FIT7 同域同类 **错窗事件** 的偏移直方图（±1.5 px 核平滑，下限 1e-4/132，归一化）——「取经验非轮廓事件分布，非均匀合成」。每个（域 × 类 × 视图∈{V200, V50}）用 FIT7 的汇总直方图做 3 起点 L-BFGS-B 的箱化最大似然得 `(θ_FIT, s, β)`（θ ∈ [−12, 12]，s ∈ [0.5, 8]，β ∈ [0.001, 0.999]）；加权有效对数 < 5000 或拟合碰界 → 该类在该域「不足」，不参与门（只能「不通过」）。
+
+#### 4. 统计量与公式
+
+##### 4.1 E5 — 伪真值偏移、三明治与 VIF（`eval_recording`，每录制 × 类）
+- **b_m（主）**：冻结 `(s, β, q)` 下，对录制内各包（单元 = 包 × 类的直方图，空包不计）合并对数似然在 θ ∈ [−12, 12]（步 0.05）上取 argmax 并抛物线精修；碰界标记 `at_bound`。
+- **A、B、VIF**：`A = −(1/U)·∂²ℓ/∂θ²`（观测信息），`B = (1/U)Σ_u Ψ_u(θ̂)²`（以包为簇的得分方差，`Ψ_u = Σ_k h_uk ∂_θ log P_k`），三明治方差 `A⁻¹BA⁻¹/U`，**VIF = B / A**（良设定且事件独立时为 1；单测验证）。
+- **b_med**：该录制该类合并 V200 直方图的中位偏移（细箱内插）；与 b_m 并报，入选需两者都满足（保守）。
+- **δσ = b_m / R**，R = 该录制各包「sil 点到掌心距离的中位数」的中位数（渲染 px）。
+- 另报：V50 视图的 b_m50 / VIF50；**轮廓外事件构成**（`comp`：距 sil ∪ int 轮廓点 ≤ 2 px、> 2 px 且在手光栅内、> 2 px 且在光栅外但 ≤ 16.5 px、更远）的录制内比例。
+
+##### 4.2 E4 — CNHV（每录制 × 类，sil / int）
+- **录制模峰偏置 peak**：该录制该类 V200 合并 1 px 假设体的模峰。**peakiness**：real 与 `wrongwin`（同轮廓、错窗事件）的峰度，`r_pk = real / wrongwin`；另报 V50 / Vc50 下 real / `tshuf_layer` / `tshuf_event` / `wrongwin` 的峰度。
+- **包内模峰抖动 jitter**：逐包取该类合格段（≥ 50 有效对）的 V200 模峰，对 ≥ 3 个合格段的包取方差 v；**噪声校正**：减去该包各段模峰的自助法方差均值（每段对其有效事件数做 20 次多项式重采样，取 1 px 模的方差；下限 0）；录制 `jitter` = 校正后包方差均值的平方根（门所用），`jitter_raw` = 未校正的（描述）；`n_jit_pkts` = 参与的包数。理由：未校正的 SD 在合成的「所有段偏移相同」数据上也达 2.8 px（纯采样噪声），门会自动不过；校正后只度量模峰在包内的系统性游走（同一合成数据 1.3 px）。
+- **三族 nuisance 分解**：段模峰 y 对设计 `[n_x, n_y, rad, v_n]`（平移 = 法向的两个分量 n_x, n_y；绕掌心尺度 = 径臂；延迟 × 速度 = 法向速度，系数单位 ms）做 OLS。**FIT7 拟合**（按域 × 类汇总所有 FIT7 合格段），**SELECT 判**：用 FIT7 系数预测该录制各合格段，**R²u = 1 − Σ(y − ŷ)² / Σy²**（未中心化，即被解释的「偏置能量」比例；另报中心化 R²c）。「计划字面」模型 `[1, rad, v_n]` 的 R² 另报；`wrist` 设计（尺度径臂取绕腕）用于 E8。录制内自拟合 R² 与系数（`coef_within_*`）另报。
+- **延迟一致性（描述）**：V200 与 V50 视图下 v_n 系数之差（事件跟随运动时约 +75 ms），以及 κ = 各段「时段模峰对时段时间的斜率」对 v_n 的过原点回归系数（real 对 `tshuf_layer`，应分别 ≈ 1 与 ≈ 0）。
+- **极性（描述）**：ON − OFF 的模峰差 `dpol`（real / `pol_perm` / `pol_flip`）。
+
+##### 4.3 E1 — 类别偏差一维 PDA 门（每录制 × 类；位置恢复为全局）
+- **漂移 drift** = |b_m(SELECT 录制) − θ_FIT(同域，FIT7)|。
+- **去偏降幅 debias_red** = 1 − median|y − θ_FIT| / median|y|（y = 合格段 V200 模峰，SELECT 录制）。
+- **PDA 后验**：对每个合格段的 132 箱直方图 h，`log post(δ) = Σ_k h_k log P_k(θ = δ + θ_FIT)`，δ ∈ [−16, 16]（步 0.25，均匀先验），输出均值 μ 与方差 σ²。**NIS = μ² / σ²**（GT prev 处真值 δ = 0）；NIS 中位数须落在「n 个 iid χ²(1) 的样本中位数」的 95 % 中心带内，n = 该录制含合格段的包数（解析的次序统计量律，偏保守）。错窗事件下的 NIS 中位数作对照（应显著失校准）。
+- **位置恢复**：前态 FK 在像面平移 m ∈ {5, 10, 14, 19, 25} mm（方向随机），**从平移后的几何重抽轮廓与标签（deployable）**；段的真移 s = 段内点 `sn` 的均值；PDA 估计 r_PDA = −μ（用 θ_FIT 去偏）；**最近轮廓点基线** r_NCP = −（段内各点作为「最近 sil ∪ int 轮廓点」的事件的法向偏移均值，事件距该点 ≤ 16.5 px，≥ 20 个事件）。仅取两估计器都合格的段（sil / int）。池化 OLS 斜率；**斜率差 Δ = slope_PDA − slope_NCP**，bootstrap 单位 = 「录制 × 连续 10 包」块（SELECT 只有 2 个受试者，受试者级重采样无意义，故以块重采样并另要求 **两位 SELECT 受试者各自的 Δ > 0**）。主读数 m = 14 mm。**oracle 可见性**对照：轮廓点位置取平移后的 prev，边集合与类 / 朝向取自 GT(end) 几何（同一光栅判类规则）。
+- **散射对照（零模型）**：m = 14 mm 的同一轮廓上，每个事件沿各自随机方向移动 24 px（> 16.5 px 捕获范围）后重算，两估计器的斜率 bootstrap 区间须与 [−0.25, 0.25] 相交（否则工具失效）。
+
+##### 4.4 E8 — 描述
+- 对每个录制的 sil 合格段做 `wrist` 设计的录制内 OLS，σ̂ = 1 + ρ_wrist；报告各录制 σ̂、落入 [0.93, 1.01] 的比例、σ̂ 的变异系数与 (σ̂ − 1) 的变异系数。无门。
+
+#### 5. 零模型（每项写明：破坏什么、哪些统计量对它不变）
+
+| 零模型 | 实现 | 对其不变的统计量（工具有效性断言，精确相等） | 有判别力的统计量 |
+|---|---|---|---|
+| `tshuf_layer` | 窗内把时间戳在 ≈0.93 ms 层（相同 `ms·1000+tsub` 的事件为一层）之间置换，层内事件仍同时；位置 / 极性不动 | V200 全部汇总与逐段直方图（空间边际不依赖时间） | V50 / Vc50 峰度、κ、时段模峰 |
+| `tshuf_event` | 窗内逐事件置换时间戳 | 同上（V200） | 同上 |
+| `pol_flip` | p → 1 − p | 极性合并的全部直方图；极性分解直方图互换 | `dpol` 符号翻转 |
+| `pol_perm` | 窗内置换极性 | 极性合并的全部直方图 | `dpol` → 0 |
+| `cls_shuf` | 同包内置换轮廓点的类别标签（保持各类点数） | 跨类求和的直方图 | 各类 b_m 的类间极差（`_spread`） |
+| `wrongwin` | 同录制另一时刻（见 §2）的 W200 事件对同一轮廓 | —（无不变量） | **门 (3) 的峰度比**；NIS 中位数 |
+| 散射 | §4.3 | — | 位置恢复斜率（须 ≈ 0） |
+
+时间置乱 **不能** 作为空间峰度门的零模型（V200 汇总对时间不变，断言之），所以峰度比的零模型取 `wrongwin`（保守：保留同一只手的事件密度结构）；时间置乱只用于时间分辨统计。
+
+#### 6. 门（由 `decide(result)` 精确执行；阈值来源见 §8）
+
+记 SELECT 录制集合 = {ycy_local, ycy_global, ylf_local, ylf_global}。**「全录制」规则**：某条件对一个类成立 ⇔ 该类在 4 个 SELECT 录制中均有足够数据且逐一成立。「可检出类」= 4 个录制数据足够且 `r_pk` 的录制中位数 ≥ 3。
+
+**E5**
+- 入选类（`admit`）：每录制 |b_m| ≤ 2 px 且 |b_med| ≤ 2 px 且 |δσ| ≤ 0.03 且 VIF ≤ 3 且未碰界。
+- 杀：存在可检出类，且 **所有** 可检出类的 |b_m| 与 |b_med| 均 > 4 px（取 4 个 SELECT 录制带符号值的中位数再取绝对值）；或 sil 可检出且其 |δσ|（同样取带符号中位数的绝对值）≥ 0.06（b 可完全解释 σ\* 级尺度差）。
+- 判决：杀 → `kill`；有类入选 → `pass`；否则 `descriptive`。
+
+**E4**（只对 sil / int 有定义）
+- `jitter_ok`：每录制 `n_jit_pkts ≥ 30` 且（噪声校正后）jitter ≤ 2 px；`r2_ok`：每录制 |peak| < 4 px，或 R²u(geom, 迁移) ≥ 0.5；`peak_ok`：每录制 `r_pk ≥ 3`。三者皆成立 → 该类 `pass_by_class`。
+- 杀：至少一个轮廓类数据足够、但无一个可检出（`no_signal`，本草案新增，见 §11；数据不足只记 `descriptive`）；或所有可检出轮廓类的 4 录制中位 jitter > 2 px，或中位 |peak| ≥ 4 px 且中位 R²u < 0.5。
+- 判决：杀 → `kill`；有类通过 → `pass`；否则 `descriptive`。
+
+**E1**
+- (i) `stable_debias`：每录制 drift ≤ 1.5 px 且 debias_red ≥ 0.5；(ii) `nis_ok`：每录制 NIS 中位数在其 95 % 带内；(iii) `position_ok`：14 mm 处 Δ 的 bootstrap 区间下界 > 0 且两位 SELECT 受试者的 Δ 均 > 0。
+- 杀：所有可检出轮廓类的中位 drift > 3 px；或 Δ 区间含 0 且基线斜率 ≥ 0.8（「1 − carry 地板已高」的可操作化，见 §11）；或 **增益只在 oracle 可见性下出现**（deployable 的 Δ 区间下界 ≤ 0 而 oracle 的下界 > 0）。
+- 判决：杀 → `kill`；(iii) 成立且存在类同时满足 (i)(ii) → `pass`；否则 `descriptive`。
+
+**组合规则（本草案新增，计划未写 E4 / E5 / E1 如何合取）**：任一探针 `kill` → M4 `kill`（位置信息 / 一维通道不成立，仅留作 M7 偏置诊断与描述）；否则存在 sil / int 类 c 使 `E4.pass(c)` ∧ `NIS_ok(c)` ∧ `position_ok` ∧ （`stable_debias(c)` ∨ `E5.admit(c)`）→ M4 `pass`（进入 M1 通道，单变量，单 seed 3407）；其余 `descriptive`。理由：位置恢复相对基线的增益是唯一直接度量「位置信息」的门，必须成立；偏置要么小（E5 入选），要么大但稳定可去除（E1 (i)）；二者在数量级上互斥，故用「或」。**E8 永远只描述。** 任何有效性条件不满足 → `tool_defect`，不是 pass。
+
+#### 7. 工具有效性条件（全部为布尔；任一 False → `decide()` 返回 `tool_defect`）
+
+1. `unit_tests`：合成数据单测全部通过（§9）。
+2. 不变量：`tshuf_pooled_invariant`、`pol_pooled_invariant`、`pol_flip_swaps`、`cls_total_invariant`、`seg_tshuf_invariant`（§5，逐包相等；权重是浮点数，容差 rtol 1e-6、atol 1e-4）。
+3. `no_zgz`（序列名断言）、`finite_counts`（R 有限、事件数 > 0）。
+4. `inward_probe_in_hand`：sil 点沿法向向内 1 px 处在手光栅内的比例 ≥ 0.85（法向朝向 / 相位的几何自洽；SBA 类与光栅类的一致性计数 `geom_counts` 只记录不设门）。
+5. `fit_sil_local`、`fit_sil_global`：FIT7 的 sil 混合拟合存在。
+6. `disp_null_flat_SELECT / _FIT7`：散射对照的斜率 bootstrap 区间与 [−0.25, 0.25] 相交（合格段 < 30 时视为不可评并记录 `disp_null_n_seg_*`）。
+
+#### 8. 阈值来源
+
+| 阈值 | 值 | 来源 |
+|---|---|---|
+| |b_c| 入选 / 杀 | 2 px / 4 px | 计划 M4 R3 修订 (1)；2 px 取自 XDI「轮廓 2 px 外 20–30 %」，4 px 为计划声称的捕获域上界 |
+| δσ 入选 / 杀 | 0.03 / 0.06 | 计划；0.06 = σ\* − 1（`#sba-why-20261022`），0.03 为其一半 |
+| VIF | ≤ 3 | 计划（`P3-E5-R2`，与 4 px 捕获域假设自洽，【待预注册】） |
+| 抖动 SD | ≤ 2 px | 计划（`P2-E4-R2`） |
+| 偏置触发 / R² | 4 px / 0.5 | 计划（描述性建议） |
+| 峰度比 | ≥ 3 | 计划（描述性建议；零模型取 `wrongwin` 为本草案决定，§5） |
+| drift 入选 / 杀 | 1.5 px / 3 px | 计划（`P3-E1-R1`，预注册自拟） |
+| 去偏降幅 | ≥ 50 % | 计划 |
+| NIS 带 | χ²(1) 的 95 % | 计划（统计定义） |
+| 位置恢复 | 14 mm，Δ 的 95 % 区间下界 > 0 | 计划；斜率差值写法沿 KS4（`#kstar-results-20261025`），绝对 0.30 不用 |
+| 基线地板 | 0.8 | 本草案（「1 − carry 地板」无可复现定义，取基线已恢复 ≥ 80 % 的位移） |
+| 设计常数 | 条带半宽 1 px；段 16 px × 45°；`N_SEG_MIN` 50（加权有效对）；`N_UNIT_MIN` 30；`N_FIT_MIN` 5000；`N_JIT_PKT_MIN` 30；`N_NCP_MIN` 20；块 10 包；步长 4（200 ms）；抖动自助 20 次 | 本草案，读数前固定（条带半宽 ≈ 投影网格边长的一半；16 px = 计划的 ±16 px 捕获范围；50 对使高斯峰的模式标准误约 0.5 s；步长 4 使 W200 窗互不重叠） |
+| 光栅类判定 | 外探针 1.5 px，内探针 1 px，internal 深度裕量 10 mm | SBA 的 `PROBE_SRC`（4 源 px = 1.5 渲染 px）与 `INT_DZ` |
+| 散射对照 | 24 px；斜率区间须与 ±0.25 相交 | 本草案 |
+| 所有阈值 | 不得在读数后调整；不得来自 zgz | `outputs/mv2/briefs/00_agent_brief.md` |
+
+#### 9. 合成数据单测（只验证估计器，**不是** 门；`run_unit_tests`，冒烟与正式运行都执行）
+
+并格 LUT 相位；条带几何（符号、切向 / 法向截断）；混合拟合回收注入 (θ, s, β)；三明治回收注入位置且良设定 VIF ≈ 1、过离散 VIF > 2；PDA 后验回收注入位移且 NIS 中位数在带内、无信息输入的斜率 ≈ 0；分解回收注入系数并对无关偏置给出低 R²；峰 / 峰度；两种时间置乱的层内一致性、确定性与「V200 不变、V50 变」；极性互换；段划分确定性；位置恢复斜率与 bootstrap（有信息 / 同斜率 / 零信息三种合成输入）；`decide()` 的 13 项断言（pass、tool_defect 不会 pass、E5 / E4 / E1 各条杀、NIS 失校准、单个录制违反即阻断、位置增益缺失等）；真实 FIT7 位姿的轮廓上注入 +3 px 外偏移的事件，回收符号与大小；真实轮廓平移 14 mm、事件置于未平移轮廓上，PDA / 基线斜率符号与量纲；事件置于 GT(end) 轮廓点上，偏移 = v_n × 50 ms；真实几何上注入已知 (平移, 尺度, 延迟 × 速度) 偏置并回收；**管线连通单测**：真实 FIT7 位姿 + 合成事件（sil 外 3 px、高斯宽 1.2 px、随机时间 / 极性 / 0.93 ms 层、均匀杂波；奇数包只有杂波作错窗伙伴），走 `extract_sample → validity_checks → fit_constants → eval_recording`，要求回收 b_m / 峰位 / drift，`r_pk > 2`，V200 峰度对时间置乱严格不变，并且 **在事件独立、设定良好时 VIF < 3、校正抖动 < 2 px、NIS 中位数落在带内、错窗事件的 NIS 中位数 > 5**（说明门在良设定下可达，不替代任何门）。
+
+#### 10. 预计 CPU 时间与内存
+
+- 抽取：每包（含 7 个零模型的单元直方图与段直方图）local 约 0.12 s、global 约 1.2 s；含 5 幅度 × (deployable + oracle) + 散射对照的包 local 约 0.5 s、global 约 5 s。总计约 2.6 CPU·h；96 个 worker（spawn）约 5–10 分钟墙钟（最长块 = 40 包的 SELECT global ≈ 3.5 分钟）。
+- 分析（单进程）：约 5–8 分钟（FIT7 拟合 + 18 个录制 + 2 组位置恢复 × 3 模式的 bootstrap）；单测约 10 秒。
+- 内存：缓存约 8–10 GB 原始（gzip 后约 3 倍小），分析进程一次载入。
+
+#### 11. 与计划 §3 / R3 条目的差异及理由
+
+1. **b_c 主估计量**：计划写「类别级中位偏移」；本草案以冻结混合模型（含经验杂波表）的伪真值 b_m 为主，并 **要求中位数 b_med 同样满足**（入选取交、杀取交）。理由：不对称杂波（手内部纹理事件）使纯中位数向内收缩，会让门更容易通过；混合 M 估计才是三明治与 NIS 的同一对象。
+2. **「时间置乱」零模型不能判空间峰度**：窗内时间置乱对 V200 的空间直方图不变（已作不变量断言）。峰度比（E4 门 (3)）改用 `wrongwin`；时间置乱用于 V50 / Vc50 峰度与 κ。`wrongwin` 保留同手事件密度，是更严的零模型（local 手近静止，partner 事件仍靠近轮廓，可能使 `r_pk ≥ 3` 偏难）。
+3. **抖动按段而非按顶点，并做采样噪声校正**：逐顶点模峰（几个事件）的噪声必然超过 2 px，门会自动不过；本草案以 ≥ 50 有效对的段为单元，并扣除自助法的采样方差（未校正值并报）。校正使门偏宽松；若主会话要字面口径，改 `decide()` 里 `e["jitter"]` 为 `e["jitter_raw"]`。
+3b. **软去重加权**（§3.2）：计划未写；是 VIF 门可行的前提（见上）。
+4. **R² 取未中心化**（「偏置能量」被解释的比例）并要求 **FIT7 系数迁移到 SELECT**；三族中「平移」用法向的两个分量（n_x, n_y）而非常数项（常数法向偏移是膨胀而非平移）；计划字面的「常数 + 距离 + 速度」模型作为对照另报。
+5. **E1 (iii) 的 bootstrap 单位**：计划写「受试者分块」；SELECT 仅 2 人，改为「录制 × 10 包块」并要求两位受试者的 Δ 同号 > 0；推断范围仅限这两位受试者。
+6. **「1 − carry 地板」** 在本数据无定义，操作化为基线斜率 ≥ 0.8；若主会话有更好的定义，须在冻结前替换。
+7. **E4「无可检出轮廓类 → 杀」** 为本草案新增（计划只把峰度比列为通过条件）；若主会话认为应只记 `descriptive`，改 `decide()` 的 `k4_nosignal` 一行。
+8. **E8**：只做一维法向分量的绕腕尺度分解；计划里的二维相关体、逐指偏移与「残差位移—hop-1 占据方向 AUC」不做（无门，描述）。
+9. **类别定义**：silhouette / internal 在精确光栅上判（SBA 的 internal 判据只靠顶点溅射，裕量 10 mm 内的自遮挡边会被判成 sil，两者一致性计数记入 `geom_counts`）；material 沿用 SBA 的「可见非轮廓边」。mat 的法向没有物理意义（网格三角化边，不是纹理边），故 **mat 只报 E5 / E4 的汇总数，不参与 E4 抖动、E1 与组合规则的通过**；它只可能因 `r_pk` 变成「可检出」而进入杀判的范围。
+10. **组合规则**（§6）与 `decide()` 的「全录制」规则为本草案新增。
+
+#### 12. 风险与已知限制
+
+- **推断范围**：SELECT 仅 2 位受试者 × 2 域，且 S39 在其上是样本内；FIT7 → SELECT 的迁移只检验 b_c / 系数能否跨受试者复用，不是跨传感器。
+- **事件框与手包围框过滤**：数据在 v2e 仿真后有手部包围框过滤，「轮廓外事件」构成与杂波分布受其影响；背景噪声不存在，所以不做背景注入（合成注入只作单测）。
+- **跨段串扰**：一维条带 ±16 px 内会同时看到邻指轮廓的事件（`#aura-b-result-20261024` 跨指串扰 12–15 %）；不做射线截断，是错设的一部分；合成单测（理想关联）说明了这一点。
+- **标签仅作设计功效说明（只含 GT，不含事件）**：FIT7 每 3 个包抽样的 GT 轮廓法向位移 |v_n|·50 ms 的中位数 / p90：local 0.28 / 1.18 px，global 1.94 / 5.16 px；R 中位数 local 28.3 px、global 31.0 px（所以 |δσ| ≤ 0.03 即 |b| ≲ 0.85–0.93 px，比 2 px 门更严；δσ ≥ 0.06 即 |b| ≳ 1.7–1.9 px）；internal 点数中位数 local 11（53 % 的包 ≥ 10 点）、global 0（3 % 的包 ≥ 10 点）。含义：local 的「延迟 × 速度」项杠杆很小（50 ms 延迟只产生约 0.3 px），global 的 internal 类几乎不存在（预计「不足」）。
+- **σ 与偏移的简并**：b_sil / R 与 σ\* 共享方向；本探针不把 σ̂ 当真值，不报告 σ\* 已归因。
+- **后验校准**：NIS 带用 n = 含合格段的包数（视各包独立，段间相关使真实带更宽，故偏保守）。
+- 平移条件只用像面内平移（不改深度）；方向随机而非逐轴扫描；位置恢复的段内真移 `sn` 是平移后轮廓点的逐点位移（含透视）。
+
+#### 13. 冻结前需要主会话确认 / 处理
+
+- 把 `tools/mv2/m4_contour.py` 放入 `outputs/mv2/protocol.json` 的 `files`（SHA）；本草案的 §0–§12 并入统一预注册文本。
+- 确认 §11 的 2、3、6、7、10 五项判断是否接受（它们改变 `decide()` 的判决，而不是实现）；3b（软去重）改变所有计数的含义，若不接受须改 `pair_weights` 并重跑单测。
+- 正式运行命令：`python tools/mv2/m4_contour.py --out outputs/mv2/m4_contour --stage all --workers 96`（全程 CPU，前台）；缓存已存在时拒绝重抽取，分析可用 `--stage analyze` 重放（`result.json` 独占，不覆盖）。
+
+### M5 掌部刚体先对齐 + 段级根偏置 PRA：CPU 探针预注册草稿（待主会话并入 `#mv2-prereg-20261026`）
+
+> 状态：草稿，写于任何 M5 正式读数之前。冒烟只打印形状、计数、耗时与内部单测的通过 / 失败（`outputs/mv2/smoke/m5_palm/smoke.json`）。
+> 工具：`tools/mv2/m5_palm.py`（入口、smoke、`decide`）、`m5_core.py`（几何、注入、SBA 足迹似然、固定迭代求解器、Schur 代数）、
+> `m5_synth.py`（植入信号生成器，只用于工具有效性）、`m5_ib.py`（IBC / IBR）、`m5_schur.py`、`m5_fipa.py`、`m5_rca.py`。
+> 全部 CPU（`CUDA_VISIBLE_DEVICES=""`），解释器 `EventHandsTrain`，种子 `20261026`（所有子种子由 `seed_of(序列, 端点, 档位, 轴, 模式, ...)` 经 CRC32 与该种子异或得到，与调度无关）。
+> 只用 FIT7（ch lfz lpc lr ly lyh lyq）与 SELECT（ycy ylf）的 BASE 录制 `<subj>_local / _global`；**不读 zgz**（无一次性 zgz 报告）。PD(i)（在 zgz 上扣常数根偏置的 oracle）按计划 R3 已删除，未实现。
+> 正式运行：`CUDA_VISIBLE_DEVICES="" python tools/mv2/m5_palm.py --out outputs/mv2 --workers 36 --threads 4`（先 `common.verify_protocol()`，冻结前退出）；
+> 产物 `outputs/mv2/m5_{ib,schur,fipa,rca}/result.json` + `receipt.json`（`common.save_json` 独占写）；裁决 `python tools/mv2/m5_palm.py decide --root outputs/mv2`（或由主会话的 `decide.py` 调用 `m5_palm.decide(result)`）。
+
+#### 0. 公共对象与固定常数（四个探针共用）
+
+**0.1 掌部顶点集。** MANO LBS 权重第 0 列（腕）≥ 0.9 的顶点：**132 / 778**（≥ 0.99：86；≥ 0.5：192；argmax=腕：199）。掌部边 = 两端点都在该集合内：**337 / 2315**。集合与阈值在预注册前固定，不随数据改。
+
+**0.2 校正参数化。** 对整只手作绕腕的刚体校正（腕点 = LBS 枢轴 `j0 + t`，根旋转不移动腕点，单测对 FK 校验，最大误差 < 1e-4 m）：
+`v'(t) = w(t) + Exp(ω(t)) (v(t) − w(t)) + τ(t)`，即 `R_root ← Exp(ω) R_root`（相机系左乘，与注入偏置同一约定）、腕平移 `+ τ`。手指保持追踪器输出。
+`ConstParam`：ω、τ 在窗内为常数（6 维 = "掌部刚体 SE(3)"）。`KnotParam`：常数偏置 b（6）+ 窗内轨迹 s（每结点 6，线性帽函数插值，结点间隔 100 ms，窗 50 ms 用 2 结点）；时刻 t 的校正 = `b + s(t)`，故 b 与 s 的常数模态**严格混叠**，只有 s 的水平先验才能把它们分开（附录 L.B5 推导）。
+
+**0.3 似然（"同一似然"）。** SBA 扫掠边界泊松足迹（`semkine/sba.py`；校准 `outputs/sba/s0/calibration.json`：κ_sil=2.678、κ_int=1.757、离群比例 0.358、离散度 2.355、模糊 1.0 px；9 位训练受试者标定，n_windows=2877，**SELECT 受试者在其中**；merged polarity；**每窗 κ 剖面化**以吸收 zgz_local 1/2.4 的事件率失配，`profile_kappa`）。
+- **掌部证据**（`evidence='palm'`）：只保留掌部边的扫掠；非掌部（手指）轮廓扫掠覆盖的单元（模糊后面积 > 0.02 px²，3×3 膨胀）从似然中整体剔除；似然单元限于掌部顶点投影框 ± 14 输出像素（背景率与离群分量仍由 SBA 的全手框估计）。`evidence='full'` = 全部轮廓边、无掩膜（"全手求解"对照）。
+- **CPU 预算近似**：SBA 的 5 ms 时间箱用于窗 ≤ 200 ms，窗 > 200 ms 用 10 ms 箱（`semkine.sba.BIN_MS` 仅在构窗期间进程内改写，不改冻结文件）。
+- 轮廓集合 / 可见性 / 手指掩膜在每次迭代的基轨迹处冻结（SBA 惯例），试探步按"重规划后的真目标"评分。
+
+**0.4 固定迭代求解器 `align6`（K 固定、无早停）。** 8 次 Levenberg–Marquardt Fisher scoring：
+池化 `(2,2,1,1,1,1,1,1)`；平均场模糊 `(8,5,3,2,1.5,1,1,1)` 输出像素（末三次 = 校准值 1.0）；相对阻尼 μ `(0.5,0.4,0.3,0.2,0.1,0.05,0.05,0.05)`；前 7 次前向差分、末次中心差分，FD 步 (1 mm, 2e-3 rad)，每次迭代步长上限 (20 mm, 0.10 rad)；
+每次迭代固定评估 5 个候选 `{θ + c·step : c ∈ (1, ½, ¼, ⅛)} ∪ {θ}`（评估次数固定，不是早停），取"对数似然 − ½θᵀPθ"最大者；
+先验 `N(0, (5 mm)²)`（τ，PREV_NOISE_T 量级）与 `N(0, (5°)²)`（ω，逐轴；DT2 "每段约 5°"）。
+**调参只在植入的合成事件上做**（时间表、模糊梯度、μ、K、先验量级、掌部框边距、掩膜阈值）；没有用任何真实事件的恢复结果选过常数。运行时可辨识性门（描述性）：末次 Fisher + 先验的 ω 后验最差轴 SD ≤ 2.5°（= 5° 档的一半）。
+数据相关形状只出现在 SBA 计划的构建（可见轮廓边数）；这是离线可辨识性工具，不作部署形态主张——部署形态由 FIPA（§3）单独检验。
+
+**0.5 注入协议。** 追踪器轨迹 = GT + 段级根旋转偏置 b（`R ← Exp(b) R`，相机轴 x / y / z，档位 2 / 5 / 10°，符号按 `seed_of` 定，轴均衡；另含零偏置"底噪"案例）+ 噪声。**主臂噪声 `const`**：PREV_NOISE 小类（`configs/dt/dt_dz_l3.yaml`：T 5 mm、POSE 0.05 rad）对平移与 45 个手指角做**一次**抽样并在窗内保持常数；**根旋转部分的 PREV_NOISE 由注入偏置本身承担**（0.05 rad/轴 ≈ 5° 向量均方根，与 2–5° 档同量级，直接叠加会使档位失去意义，且"恢复偏置占注入的比例"对任何静态估计器都不可达）。敏感性臂（5° 档，窗 200 / 1000 ms，只跑真事件）：`none`（无噪声）、`ar`（全部块的 PREV_NOISE，50 ms 步上的平稳 AR(1)，lag-1 自相关 0.9 = S39 闭环根误差自相关 0.95 / 0.85 的均值，`#dt2-verdict` 2.1）、`iid`（逐步独立，字面的逐样本 PREV_NOISE）；这三臂里估计对象改为窗内平均的真根偏差 `b_true = mean_t log(R_pred R_gt^T)`（持久偏差，含噪声均值）。
+
+#### 1. 探针 IBC / IBR——注入回收（`P6-E1-R2`、`P6-E5-R3`）
+
+**目的。** 检验"段级慢根偏置可由掌部事件证据在 ≤ 1 s 因果窗内回收"；答案可以是"不可回收"。
+
+**数据。** FIT7 与 SELECT 的 BASE 录制 18 条；每条取评测网格（`a+49+50k`）上历史 ≥ 1 s 的窗口末端 **等间隔 N 个锚点**（SELECT 每条 10，FIT7 每条 4；共 96 个锚点，SELECT 40）；因果窗 50 / 100 / 200 / 500 / 1000 ms（事件 `(end−w, end]`，窗内无未来帧，所有窗共用同一锚点、同一噪声抽样）；无 clip。每锚点 10 个案例（零偏置 + 3 档 × 3 轴）× 5 窗 × {真事件, 窗内时间置乱事件} = 100 次求解，加敏感性臂 24 次（5° 档 × 3 轴 × {none, ar, iid, full} × {200, 1000}）= 124 次 / 锚点，共约 11,900 次。
+
+**统计量。** 估计 ω̂ = θ[3:6]；完美回收 ⇔ `Exp(ω̂) Exp(b_true) = I`。
+- 残差角 `resid = geodesic(Exp(ω̂) Exp(b_true))`；**回收比例 ρ = 1 − resid / |b_true|**（去掉的比例；为负 = 变差；**过冲不算回收**）；
+- 投影斜率 `slope = −⟨ω̂, b_true⟩ / |b_true|²`（IBR 的"回收斜率"，只作描述：可大于 1）；
+- 到达阈值时间 `T = min{w : ρ_w ≥ 0.5}`，从未到达 = ∞（删失计为失败）；`p90 time` = 使 ≥ 90 % 案例已到达的最小 w，不足 90 % 则 ∞；
+- 对照差 `d = ρ_真 − ρ_置乱`（同案例配对），中位数与**按锚点整簇自助**的 95 % 区间（2000 次，百分位法，种子 20261026）；
+- 底噪：零偏置案例的校正角分布；σ* 分层（`outputs/sba/p0v/result.json` 的 `sigma_star_q0_median`，三分位，描述）；轴分解（z = 平面内滚转，x / y = 面外倾斜）；门控下的 ρ（门关闭 = 冻结 = ρ 取 0）。
+
+**对照与零模型。** 窗内时间置乱事件（位置、极性不变，ms 戳置换；同轨迹同求解器）。敏感性臂：无噪声、AR(1)、iid、全手证据。
+
+**门（SELECT、5° 档、主臂 `const`）。**
+- **通过** = ρ 中位数（1000 ms）≥ 0.5，**且** p90 到达时间 ≤ 1000 ms，**且** 对照差中位数的 95 % 区间下界 > 0；
+- **杀死** = ρ 中位数 < 0.3，**或** p90 时间 > 1 s（含删失），**或** 对照差区间含 0（与置乱无差别）→ 段级根偏置只作离线段校准；
+- 其余 = 仅描述。500 ms 的中位数（IBC 原文 "≤ 500 ms"）与 2° / 10° 档、FIT7 全部只描述。
+**阈值来源**：0.5 = L.B5 "一半以上才算可辨识"约定（规划值，无外部来源，预注册声明）；0.3 = 计划杀线；1 s = 计划 R3 / PD 原设；p90 取自计划；5° = DT2 "每段约 5°"。
+
+**工具有效性（任一不满足 = `tool_defect`，不是通过 / 杀死）。** (a) 植入信号：以 FIT7 `ch_local` 三个运动最大的锚点的 GT 轨迹，用模型自身均值场抽样合成泊松事件（κ 取校准值，背景 3e-4 events/px²/窗，无离群），注入 5° 常数偏置（3 轴），窗 200 / 1000 ms 的 ρ 中位数各 ≥ 0.5；(b) 全部求解有限（非有限数 = 0）；(c) 刚体校正 = FK 左乘根的单测、ρ 度量单测（完美 = 1；过冲 < 0）、时间置乱 = 置换单测，均通过（`--smoke` 内部单测与决策分支共 56 项）。
+
+**预计 CPU 时间。** 单次求解（4 线程，一个 FIT7 锚点实测）：50 ms 0.7 s，100 ms 1.1 s，200 ms 2.0 s，500 ms 2.3 s，1000 ms 5.4 s；全手证据 3×（1000 ms 17 s）。每锚点（全部档位与敏感性臂）约 370 s（global 录制事件多、裁剪框大，按 ×1.3 估）；96 锚点 ≈ 13 槽时（每槽 4 线程）；36 个并行槽 ≈ 22 分钟，约 50 核时。
+
+#### 2. 探针 Schur 可辨识性谱（`P3-E6-R2`）
+
+**目的。** 偏置块在对轨迹块做 Schur 余之后还剩多少信息；先验是否主导后验；把"可否在线估偏置"变成信息谱问题并报告"不能"分支。
+
+**数据。** 同 §1 的锚点；谱：FIT7 + SELECT 全部 96 个锚点、窗 50 / 200 / 500 / 1000 ms，在**干净 GT 轨迹**上（无注入，真事件，掌部证据）；MAP 恢复：只 SELECT（40 锚点），窗 200 / 1000 ms，档位 2 / 5°，3 轴。
+
+**统计量。** 参数 θ = [b (6), s_0..s_{n_k−1} (各 6)]；Fisher F = SBA 足迹 Fisher / 离散度（中心差分，FD 步取 0.1×(1 mm, 2e-3 rad)，因 b = Σ_k s_k 的混叠只在小步长下成立：步长 ×1 时泄漏 7 %，×0.1 时约 5e-4|F_bb|）。
+先验精度 P：`b ~ N(0, (30 mm)², (10°)²)`；s 逐分量：水平 `σ_s` = PREV_NOISE（5 mm、0.05 rad）、速度先验（相邻结点差，σ_v）、加速度先验（二阶差，σ_a）；**σ_v、σ_a 由 FIT7 的 GT 以稳健 SD（1.4826·MAD）在 Δ = 100 ms 上标定**（根旋转用相机系左增量 `log(R(t+Δ)R(t)^T)`，平移用腕点；FIT7 全部 BASE 录制，每 25 ms 取样，结果写入 `result.json` 的 `label_stats`），不读 SELECT / zgz。
+`S_b = (F_bb + P_bb) − (F_bs + P_bs)(F_ss + P_ss)^{-1}(F_sb + P_sb)`；偏置后验 SD = `S_b^{-1}` 的旋转块（平移边缘化）最大特征值的平方根（度，**最差轴**）。四种先验制度：`noprior`（全无：理论上 S_b ≡ 0，数值判据 `‖S_b‖_F/‖F_bb‖_F < 1e-2`）、`temporal`（P_b + 速度 / 加速度，无水平先验：应返回 SD = 10°）、`full`（门用）、`loose3`（水平先验放宽 3 倍）；先验依赖指数 `α = median[ log(SD_loose3 / SD_full) / log 3 ]`（0 = 数据主导，1 = 先验主导）；"已知轨迹"上限 `sd_known_trajectory`（不做 Schur）。
+MAP 恢复：同一联合模型，5 次固定迭代（池化 (2,1,1,1,1)，模糊 (6,3,2,1,1)，同 §0.4 的固定 5 候选步），b̂ 的恢复按 §1 的 ρ / 残差角；变体：真事件 + `full` 先验、置乱事件 + `full`、真事件 + `temporal`（去先验），以及 5° / 1000 ms 的 AR(1) 噪声敏感性（估计对象 `b_true`）。
+
+**门（SELECT、窗 1000 ms）。**
+- **通过** = 偏置后验 SD ≤ 2° 的窗占比（`full`）≥ 0.5，**且** MAP 恢复残差角中位数（5°、1000 ms、真事件、`const` 噪声）≤ 2°，**且** MAP 对置乱的 ρ 差区间下界 > 0，**且** 非先验主导（α < 0.5）；
+- **杀死** = 占比 < 0.10，**或**（α ≥ 0.5 且 `loose3` 的占比 < 0.10）（先验主导后验）→ 慢状态永久冻结、偏置只作离线校准 / 模型失配项；
+- 其余 = 仅描述。
+**阈值来源**：2° 与 5° = 附录 L.B5 待证门 + DT2 / DT3 段偏置量级；50 % / 10 % = 计划粗阈值（无先例，已声明）；α 的 0.5 = 预注册的先验主导判据（对数尺度上先验贡献过半），无外部来源。
+
+**工具有效性。** `noprior` 的 S_b 数值秩亏（比值 < 1e-2）在 ≥ 95 % 的 SELECT 窗成立（理论保证；不成立 = `tool_defect`）；Fisher 半正定（最小特征值 ≥ −1e-6·|tr F|）；MAP 有限；`temporal` 制度返回先验 SD（单测）；水平先验使 SD 有限且随先验放宽单调（单测）。
+
+**预计 CPU 时间（4 线程）。** 谱：窗 50 / 200 / 500 / 1000 ms 各 0.1 / 0.6 / 1.1 / 3.4 s；MAP：200 ms 1.9 s、1000 ms 11 s；每 SELECT 锚点约 270 s，每 FIT7 锚点约 5 s；40 × 270 + 56 × 5 ≈ 3.1 槽时；约 5 分钟（36 槽）。
+
+#### 3. 探针 FIPA——固定迭代静态图掌部刚体对齐（`P5-E2-R1`）
+
+**目的。** 在固定因果事件预算（容量档 256 / 512 / 1024）与固定 K ∈ {1,2,4,8} 次展开下，掌部 6-DoF 刚体 GN 能否把根残差压到 S39 逐包教师强制根误差的 0.8 倍以下；部署形态是否无数据相关形状算子。
+
+**数据。** SELECT 4 条 BASE 录制，每 4 个 50 ms 端点取 1 个（`common.SeqSamples(every=4)`，端点间隔 200 ms，约 1,250 样本；与 S39 TF 误差**同一批样本**）。事件窗 `(end−50, end]`（S39 的步窗）；参考位姿 = GT(end−25)（窗中点，避免把运动预测混进静态对齐）。扰动：根旋转 ±{2, 5, 10}° 与腕平移 ±{5, 10} mm，相机轴 x / y / z 均衡、符号按种子；旋转与平移分开案例（每样本 15 案例 × 3 容量）。
+
+**静态图。** 输入 = 778 顶点 + 腕点 + 固定容量事件缓冲（源像素位置 + 有效位；**主机侧**填充：窗内事件落入掌部投影框 ±24 源像素者，按时间分层固定步长取 C 个，零填充）+ 内参；模型 = 337 条掌部边作图像线段，软轮廓权重 `w_e = φ₀(1−φ₁) + φ₁(1−φ₀)`，`φ_f = sigmoid(−(n_f·ray_f)/0.15)`（边的两个相邻面朝向相反；腕截断边权 0）；事件取使 `d²/(2·4²) − log(w_e+1e-3)` 最小的线段（d = 到线段的距离），残差 = 沿线段法向的点到线距离；Cauchy 权（尺度 3 源像素）× 距离门（14 源像素）× `w_e` × 有效位；雅可比解析（刚体对根的 6-DoF 虚功：左增量 `d(Rd)/dδ = −skew(R d)` 经投影雅可比，单测对 `torch.autograd.functional.jacobian` 在固定关联下逐元素核对，相对误差 < 1e-2）；正规方程 6×6：`H = AᵀQA + P0 + 2·I`（单位 mm、°；**可辨识性软掩码 = 绝对 LM 阻尼**，信息 ≪ 2 的方向不动，无分支），`cholesky_ex` + `cholesky_solve`，步长按 (20 mm, 6°) 截断，`R ← Exp(δ)R`；展开 8 次，K ∈ {1,2,4,8} 取自同一次运行的前 K 次迭代（逐次独立于 K）。
+**数据相关形状算子计数**：`TorchDispatchMode` 回放 K=4、C=512 前向于 6 个事件数不同的真实窗，计 (i) 各次调用输出形状随输入变化的 aten 位置数、(ii) 黑名单算子（nonzero、masked_select、unique、`_local_scalar_dense`、argwhere、repeat_interleave、bincount、`where.default`）调用数、(iii) 算子序列不一致；三者之和为计数（计划要求 = 0）。计数器自测：对 `x[x>0].sum()` 必须报出 > 0。冒烟中静态图每次前向约 1,136 个 aten 算子（K=4）。
+
+**统计量。** 残差：旋转案例 `geodesic(R_K R_0)`（度），平移案例 `|τ_0 + τ_K|`（mm）；各 (K, C) 的中位数（档位 / 轴 / 容量分解），起始误差（K=0）作 no-op 基线（档位均衡中位 5°），预算耗尽（有效事件 < 64）与满桶比例；S39 逐包 TF 根误差 = `common.load_s39` + `common.s39_forward_taps`（`check=True` 首批与 `model(X,P)` 逐位核对）在同一批样本上、3 个种子（3407 / 3408 / 3409）各自的根旋转测地角中位数，**取三者均值**为参照。
+
+**门（SELECT）。**
+- **通过** = 预算内（K ∈ {1,2,4}，C ∈ {256,512}）存在一个配置，其旋转残差中位数 ≤ 0.8 × S39 TF 根误差 **且** ≤ 0.8 × no-op 基线（防空过：若 S39 TF 根误差大于 no-op 的 1.25 倍则第一条判据会被"什么都不做"满足），**且** 数据相关形状算子数 = 0；
+- **杀死** = K = 8 在每个容量下仍高于 S39 TF 根误差，**或** 固定 K 形态发散（C=512 下 K=8 残差 > 1.25 × K=4 残差），**或** 算子数 > 0；
+- 其余 = 仅描述（需要 K > 4 或容量 > 512，超出时延预算，不作主张）。
+**阈值来源**：0.8 = 计划"留给固定迭代截断的余量"（待验证）；K ≤ 4、C ≤ 512 = 计划；S39 TF 根误差 = 实读（计划写 "约 7° 量级、以 SELECT 实读为准"）。
+
+**工具有效性。** 植入信号（合成事件取自参考位姿掌部软轮廓线段 + 25 % 均匀离群，2 源像素法向抖动）：注入 5° 绕 z 滚转与 10 mm x 平移，K=4、C=512 的残差中位数分别 ≤ 3.0° 与 ≤ 5 mm；计数器自测；有限性；S39 TF 与 `model(X,P)` 逐位一致。
+
+**预计 CPU 时间。** 1,250 样本 × 15 案例 × 3 容量 ≈ 1.0 s / 样本（8 线程）→ 约 21 分钟槽时；S39 TF（3 种子 × 1,250 样本 × 30 ms ≈ 2 分钟槽时）；36 槽下 < 2 分钟。
+
+#### 4. 探针 RCA——根块闭环收缩审计（`P3-E9-R1`）
+
+**目的。** 闭环曝光间隙是否主要在根块、根块是否在闭环里收缩、持续偏差是否占根块误差的主体——决定"根块限定自身前态训练"的 GPU 臂是否值得做，否则转 M7 来源核查。
+
+**数据与回放。** 冻结 S39（3407 / 3408 / 3409，step 6000，CPU）在 18 条 BASE 录制上按评测器协议自滚动（`semkine/eval_track.py::track_sequence` 的循环）：W200 证据窗、50 ms 步、每个有效 run 的首个窗 `[a, a+199]`、初态 `GT(a) + sample_init_noise`（每 (录制, 种子) 的 rng 由 `seed_of` 定）、事件通道取自模型配置。**不含 DT2 自适应滤波与证据门**（滤波作用在输出流上，不在环路的网络调用里；绝对数是裸跟踪器 `dt_dz_l3` 的，不是 S39 滤波行的）。同一步内以 batch 3 额外跑 TF（`prev = GT(end−50)`，E3 单步）与 SH（`prev` = 同 run 另一随机步的 GT，时间置乱前态对照）。每个 run 的第一步（前态是初始化而非环路状态）不入统计。S42-B 检查点已于 2026-10-08 清理删除（`outputs/cleanup/outputs_failed_20261007.json`），**无对照臂**。
+
+**统计量。** 块 {根（左误差 `log(R_out R_gt^T)`，rad）、平移（m）、手指（45 角，rad）}；`e_t` = 闭环误差，`τ_t` = TF 误差，`d_t` = CL − TF 输出（= 前态误差带来的部分 `J_t e_{t−1}`）：
+1. **曝光间隙占比**：以 8 个"各块取 CL 或 TF"的混合态（FK）的 MPJPE，对 (CL − TF) 的均值做三块 Shapley 分解（根 / 平移 / 手指，三者和 = 总间隙，单测）；门用 **RA-MPJPE**（平移块恒为 0），绝对 MPJPE 并列报告；占比 = `Σφ_root / Σgap`，95 % 区间为按 (录制, run, 20 步块) 整簇自助 2000 次。
+2. **收缩系数 λ_b = Σ⟨d_t, e_{t−1}⟩ / Σ|e_{t−1}|²**（对 TF 误差 `τ_t` 已按构造回归掉，故不含"持久偏差使 AR(1) 虚高"的混杂；与 S42 的 carry 同口径）；根块的 bootstrap 95 % 上界 = 自助分布第 97.5 百分位；平移、手指的 λ 描述。
+3. **偏差占比**：根块闭环误差二阶矩 `Σ|e_t|²` 中被"run 内每 L 步一个不重叠块的块均值"解释的份额（L = 20 = 1 s 为主，5、60 描述），对照 = 把根误差在整条录制的有效步上置换（白噪声同边缘分布；run 内置换会保留 run 常数而无意义，已排除）。
+描述性：各块 CL / TF / SH 的 MPJPE（RA、绝对）、per-seed 值、FIT7 全部。
+
+**门（SELECT，3 种子合并；S39 对 SELECT 是样本内，λ 估计偏乐观，已声明）。**
+- **通过** = RA 曝光间隙的根占比 ≥ 0.5，**且** λ_root 95 % 上界 < 1，**且** 1 s 偏差占比 ≥ 0.5；
+- **杀死** = 根占比 < 0.5（曝光不在根上），**或** λ_root 上界 ≥ 1（根块不收缩）；
+- 其余 = 仅描述（→ M7 来源核查）；总间隙 |CL − TF| < 0.05 mm 视为退化，不算通过。
+**阈值来源**：50 % = 根 Shapley 63 %（`#dt2-verdict`）的保守下调；λ < 1 = Miller & Hardt 2019 稳定性必要条件（附录 F.6，【unverified】）；偏差占比 50 % = 预注册的工程选择。注意：账本里 S39 的根 carry 约 0.05–0.13（`#s42-verdict` §4），λ < 1 的判据很可能平凡满足，真正起筛选作用的是前后两条。
+**收敛目标是伪 GT 根**，更像标签不等于更准（Anipose 教训）：本探针不做任何"校正"，不受影响，但结论只对伪 GT 成立。
+
+**工具有效性。** 合成闭环记录（已知 λ=0.3 与已知持久偏差）上 λ 估计偏差 < 0.02、偏差占比 > 3 × 置换零模型且零模型 < 0.2、Shapley 之和 = 间隙、λ = 1.05 的合成数据区间下界 > 1；TF 与单样本 `model(X,P)` 的 batch-3 / batch-1 差 < 1e-3（舍入允许）；全部输出有限。
+
+**预计 CPU 时间。** 一条 (录制, 种子) 约 30 s（4 线程，1,210 步 × 3 次前向 + 8 个混合态 FK）；54 个任务 ≈ 27 分钟槽时；聚合（自助 2000 次 × 三个集合）约 2 分钟；36 槽下 < 5 分钟。
+
+#### 5. 总处置（`m5_palm.decide`）
+
+各探针**独立**判门（SELECT），互不绑死：
+- "M1 + 根通路（FIPA 并联根行，单变量）"臂 = IBC / IBR 通过 **且** FIPA 通过；
+- "偏置门臂（Schur 门控慢状态）" = IBC / IBR 通过 **且** Schur 通过；
+- "根块限定自身前态训练臂" = RCA 通过；
+- 任一探针 `tool_defect` ⇒ 整体 `tool_defect`（不放行任何臂）；无臂放行 ⇒ `offline_calibration_or_diagnostic_only`（IBC / IBR 杀死 ⇒ 段级偏置只作离线校准；Schur 杀死 ⇒ 慢状态永久冻结；FIPA 杀死 ⇒ 部署形态不成立；RCA 未过 ⇒ 转 M7）。通过只放行单 seed 的 GPU 调试臂，不构成主张。
+
+#### 6. 预计 CPU 总时间
+
+| 探针 | 槽时（每槽 4 线程） | 36 槽墙钟 |
+|---|---|---|
+| IBC / IBR（96 锚点 × 124 次求解） | ≈ 13 | ≈ 22 min |
+| Schur（谱 96 锚点 + MAP 40 锚点） | ≈ 3.1 | ≈ 5 min |
+| FIPA（含 S39 TF） | ≈ 0.4 | < 2 min |
+| RCA（54 任务 + 自助聚合） | ≈ 0.5 | < 5 min |
+| 植入信号有效性检查（单进程） | — | ≈ 1.5 min |
+| 合计 | ≈ 17 槽时 ≈ 65 核时 | **≈ 35–60 min**（与其他 CPU 作业争用时更长） |
+
+#### 7. 与计划 §3 的差异及理由
+
+1. **噪声**：计划"叠加 `TRACK.PREV_NOISE_*`"。主臂只把 PREV_NOISE 的平移与手指部分作常数滋扰，根部分由注入偏置承担；字面逐步 iid 与 AR(1) 版本作敏感性臂。理由：根 PREV_NOISE（0.05 rad/轴，向量均方根 ≈ 5°）与 2–5° 档同量级，叠加后估计对象不可达；开发期在植入合成事件上看到逐步噪声会破坏扫掠模型（追踪器轨迹的伪运动大于真实运动），所以 `ar` / `iid` 臂的估计对象改为窗内平均真偏差。
+2. **恢复比例**：ρ = 1 − 残差 / |b|（误差型），投影斜率只作描述。理由：投影型在弱可观轴上过冲时 ≥ 0.5 会被"错得很远"的估计满足。
+3. **IBC 与 IBR 用同一份运行**：IBC 原文"≤ 500 ms 中位 ≥ 0.5"、R3 汇总"1 s 窗中位 ≥ 0.5"——门取 1 s，500 ms 值描述。p90 到达时间按删失处理，≤ 1 s 要求 ≥ 90 % 案例到达，较严，已声明（简报门的字面实现）。
+4. **似然**：IBC / IBR / Schur 用 SBA 足迹（计划写"现有轮廓 / 事件似然"）；FIPA 用事件到轮廓距离场 GN（SBA 计划含数据相关形状，不能作静态图），原因写在 §3。
+5. **CPU 近似**：窗 > 200 ms 用 10 ms 箱；似然单元限于掌部框 ±14 px；Fisher 的 FD 步缩到 0.1×。
+6. **Schur 的参数化与先验**：b + s(t) 参数化、水平 / 速度 / 加速度先验的具体数值与"先验依赖指数"是本草稿的操作化（计划只写"带标签得到的速度 / 加速度时间先验"与"先验主导后验"），σ_v、σ_a 在 FIT7 上标定；另含 MAP 恢复（计划的"注入 5° 恢复误差中位 ≤ 2°"）。
+7. **FIPA**：门取"预算内存在通过配置"（计划"K ≤ 4 且容量 ≤ 512 时残差中位 ≤ 0.8×"字面要求 K=1 也过，不合理）；加"≤ 0.8 × no-op"防空过；事件缓冲由主机侧固定容量填充；参照 S39 TF 根误差取三个种子的均值；只在 SELECT 上做（FIT7 不需要）。
+8. **RCA**：无 DT2 滤波；无 S42-B 对照（检查点已删）；λ 用"TF 回归掉后的 carry"而非 e_t 的 AR(1)（后者与持久偏差混杂）；偏差占比用 1 s 块均值的二阶矩占比，零模型为整条录制置换；门在 SELECT 上判（S39 对 SELECT 是样本内）。
+9. **未做**：PD(i)；任何 zgz 读数；GPU。
+
+#### 8. 披露
+
+- 开发期（工具调试）只在**合成植入事件**（取自 FIT7 `ch_local` 的 GT 轨迹）上调 §0.4 的求解器常数与 FIPA 的常数（`TAU_S`、`SIG_A`、`C_ROB`、`DMAX`、`MU_ABS`）；在真实事件上只打印过计时、事件计数、有限性。唯一例外：为判断 b = Σ s_k 混叠的有限差分泄漏，在 FIT7 `ch_local` 两个锚点（窗 50 / 200 ms）上打印过 `‖S_b‖/‖F_bb‖`、`‖F_bb‖` 与一个占位先验下的后验 SD（这些数值不是门统计量，随后被 FD 步缩放 0.1× 的结构性修复取代）；没有读 SELECT、没有读 zgz、没有读任何恢复比例 / 间隙 / 收缩系数。
+- 冒烟的 56 项内部单测与"植入信号恢复"（合成）通过；`smoke.json` 只含计数、形状、耗时、通过 / 失败。
+
+#### 9. 风险 / 未决
+
+1. **物理可观性**：掌部单独的轮廓（掌部边缘中腕截断边与掌指线均不是遮挡轮廓）只约束手掌两侧；合成植入下 FIPA 的 x 平移与平面内滚转可部分回收、y / z 平移与 x / y 倾斜几乎不可回收。IBC / IBR / FIPA 很可能因此被杀，这属结果而非工具缺陷；全手证据对照（`full_hand` 臂）用于区分。
+2. **p90 ≤ 1 s 的字面门很严**（要求 ≥ 90 % 案例到达）；若主会话认为应改为中位到达时间，需在冻结前改 `m5_ib.decide`。
+3. 先验强度与水平先验的取值（Schur）影响占比，故用先验依赖指数与 `loose3` 并报；σ_v、σ_a 来自带平滑的伪 GT。
+4. S39、SBA 校准对 SELECT 都是样本内（FIT7 与 SELECT 的"留出"只对本草稿在 FIT7 上标定的 σ_v、σ_a 成立）。
+5. 与他人 CPU 作业争用会拉长墙钟，不影响结果（所有子种子与调度无关）；无后台进程残留。
+
+### M6 预注册草案：运动学子空间相关谱 KSCS 与并格共享分解 GSCD（诊断，CPU，无 GPU 臂）
+
+> 草案状态：由实现 agent 起草，**尚未冻结**；主会话把本文并入唯一预注册并以 SHA-256 冻结 `tools/mv2/m6_kscs.py` 之后才允许正式读数。
+> 来源：计划 `/home/lyq/.claude/plans/enumerated-exploring-quilt.md` §3 M6；R3 条目 `P5-E5-R1`（KSCS）、`P1-E7-R1`（GSCD），见 `outputs/kbattle_20261025/v3/r2_selected_entries.md`。
+> 工具：`tools/mv2/m6_kscs.py`（单文件，含 `decide(result)`）。冒烟：`python tools/mv2/m6_kscs.py --smoke`；正式：`python tools/mv2/m6_kscs.py --out outputs/mv2/m6 [--workers 16]`（先 `common.verify_protocol()`，冻结前会退出）。
+> 解释器 `/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python`，`CUDA_VISIBLE_DEVICES=""`，`PYTHONDONTWRITEBYTECODE=1`；全前台，无后台进程。种子 20261026（所有随机操作由它派生）。
+
+#### 0. 共同项
+
+**问题**：K★ KS2（`#kstar-results-20261025`，`outputs/kstar/s2_stale/result.json`）测得冻结 K7 顶点锚定 patch 头（`outputs/xvm/s2/p4/A_m600/heads.pt` 的 `patch_r2`，SHA `f81ca794…`）的残差跨顶点 hop 相关谱：local hop1 / 2 / 3 / 4 = 0.838 / 0.598 / 0.247 / −0.117（global 0.881 / 0.726 / 0.513 / +0.100）。本诊断问两件事：谱是否是运动学（FK / LBS 雅可比）误差子空间的影子；以及其中多少来自相邻顶点共享同一采样窗（并格共读）。**不求解、不融合、不去相关**；不能主张性能；谱来自 patch CNN 头，不是 S39 读出的谱。
+
+**KS2 残差的精确定义**（`tools/kstar/head_probe.py::run_stale`）：`res = pred_R0 − tg["full"]`，`tg["full"] = e1 · (uv(x_t) − uv(x_0))`（像素，沿顶点像面法向 `e1 = R[..., :, 0]`），其中 `x_0` = end−50 ms 的 ±25 ms 箱平滑 GT（锚点），`x_t` = end 的平滑 GT；**根与平移同样在动**（不是 `art` 目标）；掩码 `vis & obs2 & cos<0.4`（`obs2` = 近 2 cm 内 50 ms 有事件）；hop 相关 = 对每样本掩码内 hop-h 顶点对 (i<j) 的 (res_i, res_j) 作全体汇总 Pearson（汇总均值，`Lin.stats`）。tools 里 `HopAcc` 即此估计量。
+
+**读入 / 只读 import**：`tools/kstar/head_probe.py`（`StaleData`、`load_head`、`read_head`、`Lin`、`hop_pairs`）、`tools/xvm/*`、`tools/s44/evflow.py`（`Mano64`、`Seq`、`visible`）、`semkine/jacobian.py`、`lie.py`、`xvm.py`（`vertex_frames`、`projection_jacobian`）、`mrf.py::hop_matrix`、`xyz_mesh.vertex_normals`、`sba.py::make_grid`。不修改任何既有文件。不读 zgz。
+
+**数据与受试者**：FIT7 = ch、lfz、lpc、lr、ly、lyh、lyq 的 BASE 录制 `<subj>_local` / `<subj>_global`（14 条，只读 GT pos51 / betas / K，不读事件）；SELECT = ycy、ylf。
+
+**输出**：`outputs/mv2/m6/result.json`（`common.save_json` 独占写）、`decision.json`（`decide(result)`）、`receipt.json`、`cache/pe1.pkl`、`cache/select.npz`（阶段缓存，可 `--stage pe1|collect` 分段）。
+
+#### 1. PE′-1　模板预测谱（不碰数据，只读 FIT7 GT 位姿标签）
+
+**目的**：检验 KS2 的 hop 谱能否由"16 关节运动学误差经 FK 雅可比与法向投影"在零拟合下预测，并与图拉普拉斯低通场及各向同性噪声两个零模型对比。
+
+**数据**：FIT7 BASE 14 条序列，P4 样本网格（`tools/xvm/p4_data.py` 的端点定义）每 **2** 个取 1，共 **8,897** 个位姿（local 4,274 / global 4,623；步长 8 时为 2,230，仅用于估时）。锚点位姿 = end−50 的 ±25 ms 平滑 GT；betas / K（×0.375）取序列自身。掩码只能用 `vis & cos<0.4`（无事件，故没有 `obs2`）。
+
+**统计量**：
+- 切空间 ξ = [ρ(3) | φ(3) | dφ(45)]（右乘李代数，`semkine/jacobian.py::vertex_jacobian`，含 posedirs 项；单测对 `ManoLayer` 有限差分校验）。顶点行 `Jn_i = e1_iᵀ (∂π/∂X)_i ∂X_i/∂ξ`（px / 单位切量），`e1` 取 `xvm.vertex_frames` 在锚点位姿的值。
+- 先验 δξ ~ N(0, diag σ²)，r = Jn δξ。零均值、各 DOF 独立 ⇒ KS2 估计量有闭式（无 Monte Carlo 噪声）：
+  `ρ_h = Σ_k σ_k² cov_h[k] / sqrt( Σ_k σ_k² vx_h[k] · Σ_k σ_k² vy_h[k] )`，`cov_h[k] = Σ_poses Σ_{(i<j), hop h, 两端在掩码内} Jn_ik Jn_jk`，`vx_h[k]`、`vy_h[k]` 为对应的 i 侧 / j 侧平方和（`accumulate_jmodel`；单测对 600 次抽样的 Monte Carlo 谱一致）。
+- σ 的四个预声明先验（均由 **FIT7 GT 的 50 ms 李代数增量 RMS** 定，不用 SELECT、不用账本谱、不拟合；按域分别定，local 用 local 位姿）：
+  - `J_main`（主）：17 个部位（平移、根旋转、15 个指关节）各向同性，σ_part = 该部位三轴增量 RMS 的均方根；
+  - `J_perdof`：逐 DOF 增量 RMS；
+  - `J_equal_effect`：σ_k ∝ 1 / (J 第 k 列在掩码顶点上的 RMS)，每 DOF 等像素效应；
+  - `J_fingers`：`J_main` 但平移与根旋转 σ = 0（KS2 `art` 目标约定；**注意**账本谱用的是 `full` 目标，见 §5 差异 1）。
+
+**零模型**：
+- (a1) `lap_scalar`：图拉普拉斯（1-ring 组合拉普拉斯 L）热核低通随机场，协方差 `exp(−τL)`，标量场；
+- (a2) `lap_vector`：同核的 2-D 向量场（两分量独立同核），投影到 `e1` 后的标量；
+- τ 由二分使**池化 hop-1 相关 = 账本 hop-1**（local 0.8377 / global 0.8805）标定，每个 FIT7 受试者与汇总各标定一次（零模型有 1 个自由参数，J 模型 0 个，对 J 不利）；
+- (b) `iid`：各向同性逐顶点噪声，hop≥1 相关恒为 0。
+
+**门（本域 = local，账本谱为 L_h）**：
+- `T_h = max(2·SD_h, halfCI_h)`，`SD_h` = 7 个 FIT7 受试者各自 J_main 谱在 hop h 的样本标准差（ddof=1，"折间离散"；7 个留一汇总复制品的 SD 约小 6 倍，作为描述量 `sd_loso_replicates` 一并记录），`halfCI_h` = 账本 `r_ci` 半宽；`T = max_{h≤3} T_h`（替换计划的占位 0.10）。
+- `T2 = max(2·SD(gap_s), rms_h(halfCI_h))`，`gap_s` = 受试者 s 上"三个零模型中 RMSE 最小者 − J_main 的 RMSE"（RMSE 取 hop 1–4 对账本；替换占位 0.03）。
+- `pass_spectrum_match`：池化 J_main 的 `max_{h≤3} |ρ_h − L_h| ≤ T` 且 `ρ_4 < 0`；`pass_beats_null`：池化 `gap ≥ T2`。
+- **通过** = 二者皆真；**杀死** = `gap < T2`（运动学解释对零模型无特异性）；其余 = 仅描述（含 σ 变体、global 域）。
+
+**有效性条件（任一不满足 ⇒ `tool_defect`，决不记为通过）**：14 项单测全过（见 §4）；账本 JSON 与账本文字谱一致（±5e-4）；FIT7 白噪声机会份额均值 < 0.5（份额指标非空转，见 §2）。零模型二分未达到 hop-1 目标只记 note。
+
+#### 2. PE′-2　冻结 patch 头在 SELECT 上的真实残差在 span(J) 内的方差份额
+
+**目的**：KS2 只存了矩累加器，没有逐顶点残差，所以用 `head_probe.StaleData` / `load_head` / `read_head` / `Geo` **原样重算**（只读 import，不改 head_probe.py），再把残差投影到 span(J)。
+
+**数据**：SELECT（ycy、ylf）`subject_seqs` 的全部 16 条序列（BASE 与 `_v2–_v4` 变体）、步长 4、连续端点对，共 **10,140** 个样本（与账本 `n_samples` 相等；已核对），R0（600 ms 时间面，训练时形式）。主读数 = KS2 同一样本集（为的是复现账本谱）；BASE-only 4 条序列作敏感性。
+
+**重现校验（工具有效性）**：重算的 local / global hop 1–4 谱 |Δr| ≤ 0.01 且对数 n 相对差 ≤ 1e-4，样本数 = 10,140；冒烟已在 32 行切片上证明与 `head_probe.run_stale` 的累加逐位一致（|Δr| < 1e-9，n 相等）。
+
+**统计量**（每样本在自己的锚点 x₀、自己的掩码上）：
+- `Jw = Jn · diag(σ_main)`（σ_main 域内 FIT7 `J_main`），SVD，秩 k = 奇异值 ≥ 1e-2 · s_max 的个数；份额 = ‖U_kᵀ r‖² / ‖r‖²；池化份额 = Σ‖PJ r‖² / Σ‖r‖²（按能量加权，"方差占比"）。k、掩码顶点数 n_mask、系数参与数 PR 作 n_eff 的描述量；1e-3 秩阈值作敏感性。
+- 对照 / 零模型：
+  - `chance`（机会份额）：残差在掩码内随机置换后的份额（每样本 4 次）；
+  - `gauss`：独立高斯向量份额，应 ≈ k / n（单元检查）；
+  - `wrong_pose`：J 取同序列另一位姿（偏移 97 个样本）、同顶点同法向；**描述量**（实测 J 的像面法向子空间对位姿很不敏感，不用作特异性门）；
+  - `smooth_basis`：同维 k 的最低 k 个网格拉普拉斯模态限制到掩码行后的份额——**特异性对照**：运动学子空间是否强于任意同维光滑基；
+  - `pos_control`：用本样本 J 模拟 r = Jw·z + 10 % 能量 iid 噪声，份额应 ≥ 0.85；
+  - FIT7 白噪声机会（PE′-1 位姿 + 掩码 + σ_main 秩阈值的 k / n）：7 个受试者均值 μ_w 与 SD s_w（"FIT7 计算的份额基线"）。
+- CI：分组 bootstrap（组 = 序列 × 1 s 块，KS2 同定义，1000 次，种子 20261026）；另报 ycy / ylf 各自份额（只有 2 个 SELECT 受试者，受试者块 bootstrap 无意义，见 §5 差异 4）。
+
+**门（local，全 16 序列）**：
+- **通过**：份额 s ≥ 0.6，且 s−chance 的 CI 下界 > 0，且 s > μ_w + 2 s_w，且 s−smooth_basis 的 CI 下界 > 0；
+- **杀死**：s < 0.3，或 s−chance 的 CI 上界 ≤ 0；
+- 其余：仅描述。
+- 阈值来源：0.6 / 0.3 取自计划原文；"机会 / 光滑基 / FIT7 白噪声"三条是本草案新增的特异性条件，避免 ≥ 0.6 只来自"秩 51 / 掩码 ≈ 170"的维数占比或光滑性（见 §5 差异 5）。
+- **有效性**：pos_control < 0.85、gauss 偏离 k / n 超 0.03、FIT7 白噪声机会均值 ≥ 0.5、重现校验失败 ⇒ `tool_defect`。
+
+**描述量**：global 域及 BASE-only 同表；J 模型在 SELECT 真实掩码上的谱（含零模型）`pe2.j_on_select_masks`；账本复现谱及 CI。
+
+#### 3. GSCD　并格共享相关分解（local，主读数）
+
+**目的**：同 hop 内，采样窗重叠大的顶点对，残差相关是否更高；即相关谱里"共读同一些粗像素"的份额。
+
+**s_ij 的定义**（预声明，主）：patch_r2 头对顶点 i 读一个以 uv₀ᵢ 为中心、沿 `R`（e1,e2）旋转的 16×16 双线性采样窗，半宽 ρ = f·0.02 m / z（f = √(fx fy)，K×0.375，与 `PatchHead.forward` 同）；窗内 256 个采样点按 `grid_sample`（align_corners=True，零填充）展开成 240×180 粗像素权重图 aᵢ（单测与 `torch.grid_sample` 逐点一致）。设粗像素 p 的源面积增益 g_p（`semkine/sba.py::make_grid().gain`，9 / 6 / 4）。
+`s_ij = Σ_p g_p aᵢ(p) aⱼ(p) / sqrt(Σ g aᵢ² · Σ g aⱼ²)`：粗像素事件数方差 ∝ g_p 的独立散粒噪声经两个线性窗读出的**精确相关系数**（单测：对 4000 次合成噪声的经验相关与 s_ij 差 < 0.06）。非加权版 `su`（g≡1）作敏感性。
+描述量（不参与门）：S39 layer1–3 读出（步长 4 / 8 / 16，`common.sample_map` 几何）两顶点双线性单元支撑的直方图交集 `sL1/2/3` 的三分层差、共享比例。注意：S39 的单元不是 patch 头的机制，只用来给 M1 的"每格取一次"提供数量级。
+
+**统计量**：对 hop 1–3、两端都在 KS2 掩码内的顶点对（i<j），按 hop 内 s_ij 的 1/3、2/3 分位（本集合内汇总）分三层；D_h = 最高层汇总 Pearson − 最低层汇总 Pearson；**D = D_1、D_2、D_3 的平均**。CI = 分组 bootstrap（组 = 序列 × 1 s 块，1000 次，分位点固定）。
+
+**零模型 / 对照**：
+- 置乱对照：在每个（样本，hop）段内随机置换 s_ij（保持 hop 分布与每段 s 的多重集，破坏 s 与顶点对的对应），分位点不变，200 次，报 |D_perm| 的 97.5 % 分位；
+- `within`：层标签取（样本 × hop）段内 s 的秩三分位（去掉样本间尺度 / 深度混杂），段内对数 < 9 的段丢弃；
+- `dist_matched`：hop 内按像面距离 / ρ 的 5 分位分箱，再在箱内按 s 三分层（去 hop 内几何距离混杂；检验力低，仅描述）；
+- `control_syn`（功效 / 阳性对照）：合成残差 = 窗口权重图 × 散粒噪声 √g_p·z，同一 s 分层。该对照的相关**按构造等于 s_ij**，若 D_syn < 0.15 说明本工具即使机制成立也分不出来；
+- `control_lap`（几何对照）：同点上的图拉普拉斯热核标量场（τ 由 SELECT 掩码标定到账本 hop-1），无任何像素机制；
+- `control_iid`：独立高斯，D 应 ≈ 0。
+
+**门**（0.15 = KS2 谱跨度 0.59 的 1/4，0.05 = KS2 时间置乱 −0.004 / −0.014 量级加余量；皆预注册约定、不是文献阈值，不由 FIT7 校准）：
+- **通过**：D ≥ 0.15 且 CI 下界 > 0 且置乱 |D_perm| 97.5 % 分位 < 0.05，且 `control_syn` D ≥ 0.15（有功效），且 `within` CI 下界 > 0，且 `control_lap` D < 0.15；
+- **作废**（计划："差 < 0.05 且 CI 含 0 → 本分解作废，M6 保留诊断身份"）：D < 0.05 且 CI 含 0，且有功效；
+- 其余：仅描述（含"有 D 但 within 不成立 = 尺度 / 深度混杂""几何对照也分层 = 几何解释""功效不足 = 无结论"）。
+- **有效性**：`control_iid` 的 |D| ≥ 0.01、置乱 97.5 % 分位 ≥ 0.05 ⇒ `tool_defect`。
+
+**描述量**：global 域、BASE-only、非加权 s、各 hop 的 D_h、s 的 hop 内分位、s 与距离的 Spearman（共线性）、sL1/2/3。
+
+#### 4. 单元检查（冒烟与正式都先跑；全部合成 / 资产，不含效应）
+
+hop 估计量恢复已知核谱；J 模型闭式 = Monte Carlo；切空间雅可比 = `ManoLayer` 有限差分（相对 < 1e-5）；span 投影（空间内 1、正交 0、高斯 ≈ k/n）；窗口重叠（相同 =1、单调、不交 =0、旋转 90° 不变、均匀增益时加权 = 非加权）；窗口点 = `torch.grid_sample`（含边界零填充）；散粒噪声相关 = 加权余弦；三分层估计恢复已知 D 与零 D；置乱保持段多重集；热核标定命中目标；李代数同态增量 = 0；`decide()` 的 20+ 个分支（pass / kill / descriptive / tool_defect）；池化估计 = `head_probe.Lin`；hop 点对 = `head_probe.hop_pairs`。冒烟另含：几何 = `Geo`、J 点 = FK 顶点、缓存往返、`result` 可 JSON 序列化、重算 = `run_stale`（32 行切片逐位）、合成 J 残差份额高且赢光滑基、合成光滑残差输给光滑基、合成窗口噪声 D ≥ 0.15、iid D ≈ 0。
+
+#### 5. 与计划 §3 的差异及理由
+
+1. **残差口径 = `full` 目标，不是 `art`。**账本 hop 谱是 `pred − tg["full"]`（`head_probe.py::run_stale`：根与平移同动），任务说明中"art 目标"是 KS2 偏相关门用的另一个目标；为可比，主模型 `J_main` 含全部 51 DOF，`J_fingers` 为 `art` 口径变体（描述）。
+2. **PE′-1 掩码缺 `obs2`**（无事件）；PE′-2 的 `j_on_select_masks` 用真实掩码补一份 J 模型谱。
+3. **PE′-2 主样本集 = KS2 的 16 条 SELECT 序列（含 `_v2–_v4`）**，而不是通用规则的 "只用 BASE"：为的是复现账本 hop 谱（那份谱就是这 16 条的汇总）；BASE-only 作敏感性。patch 头只在 FIT7 上训练，SELECT 对它是留出的。
+4. **CI**：计划写"9 条序列 bootstrap"、任务写"受试者块 bootstrap"，SELECT 只有 2 个受试者；改用 KS2 同口径的（序列 × 1 s 块）分组 bootstrap，另给两个受试者各自的点估计。
+5. **阈值**：计划的 0.10 / 0.03 → `T`、`T2`（FIT7 折间 SD 与账本 CI 半宽的较大者，见 §1）；0.6 / 0.3 / 0.15 / 0.05 / 0.15 取计划原文；新增的是特异性 / 功效 / 混杂条件（机会份额、FIT7 白噪声份额、光滑基、置乱、within、几何对照、合成功效），它们只会把"通过"降为"仅描述"或 `tool_defect`，不改变计划的杀死条件。`T` 用"受试者间 SD"而非"留一复制品 SD"（后者小约 6 倍，更严），请主会话确认。
+6. **s_ij 用 patch 头自己的窗**（256 点旋转方窗），不是 S39 layer 单元；后者作描述量。
+7. 计划中的"n_eff 决定顶点卷积层数与采样密度"只报描述量（k、n_mask、PR），不作门。
+
+#### 6. 预计 CPU 时间（144 核；以切片实测外推）
+
+单测 6 s；PE′-1 约 3 min（8,897 位姿，FK + 雅可比 + 稀疏 hop 求和，另含 σ 预扫描）；SELECT 重算 10,140 样本 16 worker 约 8 min；span / J 分析约 2–3 min；GSCD 点对（约 7.7 M 对）约 2 min、统计与 200 次置乱 + 1000 次 bootstrap × 约 10 个变体约 4–6 min。合计约 20–25 min，内存 < 20 GB，无 GPU。
+
+#### 7. 开发期读数披露
+
+开发中只读取了：窗口重叠 s_ij 的 hop 内分位与合成对照（合成窗口噪声 D_syn ≈ 0.25，图拉普拉斯几何对照 D_lap ≈ 0.02–0.05，iid ≈ 0；800 个 SELECT 样本几何上跑出，真实残差未打印）；合成 J 残差与合成光滑残差上 span 份额与光滑基的判别力（J 合成份额 ≈ 0.93、赢光滑基 ≈ 0.08；光滑合成残差输 ≈ 0.37）；计时。**没有读取或写出任何真实残差的 hop 相关、份额、层间差或 J 模型对账本的偏差。**冒烟只写形状、计时与通过 / 失败（`outputs/mv2/smoke/m6/smoke.json`）。
+
+#### 8. 结果 JSON 结构（`decide` 读取的键）
+
+`ledger{local,global}{r,ci,n}`、`unit_checks`、`pe1.{local,global}{sigma,spectra{J_main…,lap_scalar,lap_vector,iid}{pooled,per_subject},tau,white_chance,J_main_loso}`、`pe2{repro,share{local,global}{all,base},j_on_select_masks,…}`、`gscd{local,local_base,global,global_base}{primary,perm,within,dist_matched,control_syn,control_lap,control_iid,sens_unweighted,layer_cells,…}`。`decide` 输出 `kscs_spectrum` / `kscs_span` / `gscd` 三个裁决、`tool_defect`、`consequence`（通过 → M1 的 span(J) 投影配对臂、每格取一次去重汇聚臂；杀死 / 作废 → 诊断身份保留；均无 GPU 臂）。
+
+### M7 投影规范 σ 的归因与评测卫生
+
+Stage 0 已完成（`#mv2-stage0-20261025`，只读、描述）：A1 部分闭合、不可闭合分支触发。本预注册据此约束其余方案：σ 一律作分层 / 配准列，深度与段偏置主张只作描述；M2 的 σ 扰动族同时报"绕腕缩放"与"小手"两种形状；M7 的慢状态不进入任何 GPU 臂。M7 本身无新探针。
+
+### M8 mesh 物理一致自监督 MCS 的 CPU 零训练探针：预注册草稿（SRCA / TBC / PF）
+
+> 状态：草稿，供主会话合并进唯一的 `#mv2-prereg-20261026` 并冻结。实现：`tools/mv2/m8_probes.py`（三个探针 + `decide()`），IWE 工具与零模型定义见 `tools/mv2/iwe.py` 与 `prereg_m3.md` §0（本稿不重复，除非 M8 有不同）。
+> 冒烟 `python tools/mv2/m8_probes.py --smoke`（日志 `outputs/mv2/smoke/m8/smoke.json`）只打印形状 / 计数 / 耗时与内部单元检查的通过与否。正式 `python tools/mv2/m8_probes.py --probe {srca,tbc,pf} --out outputs/mv2/<probe>` 首先调用 `common.verify_protocol()`。
+> 来源：计划 §3 M8「R3 修订」(1) SRCA（`P1-E4-R1`，M8 的前置）、(2) TBC（`P1-E10-R1`）、(3) PF；账本 `#sba-r3-results-20261022`（E8 偏差受限）、Stage 0 A2 / A3（`outputs/mv2/stage0/report.md`：标签 59.67 Hz RGB-D 优化后样条插到 1 ms；v2e 先 SuperSloMo 插帧再阈值化；事件时间戳成公共时间层）。
+
+#### 0. 共同约定
+
+**数据。** 同 M3：只用基础录制，FIT7 = ch, lfz, lpc, lr, ly, lyh, lyq；SELECT = ycy, ylf；不读 zgz；全部 CPU；全局种子 20261026，样本种子 `crc32(…)` 派生，池输出排序后聚合；bootstrap 以「序列 + 5 s 端点块」（SRCA 以基轨迹，TBC 以录制）为组，2000 次。
+**零模型的两种口径。** (i) `cluster`（整窗内簇间时间标签置换，保留簇与公共时间层）——PF 的主零模型；(ii) `interval`（只在源帧间隔 16.7 ms 内置乱事件时间）——SRCA（子帧信息）与 TBC T1 用。对计划「簇内置乱」字面（同一时间戳内置乱）恒等，故作此操作化，理由见 §5。
+**披露。** (a) 开发期间只用标签、合成事件、元数据跑过单元检查；(b) 在 ≤ 4 条录制（ch_local, ch_global, ycy_local, ycy_global）、≤ 2 个端点 / 3 条基轨迹上跑过每个探针的正式路径以检查布线；`run_formal` 末行会打印裁决字符串，因此看到了这些微小切片的 `decide()` 字符串：**SRCA kill、PF descriptive、TBC tool_defect（只因为切片只有 4 条录制 < 14）**；TBC 的该次运行**进入了 T1 分支**，这意味着这 4 条录制的合并 p95 配准误差 ≥ 0.40 mm（没有读数值，只由分支推知）。它们没有登记、没有用来调常数，输出目录已删除；(c) 开发期间在**合成世界**里看过一条基轨迹在 3 个水平上的响应符号与事件数：ESIM 式管线对子帧残差有正响应、v2e 式管线为负响应（真轨迹 warp 不如 60 Hz 分段线性 warp）——这是合成正对照应有的机制检查，不是数据读数；(d) `label_subframe_rms("ycy_local")`、`tbc_t0("ycy_local")` 在冒烟里被调用，只打印了有限性与元数据检查的通过与否。
+
+**样本量与步长（声明）。** PF `every` = 8（≥ 601 ms 历史）：2801 个端点；TBC T0 逐录制全帧（18 条），T1 的 2 s 块全取（FIT7 + SELECT 共 555 块）；SRCA 40 条基轨迹 × 5 个水平 = 200 个合成样本，标签残差读 FIT7 的 14 条录制。
+
+#### 1. SRCA：源帧率天花板审计（`P1-E4-R1`）
+
+**目的。** v2e 事件由同一 60 Hz 视频经光流内插再阈值化而来，对 > 约 30 Hz 的子帧运动没有独立于内插的信息；依赖「事件比标签更时间保真」的训练内自监督（IWE 对比度）因而可能没有杠杆。须先在合成频响闭环上证明 IWE 对比度对 > 30 Hz 残差的响应高于簇内置乱零模型，且标签子帧残差 RMS ≥ 1.149 mm，否则「训练内自监督」主张死，只保留真实数据的测试时适应。
+
+**(i) 合成频响闭环（不碰数据事件）。**
+- 基轨迹：FIT7 某条基础录制的 GT 姿态（最长 run 内随机时刻）作 x_base（受试者在 7 人间循环，local / global 交替，种子固定）；x(t) = x_base + 低频（1–6 Hz，tx, ty、根旋转三轴、8 个手指通道，幅度 20 mm / 0.2 rad / 0.45 rad × U[0.5,1]）+ s × 高频（32–58 Hz，每个高频通道 2 个分量，通道 = tx, ty, rx, ry 与 3 个手指通道；单位幅度 1.5 mm / 0.012 rad / 0.05 rad）；时长 400 ms。基轨迹的低频运动峰值 < 6 px 者整条剔除（水平无关，保持配对）。
+- 子帧残差：PL(t) = x(t) 的 60 Hz 样本的分段线性内插（参数空间），残差 r(t) = x(t) − PL(t)；残差 RMS（mm）= 时间 × 778 顶点上 ‖FK(x) − FK(PL)‖ 的均方根。高频尺度 s 对每条轨迹校准到目标水平（rms² = c² + s²h²，c 为低频曲率底，低于底则 s = 0）：目标水平 {0.4, 0.8, 1.149, 2.3, 4.6} mm（1.149 = KS0 种子级 MDE local），回归用**实测**RMS。单元检查：PL 精确过样本点；高频成分 > 30 Hz 的能量占比 > 0.95；校准误差 < 5 %。
+- 渲染：z-buffer Gouraud 光栅化（渲染像素，240×180）、朗伯着色（固定方向光）× 贴在模板表面上的平滑 3D 反照率纹理（随材料点运动），背景 0.12；单元检查：平移的像面质心位移等于 f·dx/z。
+- 事件管线（阈值 0.15，对 log(0.05 + I)）：
+  - **ESIM 式**（正对照）：真轨迹每 1 ms 一帧，逐像素按线性内插给出阈值穿越时刻；
+  - **v2e 式**：真轨迹只取 60 Hz 样本，样本间**位姿线性内插**到 9 个子帧（对运动感知内插器的最优情形），每对子帧内取全图最大穿越次数 m 并按 v2e 的公共时间层分配时刻 t_a + i (t_b − t_a)/m。
+  - 单元检查：静止无事件；已知阶跃给出恰为 ⌊Δ/θ⌋ 个事件、极性正确、时间层与逐像素时刻符合公式。
+- 响应：全手 IWE，多参考（起 / 中 / 末），事件均匀截取至 ≤ 20000（固定种子），同一事件分别用两条假设轨迹 warp：「真」= x(t)，「PL」= PL(t)（FK 每 2 ms）。response = (C_真 − C_PL) / C_PL。零模型 = 源帧间隔 `interval` 置乱事件时间（2 次抽样平均）后的同一量。
+- 统计量：每个管线，(response − null) 对实测残差 RMS 的 OLS 斜率（带截距）及块 bootstrap CI（组 = 基轨迹，同时给 response、null 各自的斜率）。
+
+**(ii) 标签子帧残差。** 对 FIT7 的 14 条基础录制，在每个 ≥ 48 帧的连续 valid 且非 interpolated 的 run（`prepare_hand_data.continuous_valid_runs`，与 Stage 0 A2 一致）上，取 mesh.npz 的 ~60 Hz 源样本（平移线性、每个旋转测地线内插）构成 PL，与 hand_data51 的 1 ms 标签每 2 ms 比较：FK 后顶点位移的均方根（mm，合并加权），另报关节版与逐录制值。单元检查：匀速平移残差 < 0.001 mm；抛物线平移残差 = 解析值 0.1826·a·h²（误差 < 5 %）。
+
+**门。**
+- 工具有效性：ESIM 式管线的 (response − null) 斜率 CI 下界 > 0（正对照必须有响应），标签残差可算，超过一半的合成行未被剔除 / 失败；否则 tool_defect。
+- **杀死**：v2e 式管线的 (response − null) 斜率 CI 下界 ≤ 0（含 0 或在 0 以下：对子帧残差盲）→ 训练内自监督主张死；若合并标签残差 RMS < 0.793 mm，附标签 `blind_confirmed`。
+- **通过**：v2e 式响应显著（CI 下界 > 0）且合并标签残差 RMS ≥ 1.149 mm → 放行训练内自监督（S5 的 M1 + IWE 辅助损失由 PF 再判）。
+- **仅描述**：v2e 式响应显著但标签残差 < 1.149 mm。
+- 阈值来源：0.793 / 1.149 mm 为账本 KS0 的规划近似 MDE（量级参照，非门槛，计划 §3 M8 (1) 采用之）；CI 规则为通用统计规则；簇内置乱零模型取附录 L.A3 的簇结构（本稿用源帧间隔口径，见 §5）。
+
+**预计 CPU 时间。** 每个（基轨迹, 水平）≈ 15 s（≈ 620 次渲染 + 事件模拟 + 12 次 IWE），200 个样本 ≈ 50 核·分钟；标签残差 14 条 × ≈ 8 s。墙钟 ≈ 1–2 min。
+
+#### 2. TBC：事件—标签时基闭合（`P1-E10-R1`）
+
+**目的。** 事件轴是 n / avg_fps 的理想栅格，标签轴是真实 header 时间戳，二者只在起点与终点对齐；中间的累计时基偏差 e(n) 从未被测过。T0 看 e(n) 乘 FK 速度后是否构成 nuisance；T1 看事件速率与 FK 预测速率的互相关能否把它恢复出来。
+
+**T0（只读元数据 + GT FK，不读事件，不读模型）。** 对 18 条基础录制：`<seq>_source_timestamps.csv` 的 header 时间戳 stamp_n，t0 = stamp_0，avg_fps = (N − 1)/(stamp_{N−1} − t0)（等于 v2e 的 `--input_frame_rate`，变体 meta 的 `effective_input_fps` 同式），**e(n) = (stamp_n − t0) − n·1000/avg_fps**（ms；e(0) = e(N−1) = 0）。统计 max|e|、p95|e|、漂移斜率（ms/s）。配准误差：在有效帧（run 内，两端各留 6 ms）上，标签时刻 ±4 ms 的 GT FK 求腕与五个指尖的像面速度（相机平面，mm/ms 与渲染 px/ms），取**最大值**，乘 |e(n)| 得每帧配准误差 mm / px；另报按平均速度的版本（描述）。
+**元数据检查（工具有效性）：** CSV 行数 = relative_time 列数；relative_time 与 (stamp − stamp_0)/1e9 相差 < 2 µs；CSV 的 t0 等于 aux 的 `t0_ns`；e(0) = e(N − 1) = 0；至少 14 条录制可读。
+
+**T1（仅在 T0 判 nuisance 时运行）。** 每个录制的 2 s 块（块完全在 run 内，两端各留 44 ms 余量）：
+- 事件速率 r_ev(t)：GT 手范围（每第 25 个姿态的可见顶点 ± 10 px）内的事件每 ms 计数；
+- FK 预测速率 r_pred(t)：GT 轨迹下可见遮挡轮廓每 4 ms 的 Σ 边长 × |法向速度|（边中点 ±2 ms 差分），线性插值到 1 ms（SBA 的扫掠率模板，只作速率，不做位姿求解）；
+- 两者各 9 ms 箱形平滑后，在 |δ| ≤ 40 ms 内取归一化互相关最大处，抛物线亚样本，得 δ̂ 与峰值相关；约定 r_ev(t) ≈ r_pred(t + δ)，故 δ̂ 应等于块内 e 的均值 ē（块以事件时间轴 n/avg_fps 划分）。每个录制内预测速率均值低于其第 25 百分位的块视为静止，剔除（只用标签判据）。
+- 统计量：合并后 corr(δ̂, ē)（Pearson，按录制的组 bootstrap CI）。零模型：(N1) 源帧间隔内置乱事件时间后重算 δ̂ 的 corr；(N2) 同一录制内把 ē 在块间置换（2000 次）的 corr 分布第 95 百分位。合成自检：已知分数滞后（−7.3、0、5.6、22.4 ms）加泊松噪声的速率序列须以 < 1 ms 误差恢复（`xcorr_selfcheck`，冒烟与正式运行都检查）。
+
+**门（阈值与计划 §3 M8 (2) 一致）。**
+- 工具有效性：元数据检查全过，`xcorr_selfcheck` 为真，≥ 14 条录制；否则 tool_defect。
+- T0 合并 p95 配准误差（最大速度版，mm）：**< 0.08 mm → kill（结案，写入 M7 排除表）**；**≥ 0.40 mm → nuisance，进入 T1**；之间 descriptive。
+- T1：**通过** = corr(δ̂, ē) ≥ 0.5 且高于 N2 的 p95 与 N1 的 corr；**杀死** = 不高于二者之一（δ̂ 与 e 无关，T0 的预测作废）；其余 descriptive；块数 < 30 为欠功效（descriptive）。
+- 阈值来源：0.40 = 0.5 × MDE_global（0.793，KS0 规划近似，非门槛，故只取其一半为「值得登记」线）；0.08 = 0.1 × MDE_global；0.5 相关 = 计划设定（待块数定功效，本稿块数约 555 → 约 440 个运动块，0.5 的相关在 n = 440 时 CI 半宽 ≈ 0.07）。
+
+**预计 CPU 时间。** T0 每条录制 ≈ 1 s；T1 每块 ≈ 1.2 s，555 块 ≈ 11 核·分钟。
+
+#### 3. PF：IWE 损失景观（M8 PF，R3 修订）
+
+**目的。** 在 GT 附近，多参考 IWE 锐度对 ±5 / 10 mm **随时间变化**的解剖扰动是否有正确的梯度方向，相对簇保持零模型与等事件数对照是否有增益，是否塌缩。PF 过门才让 M8 作为 M1 的辅助损失（单变量）。
+
+**数据与样本。** FIT7 + SELECT 基础录制，`every` = 8，2801 个端点；窗 T ∈ {100, 300, 600} ms；事件集同 FBW（裁到 GT 手范围 ± 14 px，整窗截取 ≤ 30000，GT 神谕子树成员，通道 all）。参考时刻 = 窗的起 / 中 / 末（end+1−T, end+1−T/2, end+1），对比度 = 三个参考下 IWE 方差的平均（盒覆盖所有参考的 warp）。
+
+**扰动（时变）。** E0 解剖扰动（长指 PIP / MCP 屈曲、拇指对掌，符号 ±，δ ∈ {5, 10} mm 的节点误差，幅度在窗末姿态上二分）；偏移沿窗**线性斜坡**：窗末为 0，窗起为全幅，窗前保持全幅（`pf_ramp_traj`；单元检查：窗末恒等 GT，窗起等于持续偏移）。每个 T 各自一条轨迹。去根协同（`long4`）算同样的假设但不进入合并偏好率（描述）。
+
+**统计量。**
+- 偏好 pref(T, δ) = P[C(GT) > C(δ)]（平局 0.5），按手指、家族、符号合并后逐样本平均；**正确梯度方向率** grad(T) = P[C(δ=10) < C(δ=5)]（同一手指 / 家族 / 符号配对）。
+- 事件变体：real；null（`cluster`，同一置换用于 GT 与所有假设，保证同一事件变体下配对）；thin（T = 300 / 600 的成员事件稀疏到 T = 100 的事件数，等事件数）；noise（成员位置换为盒内均匀随机，时间与极性保持；T = 300、δ = 10）；flash（加 20 % 的同一随机时刻的均匀位置事件；T = 300、δ = 10）；static（T = 300、δ = 10，手指成员 GT 位移均值 < 1 px 的手指单元）。
+- 差：real − null（配对，块 bootstrap CI）；real − thin。
+- 碰撞检查（GT 轨迹、T = 300）：warp 位移乘 s ∈ {0.5, 1, 1.5, 2, 3}，原始方差与 Shiba 式面积归一方差 var × 点云面积比²，各手指的 argmax s ≥ 2 记为碰撞；报告 real 与 null 的碰撞率及其差（配对 CI）。
+- 边距（FIT7 噪声标尺，不是拟合）：T = 300、δ = 10 的 (real − null) 在 FIT7 上按受试者留一的 7 个均值的 jackknife 标准误 SE_jk，**margin = 2 × SE_jk**（简报「2 × FIT7 留一受试者 SD」的流程）。
+
+**门（每域在 SELECT 判；总判同 M3）。**
+- 工具有效性（全部满足，否则 tool_defect）：noise 控制的偏好率在 0.5 ± (0.05 + 1.96 SE) 内；flash 控制的偏好率 ≤ real + 0.05；static 控制（≥ 30 个静止样本时）在 0.5 ± (0.05 + 半宽) 内；GT 在 T = 100 不劣于零模型（real − null 的 CI 下界 > −0.05）；失败端点 ≤ 2 %。
+- **通过**：T = 300、δ = 10 的 (real − null) ≥ margin 且其 CI 下界 > 0，T = 600 同一差的 CI 下界 > 0，且面积归一碰撞率 (real − null) 的 CI 下界 ≤ 0（未塌缩）。
+- **杀死**：T = 300、δ = 10 的 (real − null) ≤ margin 或 CI 下界 ≤ 0（无增益），或碰撞被标记（面积归一碰撞率 real − null 的 CI 下界 > 0）。
+- 其余 descriptive。**等事件数归因**：real − thin（T = 300）的 CI 下界 ≤ 0 时在输出里标 `event_count_only`（不是硬杀；见 §5）。
+- 阈值来源：margin 由 FIT7 的预声明流程算出（噪声标尺，不看 SELECT）；0.05 的控制容差为计划无规定的工程值，只用于有效性检查，不进入通过 / 杀死判据；0.58 / 0.75（`r3_e1.py` 常量）只作描述参照，不进门。
+
+**预计 CPU 时间。** 每端点 ≈ 52 s（≈ 120 条时变假设轨迹 × 4–5 个事件变体 + 碰撞曲线）；2801 端点 ≈ 41 核·小时，140 进程理想墙钟 ≈ 17 min。
+
+#### 4. 运行时估计与冻结清单建议
+
+- 核·小时：SRCA ≈ 1 + TBC ≈ 0.2 + PF ≈ 41 ≈ 42；140 进程理想墙钟 ≈ 20 min（50 % 并行效率 ≈ 40 min）。M3 三探针约 142 核·小时（见 `prereg_m3.md` §4）；两份合计 ≈ 185 核·小时，理想墙钟 ≈ 1.3 h，保守 ≈ 2.5 h，在 ≤ 6 h 内；步长整体乘 2 仍在 ≈ 5 h 内。
+- 建议冻结：`tools/mv2/iwe.py`、`m3_probes.py`（PF 复用 `FbwSample / make_specs / GroupBoot`）、`m8_probes.py`、`common.py`；只读依赖 `tools/sba/r3_probe.py`、`tools/prepare_hand_data.py`（`continuous_valid_runs`）、`semkine/{sba,aura,xyz_mesh,lie}.py`、`outputs/semkine/dt_dz_l3_s3407/config_resolved.yaml`；元数据输入 `/data1/lyq/data/hand_data/hand_data/{train}/<seq>/{event/<seq>_source_timestamps.csv, mesh/<seq>_mesh.npz}`（FIT7 + SELECT 基础录制，不含 zgz）。
+- 产物：`outputs/mv2/{srca,tbc,pf}/{result.json,receipt.json,raw.pkl}`。
+
+#### 5. 与计划 §3 的差异、已知风险与不能主张
+
+**差异与理由。**
+1. 「簇内置乱零模型」：同一时间戳内置乱是恒等操作。PF 用整窗的簇保持置换（计划另一处称「簇保持置换零模型」），因为它保留公共时间层（artefact 同在真假两个世界），只毁时间—运动关联；SRCA 与 TBC T1 用源帧间隔内置乱，因为问题本身是子帧时序信息。若主会话要 PF 也用间隔口径：真世界与零世界的差只来自子帧时序，门几乎不可能过，等于把 PF 改成 SRCA 的重复。
+2. 合成管线：运动感知内插取**位姿线性内插**（SuperSloMo 的最优情形）；v2e 实际版本与参数缺 provenance（runtime 已不存在，Stage 0 A3），合成只能近似；因而结论限于「该类管线对子帧残差盲」这一结构性命题，不外推到真实传感器。
+3. SRCA 的「响应」取真轨迹 warp 对 60 Hz 分段线性 warp 的相对对比度之差（对 ESIM 式事件为正，对 v2e 式事件为负或 0）；显著性判为 CI 下界 > 0，因此「显著为负」也算盲。
+4. 标签子帧残差的 PL 在平移线性、旋转测地线（slerp）下构造，与转换器的 RotationSpline 同在 SO(3)；残差因此包含样条的曲率部分与优化器抖动之外的所有 > 30 Hz 与 < 30 Hz 曲率成分，是上界。
+5. PF 的扰动是**斜坡**（时变，计划要求），与 FBW 的持续偏移不同；计划的「增益 ≥ 零模型 + 等事件对照」写成：门读 (real − null)，等事件数作归因标记（real − thin 在构造上几乎必为正，硬门没有信息）。
+6. TBC 的 FK 预测速率是顶点轮廓扫掠率的代理，不含纹理事件率；互相关在静止段无分辨力，按预测速率剔除静止块。
+
+**风险。** SRCA：合成手轨迹不代表真实运动谱；若 ESIM 式正对照在亚像素残差下也读不出（IWE 在 240×180 分辨率的灵敏度），整个审计 tool_defect；标签残差 RMS 很可能远低于 0.793 mm，则 SRCA 判盲且 `blind_confirmed`，M8 训练内主张死（符合计划预期）。TBC：header 时间戳抖动可能很小，T0 直接结案。PF：对比度在 18–93 事件 / 子树下噪声大；本数据上 E8 已示积累偏差受限，PF 的 (real − null) 可能很小。
+**不能主张。** 不能主张真实传感器上自监督无效；不能把标签高频成分当错误标签；不能把合成闭环的幅度当 zgz 读数；TBC 不能解释同号的 σ\*、根偏置或 local 8.54；不能主张亚毫秒时间分辨率（簇内次序是生成器伪影）。
+
+### MV2 · M9 预注册草稿：前缀稳定查询合同 + 上下文年龄前沿 + 发射受限成本账（PSQ · PAS/CAF · SORL/LBA）
+
+> 草稿由实现代理写成，供主会话合并进唯一的 `#mv2-prereg-20261026` 并冻结。本稿之前**没有任何效应读数**。实现阶段只运行了 `--smoke`：层一的合成单测（不碰数据）、各工具的 bit 级自检与 `decide()` 管线（合成表）。披露：`m9_psq.py --smoke` 在 FIT7 序列 `lyh_local` 上跑过一次 S39 栈的 phase-0 对 `evalx.run_sequence` 的逐位复现（只输出 identical=True，未输出 RA）；`m9_age.py` 在 FIT7 序列 `ch_local` 上量过吞吐（只记时间）；`m9_cost.py --smoke` 静默执行了 S39 / S39+rootanc / S39+SLR 的计数与图断裂路径（未打印任何计数）。
+> 所有工具：解释器 `/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python`，`CUDA_VISIBLE_DEVICES=""`，正式模式先 `common.verify_protocol()`，写 `outputs/mv2/<probe>/result.json`（独占）与 `receipt.json`；`decide(result)` 在各模块内。种子固定 20261026（合成流）。
+
+---
+
+#### 1. `tools/mv2/m9_psq.py` —— PSQ（来源 `P5-E9-R1`）
+
+##### 目的
+检验"对任一查询 q，输出只依赖 t_cut ≤ q 之前写入的事件与已提交前态；同一事件流在不同包边界相位下 RA 的变化在种子噪声内"。层一检验写路径的前缀稳定（逐位），层二检验节拍不变性。
+
+##### 数据
+- 层一：合成事件流（泊松计数、热斑、含空毫秒与同像素碰撞），不读任何数据文件；S39 架构用随机初始化的 `MNISTModel(config_resolved.yaml)`（不读 checkpoint）。
+- 层二：SELECT（ycy、ylf）的 `_local` / `_global` 四条基础录制；冻结 S39 三种子 step 6000；CPU；每序列一次完整闭环（`valid_runs_ms` 内，1229–1434 步）。不读 zgz。
+
+##### 被测栈（S39，读源码确认）
+`ET.build_lnes(events, offsets, end, w)`，w = min(200, end + 1 − 段首)（W200 裁段首，`evalx.window_of`）；Count50 = `offsets[end+1] − offsets[end−49]`；`AdaptiveFilter.from_spec(model, ramp1000.json)`（DT2 事件量自适应滤波 + 证据门 ramp1000，spec 标签 `af9f41a0` 由工具校验）。这一个模块同时是"滤波"与"门"。
+
+##### 统计量与公式
+- 层一（每项 float32 `np.array_equal` / `torch.equal`，无阈值）：T1 `build_lnes` 对 t_cut 之后事件改动不变（W ∈ {50, 100, 200, 裁到段首}）；T2 Count50；T3 滤波+门（桩跟踪器）；T4 段首裁剪不读段首之前的事件；T5 ms 重基准对时钟原点平移不变；T8a 随机初始化 S39 + 滤波的 9 步闭环，t_cut 之前各步逐位相同；T8b 对照：t_cut 之后输出确实改变。附加描述：T6 `RingLNES`（环形缓冲 + 固定窗重基准，最小修复）逐位等于批量写端、对过去查询前缀稳定；T7 S43 的 SAE 平面写端在"已写入更晚事件"后查询过去时刻**不稳定**（描述 S43，不是 S39）；I1 CPU 前向的批组成是否逐位不变（B=4 与 4×B=1；已知为 False，决定后续探针必须保持相同批组成才能逐位比较）。
+- 层二：闭环与 `evalx.run_sequence` 同（`closed_loop`，`phase=0` 逐位等于评测器，正式运行在 ycy_local 种子 3407 上复核）；包边界相位 φ：ends = a + 49 + φ + 50k。φ ∈ {0, 10, 25（受门）, 50（同网格对照）, 1（微移对照）}。每序列初态噪声种子固定（同序列跨 φ、跨种子配对）。RA(seed, 域, φ) = 该域两个受试者序列逐步 RA-MPJPE 的步数加权均值；ΔRA = RA(φ) − RA(0)。
+
+##### 对照与零模型
+层一：C1 一毫秒前瞻的写端必须被判非稳定；C2 窗内改动必须被判改变；C3 前瞻 Count 必须被判改变；T8b。层二：φ = 50 与 φ = 1 同口径（不受门）；φ = 50 的网格与 φ = 0 相同，只差初态历史，用来估"回路历史噪声底"。
+
+##### 门
+- 层一：任一写步骤非逐位前缀稳定 ⇒ 登记 S39 为"批处理评测"身份（`batch_evaluation_identity`），最小修复 = `RingLNES`（须等于批量写端）；全过 ⇒ `pass`。
+- 层二（每域、每个受门 φ ∈ {10, 25}、三种子）：全部 |ΔRA| ≤ 0.03 mm ⇒ `invariant`；三种子 |ΔRA| 全 > 0.15 mm 且同号 ⇒ `cadence_dependent`；其余 ⇒ `descriptive`。
+- 总判：层一 pass 且 4 个受门格全 invariant ⇒ `contract_holds`；任一受门格 cadence_dependent ⇒ `kill_frontier_contract`（只报 replay benchmark）；其余 `descriptive`。若某域的 φ = 50 对照本身三种子同号 > 0.15，则在 notes 标注"回路历史噪声底不低于门，节拍读数不可分离"（不改变裁决类别，由主会话解读）。
+
+##### 阈值来源
+0.03 mm = S44 P0b 预注册的 h10 − h50 门；0.15 mm ≈ 账本已观测 h10 − h50 = +0.165 / +0.194 / +0.188（`#s44-p0b-results-20261020`）；种子 SD local 0.379 / global 0.261（KS0）仅作比较尺度。逐位相等无阈值。全部取自计划 §3 M9。
+
+##### 工具有效性（否则 `tool_defect`，不得判 pass）
+层一四个对照全检出；层二 φ = 0 逐位等于 `evalx.run_sequence`（同进程、同线程数）。
+
+##### 预计 CPU 时间
+层一 < 10 s；parity 一条 SELECT 序列 ~1 min；层二 60 个闭环（3 种子 × 4 序列 × 5 φ），`--workers 24 --threads 2` 约 3–5 min 墙钟（~2 CPU·h）。
+
+##### 与计划 §3 的差异及理由
+1. 计划预期"S39 前端很可能不前缀稳定"。读源码后，`build_lnes` 只读 `offsets[start .. end+1]`、Count50 只读 `[end−49, end]`、滤波只依赖 (x, n)，**按构造对 t_cut 之后的事件逐位不变**；合成单测也如此（不是数据读数）。真正的前缀风险不在写端，而在 (i) 网格锚在带标签的有效段首 `a`（部署需要"跟踪起点"），(ii) 包等待（Count50 要整包），(iii) S43 的 SAE 平面写端对过去查询不稳定。层二的节拍读数承担"是否节拍相关"的判定。
+2. 增加 φ = 50 与 φ = 1 两个不受门对照，落实风险栏的"与 50 ms 内等价平移对照"。
+3. CPU 闭环数值与历史 CUDA 评测不逐位可比，故不与账本 RA 比，只做 φ 间配对差。
+4. 种子 SD 不用于门，仅作尺度。
+
+---
+
+#### 2. `tools/mv2/m9_age.py` —— PAS / CAF（来源 `P5-E5-R2`、`P5-E6-R1`）
+
+##### 目的
+测冻结 S39 的 E3 单步误差对前态年龄 a_p 与证据年龄 a_e 的依赖，判"精度轴"是否存在，并得到零交叉年龄 a_0 与捕获年龄 a_cap。
+
+##### 数据
+SELECT 四条基础录制；冻结 S39 三种子；`SeqSamples(every=8)`（共 ~640 个端点，公共子集约 540）；W200 窗，prev = GT(end − 50 − a_p)；CPU；批大小固定 64。公共子集：end − 50 − 200 − 17 ≥ 段首且窗口满 200（所有年龄臂用同一批样本，配对）。
+
+##### 统计量与公式
+- 误差 ε = 根对齐 MPJPE（mm），按域（local/global）合并样本取均值。
+- 臂 `aged`：a_p ∈ {0, 10, 25, 50, 100, 200} ms；臂 `extrap`：对 GT(end − 50 − a_p) 做 oracle 常速外推 a_p ms（平移线性、根 SO(3) 左乘、手指轴角线性；速度取该时刻前 17 ms 的 GT 差，即一个 60 Hz 源帧）——预测 end − 50 时刻状态的上界，不可部署；臂 `extrap_q`：外推到查询时刻（a_p + 50 ms），仅描述。
+- 证据年龄：W200 内事件年龄 a_e = 199 − ms_rel；`late_X`（只留 a_e ≥ X，X ∈ {25, 50, 100}）与 `recent_X`（只留 a_e < X，X ∈ {25, 50, 100, 150}），保留原 200 ms 归一化；与 a_p 全交叉，描述（不设门）。
+- 持续性误差 d(a_p) = 持有 GT(end − 50 − a_p) 的 RA 误差；增益 G(a_p) = d(a_p) − ε(a_p)；a_0 = G 首个过零年龄（线性插值，无则 > 200）。
+- 精度轴增量 inc50 = ε(a_p = 50) − ε(a_p = 0)，每种子每域。
+- a_cap(c)：GT 在 end 与 end − a 间 21 关节平均三维位移首次 ≥ c 的 a（5 ms 网格，≤ 400 ms），c ∈ {14, 19} mm（KS4 / AURA B 的捕获范围），取样本中位数（并报 p25 / p75 与截尾率）。
+- 外推收回比 = (ε_aged − ε_extrap)/(ε_aged − ε_aged(0))（a_p > 0 且分母 > 0）。
+
+##### 对照与零模型
+a_p = 0 臂必须逐位等于"独立构造的普通 E3"（`build_lnes` 直接构图、`pos51[end−50]`、相同分块批）；`extrap` 在 a_p = 0 同样逐位等于；恒等证据掩膜 `recent_200` 经 transform 路径逐位等于；普通 E3 重复一次逐位相同。
+
+##### 门
+- 精度轴（每域，SD = 0.379 / 0.261 mm，KS0）：三种子 inc50 全 ≥ 2 SD（0.758 / 0.522 mm）⇒ `alive`；三种子 inc50 最大值 < 1 SD **或** 三种子符号不同 ⇒ `dead`；其余 `indeterminate`。总判：两域都 alive ⇒ `alive`；两域都 dead ⇒ `dead`（M9 永久降为纯系统合同、"两速率改善精度"永久不主张）；一域 alive/dead 另一域否 ⇒ `mixed`（描述，不触发永久杀）。
+- CAF（每域）：三种子 G(50)/G(0) 全 ≥ 0.5 且 a_cap(19 mm) ≥ 100 ms（= 2 个包间隔）⇒ `frontier_ok`；三种子 G(a_p = 50) 全 ≤ 0（一个包间隔内过零）或 a_cap(19 mm) < 50 ms ⇒ `positional_channels_downgrade`（任一域触发即采用：M1 PA2 / M3 / M4 位置型通道只能作全局旁路辅助）；其余 `indeterminate`。
+- 外推价值（描述）：a_p = 50 的外推收回比三种子全 ≥ 0.5。
+
+##### 阈值来源
+SD、MDE：KS0（`#kstar-results-20261025`，规划近似）；2×/1× SD：计划 §3；0.5 倍与 2 倍包间隔：设计常数【待用户确认，计划标注 "待验证"】；包间隔 50 ms 由 W200 "4 倍重叠" 推出并已对源码核对（`evalx.run_sequence` 的 STEP = 50）；0.5 收回比：占位【待验证】；14/19 mm：KS4 / AURA B。
+
+##### 工具有效性
+`a0_bit_exact`、`extrap0_bit_exact`、`identity_mask_bit_exact`、`plain_repeat_bit_exact` 对每个种子均 True；每域样本 ≥ 100。
+
+##### 预计 CPU 时间
+约 0.5 s/样本/条件组（8 线程）；每种子 ~5 min；3 种子并行（`--workers 3 --threads 8`）约 5–8 min。
+
+##### 与计划 §3 的差异及理由
+1. 计划写"a_p ∈ {0, 8/10, 17/25, 34/50, 100, 200}"，取任务书的 {0, 10, 25, 50, 100, 200}。
+2. 计划只写"外推臂"，这里给两种：`extrap`（外推回 prev 的原时刻，a_p = 0 时必须等于普通 E3，满足"a_p = 0 逐位等于 E3"）与 `extrap_q`（外推到查询时刻，描述）。
+3. 双域判定的合并规则（alive 要求两域；永久杀要求两域）是实现代理的选择：计划未写域如何合并。保守方向：不因单域否定而永久杀。主会话可改写此条。
+4. a_cap 以"GT 关节平均三维位移"换算（KS4 的 14 mm 是像面平移锚点偏移，这里取同量纲的三维位移）；描述性定义，须在冻结前确认。
+5. 公共子集排除每段前 ~5 步（需要 250 ms + 17 ms 的段内历史）。
+6. 种子数 = 3，没有独立的"种子 SD"实测；门里的 SD 是 KS0 的 zgz 闭环 RA 种子 SD，与 E3 增量并非同一量，但这是计划指定的尺度。
+
+---
+
+#### 3. `tools/mv2/m9_cost.py` —— SORL / LBA（来源 `P5-E10-R1`、`P5-E2-R2`）
+
+##### 目的
+零数据静态账：S39 / S39+rootanc / S39+SLR 的 aten 发射数、主机同步、数据相关形状算子、dynamo 图断裂、CPU 2/8 线程前向延迟；判 M1（SLR）的 Latency 主张是否站得住。
+
+##### 数据
+无。合成稀疏事件图（5 % 占据、固定种子）、近均值前态、betas 零、默认 K；随机初始化模型：`configs/dt/dt_dz_l3.yaml`（`MNISTModel`）、`configs/dt/dt_dz_l3_rootanc_2k.yaml`（`MNISTModel`）、`configs/mv2/mv2_slr.yaml`（`semkine.slr.SLRModel`）。不读事件、标签与 checkpoint。
+
+##### 统计量与公式
+- `TorchDispatchMode` 计数：total aten 调用、view-only（schema 返回别名且非写）、alloc-only（empty*）、`launches` = total − view − alloc；主机同步 = `_local_scalar_dense` / `is_nonzero` / `equal`；数据相关形状 = `nonzero` / `unique*` / `masked_select` / `argwhere` + 布尔掩膜 `index` / `index_put`。
+- `torch._dynamo.explain` 的 graph_break_count，`torch.compile(fullgraph=True, backend="eager")` 是否成功（仅追踪，不需 C++ 编译器）。
+- 静态源码 grep（`.item()` / `.cpu()` / `.numpy()` / `.tolist()` / `nonzero` / `unique` / `np.`）前向路径函数。
+- 两种形态各测一遍：`default`（评测器调用的 `model(x, prev)`）与 `deployed`（`model/deploy_fast.py::enable_fast_render`：DT2 部署形态，Python-int MANO 链 + 无布尔索引的 `RenderFast`）。
+- CPU 前向 batch 1、`no_grad`，p50 / p99 于 2、8 线程；每个线程数一个固定亲和性的新进程；模型顺序轮转交错；A/A 对照 = 独立构造的 S39 孪生模型。
+
+##### 对照与零模型
+玩具模块（(x·2+1).sum()：3 次发射、0 同步；含 nonzero + 布尔索引 + `.item()` 的模块：已知计数与图断裂）；S39 自身作基线；A/A 延迟对照。
+
+##### 门（作用于 S39+SLR 的 `deployed` 形态；其无法构建时读 `default` 并令 gate_deployable = False）
+gate_deployable；gate_sync（同步 + 数据相关形状 = 0 且 `slr.py` 内无静态 `.item/.cpu/.numpy/.tolist`）；gate_dds（数据相关形状 = 0）；gate_breaks（图断裂 = 0 且 fullgraph 追踪成功）；gate_launches（launches ≤ 3 × max(S39, S39+rootanc 的 launches)）；gate_cpu8（8 线程 p50 相对 S39 增量 ≤ +50 %【提议值，须预注册，非账本阈值】）。`latency_claim_deleted`：任一同步 / 数据相关形状、不可部署，或 8 线程增量 > +100 %。A/A 对照差 > 10 % ⇒ 延迟门 `undetermined`，总判不得为 pass。p99 增量仅描述。
+
+##### 阈值来源
+0 同步 / 0 数据相关形状 / 0 断裂：CUDA graph 可捕获的必要条件；3×：S43 稀疏 304 对稠密 216 kernel（偏离 9）的 1.4× 放宽；+50 % / +100 %：计划提议值与杀伤规则。
+
+##### 工具有效性
+计数器与 dynamo 对照返回已知答案；S39 与 S39+rootanc 能构建并运行；A/A ≤ 10 %。
+
+##### 预计 CPU 时间
+计数 + dynamo ~1 min；延迟 2 个线程配置 × 300 次 × 8 个模型，约 4–8 min（机器负载会拉长，负载写入 receipt 的 `loadavg`）。
+
+##### 与计划 §3 的差异及理由
+1. **未实现**：查询年龄六项解析分解、合成突发队列 p50/p95/p99、41k 事件/包的批量 warp p99、"墙钟 ≈ a·发射数 + b·同步数 + c·MAC" 三参数回归。理由：批量 warp 属 M3（尚无实现）；分解与队列需要部署实测量；回归需账本 ≥ 5 个延迟点（只读账本、不属零数据探针工具，可由主会话另做）。任务书只要求前述计数 / 延迟项。
+2. "M1 各梯阶变体"：目前只有一个 SLR 配置。冻结前若有其他梯阶配置，请加到 `VARIANTS`。
+3. 已知源码事实（不是读数）：`semkine/aura.py::visible` 使用布尔掩膜 `index`（`[ok]`），`ManoLayer` 默认链用张量索引（每次前向 15 次 `.item()`，`deploy_fast` 文档所述）。故 SLR 的 gate_dds / gate_breaks 在没有静态重写前很可能不过——预注册应把它当作"预期会触发杀伤规则"，不当作失败。
+4. CPU 发射计数与 L20 graph 墙钟只是代理；CPU 通过不保证 graph 墙钟通过。
+
+### MV2 · M10 预注册草稿：跨关节体与真实传感器证据包（TTA · SDG · SAD-Ladder · STCA · SDT）
+
+> 草稿由实现代理写成，供主会话合并进 `#mv2-prereg-20261026` 并冻结。本稿之前**没有任何效应读数**。披露：实现阶段运行过各工具的 `--smoke`（合成输入的单测、对已知答案的检查、`decide()` 管线）；`m10_sdg.py` 的 smoke 与吞吐测试读过 EvRealHands 的**一个最小 trial 的 .evc**（仅输出帧数是否匹配 summary、坐标范围、极性取值）以及 trial 0 的 .evc 与训练序列 ycy_global（属 SELECT）的输入统计（仅计时与包数 / 事件数）；这些都没有打印任何分布统计或距离；未读 `*_labels_15fps.npz`，未读该目录的评测 JSON / CSV，未对其做任何模型推理。`m10_tta.py` 开发时我读过 `semkine/slr.py` 的静态扫描站点清单（源码事实）。`m10_sad.py` 在 FIT7 序列 `ch_global` / `lyh_local` / `ch_local`（非 SELECT、非 zgz）上跑过全部条件以估时间与剂量交付，只输出耗时、剂量核验与 bit 级自检，没有打印任何 RA、carry。
+> 解释器 / CPU 规则同 `prereg_m9.md`。
+
+---
+
+#### 0. K / 像素合并 / 时钟清单（先于任何 SDG 读数；也写入 `m10_sdg.py::CHECKLIST` 与 result.json）
+
+| 项 | 训练（v2e，hand_data51） | EvRealHands（DAVIS346，evrealhands12） | 状态 | 后果 |
+|---|---|---|---|---|
+| 传感器阵列 | v2e 作用于 640×480 RGB-D 视频帧（AEDAT4 头：DVXplorer sample，640×480） | DAVIS346 346×260 | 已知 | 源像素间距 / 视场不同 |
+| 并格到 240×180 | x_out = ⌊3 x_src / 8⌋，y 同；每输出像素 2 或 3 个源像素（均 2.667）；整数像素射线约定相对源像素中心均值偏 −0.4375 px（`#mv2-stage0-20261025` A1b） | 346→240、260→180：每输出像素 1 或 2 个源像素（1.442 / 1.444）；**写出 evrealhands12 的转换脚本不在本仓库**，规则（floor / round、相位）未核；数据只证实坐标已在 240×180 内 | 未核验 | 并格统计（多重度、合并像素不应期）按构造不同；并格相位对 local 精度的影响不能排除 |
+| K / 渲染尺度 | RealSense K（603.45, 602.96, 325.09, 242.10）× 0.375（RENDER_SCALE，各向同性） | 数据集标定的 K（未读）；缩放 240/346 = 0.6936（x）、180/260 = 0.6923（y），各向异性 0.2 %；而 `MODEL.RENDER_SCALE` 是单一标量 | 未核验 | 任何 ERH 推理需自带 K 与各向异性渲染尺度；σ\*（0.93–1.01）只在 K×0.375 下测过 |
+| 时间基 | 事件按 1 ms 并入，亚毫秒微秒存于 `<seq>_tsub.npy`；v2e 共同时间层（98–99.9 % 相邻事件同时间戳，层间距 ≈ 0.93 ms） | 仅 1 ms 帧（.evc 帧 = 1 ms），无亚毫秒时间 | 已知 | 亚毫秒成簇在 ERH 不可评；只比较毫秒级成簇（零事件毫秒占比、Fano 因子） |
+| 标签时钟 | 59.67 Hz 源帧插值到 1 ms（PCHIP / RotationSpline） | 15 Hz 标注插值到 1 ms | 已知 | 标签带宽 7.5 对 30 Hz：滞后 / carry 不可比 |
+| 手区域 | v2e 事件限于手包围盒 ×1.5 并做掩膜边界抑制（源 8 px） | 全场景事件（背景、杂物、闪烁） | 已知 | 事件率 / 足迹统计预期因非手原因不同；数据驱动 ROI 变体作描述 |
+| 极性约定 | p ∈ {0, 1}，1 = ON | p ∈ {0, 1}，转换器约定未记载 | 未核验 | 约定翻转会表现为 ON 占比缺口 |
+| 手性 | 仅右手（MANO right） | 40 右 / 40 左 trial | 已知 | 主比较用右手 trial；左手需镜像后才能做任何模型运行 |
+
+---
+
+#### 1. `tools/mv2/m10_tta.py` —— TTA（`P6-E7-R3`）+ SDT（`P4-E1-R3`）
+
+##### 目的
+迁移分档预审：①共享算子、每体重训；②共享编码器 + FK 适配；③冻结权重只换 FK。零训练；TTA 部分不读任何数据；SDT 在正式模式读 FIT7 的 GT **姿态**（不读事件）。
+
+##### 数据
+源码 `semkine/slr.py`（`--files` 可追加其他新算子文件）；合成串联链体；`assets/mano_right.npz`；FIT7 七位受试者 `_local/_global` 基础录制的 `pos51`（每 250 ms 一个姿态，根 + 手指）与 betas。
+
+##### 统计量与公式
+- (a) 静态常量审计（AST）：整数字面量 ∈ {778, 1538, 21, 16, 15, 45, 48, 51, 135}、属性 `.mano`、布局切片界 ∈ {1, 3, 6, 45, 48, 51}，不在**体描述符站点**（`SLRModel.__init__`、`slr_geometry`、`_trunk_with_root_head`：读体的适配器）且不是模块级 `STRIDE / CHANNELS / N_OFF`（骨干与采样常数）者计一个位置。扫描器先在已知计数的片段上自检（期望 7）。保守：同名巧合（如嵌入维度 16）也计，须由重构把联结数与超参分开命名。
+- (b) 合成第二体：串联旋转链（乘积指数 FK + 软 LBS 权重；2 连杆、3 连杆平面、6 自由度 "SO-100-like"，**连杆长度为合成值，真实 URDF / 单位 / 外参未核**）。FK 伴随虚功恒等式 ⟨δξ, Aᵀf⟩ = ⟨Aδξ, f⟩：Aᵀf 用解析力矩公式（τ_k = a_k·Σ_i (r_ik × f_i)），Aδξ 用 `torch.func.jvp`；误差按 |lhs − rhs|/(‖δξ‖‖Aᵀf‖) 归一，20 组随机 ξ, δξ, f；解析 Aᵀf 对 autograd VJP 的相对误差。G-buffer 形状：`aura.visible`、`project`、`xyz_mesh.vertex_normals`、`mesh_ring`。再体探针：以链的蒙皮矩阵实例化 `SurfaceLiftedReadout`，K ≠ 16 应失败（硬编码 16 关节 / 51 维布局），16 连杆链应成功（排除探针自身错误）。
+- (c) 资产清单：内嵌表（`ASSETS`），字段取账本 `#m10-real-data-20261025` 能支持的状态；"可放行档②的第二体" = 角色为 `second_body` 且 full_chain_visible、units_verified、extrinsics_verified、clock_verified **四项均为 True**。未核者为 None。不下载。
+- (d) SDT 蒙皮度梯阶：A = LBS + posedirs，B = 去 posedirs，C = 权重硬化（argmax one-hot），D = 两者皆去；B/C/D 相对 A 的顶点位移（均值 / p95 / 最大，mm），姿态 = FIT7 GT。
+
+##### 对照与零模型
+错误伴随（丢弃后代项）必须被判（误差 > 1e-3）；fp64 恒等式须精确（≤ 1e-12）；扫描器自检；再体探针的 16 连杆对照。
+
+##### 门
+- 档①放行：静态站点数 = 0。
+- 第二体单元检查：每个合成体 fp32 恒等式误差 ≤ 1e-5、解析 Aᵀf 对 VJP ≤ 1e-5、G-buffer 形状正确。
+- 档②放行：档① 且 单元检查 且 合格第二体 ≥ 1。
+- 档③：不设放行（算子含体依赖层；`layout_is_hard_wired` 描述该事实）。
+- SDT：p95(C − A) ≤ 5 mm ⇒ `rigid_second_body_same_class_allowed`；> 14 mm ⇒ `rigid_second_body_killed`；其余描述。
+- 杀：档① 不成立 ⇒ M10 只剩真实传感器同体；无合格第二体 ⇒ 跨关节体主张删除，M10 降为单体真实传感器（EvRealHands）。
+
+##### 阈值来源
+1e-5：计划 §3 M10 与 `tests/test_slr.py` 计划中的恒等式同源（fp32 容差）；1e-12（fp64）与 1e-3（负对照）：实现代理设的有效性容差；SDT 5 / 14 mm：AURA B / KS4 捕获范围 14 mm 的 1/3 与 1（`P4-E1-R3`，非文献）。
+
+##### 工具有效性
+扫描器自检 = 7；错误伴随被判；fp64 精确。任一不成立 ⇒ `tool_defect`。
+
+##### 预计 CPU 时间
+< 1 min（SDT 约 3 k 姿态 × 4 档 MANO 前向）。
+
+##### 与计划 §3 的差异及理由
+1. 计划写"MANO 常量访问位置 = 0（经体描述符之外）"，当前没有"体描述符"类，故以**声明的适配器站点**代替（`DESCRIPTOR_SITES`，冻结时即固定）；一旦 M1 作者引入描述符，请更新该集合并重冻。
+2. 布局切片与整数字面量的规则保守，会把同名巧合算作位置；这是故意的（同一常量必须被命名）。
+3. 资产表只含账本已核事实；E-VLA 的各项为 None（未核）。主会话 / 用户核实后改表须重冻。
+4. SDT 在计划里属 `P4-E1-R3`（M10 槽的一个提案），这里并入 TTA 工具以便一次冻结。SDT 读 FIT7 GT 姿态（非事件、非 zgz）。
+5. SO-100 的 "5 + 夹爪" 以 6 轴合成链表示，只验证运动学结构。
+
+---
+
+#### 2. `tools/mv2/m10_sdg.py` —— SDG（`P6-E1-R4`）
+
+##### 目的
+EvRealHands 的输入统计与 v2e 训练分布的跨域距离是否落在训练 9 人两两距离的上界内；超出则对应真实传感器主张预先封锁。只算输入统计。
+
+##### 数据
+- 训练：9 位受试者（FIT7 + SELECT）的 `_local/_global` 基础录制，评测器网格（有效段内 a + 49 + 50k）的 50 ms 包。
+- EvRealHands：`/data1/lyq/code/mesh/EventHands/data/evrealhands12/{0..83}.evc` 与 `summary.json`（仅 trial 元数据：受试者、手性、场景、帧数、标注起止时间）。网格取标注区间内 50 ms 包。主比较 = 右手 40 trial 池化。**不读** `*_labels_15fps.npz`、`*.meta`、评测 JSON / CSV；不做任何模型推理。
+
+##### 统计量与公式
+每包：`log_rate = log10(1 + n)`（所有包）；活跃包（n ≥ 50，ramp1000 门首节点）上：`zero_ms_frac`（50 个毫秒中无事件者占比）、`fano`（逐毫秒计数方差/均值）、`on_frac`（极性 1 占比）、`log_slots`（占据的 (像素, 极性) 槽数 log10）、`mult`（事件数/槽数，LNES 覆盖因子）、`bbox_px`（事件中心 98 % 范围 √(宽×高)）。受试者间距离 = 各统计量包分布的一维 Wasserstein-1（该统计量自身单位）。U_q = 训练 36 对的最大值；D_q = 训练各受试者到"池化右手 ERH 分布"距离的最大值（落在训练云直径之内的"点到每个成员"读法）。核心统计量 = {log_rate, zero_ms_frac, fano}。数据驱动 ROI 变体（每录制事件中心 99 % 范围 ×1.5，对两域对称施加）作描述。
+
+##### 对照与零模型
+同一受试者交替 20 包块的两半距离（必须 ≤ U_q）；对一位训练受试者的事件数 ×10 的合成平移（必须超出 U_log_rate）。
+
+##### 门
+D_q > U_q 即该统计量"超出"。核心统计量任一超出 ⇒ `real_sensor_claims_blocked`；仅非核心超出 ⇒ `partially_comparable`，封锁对应主张（on_frac → 带符号 / 极性通道 M3/M4/M8；log_slots/mult → LNES 占据相关；bbox_px → 尺度 / 深度相关）；无超出 ⇒ `comparable`。"亚毫秒成簇 / K / 并格规则 / 极性约定"列为 `not_assessable`（见 §0 清单），不当作通过。
+
+##### 阈值来源
+训练 9 人两两距离的经验上界（内部零分布）。无外部阈值。
+
+##### 工具有效性
+每个 ERH trial 的 .evc 帧数 == summary 的 `duration_ms_frames`；坐标在 240×180 内；极性 ⊂ {0, 1}；≥ 9 位训练受试者、≥ 20 个右手 trial；分半对照 ≤ U_q；×10 对照被检出。否则 `tool_defect`。
+
+##### 预计 CPU 时间
+单进程每序列 1–2 s；全部约 1–3 min（`--workers 16`），两个 ROI 变体。
+
+##### 与计划 §3 的差异及理由
+1. 计划写"用 FK 投影的手部区域限定统计区域"。ERH 的标签不可读，无法投影，故主读数取全帧，数据驱动 ROI 作描述；全帧下事件率超出很可能是非手原因（背景），由此预期核心统计量被判超出——这是诚实的门，不是工具缺陷。
+2. D_q 取"最大距离到训练成员"（比"最近成员"严格，比"池化对池化"保守）；计划只写"≤ 训练两两距离最大值"，未规定跨域距离的聚合方式。
+3. 右手 trial 作主集合（模型是 MANO right），全部 trial 不单独门控。
+4. 本工具读了被限定为"只作测试"的数据的输入事件（披露于上）。
+
+---
+
+#### 3. `tools/mv2/m10_sad.py` —— SAD-Ladder + STCA（`P1-E4-R2`、`P1-E5-R1`）
+
+##### 目的
+冻结 S39 对模拟器伪影（共同时间层、并格相位、掩膜边界清洗、无噪声）与传感器契约（ON/OFF 阈值不对称、合并像素不应期）的依赖；给 M10 传感器轴分档、排致命伪影，并判是否须鲁棒训练。
+
+##### 数据
+FIT7 + SELECT 共 9 位受试者的 `_local/_global` 基础录制；`SeqSamples(every=8)`（≈ 2.7 k 个 E3 样本）；冻结 S39 三种子；亚毫秒时间取 `<seq>_tsub.npy`。不读 zgz，不训练。
+
+##### 统计量与公式
+- 扰动（单因素，作用于每个样本 W200 窗内原始事件，之后用评测器自己的 splat；随机性 = 事件全局下标 / 绝对毫秒的 splitmix64 哈希，故同一事件在所有包含它的窗里被同样扰动）：
+  - 时间层：`retime_cluster_J{1,2,4}`（整毫秒簇共同随机平移 ±J ms，保簇）、`retime_indep_J{1,2,4}`（逐事件独立 ±J ms，破簇）。
+  - 并格相位：`binphase_{x,y}_q{0.375, 0.75}`（比例 q 的事件移动一个输出像素；源坐标已丢，仅作上界；0.375 = 一个源像素的 3/8 并格）。
+  - 掩膜边界：`border_noise_b{0.1, 0.3}`（FK(GT(end)) 剪影 ±3 px 带内加 b × 窗内事件数的均匀噪声事件；是压力测试，不是"还原被抑制的边界事件"）。
+  - 背景活动：`background_r{0.05, 0.2, 1.0}`（Hz/像素，均匀泊松；DAVIS346 背景活动约 0.1–1 Hz）。
+  - STCA 删事件：`on_keep{0.8, 0.6}`、`off_keep{0.8, 0.6}`（某一极性保留概率 ρ）；`refractory_tau{0.5, 1, 2, 5}`（合并输出像素按时间序丢弃距上一**保留**事件 < τ ms 者，贪心精确，微秒时间；窗首状态重置）。
+  - 对照：每个删事件扰动配"等期望事件数随机稀疏"（保留概率 = 该窗内扰动的保留比例，哈希伯努利）；阳性对照 `ctl_thin_keep_0.1`（只留 10 % 事件，必须明显变差）。
+  - 剂量是预注册先验（文献量级），不是拟合。
+- 读数（E3：裸网络，prev = GT(end − 50)）：根对齐 MPJPE（mm）；carry = ⟨Δout, Δprev⟩/‖Δprev‖² 于 `carry_probe.py` 的三种前态扰动（根 8°、手指 σ = 0.10、平移 15 mm，同顺序抽样）。ΔRA = 9 位受试者的均值（扰动 − 未扰动）；Δcarry 同。可选 `--e1`：SELECT 上完整 S39 栈（W200 + Count50 在扰动后事件上重算 + ramp1000）的闭环 RA 增量，仅对 `on_keep0.6, off_keep0.6, refractory_tau5.0` 及其对照，描述、不入门。
+- STCA 差分：RA(T) − RA(等量稀疏)，逐种子、逐域，以受试者为块的 bootstrap（2000 次，种子 20261026）CI。
+
+##### 对照与零模型
+等期望事件数随机稀疏；未扰动路径（须逐位等于 `build_lnes`）；阳性对照。
+
+##### 门
+- SAD（每扰动、每域、三种子）：`dependent` = 三种子均值 ΔRA ≥ 0.38 mm 且三种子均 > 0；`insensitive` = 全部 |ΔRA| < 0.27 mm 且全部 |Δcarry| < 0.05；其余 `intermediate`。
+- STCA（删事件类）：`insensitive` = 每个种子 CI 含 0 且 |ΔRA| ≤ 0.38（local）/ 0.26（global）mm；`sensitive` = 三种子差分均 > 1.5 × MDE（local 1.72 / global 1.19 mm）；其余 `intermediate`。
+- 总判优先序：`robust_training_needed`（任一 STCA 项 sensitive：真实传感器测试前须对该参数做鲁棒训练或标定，且 M3 / M4 / M8 的带符号 / 计数通道不得向真实传感器声明）> `artifact_dependent` > `insensitive_all` > `intermediate`。
+
+##### 阈值来源
+0.38 / 0.27：账本种子 SD 上沿与五种子 RA SD（`#dt3-verdict`、KS0）；0.05：DT2 G6 amp / carry 口径；MDE 1.149 / 0.793 与 1.5×：KS0 规划近似与附录 L.D.2 确证规则；剂量：文献量级先验。
+
+##### 工具有效性（否则 `tool_defect`）
+未扰动路径逐位等于 `build_lnes`；扰动确定性；剂量交付（极性删除比例 ±0.01、并格移动比例 ±0.01、等量稀疏 ±1 %、retime 位移 ≤ J、不应期输出 ≤ 输入）；阳性对照在两域、三种子上使 RA 升高 ≥ 0.38 mm。
+
+##### 预计 CPU 时间
+单序列单种子约 3–5 min（4 线程）；54 个任务，`--workers 24 --threads 4` 约 15–25 min；`--e1` 另约 5 min。
+
+##### 与计划 §3 的差异及理由
+1. 计划对 SAD 写"共同时间层 / 并格量化 / 掩膜边界清洗 / 无噪声 / 固定坏点场"，任务书列的是时间层抖动、并格相位、掩膜边界噪声、背景活动、ON/OFF 删除、合并像素不应期，**固定坏点场未实现**（域随机化已有 hot pixel 增广，且坏点场是加事件的背景活动的特例）。
+2. 并格相位只能是上界（源坐标已丢）；不应期只能施加在合并像素上，与物理不应期不同；只能删事件不能加，因此 STCA 是真实效应的下界（假阴性风险，靠等量稀疏对照解读）。
+3. 不应期在窗首重置（窗外前一保留事件未知）；只影响每像素首个 ≤ τ 内的事件。E3 每样本独立窗，不受影响；E1 重叠窗仅在链起点处略有不一致。
+4. E1 仅为 SELECT 上三条最强删事件的描述读数（计划写 "E3 / E1"，全量 E1 成本高）；1.5 × MDE 的判定以 E3 差分为准。
+5. 阳性对照 `ctl_thin_keep_0.1` 是我设的有效性条件（"删 90 % 事件必须使 RA 升高 ≥ 0.38 mm"）；若 S39 对此也不敏感，则整个"不敏感"结论无意义，工具判 tool_defect 由主会话解读。
+6. 3 种子是统计单位；每受试者每域只有一条序列，受试者块 bootstrap 的 n = 9。
+
+### §3 GPU 阶梯
+
+- **只开过了自己探针的机制臂**：M1（放行条件见 M1 节）；M2 只作为 M1 子类内的因子臂；M3（PB 过且 M1 过）、M4（PC 过）、M5（PD 过）作为 M1 上的单变量条件臂；M6、M7、M8（除非 SRCA 放行训练内自监督）、M9、M10 无 GPU 训练臂。各臂独立过自己的门，互不绑死；条件臂的具体配置在其门通过后、开训前以协议修订登记（不改门）。
+- **S3 debug**：单 seed 3407，`MAX_STEPS 6000` 跑到 2000 即停（与 S39 同一 cosine 学习率进度）；停止条件（只停不放行，`tools/mv2/s3_check.py`）：SELECT 上 E3 RA ≤ S39@2000 + 0.3 mm、carry（根 8° / 手指 N(0, 0.10)）≤ S39@2000 + 0.05、输出有限。
+- **S4**：同一运行续到 6000 步，与 S39 seed 3407 配对；zgz 一次性报告：`tools/mv2/slr_entry.py evalx row … --variant w200cfg` 生成主行，`tools/report_table.py` 出九列表（含 baseline 与 S39 行）；方向支持 = local ≤ −0.3 mm 且 global ≤ +0.2 mm（S42 单种子 6k 门，`#s42-verdict`，描述性）；效应 ≥ 1.5 × MDE_local（1.72 mm）才补 seed 3408 / 3409 并按种子单位确证。另报 E1 / E2 / E3、根旋转 / 平移 / 手指、绝对腕点、段龄、carry、amp（非主表）。
+- **资源**：物理 GPU 2–7，单卡单运行（S39 配方：单卡、批 512 × 累积 2，约 75 min / 6000 步）；评估与训练不挤同一卡。
+
+### §4 阈值来源
+
+各方案节内逐项写明；跨方案通用的：KS0 种子 SD 与 MDE（`#kstar-results-20261025`）；S42 单种子 6k 门（`#s42-verdict`）；Holm α = 0.05；本预注册新设的约定值（PA1 零模型容差 −0.05 mm、PA2 天花板 0.90、M9 CPU 增量 +50 % 等）在各节标为"约定 / 提议"。没有一个门取自 zgz 读数。
+
+### §5 停止规则
+
+- 失败分两类：工具缺陷（有效性条件或对照不过 → 该门降为描述；允许一次重设计，须新预注册并保留本次失败）；结果失败（对照全过而主门不过 → 按各节默认动作终止）。不得二读 zgz、不得加长、换 seed 或改门。
+- 任何续做需用户另行决定，并作为新研究重新预注册。
+
+### §6 冻结
+
+`tools/mv2/freeze.py` 写 `outputs/mv2/protocol.json`：本节（`#mv2-prereg-20261026` 至 `MV2-PREREG:END`）文本的 SHA-256；`tools/mv2/*.py`、`configs/mv2/*.yaml`、`tools/sba/*.py`、`semkine/slr.py`、`tests/test_slr.py` 与所 import 冻结模块的 SHA；S39 三种子 step 6000 与 step 2000 检查点的 SHA；划分文件 SHA；git HEAD 与 `git status` 摘要（工作树未提交）；FIT7 + SELECT 基础录制数据文件的 (size, mtime_ns)。修订只进 `amendments`。
+
+<!-- MV2-PREREG:END -->
+
+<a id="mv2-run-20261026"></a>
+
+### 执行记录（2026-10-26，写在预注册之外；不改预注册文本与其 SHA）
+
+- **冻结**：`outputs/mv2/protocol.json`（预注册文本 SHA-256 前缀 `6cd41777`），`verify_protocol()` 通过。
+- **CPU 探针串联**：`outputs/mv2/run_probes.sh`（02:52 启动，`setsid` 脱离会话，只按 PID 等待，`CUDA_VISIBLE_DEVICES=""`，日志 `outputs/mv2/logs/`）。顺序：M9 成本账单独 → PA1 + PA2（3 种子 × 16 线程）与 M9 PSQ、M10 TTA → M1 判定（`decide.py`）→ RGQ、MSCN、PA3、M6、M9 年龄 → M4、M10 SDG / SAD → M5 → M3（FBW、SMG、EXPO）与 M8（SRCA、TBC、PF）逐个 → 终判 `outputs/mv2/decisions.json`。
+- **M1 GPU 链**：`outputs/mv2/run_gpu_m1.sh`，只在 `gpu_release.M1_slr_debug = true` 时由探针串联自动启动。物理 GPU 2 训练 `mv2_slr_s3407`（S39 配方，`MAX_STEPS 6000`）；step-2000 检查点出现后物理 GPU 3 跑 S3 停止规则（`tools/mv2/s3_check.py`，只读 SELECT）。工程说明：同一运行不中断，S3 判 STOP 即杀进程，判 CONTINUE 则同一运行续到 6000 步（S4）；停止规则只停不放行，与预注册一致。
+- **S4 评测命令**（与 S39 及 S42 相同的 S39 栈，`tools/trk6/screen_eval.sh` 口径）：`filter_eval --ckpt last --split val_core --window-ms 200 --clip-run-start --count-mode last50 --filter-spec outputs/dt3/gate_specs/ramp1000.json --raw --tf`，经 `tools/mv2/slr_entry.py` 替换类后调用；主行 `evalx row --variant w200cfg` 写 `outputs/semkine/mv2_slr_s3407_w200cfg_main_row.json`。另在同一卡上生成 S39 seed 3407 的配对参照行 `mv2_s39ref_s3407_w200cfg`（时延同卡可比；描述）。九列表写 `outputs/mv2/gpu_m1/table.md`。
+- **工程冒烟（非读数）**：在 60 步预检权重上验证了替换类加载、时延（`lyq_local` 训练序列）与 thop MACs 三条主行路径可运行；未读 zgz。
+
+- **协议修订 1（02:59，预注册 §5 工具缺陷，写于任何 PA1 / PA2 读数之前，`tools/mv2/amend.py`，`outputs/mv2/protocol.json` `amendments`；原 `decide.py` 存 `outputs/mv2/amendments/decide.py.amend0_original`）**：M9 成本账（`outputs/mv2/m9_cost/result.json`，保留）判 `fail:gate_breaks,gate_cpu8`。`gate_breaks` 要求整模型 dynamo 图断裂 = 0 且 fullgraph 成功，但冻结的 S39 前向自身就有 6 处（部署形态）/ 8 处（默认形态）断裂，任何 S39 派生臂都不可能过；S39 + SLR 的断裂原因（`model/pose_repr.py` 的 `Slices` 构造、渲染缓存 `data_ptr`、`_Context.betas_key` 比较、默认形态的 `nonzero`）都在 S39 或 S39 + rootanc 中出现。按 §5 该门降为描述；M1 GPU 放行保留 0 主机同步与 0 数据相关形状算子（两者均过）及 PA1 / PA2。`gate_cpu8` 不过（8 线程 p50 增量 +0.81 ms，超过提议的 +50 %）→ 按 M9 节，M1 不作时延主张，主表 Latency 列只作测量。
+
+<a id="mv2-results-20261026"></a>
+
+### Stage 2 探针结果（2026-10-26，随到随记；判定以 `outputs/mv2/decisions.json` 为准）
+
+- **M9 成本账 SORL / LBA**（`outputs/mv2/m9_cost/`）：`fail:gate_breaks,gate_cpu8`。0 主机同步、0 数据相关形状算子、发射数比 2.07（≤ 3）、部署形态可构建均过；图断裂门按协议修订 1 降为描述；8 线程 p50 增量 +0.81 ms 不过 → M1 无时延主张。
+- **M1 PA1（门，通过）**（`outputs/mv2/pa1/`，SELECT 635 个端点 × 3 种子，FIT7 拟合）：主对比 lift_lbs − tile：local −0.76 mm（95 % CI [−1.10, −0.40]，三种子 −1.38 / −0.39 / −0.52），global −0.57 mm（[−1.16, −0.02]，−1.45 / −0.13 / −0.14），Holm p 0.000 / 0.011；df 配平版 local −0.58、global −0.37。工具有效（零模型不优于 GAP：tshuffle − gap +0.33、noise − gap +0.38）；mesh 特异（lift_lbs − 顶点置乱 −1.47、− 平移 10 mm −0.20）。描述：相对 GAP，lift_lbs −2.43、tile −1.76、rootanc21 −2.02（local −2.87，与 lift_lbs 的 −2.86 相同）；平移 10 mm 的采样仍比 GAP 好 2.22 mm——收益大部分来自"在手附近采样"，mesh 精确配准只再给 0.2 mm。注意 DT2 的 `rootanc` 端到端训练是 +0.19 / +0.11（`#dt2-verdict`），线性探针增益不保证训练增益。
+- **M1 PA2（门，通过）**（`outputs/mv2/pa2/`）：t14 的 b_off：GAP 0.07、tile 0.32、lift_lbs 0.68（三种子 0.89 / 0.59 / 0.57）；diff 0.36，CI [0.35, 0.38]，未触天花板。描述性注记：S39 自身输出的 1 − carry 为 0.84，远高于 GAP 线性读出的 0.07，所以这个读出族（FIT7 岭回归、按 RA 选 λ）明显低估了 GAP 特征里已有的位置信息；PA2 的差值只说明"线性读出可取的位置信息"，不是绝对信息量。
+- **M1 放行**：PA1 pass、PA2 pass、工具有效、mesh 特异、M9 同步 / 形状门过 → `gpu_release.M1_slr_debug = true`（02:59:40），GPU 链自动启动。
+- **M9 PSQ（工具缺陷 → 描述）**（`outputs/mv2/m9_psq/`）：层一对照 C3（"前瞻计数必须被检出"）要求 48 个未来变体全部改变 [end − 39, end + 10] 的计数，部分变体恰好保持计数，对照过严，按 §5 降为描述。描述：S39 写端各步（W200 裁段首 + ms 重基准、Count50、DT2 ramp1000、随机初始化 S39 闭环）全部前缀稳定，环形缓冲修复与批处理逐位相同；层二包边界相位平移 1 / 10 / 25 / 50 ms 的 |ΔRA| 最大 0.045 mm（三种子 × 两域），在 0.03–0.15 的描述带内，没有节拍相关。
+- **M10 TTA**（`outputs/mv2/m10_tta/`）：三档迁移全部关闭——体描述符之外有 9 处 MANO 常量（档①不成立）、无全链可见且单位 / 外参 / 时钟可核的第二体（跨体主张删除）；M10 只剩 EvRealHands 单体真实传感器测试。
+- **M2 PA-RGQ（门，weak）**（`outputs/mv2/rgq/`）：σ = 0.94 时 SELECT 上非 t_z 通道（根对齐关节）相对 σ = 1 的平均位移，三种子 1.07 / 0.98 / 1.03 mm，介于种子 SD 0.379 与 MDE 1.149 之间 → weak，只许单 seed 描述性 GPU 臂。描述：t_z 响应比约 0.39–0.44（S39 只补回所需沿射线修正的约四成）。
+- **M2 PA5-MSCN（门，kill）**（`outputs/mv2/mscn/`）：度量半径窗的漂移反而大于固定窗，R = D(metric) / D(fixedwin) 在 FIT7 s = 0.94 时 1.13（CI [1.11, 1.15]）、1.06 时 1.08；探针敏感（D(fixedwin) ≥ 1.5）→ R ≥ 0.95，MSCN 杀。M1 主臂的度量半径保留为设计选择，不作"尺度协变"主张。
+- **M1 PA3（描述）**（`outputs/mv2/pa3/`）：子树"被运动照亮的轮廓"代理对"S39 单步改善"的 AUC 0.65–0.68，事件计数 0.64–0.65，只略好。
+- **M6 KSCS·GSCD**（`outputs/mv2/m6/`，`kill|pass|pass`）：谱比对杀（FK 雅可比预测的 hop 谱不优于图拉普拉斯零模型）；子空间份额过（KS2 残差投到 span(J) 的方差占比 0.93，CI [0.92, 0.93]，平滑基 0.85）；并格共享过（同 hop 内按采样窗重叠分层的相关差 D = 0.15，CI [0.14, 0.16]，顶点置乱对照 ≈ 0）。按 §3，M6 无 GPU 臂；工具给出的"按网格单元去重汇聚作 M1 单变量臂"需另行登记，本轮不做。
+- **M9 CAF / PAS**（`outputs/mv2/m9_age/`）：前态年龄 50 ms 相对 0 ms 的 E3 增量三种子 local −0.12 / −0.11 / −0.11、global −0.23 / −0.10 / −0.05 mm，低于 1 × 种子 SD → 年龄轴死；M9 永久降为纯系统合同，不主张"两速率改善精度"；CAF 判读未定。
+- **协议修订 2（03:24，条件臂登记，§3 允许；不改门）**：M2 RGQ 因子臂放行（RGQ weak + M1 放行）。新文件 `semkine/rgq.py`（`RGQModel(SLRModel)`，opt-in `MODEL.RGQ*`）、`tests/test_rgq.py`（7 项通过）、`configs/mv2/mv2_slr_rgq.yaml`、预检配置与包装入口 `tools/mv2/rgq_entry.py`，SHA 登记于 `amendments`。臂 = M1 SLR 配置 + (1) t_z 只由零初值、学习率 × 0.1 的 GAP 线性头输出（主干 + SLR 的 t_z 列替换，前态 MLP 的 t_z 列以前向钩子置零）+ (2) 只在训练时把前态沿腕射线刚性移到 w / σ，σ ~ U[0.93, 1.01]（Stage 0 录制级范围），标签不变，σ 用独立生成器，数据流与 M1 相同。单 seed 3407 描述；物理 GPU 4 训练、GPU 5 跑 S3（同一停止规则对 S39@2000）；只在 M1 的 S3 判 CONTINUE 后启动（`outputs/mv2/run_gpu_rgq.sh`）。60 步工程预检（GPU 4）只验收可训练与显存 10 GB。
+- **M1 S3（停止规则，CONTINUE）**（`outputs/mv2/gpu_m1/s3/s3_check.json`，03:26，物理 GPU 3，只读 SELECT）：`mv2_slr_s3407` step 2000 的 E3 RA 6.16 mm 对 S39@2000 的 7.12 mm；carry 根 0.198 对 0.165、手指 0.178 对 0.153（均 ≤ S39 + 0.05）；输出有限 → 同一运行续到 6000 步（S4）。RGQ 因子臂 03:27 在物理 GPU 4 开训。
+- **M4 CNM（门，kill）**（`outputs/mv2/m4_contour/`）：真实事件、GT 前态下 ±16 px 法向假设体没有可分辨的模峰（E4 `kill_nosignal`：剪影 / 内边的包内抖动、R²、峰比三项全不过）→ M4 不进入 M1 通道。描述：三明治偏移 E5 无类别入选；一维 PDA（E1）在前态平移 14 mm 处 μ 斜率比最近轮廓点基线高 0.51（CI [0.48, 0.54]），但去偏不稳定、NIS 不过；E8 腕部 σ̂ 0.78–0.92、没有落在 0.93–1.01 内（描述）。
+- **M10 SDG（门）**（`outputs/mv2/m10_sdg/`）：`real_sensor_claims_blocked`——EvRealHands 的事件率、Fano、每像素多重计数、ON 比例、手框尺寸都超出训练 9 人两两距离的最大值（D / U 1.44–2.14），零样本真实传感器主张与带符号 / 计数通道（M3 / M4 / M8）对真实传感器的声明预先封锁。
+- **协议修订 3（03:52，工程键路径，不改门）**：`decide.py` 把整个 `m10_sdg/result.json` 交给 `m10_sdg.decide()`，而该函数读的是单个 ROI 块（工具自己按登记的主块 `full` 判过并存为 `decision`），导致 KeyError；改为把 `result[result["primary"]]` 交给同一函数。在第四组汇总运行之前发现并修订（`outputs/mv2/amendments/decide.py.amend1` 为修订前版本）。
+- **M2 RGQ 因子臂 S3（停止规则，STOP → 终止）**（`outputs/mv2/gpu_rgq/s3/s3_check.json`，03:51，物理 GPU 5，只读 SELECT）：`mv2_slr_rgq_s3407` step 2000 的 E3 RA 5.86 mm（S39@2000 7.12）、手指 carry 0.185，但根 carry 0.232 > S39@2000 0.165 + 0.05 = 0.215 → 训练被杀，RGQ 臂按预注册终止，不报 zgz。这是 M2 节预先写明的风险（σ 扰动训练教会网络少用前态，削弱 carry）。E3 读数只作描述，停止规则只停不放行。运行目录 `outputs/semkine/mv2_slr_rgq_s3407/`（至 step 2000 的检查点）保留。
+- **M10 SAD 阶梯（工具缺陷 → 描述）**（`outputs/mv2/m10_sad/`）：正对照"只保留 10 % 事件"没有让 E3 RA 升高 ≥ 0.38 mm，反而降低（三种子 local −0.56 / −0.27 / −0.43、global −0.46 / −0.19 / −0.35 mm）；背景噪声注入同样降低 E3 RA（r = 0.05 时约 −0.22 mm）。在 E3（前态 = GT(end − 50)）下 S39 的单步更新平均在恒等上加误差（与 AGG778 R1 的 A0 E3 5.27 对恒等 4.41 同向），证据越少越接近前态，所以 E3 不是检验模拟器伪影依赖的有效体制。按 §5 降为描述；SAD 的"依赖 / 不敏感"分类本轮不作结论。E1（SELECT 闭环）读数保留在结果文件中，只作描述。
+
+<a id="mv2-m1-s4-20261026"></a>
+
+### M1 S4：SLR seed 3407 6000 步，与 S39 seed 3407 配对（2026-10-26 04:20，zgz 一次性报告）
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| M1 SLR：S39 + 表面提升读出（seed 3407，6000 步） | 10.32 | 7.78 | 9.11 | 6.78 | 8.96 | 10.67 ms | 1.296 G | 2.89 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S39 seed 3407（配对参照，同卡测时延） | 10.68 | 7.38 | 9.38 | 6.38 | 8.91 | 4.33 ms | 1.252 G | 2.80 M |
+
+- **判读（S42 单种子 6k 门，描述性）**：local −0.36 mm（≤ −0.3，过），global +0.40 mm（> +0.2，不过）→ **不构成方向支持**。local 效应 0.36 mm < 1.5 × MDE_local = 1.72 mm → 不补 seed 3408 / 3409（`outputs/mv2/gpu_m1/NO_EXTRA_SEEDS`）。按 §5 结果失败默认终止：不加长、不换 seed、不二读 zgz。**S39 不变。**
+- 非主表描述（SLR − S39，seed 3407）：local 绝对 MPJPE −1.94 mm、平移 −1.50 mm；global 绝对 +1.05 mm、平移 +0.53 mm；根旋转两域都 +0.24°。时延 10.67 ms 对同卡 S39 4.33 ms（M1 已按修订 1 不作时延主张）；MAC 1.296 G 对 1.252 G；参数 2.89 M 对 2.80 M。
+- 与探针的对照：PA1 的线性读出在 SELECT 上给出 lift_lbs − tile −0.66 mm、对 GAP −2.43 mm，S3 的 E3 也好 0.97 mm，但端到端闭环 zgz 只剩 local −0.36、global 反向。与 DT2 `rootanc`（探针好、训练 +0.19 / +0.11）同一模式：冻结特征上的锚定读出增益不转移到闭环训练。
+- 产物：运行 `outputs/semkine/mv2_slr_s3407/`，S39 栈评测 `outputs/mv2/s4_eval/mv2_slr_s3407/`，主行 `outputs/semkine/mv2_slr_s3407_w200cfg_main_row.json`，配对参照行 `outputs/semkine/mv2_s39ref_s3407_w200cfg_main_row.json`。
+- **M5 PRA**（`outputs/mv2/m5_{ib,schur,fipa,rca}/`，`m5_palm.decide`）：
+  - IB（注入回收，杀）：5° 段级根偏置在 1 s 因果事件窗内的回收比中位 −2.84（掌部刚体对齐把根推远），p90 到达时间超过 1 s，与时间置乱零模型差的 CI 含 0 → 段级根偏置只能作离线逐段校准。
+  - FIPA（固定迭代静态对齐，杀）：K = 8 次展开在 256 / 512 / 1024 容量下残差都高于 S39 TF 根误差 2.28°（0 个数据相关形状算子）→ 掌部预对齐没有可部署的固定预算形态。
+  - Schur（描述）：1 s 窗内偏置后验 SD ≤ 2° 的窗占比 0.45（门 0.50），无先验时全部秩亏；MAP 残差中位 16.4°、不优于置乱 → 慢状态不作主张。
+  - RCA（根块闭环收缩审计，**过**）：RA 曝光间隙的根占比 0.84（CI [0.68, 0.90]）、λ_root 0.937（95 % 上界 0.973 < 1）、1 s 偏差占比 0.91（零模型 0.13）→ 放行"根块限定自身前态训练"单 seed 调试臂。
+- **协议修订 4（05:38，条件臂登记，§3 允许；不改门）**：M5 臂 = M1 SLR 配置 + S42-B 的部署环路片段与自滚动键（照抄 `configs/trk6/dzl3w192self_6k.yaml`：CLIP_K 6、CLIP_WINDOW 200、CLIP_FRAC 0.3、SELF_P 1.0、SELF_RAMP [1500, 3600]、ramp1000 滤波）+ `MODEL.ROOTSELF`（`semkine/mv2_rootself.py`，`RootSelfModel(SLRModel)`）：S42-B 的行抽取、滚动与 LNES / 标签替换不变，被选行的前态 = [GT(end − 50) 平移 + 配方噪声，部署环路自身的根旋转，GT(end − 50) 手指 + 配方噪声]（噪声为 `TRACK.PREV_NOISE_*` 混合模型，独立生成器）。§3"各臂独立过门、互不绑死"，M1 的 S4 方向未过不阻止本臂；单 seed 3407 调试臂，只作描述。`tests/test_mv2_rootself.py` 5 项通过；60 步预检（GPU 6）可训练、显存 10.3 GB、满强度自滚动约 1.8 s / batch。05:39 由 `outputs/mv2/run_gpu_arm.sh` 在物理 GPU 6 开训，GPU 7 跑 S3。
+- **M5 臂工程重启（05:45，不涉及读数）**：05:39 的首次启动用配置里的 14 个数据加载 worker，片段生成（每个被选样本多造 6 个 W200 窗）使 14 个 worker 各占满一核、GPU 大部分空闲，约 1.65 s / batch。数据集按 (seed, 样本索引) 播种、批次顺序由主进程采样器决定，worker 数不改变数据流，所以在约 80 步（无检查点、无任何评估）时停掉，原目录归档于 `outputs/mv2/aborted/`，以 `--num-workers 40` 从头重启同一配置（`NW=40 outputs/mv2/run_gpu_arm.sh …`），约 0.8 s / batch。
+- **M3 FBW（门，描述 → M3 通道臂不放行）**（`outputs/mv2/fbw/`）：五个手指子树在两域的可积累窗长 T\*_s 都 ≥ 200 ms，有效性两项（优于时间置乱、GT warp 优于不 warp）都过；local 判 pass（对比度偏好率 0.56，为 SBA 偏好率 0.68 的 0.83 倍），global 偏好率 0.58 只有 SBA 0.77 的 0.76 倍（< 0.8）→ 总判 descriptive，`gpu_release.M3_mpes_channel = false`。
+- **M5 根块自身前态臂 S3（停止规则，STOP → 终止）**（`outputs/mv2/gpu_mv2_slr_rootself_s3407/s3/s3_check.json`，06:41，物理 GPU 7，只读 SELECT）：step 2000（自身前态比例已按 ramp 升到约 0.24）的 E3 RA 8.03 mm > S39@2000 7.12 + 0.3 → 训练被杀，M5 臂按预注册终止，不报 zgz。描述：根 carry 0.161（S39 0.165）、手指 0.163（0.153）；同一步的 M1 SLR 为 E3 6.16。运行目录（至 step 2000 的检查点）保留。
+- **M3 SMG（工具缺陷 → 描述）**（`outputs/mv2/smg/`）：理想事件正对照在前态像面平移 14 mm 处的 b_off 只有 0.005（local）/ 0.024（global），低于门的水平，读出连理想信号都恢复不了 → 按 §5 降为描述。描述：真实事件 b_off(t14) local 0.088、global 0.21，均低于时间置乱零模型（差的 CI 全为负），方向命中率 0.69 / 0.77。
+- **M3 EXPO（门，kill）**（`outputs/mv2/expo/`）：删失校正曝光积累相对单发射率在 200 ms 的优先率增量 local −0.005（Holm CI [−0.026, 0.017]）、global +0.002（[−0.017, 0.021]），≤ 0.01 → 积累的偏差不来自发射率错设；有效性各项通过（关闭时与单发射率逐位相同、真实事件优于簇内置乱零模型）。
+- **M8 SRCA（前置审计，kill）**（`outputs/mv2/srca/`）：ESIM 式正对照有响应（斜率 0.195，CI [0.186, 0.204]），v2e 式事件对 > 30 Hz 标签残差的响应为负（−0.055，CI [−0.058, −0.052]），且标签子帧残差 RMS 0.31 mm < 0.793（`blind_confirmed`）→ 训练内自监督主张死，M8 只可能作真实数据的测试时适应，无 GPU 臂。
+- **M8 TBC（kill）**（`outputs/mv2/tbc/`）：事件轴 n / avg_fps 与标签时间戳的累计偏差折算的 p95 配准误差 7.3 mm（3.3 px，≥ 0.40 → 构成 nuisance，进入 T1）；但 T1 互相关恢复的偏移与偏差 e(n) 的相关只有 0.018（CI [−0.07, 0.10]），不高于置换 p95 0.09 与区间置乱零模型 → 时基偏差不能从数据中恢复，不写入 M7 排除表，作为未闭合的 nuisance 登记。
+- **M8 PF（工具缺陷 → 描述）**（`outputs/mv2/pf/`）：静止与噪声对照的偏好率没有落在 0.5 ± (0.05 + 1.96 SE) 内（两域都不过），按 §5 降为描述。描述：真实减簇内零模型的偏好差 T = 300 ms 时 global 0.42、local 0.18，T = 600 ms 时 0.51 / 0.20；面积归一的坍缩率低于零模型。SRCA 已杀，M8 无论如何无 GPU 臂。
+
+<a id="mv2-verdict-20261026"></a>
+
+### MV2 总裁决（2026-10-26 11:33，全部探针与 GPU 臂结束）
+
+- **GPU 臂**：M1 SLR 是唯一跑完 6000 步的臂。S3 通过，S4 seed 3407 配对 zgz 的 local −0.36、global +0.40 mm（主表见 `#mv2-m1-s4-20261026`），不满足 S42 单种子方向门；local 效应 0.36 远低于补种子所需的 1.72 mm → M1 终止。M2 RGQ 因子臂（2000 步，根 carry 超限）与 M5 根块自身前态臂（2000 步，E3 超限）均被 S3 停止。M3（FBW 描述）、M4（杀）没有放行。M6、M7、M8、M9、M10 按 §3 无 GPU 臂。
+- **CPU 探针**（`outputs/mv2/decisions.json`，20 个工具退出码全为 0）：门通过的只有 M1 PA1 / PA2、M2 RGQ（weak）、M5 RCA、M6 子空间份额与并格共享、M3 FBW 的 local 一域；杀：M2 MSCN、M3 EXPO、M4、M5 IB / FIPA、M6 谱比对、M8 SRCA / TBC、M9 年龄轴；工具缺陷（降为描述）：M9 PSQ 层一对照、M9 成本账图断裂门（修订 1）、M3 SMG、M8 PF、M10 SAD；M10 TTA 三档全关、SDG 封锁真实传感器零样本主张。
+- **主要发现**：(1) 冻结 S39 特征上的 mesh 锚定读出在 SELECT 上有显著的线性增益（对 GAP −2.43 mm、对配准平铺 −0.66 mm、mesh 特异），但在端到端闭环训练里只剩 local −0.36 mm 且 global 反向——与 DT2 `rootanc` 的探针好、训练差是同一模式。(2) 收益大部分来自"在手附近采样"，mesh 精确配准只再给 0.2 mm。(3) E3（前态 = GT）下 S39 的单步更新平均在恒等上加误差，减少证据反而降低 E3 RA，所以 E3 不能作事件保真度的检验体制。(4) 根块在闭环里占曝光间隙的 84 %、1 s 偏差占根误差的 91 %，但掌部刚体对齐既回收不了段级根偏置（IB），也没有固定预算的可部署形态（FIPA）。(5) S39 写端前缀稳定、包边界相位不变（|ΔRA| ≤ 0.045 mm）。(6) EvRealHands 的事件统计超出训练域（D / U 1.4–2.1）。
+- **处置**：按 §5 失败默认终止；不加长、不换 seed、不二读 zgz、不改门。**S39 不变。** 续做须用户另行决定并重新预注册。opt-in 新代码（`semkine/slr.py`、`semkine/rgq.py`、`semkine/mv2_rootself.py`、`tools/mv2/`、`configs/mv2/`、三个测试文件共 20 项）保留，默认路径与 S39 逐位相同。
+
+<!-- EXPERIMENT_RECORD:MV2:END -->
+
+<!-- EXPERIMENT_RECORD:OBS:BEGIN -->
+
+<a id="obs-prereg-20261026"></a>
+
+## OBS 预注册：事件—标签时间对齐审计（OBS-A）与个体标定上界（OBS-C）（2026-10-26，写于任何 OBS 读数之前）
+
+### §0 来历、范围与披露
+
+- **来历**：MV2 终止后（`#mv2-verdict-20261026`）用户问下一步，agent 给出五个方案；用户 2026-10-26 指令"现在进行1，2，4"：1 = 数据对齐审计（OBS-A），2 = 个体标定上界（OBS-C），4 = 把已有证据写成诊断性研究（OBS-W，`docs/可观测性诊断研究.md`，只整理已有读数，不产生新读数）。只用 CPU（`CUDA_VISIBLE_DEVICES=""`），不用 GPU。
+- **不变**：S39 不变；划分只用 `splits_semkine.json`；不改 `model/model.py`、`semkine/xyz_mesh.py`、`semkine/train.py`、`semkine/dataset.py`、`semkine/eval_track.py`、`model/config.py`、`semkine/anchored.py`、`tools/tracking/evalx.py`、`tools/dt/filter_eval.py`、`tools/make_s36_row.py`、`tools/report_table.py` 与 MV2 / R2 / MRF / AURA / K★ 冻结文件；不改任何数据、标签、K。新代码只在 `tools/obs/`（只读 import 上述模块与 `tools/mv2/common.py`）。
+- **zgz 的角色**：按数据协议 zgz 是开发 = 测试集。OBS-A 只读 zgz 的元数据与事件时间戳，并用 S39 输出做时移拟合；OBS-C 的门在 zgz 上判，读一次、不调任何超参数，所有常数（网格、校准窗长 5 s、收缩常数 50、阈值）在本节固定。训练受试者（FIT7 + SELECT 的 18 条基础录制）上的同样读数只作描述（S39 对它们是样本内）。
+- **写本节时已知、不得用于设定或调整任何门的读数与事实**：
+  - MV2 M8 TBC（`#mv2-results-20261026`，`outputs/mv2/tbc/result.json`）：各基础训练录制按"标签时间 − 帧号 / 平均帧率"推算的 e(n)，|e| 中位 5.9–14.9 ms、p95 16.1–29.3 ms、最大 ≤ 37.2 ms，线性漂移 −0.31…+0.29 ms/s；按 FK 最大像面速度折算的 p95 配准误差 7.3 mm。T1：块级时延估计 δ̂ 与 e 的相关 0.018，δ̂ 离散 18.4 ms 大于 e 的 12.5 ms；区间置乱零模型的相关与真实值完全相同（零模型退化）。
+  - 源码阅读（2026-10-26，本节写作前；未读任何事件时间戳数值）：`tools/prepare_hand_data.py` 把标签帧放在 round((header 时间戳 − 首帧)·1000) ms，按真实时间戳插值到 1 ms；事件取 AEDAT4 微秒时间戳 // 1000。当前 `/data1/lyq/data/hand_data/v2e/v2e.py`（本地修改版）在给出 `--event_hand_bbox_mask_dir` 时（`scripts/batch_bag_v2e.py` 的两个构造器都给出），把插帧时刻按源帧位置插值到掩膜（= RGB header）真实时间戳上；否则按平均帧率均匀分布。模拟器 `v2ecore/emulator.py` 在每个插帧区间 (t_prev, t_frame] 内以 float32 `linspace(t_prev + Δ/m, t_frame, m)` 分配共同时间层（m = 该区间全图最大阈值穿越次数），所以每个有事件的插帧区间都有一层精确落在 t_frame。Stage 0（`#mv2-stage0-20261025`）已登记：基础流生成于 8/6–8/7，当前 `v2e.py` 修改时间 8/10，基础流生成时的 `v2e.py` 不能由哈希认证；训练变体（`_v2/_v3/_v4`，8/9–8/10 生成）的 sidecar 记录的 `v2e.py` 哈希等于当前文件。Stage 0 的成簇统计（相邻同时刻 98–99.9 %，唯一时刻间隔众数 931 / 1854 µs）。
+  - Stage 0 的逐录制事件侧 σ\*（`outputs/sba/p0v/result.json`，20 录制，0.93–1.01；zgz_local 0.943、zgz_global 0.961）。SBA D 轮：S39 存档预测在 zgz 上沿深度偏远 +30～+50 mm（`#sba-d-results-20261022`）。
+  - MV2：RGQ（σ = 0.94 时 S39 非 t_z 串扰 1.07 / 0.98 / 1.03 mm，t_z 响应比 0.39–0.44）、M5 RCA（根块占闭环曝光间隙 0.84、1 s 偏差占根误差 0.91）、IB（段级根偏置回收比中位 −2.84）、Schur（无先验秩亏）；M1 S4 的 zgz 主表（含 S39 seed 3407 配对行）；S39 主行与三种子 zgz 数字。
+  - 冻结前的独立代码审查（只读代码、单测与冒烟，未做读数）：确认并修正两处——U 时钟改为上述 p 族（原定义 n · D / (N − 1) 会把真实的 SuperSloMo 路径 U 流判成"未定"）、OA2 补设逐序列手形与内参上下文；另按审查补写了本节若干实现细节。
+  - 没有任何 OBS 读数。工具的 `--smoke` 只打印形状、计数与耗时（OA2 冒烟另打印"设置上下文后输出是否改变"这一布尔值）。
+
+### §1 OBS-A：事件—标签时间对齐审计（工具 `tools/obs/oa_clock.py`、`tools/obs/oa_shift.py`）
+
+**问题**：每条事件流的时间戳落在哪个时钟上——真实帧时钟 H（c_n^H = header_n − header_0）还是均匀帧时钟 U。U 按 v2e 不做掩膜时刻映射时的写法建模：插帧时刻 = 位置 × D / p，D = header_{N−1} − header_0（`--input_frame_rate` 为平均帧率时等于 header 跨度），p 是最后一个被发出的插帧位置——用 SuperSloMo 时 p = N − 2 + (m − 1) / m（m 为最后一批的插帧倍数），不插帧时 p = N − 1；所以 c_n^U(p) = n · D / p，p 作为讨厌参数取 {N − 1} ∪ {N − 2 + (m − 1) / m : m = 1 … 200}。v2e 带掩膜目录且做了时刻映射的流按构造在 H 上。若某条流在 U 上，它与标签（H 上）之间存在逐帧时变错位 e(n) = c_n^H − c_n^U，训练与评测都会受影响。
+
+**数据**：`hand_data51` 的全部 74 条流：18 条基础训练录制、54 条训练变体、2 条 zgz。header 时间戳取 `aux["gt_timestamp_ns"]`（每个源帧一个），事件时间 τ = ms 索引 × 1000 + `tsub`（µs，相对首帧）。
+
+**OA1 时钟判别（主检验，模型无关）**
+- 时间层 L = 事件时间戳的唯一值集合。对时钟 C ∈ {H, U} 与内部源帧 n = 1 … N − 2，若存在 τ ∈ L 使 |τ − c_n^C| ≤ tol(c_n^C) 记为命中；tol(t) = 3 µs + 2 · ulp_float32(t)（模拟器用 float32 秒，t ≈ 70 s 处 ulp ≈ 7.6 µs）。h_C = 命中帧比例；只计"活跃帧"（时钟 C 下 (c_{n−1}^C, c_n^C] 内至少有 1 个事件），全部内部帧的比例同报。
+- U 的命中率 h_U 取 p 族中最高者（报告选中的 p）。零模型：同一时钟网格整体平移 δ ∈ {±113, ±227, ±341, ±457} µs 后的命中率均值 h_C^0；U 的零模型对每个 δ 同样取 p 族中的最高命中率再平均。
+- 判定（每条流）：h_H ≥ 0.5 且 h_H ≥ 10 × max(h_H^0, h_U) → **H**；h_U ≥ 0.5 且 h_U ≥ 10 × max(h_U^0, h_H) → **U**；否则 **未定**。
+- 工具有效性（全部通过，否则 OA1 记 tool_defect、降为描述）：(i) 合成正对照——用每条流自己的 header 时间戳合成时间层（每源帧区间 9 等分插帧，每个区间以 Bernoulli(0.3) 整体删去，再加与真实层数相同的均匀随机层）：H 版在 c^H 上；U 版在 c^U(p_true) 上，p_true = N − 2 + (m − 1) / m，m 在 2 … 30 中按流随机抽取且判定器不知道；两版判定必须分别为 H 与 U（全部流）；(ii) 真实映射对照——把真实时间层按"源帧位置"分段线性映射到另一时钟（判 U 的流用选中的 p，判 H 的流用 p = N − 1）后重判，判定必须翻转（只对判为 H 或 U 的流）；(iii) 真实流的零模型 h_H^0 与 h_U^0 都 ≤ 0.10。
+- **结论规则**：20 条基础流（18 训练 + 2 zgz）全部判 H → "事件与标签共用真实帧时钟；TBC 的 e(n) 前提不成立，时基疑点关闭"。任一基础流判 U → "数据缺陷：该流事件相对标签有逐帧错位 e(n)"，以 OA3 量化影响，修正方式（按 H 时钟重映射事件时间或重排标签）与是否重训交用户决定。变体流的判定只作描述（代码可认证，预期 H）。未定的流以 OA2 作旁证并如实登记。
+
+**OA2 模型旁证（S39 输出的时移拟合）**
+- 冻结 S39 三种子（step 6000），手形与内参上下文按 `evalx.run_sequence` 的方式逐序列设置（`set_hand_context(betas, K)`），E3 单步（W200 事件图裁段首、prev = GT(end − 50)，`tools/mv2/common.py::SeqSamples` 的构造），20 条基础流，每段 50 ms 网格上的第 k = 4, 8, 12, … 个端点（k = 0 段首跳过）。
+- 对每个样本，输出与"移位标签"GT(end + α · e(end) + β) 的根对齐关节误差（RA，取整到 1 ms），e(t) 为 U→H 映射在 t 处的偏移，U 取 p = N − 1（与 TBC 的 e(n) 定义一致；p 不同只改变 e 至多数毫秒）（H 假设下事件与标签无错位，α = 0；U 假设下 α = 1）。只有全部移位目标都落在有效毫秒内的样本参与。网格 α ∈ {−0.5, −0.25, 0, 0.25, 0.5, 0.75, 1, 1.25, 1.5}，β ∈ {−20, −17.5, …, 20} ms；(α̂, β̂) 取三种子合并的平均误差最小者，按条拟合与合并拟合都报；（序列, 1 s）块自助 2,000 次给 α̂ 的 95 % 区间。
+- 配对差：Δ = err(α = 1, β̂) − err(α = 0, β̂)；零模型：把 e 换成另一条基础录制（列表中后移 7 位）的 e，时间超出其时长的部分按其时长取模（e 在录制两端为 0），Δ 应不小于 0。
+- 判读：α̂ 的 95 % 区间含 0 且不含 1 → 支持 H；含 1 且不含 0 → 支持 U；整体在 0 与 1 之间（不含 0、不含 1）→ 支持 U 但被衰减（S39 是在按时间戳插值的标签上训练的，若事件在 U 上，它的输出可能只部分跟随事件）；其余 → 不能判别。合并、zgz 两条（S39 训练外）与 18 条训练录制分别报。OA2 只作旁证，不保证检验力；与 OA1 不一致时如实登记，不据 OA2 单独下数据缺陷结论。
+
+**OA3 影响量化（描述；若有基础流判 U，则为该流的主读数）**
+- 标签时间错位地板：对每条基础流的有效毫秒每 5 ms 取一点（t 与 t + e(t) 都须有效），比较 GT(t) 与 GT(t + e(t)) 的 RA-MPJPE 与绝对 MPJPE（评测器的 `mano_fk`，同 betas），报平均与 p95；并报 |e| 分布；e 取 p = N − 1。它是"若事件在 U 上，一个完全跟随事件的跟踪器相对现有标签必然多出的误差"。若 OA1 判某流为 U，再用其选中的 p 重算该流（描述）。
+
+### §2 OBS-C：个体标定上界（工具 `tools/obs/oc_calib.py`）
+
+**问题**：如果已知每条录制或每个受试者的少量常数——尺度规范 σ、根旋转偏置、手指姿态偏置——S39 的误差能降多少？上界大，"带离线个体标定的部署"值得设计；上界小，这条路关掉。
+
+**跟踪器与数据**：冻结 S39 三种子（step 6000），完整 S39 栈（`AdaptiveFilter` ramp1000 规格 `outputs/dt3/gate_specs/ramp1000.json`、W200 固定窗裁段首、Count50、最大窗 300 ms；`tools/tracking/evalx.py::run_sequence` 闭环，其内部按评测器方式设置手形与内参上下文），CPU。录制：zgz_local、zgz_global（门）；18 条基础训练录制（描述，样本内）。初态噪声：两条 zgz 按评测器顺序（zgz_global、zgz_local）共用一个 `default_rng(0)`，与存档 S39 行相同；每条训练录制单独用 `default_rng(0)`。
+
+**标定参数**
+- **σ（环内）**：包装层 `GaugeNet` 在每步把前态（标签规范）沿腕射线刚性移到 w / σ（事件规范），调用裸 S39，再把输出沿其腕射线移回（w_e → σ · w_e）；滤波器在标签规范上工作。σ = 1 时逐位等于裸 S39（单测）。网格 Σ = {0.90, 0.91, …, 1.06}。
+- **根旋转偏置（输出侧）**：常数 R_b，左乘（相机系，R_b R_pred）或右乘（手系，R_pred R_b），以弦距均值（Σ R_gt R_predᵀ 或 Σ R_predᵀ R_gt 的 SVD 投影到 SO(3)）拟合；左右由标定数据上的 RA 选。
+- **手指偏置（输出侧）**：45 维轴角残差均值 Δθ，收缩为 Δθ · n / (n + 50)（n = 标定步数）。
+- 顺序：先按标定数据的 RA 选 σ，再在该 σ 的输出上拟合根偏置，最后拟合手指偏置。
+- 目标指标：RA-MPJPE（主表口径）。
+
+**标定来源**
+- **Cal-A 同录制前 5 s**：录制按时间顺序（数组顺序，跨段连续计数）的前 100 个评测步作标定，其余步评测。
+- **Cal-B 同受试者另一条录制（离线个体标定）**：用同一受试者另一条录制（local ↔ global）的全部评测步标定，在目标录制"前 100 步之后"的步上评测。
+- **Oracle-R 整条录制**：在目标录制的评测步本身上拟合（录制级常数标定的上界）。
+- **Oracle-S 逐段**：每个有效段（`valid_runs_ms`）限于第 100 步以后的评测步，在该段这些步上各自拟合 σ、根与手指（段级常数的上界）。
+- **Oracle-σ\***：σ 取 Stage 0 的逐录制 σ\*（最近网格点），不加输出侧偏置（"已知尺度"条件，描述）。
+- 基线：未标定 S39（σ = 1，无偏置），同一批评测步。
+
+**读数**：Δ = 标定后 − 基线（同步配对），RA-MPJPE 为主，MPVPE RA、根旋转、绝对 MPJPE 与平移作描述；三种子各自报，（序列, 1 s）块自助 95 % 区间（描述）；另报单参数分解（Cal-B 与 Oracle-R 各自的只 σ / 只根 / 只手指，以及 Cal-A 的只 σ）。
+
+**门（zgz，读一次）**
+- **标定是杠杆**：Cal-B 在 zgz_local 使 RA 降 ≥ 1.149 mm（local MDE）且三种子各自都降 ≥ 1.149，或在 zgz_global 降 ≥ 0.793 mm（global MDE）且三种子各自都降 ≥ 0.793。
+- **关掉**：Oracle-R 在 zgz_local 的三种子平均降幅 < 0.379 mm（local 种子 SD）且在 zgz_global < 0.261 mm（global 种子 SD）。
+- **中间**：其余（描述性；说明上界在噪声与可确证之间）。若"杠杆"与"关掉"同时成立（条件矛盾），判"中间"并标记。Cal-A 用同一阈值、只作描述。
+- 工具有效性：σ = 1 的 CPU 闭环在 zgz 上逐种子复现 S39 存档行（`outputs/dt3/gate_eval/ramp1000_w200/dt_dz_l3_s{seed}/af9f41a0…_w200_clip.json`，全部评测步的 RA）的 local / global RA，6 个（种子, 录制）全部差 ≤ 0.30 mm，且 zgz 行无运行错误；否则 OC 记 tool_defect、只作描述（CPU 与 GPU 浮点差会使闭环轨迹略有不同，所以容差不是 0）。训练录制的运行错误只登记，不影响判定。
+- 阈值来源：KS0 种子 SD 与 MDE（`#kstar-results-20261025`）。它们原是 3 对 3 种子比较的规划近似、在另一组样本上估计，这里按登记直接用作门槛，口径差异如实承认；评测步为每条录制第 100 步以后。Cal-A 的 5 s、收缩常数 50、σ 网格为本预注册约定。
+
+### §3 OBS-W：诊断研究写作
+
+- `docs/可观测性诊断研究.md`：把账本已有证据整理成"事件单目手部跟踪的可观测性边界"的证据型草稿，每个数字带锚点；OBS-A / OBS-C 的结果在出来后补入对应节。写作只读账本与已有产物，不产生新读数。
+
+### §4 停止规则与冻结
+
+- 失败两类：工具缺陷（有效性不过 → 该读数降为描述，允许一次重设计，须新预注册）；结果读数照实登记。不二读 zgz、不改门、不加种子。任何修正数据、重训或改评测协议的动作都交用户决定。
+- `tools/obs/freeze.py` 写 `outputs/obs/protocol.json`：本节（`#obs-prereg-20261026` 至 `OBS-PREREG:END`）文本的 SHA-256；`tools/obs/*.py`、`tests/test_obs.py` 与所 import 的冻结模块的 SHA；OC 复现检验读取的三份 S39 存档行 JSON、三个种子的 `config_resolved.yaml`、ramp1000 规格与 Stage 0 σ\* 文件的 SHA；S39 三种子 step 6000 检查点的 SHA；划分文件 SHA；读过的 v2e 源码文件 SHA；修订只进 `amendments`。
+
+<!-- OBS-PREREG:END -->
+
+<a id="obs-run-20261026"></a>
+
+### OBS 执行记录（2026-10-26，写在预注册之外；不改预注册文本与其 SHA）
+
+- **冻结前审查**：独立审查工作流（三视角 + 每条缺陷由怀疑者复核；只读代码、单测与冒烟）确认两处缺陷并在冻结前修正：U 时钟原定义 n · D / (N − 1) 不符合 v2e 无映射路径的写法（会把真实的 U 流判成"未定"），改为 p 族；OA2 未设置逐序列手形与内参上下文（前态渲染会用零 betas 与默认 K），已补。另有 5 条报告被怀疑者驳回，8 条次要意见写入预注册或代码。`tests/test_obs.py` 15 项通过。
+- **冻结**：`outputs/obs/protocol.json`（预注册文本 SHA-256 前缀 `ddc71118`，29 个文件，S39 三种子 step 6000 检查点）。
+- **运行**：16:51 由 `outputs/obs/run_obs.sh` 脱离会话启动（CPU，`CUDA_VISIBLE_DEVICES=""`，日志 `outputs/obs/logs/`）：OA1（74 条流）、OA3、OA2 并行，之后 OC 的 σ 网格闭环（3 种子 × 17 个 σ × 19 组），最后 OC 分析。
+
+<a id="obs-a-result-20261026"></a>
+
+### OBS-A 结果（2026-10-26 16:52，`outputs/obs/oa1|oa2|oa3/result.json`）
+
+- **OA1 时钟判别 → 工具缺陷（按 §4 降为描述）**：74 条流运行无错，但有效性不过——合成 U 对照 41 / 74 条、真实映射对照 18 条失败。原因已定位：U 的命中率在 p 族中取最高，零模型也按族内取最高，被抬到 0.08–0.12；再乘 10 倍比值门槛后，合成 U 层（命中率约 0.70）与映射到 U 的真实层都判不成 U。这是冻结前把 U 改为 p 族时引入的不对称，H 只有一个固定时钟所以不受影响。
+- **OA1 描述**：没有任何流的 U 命中率显著高于其零模型（最多高出 0.0045；基础流 h_U 0.014–0.047，零模型 0.014–0.047）。20 条基础流的 H 命中率全部高于各自的 H 零模型，其中 13 条按原规则判 H（h_H 0.50–0.98，零模型 ≤ 0.02），另 7 条（lfz_local、lr_local、lyh_local、lyq_local、ycy_global、ylf_local、zgz_local）h_H 只有 0.03–0.44，但仍是零模型的 4 倍以上（例如 zgz_local 0.094 对 0.000）。变体流同样没有 U 命中。一个未经检验的解释是：v2e 的最后一个时间层只由全图穿越次数最多的像素产生，而事件随后按手部框过滤，最大像素在框外时帧时刻就没有层；这与时钟无关。
+- **OA2 S39 时移拟合（旁证）**：合并 6,319 个样本，α̂ = −0.25，β̂ = 0 ms，α̂ 的 95 % 区间 [−0.25, 0.25]（含 0、不含 1）→ **支持 H**；18 条训练录制同（[−0.25, 0.25]）；zgz 两条 625 个样本不能判别（[−0.5, 1.25]，β̂ −7.5 ms）。按真实 e 移位标签使误差 +0.045 mm（CI [0.030, 0.062]），换成外来 e 是 +0.039 mm——若事件在 U 上，真实 e 应使误差下降。灵敏度有限：标签时移 ±20 ms 只让单步 RA 变化约 0.09 mm（4.27 → 4.36）；逐条拟合的 β̂ 在平坦曲面上噪声大（zgz_local 落在 −20 ms 网格边界，只作描述）。
+- **OA3 假设地板（描述）**：若事件在 U 上，"完全跟随事件"的跟踪器相对现有标签必然多出的 RA 平均 0.59–1.86 mm（p95 1.5–6.3 mm），绝对 MPJPE 平均 0.86–2.27 mm；|e| 平均 6.7–14.8 ms。按 OA1 描述与 OA2，这只是假设值。
+- **小结**：TBC 留下的"事件在均匀时钟上"的疑点没有任何支持（OA1 描述 + OA2），但 OA1 的预注册判定因工具缺陷不能给出"关闭"结论。按 §4 做一次重设计（OA1-R2，新预注册，见下）。
+
+<a id="obs-a1r2-prereg-20261026"></a>
+
+### OBS-A OA1-R2 预注册：时钟判别的重设计（2026-10-26，写于任何 OA1-R2 读数之前；§4 允许的一次重设计）
+
+- **来历与披露**：OA1（`#obs-a-result-20261026`）因有效性不过记为工具缺陷。写本节时已知全部 OA1 / OA2 / OA3 读数（见该节）：没有流的 U 命中率高于零模型，13 / 20 条基础流按原规则判 H，7 条 H 命中率低（0.03–0.44）但高于零模型；OA2 合并支持 H、zgz 不能判别。这些读数不得用于设定或调整本节任何阈值；本节阈值在下文由均匀相位的理论值与合成对照确定。
+- **问题不变**：每条事件流的时间戳落在真实帧时钟 H 还是均匀帧时钟族 U(p)（定义同 `#obs-prereg-20261026` §1）。
+- **为什么换统计量**：OA1 要求帧时刻上恰有一层；该层只由区间内穿越次数最多的像素产生，而事件随后按手部框过滤，最大像素在框外时就没有这层，所以命中率随场景变化、与时钟无关；OA1 的 U 零模型又因在 p 族中选最大而被抬高。OA1-R2 改用相位结构：在生成该流的时钟上，每个时间层位于其源帧区间的有理位置（插帧 k / U，再加模拟器的共同子步 j / m），相位 φ = (τ − c_n) / (c_{n+1} − c_n) 集中在几百个值上；换到另一个时钟，时变的 e(n)（数十毫秒）把它们抹平。
+- **统计量**（工具 `tools/obs/oa_phase.py`）：相位分 K = 1000 箱；区间按 n mod 3 分三折。D(c) = 交叉拟合对数似然比：第 1 折的相位直方图（加 1 平滑）给第 2 折的层打分，反之亦然，取每层 log(K p(箱)) 的平均再两向平均（均匀相位下 D 略低于 0）。U 的 p 只在第 0 折内部选（n mod 6 = 0 与 3 两半的交叉拟合 D 最大者）。零分布：20 组同样数量的均匀随机层在 header 时钟上的 D，均值 μ0、标准差 σ0；z(c) = (D(c) − μ0) / σ0。
+- **判定（每条流）**：z_H ≥ 10 且 z_U ≤ z_H / 3 → **H**；z_U ≥ 10 且 z_H ≤ z_U / 3 → **U**；否则未定。阈值来源：本节约定；在下述合成压测中真实时钟 z 最低约 18、错误时钟与均匀层 |z| ≤ 2.8。
+- **工具有效性**（全部通过，否则 OA1-R2 也记工具缺陷，OBS-A 的时钟问题以描述结束、不再重设计）：(i) 合成正对照——按 v2e 的机制、取较苛刻的条件在每条流自己的 header 时间戳上合成层：每 96 个区间一批，批内插帧倍数 U 在 9–30 随机；每个插帧子区间的穿越次数 m 在 1–20、P(m) ∝ 1/m，第 j 层以 0.9 (1 − (j − 1)/m)² 的概率保留，帧时刻那一层（j = m）只以 0.1 保留（模拟手部框过滤）；30 % 区间无层；另加点阵层数一半的均匀随机层。H 版在 c^H 上，U 版在 c^U(p_true) 上（p_true = N − 2 + (m_last − 1)/m_last，m_last 在 2–30 随机且判定器不知道），全部流必须分别判 H 与 U；(ii) 真实映射对照——判 H 的流把层按源帧位置映射到 U(p = N − 1)，判 U 的流映射到 H，判定必须翻转；(iii) 再加一组均匀随机层，其 |z| ≤ 4。单元测试 `tests/test_obs.py`（20 项）覆盖这三项的合成情形。
+- **本节在任何 OA1-R2 读数之前修订过一次**：首次登记的版本（摘要 `7f3a74ce…`）用"交叉拟合的前 2 % 箱占比 ≥ 0.10"判定；只用合成数据做的压测（插帧倍数到 60、穿越次数到 50、帧时刻层只保留 5 %）显示真实时钟的该统计量只有 0.03–0.09，会被判成未定，检验力不足，于是改为上述似然比 z 规则并重新登记。修订时没有在任何真实流上运行过 OA1-R2。
+- **结论规则**：同 OA1——20 条基础流全部判 H → 时基疑点关闭；任一基础流判 U → 数据缺陷，以 OA3 量化（该流用选中的 p 重算），修正与是否重训交用户决定；未定流如实登记，并以 OA2 作旁证。变体流只作描述。
+- **冻结**：本节文本的 SHA-256 与 `tools/obs/oa_phase.py`、修订后的 `tools/obs/common.py`（只新增 `verify_extra`，既有函数不变）与 `tests/test_obs.py` 的 SHA 以修订登记在 `outputs/obs/protocol.json`（`tools/obs/amend.py`）。
+
+<!-- OBS-A1R2-PREREG:END -->
+
+<a id="obs-a1r2-result-20261026"></a>
+
+### OBS-A OA1-R2 结果（2026-10-26，`outputs/obs/oa1r2/result.json`，115 s，CPU）
+
+- **判定：20 条基础流（18 训练 + zgz_local + zgz_global）全部在真实帧时钟 H 上 → 时基疑点关闭**（`all_base_streams_on_header_clock`）。有效性三项全部通过：合成 H / U 正对照 74 / 74 条判对，真实映射对照全部翻转，额外均匀层 |z| ≤ 2.5。
+- 读数：基础流 z_H 788–2057（D_H 0.83–3.39 nats / 层），z_U −3.3 … 4.0；54 条训练变体 z_H 633–2532，z_U ≤ 3.5，也全部判 H。零分布 μ0 −0.010 … −0.036，σ0 0.0006–0.0026。
+- **含义**：事件时间戳与标签一样以 RGB header 时间戳为时钟（v2e 带掩膜目录时把插帧时刻映射到真实时间戳，基础流与变体流都如此）；TBC 按"标签时间 − 帧号 / 平均帧率"推算的 e(n)（|e| 中位 6–15 ms）并不存在于数据中，OA3 的错位地板（RA 0.6–1.9 mm）不适用。OA1 中 7 条流"帧时刻命中率低"与时钟无关（在 H 上相位结构同样极强），符合"帧时刻那一层只由最大穿越像素产生、会被手部框过滤掉"的解释。
+- **OBS-A 总结**：OA1（工具缺陷，描述）+ OA1-R2（判定，全部 H）+ OA2（旁证，支持 H）一致：本数据集事件与标签之间不存在逐帧时基错位；剩余误差与时间对齐无关。数据无需修正。
+
+<a id="obs-c-result-20261026"></a>
+
+### OBS-C 结果：个体标定上界（2026-10-26 17:17，`outputs/obs/oc/result.json`，CPU；闭环 969 个作业零失败，约 24 min）
+
+- **有效性通过**：σ = 1 的 CPU 闭环复现存档 S39 行，6 个（种子, 录制）全部误差 ≤ 0.011 mm（例如 zgz_local seed 3407：10.669 对 10.680）。
+- **门（zgz，读一次）：中间。** "杠杆"不成立——Cal-B（同一人另一条录制的离线标定）在两域三种子上都让 RA **变差**；"关掉"也不成立——录制级上界 Oracle-R 高于种子 SD。
+
+| 标定（zgz，评测步 = 各录制第 100 步之后；ΔRA = 标定后 − 基线，mm，三种子） | zgz_local | zgz_global |
+|---|---|---|
+| Cal-A 同录制前 5 s（σ + 根 + 手指） | +0.07 / +0.28 / +0.04 | −0.72 / −0.66 / −0.79 |
+| Cal-B 同一人另一条录制（σ + 根 + 手指） | +0.60 / +0.26 / +0.45 | +1.29 / +0.53 / +0.32 |
+| Oracle-R 整条录制常数（上界） | −0.61 / −0.48 / −0.54 | −1.31 / −0.99 / −1.13 |
+| Oracle-R 只 σ / 只根 / 只手指（三种子平均） | −0.06 / −0.32 / −0.25 | −0.01 / −0.41 / −0.52 |
+| Oracle-σ\*（Stage 0 σ\*，只环内尺度） | +0.05 / −0.00 / −0.05 | −0.01 / 0.00 / 0.00 |
+| Oracle-S 逐段常数（上界；zgz_local 41 段，zgz_global 1 段） | −2.59 / −2.45 / −2.30 | 同 Oracle-R |
+
+- **描述**：(1) **尺度规范 σ 在闭环里不是 RA 的杠杆**：已知 σ\* 的环内校正与 Oracle 选 σ 都只改变 0–0.09 mm（MV2 RGQ 测到的约 1 mm 单步串扰没有变成闭环 RA 差）。(2) 录制级可校正部分是根旋转常偏（手系，zgz_local 约 2°、zgz_global 约 4.5°）与手指常偏，合计 local 约 0.5、global 约 1.1 mm。(3) **偏置不随受试者迁移**：同一人另一条录制的标定反而变差（两条录制的根常偏方向与大小不同）；在只有 1 段的 zgz_global，开头 5 s 的标定收回 0.66–0.79 mm（三种子 0.720 / 0.664 / 0.787，全部略低于 global MDE 0.793），在 41 段的 zgz_local 无效。(4) **zgz_local 的段级常偏大且逐段变化**：事后描述（不是门；脚本与输出 `outputs/obs/posthoc/oracleS_long_segments.{py,json}`，复用 `oc_calib.py` 的函数）——只在 ≥ 20 步的段上逐段拟合仍收回 2.0–2.3 mm，只在 ≥ 50 步的段上（覆盖 65 % 的步）收回 1.3–1.5 mm；许多段只有 1–7 步，Oracle-S 含过拟合成分，但段级偏置是真实的。(5) 训练录制（S39 样本内）上同样的上界只有 Oracle-R −0.17、Oracle-S −0.23 mm（Cal-B 在样本内也变差 +0.82）。
+- **裁决**：离线个体标定（Cal-B）与开头几秒标定（Cal-A）都不能作为部署条件下的杠杆；zgz 上可校正的常偏是"录制 / 段"级的，不是"人"级的。按预注册：中间（描述性），不开新的工作线；是否针对"段级偏置的来源"（例如伪 GT 逐段优化）另立研究由用户决定。S39 不变。
+
+<a id="obs-verdict-20261026"></a>
+
+### OBS 总裁决（2026-10-26）
+
+- **OBS-A**：事件与标签共用真实帧时钟（OA1-R2 判定，20 / 20 基础流与 54 / 54 变体流；OA2 旁证一致）；TBC 提出的 e(n) 时基错位不存在，时间对齐不是误差来源，数据无需修正。OA1 原版因不对称零模型记工具缺陷（已登记），OA1-R2 是预注册允许的唯一一次重设计，并在读数前用合成压测修订过一次统计量。
+- **OBS-C**：中间。尺度规范 σ 在闭环里不是杠杆；录制级常偏（根 + 手指）上界 local 约 0.5、global 约 1.1 mm；段级常偏在 zgz_local 达约 2 mm 且逐段变化；跨录制的离线个体标定会变差。
+- **OBS-W**：`docs/可观测性诊断研究.md` 完成（草稿，约 950 行，78 个证据行，附录含证据索引与方法）。过程：八个论点各由一个代理从账本抽取证据、另一个代理逐条回原文核对（F2 一组的核对结果为空，后由最终核对补上）；写作者起草；准确性 / 过度表述 / 读者三位批评者提 46 条（5 条阻断级），修订者逐条回账本核实后处理；OBS-A / OBS-C 结果并入第 4 节；最终核对（三视角 + 怀疑者复核）确认 7 处需改、采纳 13 条次要意见，已全部改入。论点按核对结果收窄：否定读数限于所测的估计器、数据与协议，不是不可辨识性证明。核对中发现账本一处措辞与数字不符（Cal-A"三种子中两个未达到"，实为三个都略低于 0.793），已更正。
+- S39 不变；未改任何冻结文件、数据、标签或 K；只用 CPU。
+
+<a id="why-ten-schemes-20261026"></a>
+
+### 为什么十方案没有效果：事后机制分析（2026-10-26，用户指令"深刻分析，并把实验记录都记录在账本"；全部为描述，不改任何已登记的裁决）
+
+**§0 数据与范围。** 分析只读已存产物：OBS-C 存下的 S39 完整栈闭环轨迹（`outputs/obs/oc/runs/s{seed}/sigma1.00/`，σ = 1，三种子，20 条基础录制，逐步 pred / gt / 段号）与 OA2 的单步误差网格；另做两项新的 CPU 描述性读数（冻结 S39，不训练、不选点）：E3 对恒等（20 条基础录制，评测器网格每 8 个端点，三种子）与小扰动一步保留率（SELECT）。脚本与输出都在 `outputs/obs/posthoc/why_*.{py,json}`。读 zgz 属事后描述，不作门、不据此选任何超参数或模型。
+
+**§1 S39 实际上是逐帧绝对回归器，不是递推器。**
+- 一步保留率（`why_small_perturbation_carry.json`，SELECT，E3，三种子）：根旋转扰动 0.5° 到 20° 的保留率全部 0.05–0.07，手指扰动 0.01–0.3 rad 全部 0.04–0.07，平移扰动 1–50 mm 为 0.13–0.19；没有"小误差纠不动"的死区。与 DT2 的 10° 扰动一步保留 0.18、两步 0.09（`#dt2-verdict`）一致。
+- 所以前态对下一步输出只贡献约 5 %（平移约 15 %）；其余由当前 200 ms 事件图与前态渲染决定。每一步都是对绝对姿态的重新估计。
+- 这是训练前态噪声设定的后果：50 % 的训练样本带 0.3 rad / 50 mm 的大噪声，网络学成不信前态。DT2 的 `nzlo` 臂把大噪声比例降到 20 %：单步更准（TF RA 7.49 → 6.61）、一步保留升到 0.26，但闭环放大 1.34 → 1.54，RA 不变。信任前态会带回误差累积；不信前态则每帧重犯同一个错。两者是同一个权衡的两面。
+
+**§2 误差在哪里：新受试者上的逐帧映射偏差，每帧重新产生。**
+- **E3 对恒等**（`why_e3_vs_identity.json`，前态 = GT(end − 50)，裸网络）：
+
+| 录制组 | 恒等基线 RA | S39 单步 RA（三种子） | 单步 − 恒等 | 根（恒等 → 单步） | 手指-only RA（恒等 → 单步） |
+|---|---|---|---|---|---|
+| 18 条训练录制（样本内，均值） | 2.0–4.0 | 2.5–5.1 | **+0.89 mm** | +0.65° | +0.43 mm |
+| zgz_local | 4.26 | 8.29 / 8.41 / 8.36 | **+4.1 mm** | 3.03° → 5.65° | 3.11 → 5.43 mm |
+| zgz_global | 2.46 | 6.36 / 6.36 / 6.96 | **+4.1 mm** | 1.61° → 5.61° | 1.14 → 3.08 mm |
+
+  在样本内，S39 从完美前态出发的单步估计只比"不动"差 0.9 mm；在唯一的留出受试者上差 4.1 mm。zgz 的闭环 RA（10.7 / 7.4）大部分已经在"前态完美"的单步里（8.4 / 6.5），环路只再加约 2 / 1 mm。误差的主体不是环路积累，是每帧映射本身在新受试者上偏了。
+- **误差能量的时间尺度**（`why_decomposition.json`，根对齐关节误差场，按段均值 / 段内 1 s 低通 / 快变残差分解）：zgz_local 段均值 43–50 % + 1 s 低通 22–27 %，快变残差 21–22 %；zgz_global 21–25 % + 56–59 %，残差 12–14 %。只剩快变残差时 RA 为 4.5 / 2.6 mm（对 10.7 / 7.4）。训练录制：段均值 9 % + 低通 68 %，残差 17 %（3.0 对 5.4 mm）。
+- **分幅度收缩**：闭环内连续两步误差向量的回归系数 λ，zgz 在 |e_t| 2°–15° 的每个幅度箱都是 0.92–0.94（训练录制 0.80），|e_{t+1}| / |e_t| 在约 5–8° 处回到 1。结合保留率 0.06：误差不是被环路携带的，而是每帧由输入重新产生、围绕一个随姿态缓变的"偏置水平"（zgz 约 5–8°）回归。RCA 的 λ_root 0.937 与 1 s 偏差占比 0.91（`#mv2-results-20261026`）是这一现象的另一读法。
+- **姿态条件性**（`why_pose_conditional.json`）：zgz_global 相隔 ≥ 5 s 的姿态近邻（关节 RMS 距 3.5 mm）根误差余弦 0.72–0.76，随机远对 0.49–0.56，时间相邻 0.96；zgz_local 跨段姿态近邻（8.9 mm）0.33–0.38，随机 ≈ 0，相邻 0.81。即误差 = 录制级常量（global 的随机远对余弦 0.5）+ 姿态条件项（近邻比随机高 0.2–0.35）+ 段 / 时间项。
+- **向训练先验收缩**（`why_shrinkage.json`）：zgz 根误差指向训练集均值朝向，余弦 0.43（local）/ 0.58（global），收缩系数 0.24 / 0.18；训练录制（留一录制）0.23 / 0.08。手指-only：zgz_local 余弦 0.38、系数 0.11，训练 0.13 / 0.02。对未见受试者，预测被拉向训练先验约五分之一（根），这是回归器不泛化的典型签名。
+- 与已有读数一致：DT2 根 Shapley 63 %、三种子误差方向余弦 0.89–0.91、TF 下已存在 80 %（`#dt2-verdict`）；OBS-C 录制级常数只收 0.5 / 1.1 mm、逐段上界 2 mm、跨录制标定变差（`#obs-c-result-20261026`）；IB / Schur：1 s 事件窗内 5° 根偏置不可辨识、无先验秩亏（`#mv2-results-20261026`）。平移是例外：λ ≈ 1.0、保留率 0.13–0.19，深度误差被部分携带且 RA 盲——zgz 绝对 MPJPE 37–51 mm 主要在这里（σ\* 与 t_z 响应比 0.4，`#mv2-stage0-20261025`、RGQ）。
+
+**§3 十方案逐个对到这幅图上。**
+
+| 方案 | 它假设的误差来源 | 数据显示的实际情况 | 为什么探针过门 / 不过 | 为什么训练（或不训练）无效 |
+|---|---|---|---|---|
+| M1 表面提升读出 | GAP 丢失了与 mesh 锚定有关的空间信息 | 线性可取的信息确实存在（PA1 对 GAP −2.4 mm），但 90 % 来自"在手附近采样"（平移 10 mm 对照只差 0.2）；探针族误差 14 mm，S39 自身 4.9 mm，探针的 GAP 基线不是 S39 的读出 | PA1 / PA2 在 SELECT 样本内、E3 体制、线性读出下通过 | 端到端里主干可以把同样信息经 GAP 送出，新读出只是另一种参数化；它不改变新受试者上的映射偏差：S4 local −0.36（种子 SD 内）、global +0.40。与 DT2 rootanc 同一模式 |
+| M2 RGQ / MSCN | 尺度规范冗余被吸收进深度与屈曲 | 规范扰动对关节输出串扰约 1 mm（单步），但闭环 RA 对 σ 校正不敏感（OBS-C ≤ 0.09 mm）；度量半径窗在 CNN 特征上漂移比固定窗更大 | RGQ 只 weak，MSCN 杀 | σ 扰动训练让网络更不信前态根，2000 步 carry 超限被停；沿射线平移只改绝对深度，RA 盲 |
+| M3 材料点积累 | 单窗证据不足，需跨窗积累 | 积累是偏差受限的（SBA E8）；v2e 事件对 > 30 Hz 的运动没有独立于标签的信息（SRCA）；偏差不来自发射率（EXPO） | FBW 只 local 过；SMG 工具缺陷；EXPO 杀 | 积累针对"证据不足"，而 zgz 的误差是映射偏差，证据再多也沿同一方向偏 |
+| M4 轮廓一维测量 | 事件在 MANO 遮挡轮廓上，可做法向一维对齐 | 法向假设体无可分辨的峰；事件框比 MANO 投影高 10–15 px，20–30 % 事件在轮廓 2 px 外，材质边多（XDI、AURA） | 杀 | 生成模型错设：v2e 事件来自 RGB 亮度边而非几何轮廓 |
+| M5 掌部刚体先对齐 | 根偏置可由事件在 1 s 内回收 | 2–5° 根偏置在 1 s 事件窗内不可辨识（IB 回收比 −2.84，Schur 无先验秩亏）；RCA 过门只说明偏差在根块且持续，不说明可由事件回收 | IB / FIPA 杀，Schur 描述，RCA 过 | 根块自身前态训练改变的是前态分布，而前态只贡献 5 %（保留率 0.06）；2000 步 E3 变差被停 |
+| M6 相关谱诊断 | 顶点残差相关是可白化的测量噪声 | 93 % 残差能量在 span(J) 但不优于光滑基；相关是低维偏差子空间的投影 | 谱比对杀，子空间 / 并格过 | 诊断方案；邻域聚合本就无杠杆（MRF、AGG778） |
+| M7 σ\* 归因 | 6 % 尺度差是可归因并可纠正的 nuisance | 录制级、事件侧、不可闭合；OBS-C 证明 σ 校正不是 RA 杠杆 | Stage 0 部分闭合 | 不是精度杠杆 |
+| M8 mesh 自监督 | 事件里有标签之外的运动信息可作监督 | 模拟事件是 60 Hz 视频的插帧产物，对标签子帧残差盲（SRCA v2e 斜率为负） | SRCA 杀，TBC 杀，PF 工具缺陷 | 没有新的信息源 |
+| M9 查询时刻合同 | 前态年龄 / 时延有精度含义 | 前态只贡献 5 %，年龄轴死；S39 写端前缀稳定 | 年龄轴死、成本账门部分不过 | 系统方案 |
+| M10 迁移与真实传感器 | 算子可跨体、跨传感器 | 体描述符外 9 处 MANO 常量；EvRealHands 输入统计超出训练域 | TTA 三档关、SDG 封锁 | 证据方案 |
+
+**共同点。** 十个方案都把问题当作"从事件里提取关于 Δ（相对前态的运动 / 位置）的信息不够"——一个测量问题。数据表明问题是另一类：S39 的逐帧绝对映射对新受试者 / 新录制有系统偏差（向训练先验收缩、随姿态缓变、含录制级常量），而环路几乎不用前态，所以每帧重新犯同一个错。更好的 Δ 测量改变不了这个映射的泛化；就算测量理想（KS1 的 GT 增量），融合进这样一个不信前态的环路也只省 2.4 / 1.1 mm。
+
+**§4 方法学上为什么探针过门而训练失败。**
+- 所有探针门都在 FIT7 / SELECT 上判，而 S39 对它们是样本内：样本内单步只比恒等差 0.9 mm，映射偏差几乎不存在，探针测不到它。
+- 多数探针用 E3 体制。E3 下 S39 在 zgz 上比恒等差 4 mm（本节），删事件反而降低 E3 误差（SAD）：E3 测的是"单步重估相对不动的代价"，不是闭环精度；在样本内它恰好是中性的，于是放行。
+- 线性探针的基线（GAP 岭回归，14–16 mm）远不是 S39 的读出（4.9 mm），探针之间的差值是"弱读出之间的差"，不能换算成端到端的差。
+- 单测试受试者、种子 SD 0.38 / 0.26、MDE 1.15 / 0.79 mm，而机制的真实效应量 0.3–0.5 mm：设计上就不可能确证。
+
+**§5 边界与含义（不是训练建议）。**
+- 任何"更好的 Δ 测量"（M1–M4、M6、增量融合）的收益上限由 KS1 给出（理想 GT 增量 2.4 / 1.1 mm），而且要兑现它必须让环路更信任前态，这又会带回 DT2 `nzlo` 看到的放大。
+- 能动偏差的只有改变映射的泛化（更多受试者 / 录制、受试者条件化：方案 3 学习曲线是直接检验）、改变标签（段级偏置的来源：伪 GT 逐段优化）、或引入事件之外的参考（OBS-C 显示录制级常数可收 0.5 / 1.1 mm、逐段更多，但需要 RGB-D 一类的外部标定）。
+- 评测协议：门应在闭环 E1 而非 E3 上判；探针的基线应是模型自身的读出；需要第二个测试受试者，否则 1 mm 以下的比较不可分。
+- 本节全部为事后描述；S39 不变；没有新的门、没有训练、没有改动任何冻结文件或数据。
+
+<a id="why-s43-baseline-20261026"></a>
+
+### 基线重定位到 S43（W50 原始协议）后的机制对照（2026-10-26，用户指出"现在的 baseline 是 S43：稀疏渲染–比对事件跟踪 12.8 / 8.01 / 10.77 / 6.65 / 10.24 / 7.80 ms / 0.101 G / 2.82 M"；全部为描述，不改任何裁决）
+
+**§0 这一行是什么。** 用户给出的行逐字等于 `outputs/semkine/s43n_sp_tf_pert_main_row.json`：`s43n_sp` 三种子（3407 / 3408 / 3409，step 6000），**W50 原始协议、无滤波**（`evalx eval --controls --tf --perturb`，`#s43-result` §1 第三行）。它与 S39 主行不是同一评测口径：S39 行是 W200 裁段首 + ramp1000 自适应滤波 + Count50。同一个 S43 在 S39 栈下是 9.21（10.60 / 7.99，`s43n_sp_w200cfg`）；两口径之差约 1.0 mm 全部来自评测栈，不来自网络。MV2 的全部探针与臂都以 S39（W200 栈）为参照；本节把 `#why-ten-schemes-20261026` 的四项机制读数在 S43 上重做，并按 W50 口径重新对照。S43 与 S39 的网络差别只在主干算在活跃位点（事件 ∪ 前态网格投影）、CoordConv 两面、面积池化（`#s43-prereg` §2）；训练配方、prev_mlp、Δ + 零事件门、前态噪声（小 0.05 / 大 0.3 rad，各 50 % / 30 % + 20 %）与 S39 相同。
+
+**§1 同样的四项签名，S43 上同样成立**（脚本 `outputs/obs/posthoc/why_*_s43.py`、`why_e3_vs_identity.py s43`、`why_small_perturbation_carry.py s43`；S43 的闭环轨迹取自 `outputs/semkine/s43n_sp_s*/evalx_val_core_last_tf_pert.npz`，只有 zgz）：
+
+| 签名 | S39（W200 栈，OBS-C 轨迹） | S43（W50 原始协议） |
+|---|---|---|
+| 前态扰动一步保留率（SELECT，E3；根 0.5°–20° / 手指 0.01–0.3 rad / 平移 1–50 mm） | 0.05–0.07 / 0.04–0.07 / 0.13–0.19 | 0.03–0.09 / 0.04–0.08 / **0.26–0.39（≤ 20 mm），50 mm 0.11–0.14** |
+| 评测器自带的 10° 根扰动保留（k1 / k2 / k5） | 0.18 / 0.09 / 0.06（`#dt2-verdict`） | 0.16–0.17 / 0.09–0.10 / 0.07–0.08 |
+| 单步（前态 = GT）− 恒等，18 条训练录制（样本内） | +0.89 mm（根 +0.65°） | **−0.16 mm**（根 +0.07°；W50 下 S39 为 +0.06） |
+| 单步（前态 = GT）− 恒等，zgz | +4.1 mm（根 +3.3°，手指 +2.1） | **+4.8 mm**（根 +3.5°，手指 +2.5）；zgz_local 9.2–9.6 对恒等 4.26，zgz_global 6.4–7.1 对 2.46 |
+| 教师强制 → 闭环（zgz_local / zgz_global） | — | TF 9.65–9.87 → CL 12.5–13.1；TF 6.8–7.2 → CL 7.8–8.2（放大 1.3 / 1.1） |
+| 误差能量 > 1 s 时间尺度的份额（段均值 + 1 s 低通） | local 70 %，global 80 % | local 65–72 %，global 80–87 %；只剩快变残差时 RA 6.3 / 2.8（对 12.8 / 8.0） |
+| 闭环根误差分幅度收缩 λ（2–15° 各箱） | 0.92–0.94 | local 0.78–0.87，global 0.90–0.98 |
+| 相隔 ≥ 5 s 的姿态近邻根误差余弦（随机远对） | global 0.72–0.76（0.49–0.56）；local 跨段 0.33–0.38（≈ 0） | global 0.67–0.68（0.38–0.41）；local 跨段 0.37–0.48（0.11–0.16） |
+| 向训练先验收缩（根：余弦 / 系数） | zgz 0.43–0.58 / 0.18–0.24；训练 0.23 / 0.08 | zgz_local 0.40–0.48 / **0.29–0.33**，zgz_global 0.49–0.51 / 0.16 |
+| 绝对误差 / 平移（zgz，主行均值） | abs 42.1 / 38.9，transl 43.0 / 37.8 mm | abs 36.1 / 29.8，transl 34.5 / 26.9 mm；TF 下 transl 11–15 / 10–12 → 闭环 31–38 / 25–30 |
+
+读法：S43 同样是逐帧绝对回归器（前态只贡献约 5 %）；在训练受试者上它的单步比"不动"还略好（−0.16 mm），在唯一的留出受试者上每步多出 4.8 mm；70–87 % 的闭环误差能量在 1 s 以上尺度，围绕一个随姿态缓变、向训练先验收缩约 30 %（local 根）的偏置水平回归。与 S39 相比只有两处不同：(i) S43 的平移保留率更高（0.3 对 0.15），所以闭环平移误差相对 TF 放大 2.5–3 倍（11–15 → 31–38 mm），这是 W50 窗 + 稀疏主干下深度 / 平移证据更少的表现，RA 对它盲；(ii) W50 无滤波的环路放大更大（local 1.3），S39 栈的滤波把 S43 的 RA 从 10.24 压到 9.21，但 zgz 上单步偏差 4.8 mm 没有变。
+
+**§2 对十方案结论的影响。** `#why-ten-schemes-20261026` 的结论逐条对 S43 成立，而且更明确：
+- 十个方案都在改善"相对前态的运动 / 位置测量"；S43 单步在样本内已经不输给恒等，差的全是新受试者上的映射。KS1 的增量上限（2.4 / 1.1 mm）是在 S39 栈上测的；对 W50 原始协议的 S43，环路放大更大（局部 1.3），把理想增量融合进一个不信前态的环路同样兑现不了。
+- 用户最初的方向（顶点 / 关节卷积 + FK 点溅射逆深度）在 S43 上有一次零训练尝试：S44 P0.4 在 S43 的 A4 活跃位点特征上按前态网格归属逐指池化并岭回归读出手指 Δ，闭环 local 10.94，比 S43 原 fc（10.56 / 10.62 / 10.63）更差（`#s43-addendum-20261021`）。M1 在 S39 上端到端 local −0.36 / global +0.40。两者一致：读出结构不动映射的泛化。
+- 对 S43 特有的两点：平移保留率 0.3 说明 S43 对前态平移更依赖，深度 / 平移类方案（M2 的 t_z、M7 的 σ）在 S43 上影响的是绝对误差而非 RA（OBS-C 在 S39 上测得 σ 校正对 RA ≤ 0.09 mm，S43 未测，推断相同，因为 RA 对沿射线平移盲）；M9 的异步 / 前缀稳定合同本来就是 S43 的资产（`#s43-result` G6），不是精度杠杆。
+- 口径：若以 S43 W50 原始行为基线，任何新臂都应同时报 W50 原始与 S39 栈两口径（`#s43-prereg` §0 的约定），否则 1 mm 的口径差会被当成方法差。
+
+**§3 S43 为基线时真正的差距在哪里。** zgz 闭环 RA 12.8 / 8.0 可以拆成：恒等水平 4.3 / 2.5（50 ms 内手的真实位移）；单步映射偏差 +4.9 / +4.4（新受试者）；环路放大 +3.2 / +0.9（W50 无滤波，S39 栈可收回约 1 mm）。能动第一项的只有改评测步长；第三项有已知的滤波方案（S39 栈）且已在表里；第二项占一半以上，而它不是事件信息问题——同一网络在训练受试者上单步比恒等还好。所以"在 S43 上继续加 mesh / MANO 算子"与"在 S39 上加"面对的是同一堵墙：逐帧映射对未见受试者的泛化（以及伪 GT 侧可能的录制 / 段级偏置，见 `#obs-c-result-20261026`）。能检验这堵墙厚度的实验仍是受试者学习曲线；能绕开它的只有事件之外的个体参考或更多受试者。
+
+**§4 登记。** 用户 2026-10-26 指出当前 baseline 是 S43 W50 原始协议行；AGENTS.md 的 S39 规则（主表须含 S39 行、S39 不变、替换须过门）未经用户另行指示不改，本节起的分析以 S43 行为参照并同时给出 S39 栈口径。所用数据：S43 三种子 step 6000 权重（未动）、`evalx_val_core_last_tf_pert.{json,npz}`、OBS-C 的训练 GT 数组；新读数全部为 CPU 描述，脚本与输出在 `outputs/obs/posthoc/`（`why_decomposition_s43.json`、`why_e3_vs_identity_s43.json`、`why_e3_vs_identity_s39_w50.json`（S39 在 W50 下的同一读数，顺带产出）、`why_small_perturbation_carry_s43.json`）。
+
+<!-- EXPERIMENT_RECORD:OBS:END -->
+
+
+<a id="s43-br-prereg-20261027"></a>
+
+# S43 B-R 小原型预注册（2026-10-27）
+
+用户授权：实现B-R最小原型、三组表示对照、契约验证、三个核心实验、一轮有针对性的修正，并决定继续B-R或转A-R。此文件在新科学读数之前冻结；既有23项参考测试/有限阈值代理属于已知先验。工程导入、文件metadata和MANO有限性检查已发生，不作为科学证据。
+
+## 范围与身份
+
+- 全部CPU，CUDA_VISIBLE_DEVICES=""。新代码限tools/s43_br/与tests/test_s43_br.py；旧模型、数据、标签、相机内参、split、S39及既有实验冻结文件不改。
+- 它是W50、1ms完整bin、有限候选的机制原型，不是S43完整6000步替换或正式zgz主表。合成与现有v2e来源数据分开；不把现有数据称真实传感器泛化。
+- 使用真实MANO三角网格/FK，固定公开光度（现有数据为强假设模型/energy语义）；不从GT/RGB提供纹理/当前面或候选。β/K与S43外供条件一致。
+
+## 三个主对照及公平性
+
+1. 原始分极性last LNES（首bin零码合同不偷偷修为新表示）。
+2. 简单增强：last、first、log1p总count、五个10ms块count，分极性；显式有效位来自count。均不使用未来和GT。
+3. B-R：固定K=3轨迹、共享M=3亮度/对比度分支、正规有限阈值phase核；单像素phase而非ON/OFF各一套，观测cap=8，阈值ap=am=2，漏检alpha=.9、Poisson nu=.02，默认均匀初phase/η/候选prior。实际光度provider无校准时仅报告假设模型支持。
+
+固定物理窗口/ROI/空间采样/候选/历史/β/K/原始事件、目标与反馈次数。候选在窗前冻结：root-x三档(-15,0,+15)mm，index局部y轴三档(-.25,0,+.25)rad作为另列关节坐标诊断；不称已认证解剖屈曲。默认24×32全视野，三角面zbuffer；若工程不支持选项，执行前记录未读数修订，不能读数后挑分辨率。
+
+共同读出：各表示标准化（仅训练拟合）后同RBF核岭分类器，训练样本数/候选目标相同，固定λ=.01，带宽为训练成对距离中位数；精确解避免优化不足。共同上下文包括历史/候选坐标和窗前渲染。接口适配控制：图像臂小CNN，B-R小set/MLP scorer；全部最多400步Adam、同批次顺序/seed3407、同训练集，同一学习率.003，保存loss/训练拟合与参数数；B-R另报解析有限posterior，不把它当同预算学习胜出。适配控制用于排查核读出不适配，性能归因同时报告结构/参数差异。表示原型无需端到端训练光度/FK。
+
+## 先做契约门
+
+因果前缀/完整bin watermark、时间半开区间、stored/physical polarity说明、同刻multiset、分块一致、source-id幂等与真实多触发、query只读、empty与dropout、有限source/epoch记忆、前态变更后重放替换、仅换数值参考不改变证据、训练batch与在线前缀逐项一致。小维度NumPy实现对既有标准库reference核的likelihood/phase做数值对照。任何未修的契约错误阻止科学裁决，修复记录完整保留。
+
+## 三个核心实验（同一原型，共用数据与读出）
+
+E1 时间证据：合成公开MANO路径产生有限阈值事件；每样本保持候选、几何、η和目标固定，独立干预每像素/极性10ms块内的内部计数位置，保全窗first/last、分块count及总count。LNES与简单增强必须数值相同；它是传感证据破坏诊断，不宣称干预流来自同一合法运动。检查原始组B-R相对廉价表示是否有目标风险收益、以及破坏顺序是否去掉该收益。合成训练96、验证48、测试96个独立seed/上下文（root为主、关节另列）；若相同公开光度使简单臂已足够，接受此结果，不搜索特殊碰撞救方案。
+
+E2 几何身份/前态：事件/时间/η/候选先验固定，对B-R评分路径的候选身份作固定错配，目标坐标不变；一致重编号必须等变。另同观测施加历史root平移0/5/15mm，比较正确刷新、旧摘要不刷新和同窗完整重放。仅数值参考变化不得改物理支持；真实物理历史变化须重建。synthetic几何已知是控制条件；现有数据只用可部署prefix历史。GT最佳候选只作标明oracle coverage floor，不补入候选。
+
+E3 共享不确定性：同观测、几何、时间、每η核固定，比较epoch共享η的联合边缘化与逐bin重混合近似（同marginal先验）；报告NLL/Brier/集合内entropy、歧义组是否虚假自信。再做固定query/commit日程的分包/重复query、全生命周期构造/advance/query时间及驻留字节。无传感器到达时钟，只称CPU回放耗时。全遮挡/同路径分支负对照不应凭观测偏好真值。
+
+## 现有数据
+
+只读原manifest。FIT：ch/lfz/lpc/lr各local/global（8录制）；SELECT：ycy/ylf各local/global（4录制）；zgz开发报告两录制最后一次，不参与修正选择。每录制8个合法非重叠W50窗口、固定均匀取点，时间间隔至少100ms（不足则全取并披露）。每样本从前100ms两次冻结S43(seed3407 step6000)推理构造history/older；初态为公开固定t=(0,0,.6)m和零root/residual姿态，不用GT初始化。GT只作监督/评估及明确oracle floor；外供β/K记录。旧GT-init saved trace不作为可部署主输入。目标沿旧协议label[end]，事件cut=(end+1)ms，明确1ms retrospective，不改标签。
+
+先冻结模型/输入/样本ID后跑FIT/SELECT，最后zgz单报告；同三对照/同读出。小样本非闭环，不填递推RA、不冒称正式S43主行，不向outputs/semkine写虚假主行。诊断结果单独JSON/CSV/报告，正式九列表仅引用既有表，未测项为未测。
+
+## 决策、归因和唯一修正
+
+主要判断为低维有限任务必要性，不声称全51D或全域定理。预设值得继续的效应：B-R相对简单增强分类正确率+5个百分点或候选端点平均关节风险改善≥10%，并在合成独立seed/现有SELECT录制配对bootstrap95%区间方向一致；若仅精度非劣(2pp/5%风险范围)但总构造+query耗时/字节改善≥20%，只支持服务贡献。现有样本功效不足则明确证据不足，不以p不显著证明足够。root绝对与RA风险分开；不将root平移阳性偷换手指/RA改善。
+
+必须分解：实现错误→契约失败；读出适配→共同核与适配器结果分离；优化不足→训练拟合未到且合理adapter改善；数据缺少证据→raw/候选oracle也不区分或覆盖不足；核心假设失败→实现/能力正对照通过、廉价同效且预算无优势，仅在测试域否定必要性。光度模型失配单列为表示观测模型失效，不能等同事件无信息。
+
+只有一轮针对性修正，原结果保留：契约bug则先修；否则依FIT/SELECT与合成诊断选择一个主要原因。允许的单次修正为：读出适配（使用已预留CNN/set scorer）、优化预算400→800步（所有 learned arms一起）、或光度/极性失配（从FIT估计全局stored-polarity映射/对比度温度或边缘能量，禁止GT测试纹理/候选）。修正前写amendment与源码SHA，绝不以zgz决定修正。只复跑受影响的三臂，最后再给有限继续/转A-R决定；转A-R不等于本次授权完整A-R训练。
+
+<!-- S43-BR-PREREG:END -->
+
+
+
+<a id="s43-br-results-20261027"></a>
+
+### S43 B-R 最小原型：三表示、三机制实验与一轮修正（2026-10-27）
+
+本轮没有新的正式递推主行，以下九列仅引用历史S39/S43身份，不将小候选任务冒充全模型评测。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39（历史正式主行） | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S43 W50 raw（历史正式主行） | 12.80 | 8.01 | 10.77 | 6.65 | 10.24（10.29 / 10.23 / 10.20） | 7.80 ms | 0.101 G | 2.82 M |
+
+**裁决：当前B-R不进入扩大训练，转A-R局部方向/可观测性验证；A-R尚未验证，S43/S39不替换。**
+
+执行：全CPU；31项单元检查通过，另11项数据检查及2段真实来源FIT事件窗口的多前缀离线/在线逐项一致。合成每轴30个context、96/48/96 train/val/test，双轴480样本；现有112窗口（FIT64、SELECT32、zgz报告16），双轴重复使用同窗口，不翻倍独立样本。公开初态经过冻结S43两次因果推理，GT仅监督/评分/标记oracle。
+
+表示：原始last LNES；last/first/count/valid/五个10ms count增强；MANO三候选×共享η phase证据。共同核岭读出+CNN/证据MLP适配读出，均400步seed3407；β/K等合法上下文完全共享。K3有限任务、24×32、现有数据有v2e来源、1ms retrospective及aged-prior近似，非完整递推或真实传感器测试。
+
+E1：合成root最终测试，共同读出LNES/增强/B-R正确率 39.58% / 43.75% / 100.00%；适配读出 43.75% / 69.79% / 90.62%。但在廉价表示完全不变的细时间破坏后B-R正确率不降；因此阳性不证明新增时间证据必要，包含强成像归纳偏置/样本效率。指定index坐标切片较弱，不能推广为所有手指。
+
+E2：同c0刷新等于完整重放，重编号/纯chart读出正确；错误身份绑定会损坏选择，但非MANO独有性证明。额外axis7→16固定控制本来不可分，没有阳性。前态0/5/15mm实验没有一致吸引域，覆盖及局部可见性受限。
+
+E3：共享η对照只改混合账、不重置phase；本任务没有明确共享处理的风险收益。全同路径/遮挡负对照均匀，512小epoch有界。逐bin prior-remix并非另一正规独立η生成模型。
+
+唯一科学修正：FIT-only拟合全窗极性解释及温度，选择flip_prior=0/T=1000（128任务行来自64窗口×2轴）。SELECT root解析NLL 10.037→1.048，但候选排序和学习风险基本不变。不是物理极性认证或恢复运动信息。SELECT共同/适配×root/index四项继续门均未过，选择已在读zgz结果前冻结；zgz只报告。
+
+成本：固定2 FIT窗口各3重复，单线程像素构造含聚合LN/增强中位 0.609/0.876 ms；公开MANO光度渲染 4.739s，M3/M6推进 156.35/315.64 ms。仅CPU组件回放，不含共同history/训练读出，不称sensor-to-mesh时延。M6仍计算零权重解释，旧特征query_seconds为M3参考；独立benchmark已测真实M3/M6查询。
+
+归因：有限表示实现已验、读出正控可工作；没有理由用加训练步数救结果。现有光度模型/极性解释、候选覆盖和指定粗分辨率切片有局限；核心额外信息必要性未建立。不能据此断言原始事件无额外证据或全B-R理论失败。
+
+工程修订历史保留：稳定overflow正尾修复；按训练活动维归一化及显式β/K公平性补齐；生命周期冷启动Python整数8B对象差修审计。科学修正只有一轮，没有换门/择seed/二次调zgz。
+
+完整结果与归因：`outputs/s43_br_20261027/report.md`；机器裁决`decision.json`；原始`results/`、`mechanism_results.csv`、`results_summary.json`；代码及复现命令`tools/s43_br/README.md`。冻结模型/数据/split不改，新代码只在tools/s43_br与两份测试中。
+
+
+<a id="s43-integration-prereg-20261027"></a>
+
+# S43 B-R 隔离接入：最小改动与验证计划
+
+2026-10-27，CPU-only。用户在上一轮停止扩大B-R之后明确授权工程接入、小训练、完整流式回放；本轮重新预注册。B-R仅通过原型实现契约，未通过精度门，不称已验证改进。
+
+## 最小修改
+
+所有生产源码与旧原型保持SHA不变。新文件限tools/s43_integration/、configs/s43_integration/、tests/test_s43_integration.py及实验记录。通过独立wrapper加载旧S43 checkpoint，旧配置/未开启开关时直接调用原forward，逐值对照；不修改model/model.py等冻结文件。
+
+新增MODEL.S43_EVENT_REP=legacy|enhanced|br。legacy默认原last LNES。enhanced为last/count/first，通过必要6→2通道1x1适配再调用原S43。BR读取原phase核的K3相对证据及公开候选的预测LNES模板，学习小的候选混合/2→2适配，输出180×240×2事件图；仍走原conv1、稀疏ResNet、prev render/MLP、51D输出、SO3/MANO解码和_so3_fk_loss。BR不读取原LNES作旁路（除empty flag），不新增主干、MANO头或监督项。训练原conv1是否放开是独立增量消融。
+
+原型参数：W50/1ms、低分辨24×32、rootx候选(-15,0,+15)mm、3个共享contrast(.8,1,1.2)、δ.12、ap=am2、cap8、alpha.9、nu.02、证据温度1000（上一轮FIT锁定）。stored polarity未认证，分数只称假设模型证据。CPU C++常色三角面覆盖加速须与原NumPy provider逐项验证，保留全部51个时间点，不降采样，不换似然核；这是等价实现优化，不是主干/损失新臂。
+
+## 训练与在线共同合同
+
+SequenceBank显式reset/ingest/readout/release，seq+segment隔离，max16 sequences/100000源每epoch；padding不进入状态。同时间戳multiset、source ID幂等、完整ms watermark、半开区间。ingest先更新受影响计数/SAE；phase完整bin推进仍是全KMPQ计算；readout可缓存但不提交手态。MANO候选FK/三角光度、CNN前向仍全局。
+
+Tracker独立保存手态，query只输出，commit才更新手态。BR窗内H在reset时由历史状态冻结，前态改变须重建/同窗重放；连续S43输出一般不在3候选内，因此固定50ms commit后显式conditional_restart/uniform phase开启下一epoch，绝不继承不合法旧候选phase或声称全流Bayes。legacy/enhanced的原事件时钟独立保留。目标旧label[end]、事件cut=end+1ms，明确1ms fixed lag；历史起点的1ms hold近似沿原型，三臂共同。
+
+批训练逐clip通过相同reset/ingest/readout函数。两步clip、TBPTT=1，每次手态/几何条件detach，状态不进state_dict、不跨batch或seq保图；padding/重启/segment reset显式处理。历史预热只读原先公共初态下两次因果S43预测，GT只作监督与评分。训练与在线比较逐prefix表示，而非仅比较最终预测。
+
+## 冻结的小规模运行
+
+seed3407、Adam lr=.001、batch2、每clip2步、100 optimizer steps，梯度范数裁剪5，BN固定eval。除表示/必要适配器和输入conv1 trainability，其余权重冻结；原loss取均值后使用原log10配置。先做真实冻结S43/真实事件的forward/backward smoke、旧路径精确parity、adapter梯度/empty/状态管理检查；未修的实现问题阻止科学裁决。
+
+臂：A0原冻结S43；A1 legacy输入conv1小训练；A2 enhanced适配+conv1小训练；A3 BR适配+conv1小训练；A4 BR只训适配器（必要适配增量消融）。训练与评价顺序、实际clip索引与初值保存；全部100步，不据中途成绩改步数/seed。FIT使用ch/lfz/lpc/lr现有缓存可延续的前4窗口每录制组成clip（最多32clip）；SELECT ycy/ylf只评价不训练。若某尾窗无后继，仅按run长度跳过并记清单。
+
+完整流式回放：至少完整ycy_local/global及zgz_local/global的所有valid run，hop50ms；按相同语料与提交时钟比较A0–A4。使用原评价指标实现（MPJPE/MPVPE root-align等），分开报告公共初态+100ms因果历史预热的可部署流与旧标准评价GT-assisted初始化；不得把新冷启动协议冒充正式主表。优先完整可部署流；若另复刻标准口径，使用原rng/初始化/窗口/滤波栈并单独标记。未跑的正式口径写未测，不挪用历史行。
+
+前态影响：固定SELECT事件及目标，历史rootx偏移0/5/15mm，比较BR重新构造与旧摘要冻结的表示/输出；对legacy/enhanced事件表示应完全不变，但原prev render仍随手态变。纯query不得反馈造成伪恢复。至少一个完整录制另做同一时刻重复query对照，固定commit下预测/状态应一致。
+
+## 验收与报告
+
+必须：旧配置/checkpoint输出逐值兼容，batch/online同一前缀表示相同；混seq/padding/梯度截断/empty/reset有界检查；真实端到端forward/backward；所有小训练保存checkpoint和loss/梯度/实际参数与步数；完整录制无丢包/重放重复消费且实际已处理所有valid run；记录局部ingest、全局几何/phase/CNN/query/commit及内存成本，C++冷编译另列。
+
+训练成功先指finite与非零可用梯度，loss是否下降及完整递推效果照实报告；不因进程返回0宣布有效。前态域差、conditional phase重启、固定K3覆盖、未做全6000步/多seed等剩余问题明确列出，不追加未授权大训练。
+
+<!-- S43-INTEGRATION-PREREG:END -->
+
+
+
+<a id="s43-integration-results-20261027"></a>
+
+### S43 B-R 隔离接入、两步训练与完整流式回放（2026-10-27）
+
+**工程完成；效果未过，默认保留原legacy，B-R只作显式实验分支，不替换S43/S39。**
+
+以下为公共初态+每段两窗canonical预热、W50/raw、seed3407的完整zgz递推诊断，非历史正式主行；Latency为CPU主段摊销（含ingest/query/commit及重复query审计），不是GPU或sensor-to-mesh延迟，FLOPs未测。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| A0 原 S43（冻结参照） | 13.30 | 8.12 | 11.23 | 6.70 | 10.46 | 122.33 ms CPU | — | 2.822 M |
+| A1 LNES + conv1 小训练 | 13.12 | 8.37 | 11.08 | 6.92 | 10.51 | 117.79 ms CPU | — | 2.822 M |
+| A2 简单增强 + 适配/conv1 | 13.10 | 8.53 | 11.04 | 7.08 | 10.59 | 116.81 ms CPU | — | 2.822 M |
+| A3 B-R + 适配/conv1 | 87.13 | 88.28 | 62.95 | 61.30 | 87.76 | 336.12 ms CPU | — | 2.827 M |
+| A4 B-R 仅适配器 | 65.66 | 77.72 | 50.27 | 54.35 | 72.29 | 331.14 ms CPU | — | 2.827 M |
+| A5 B-R + 适配/conv1/原读出 * | 62.20 | 61.89 | 48.55 | 42.48 | 62.03 | 332.62 ms CPU | — | 2.827 M |
+
+A5为事后读出适配消融，看到长流退化后追加；不增加结构/损失，只解冻原rn.fc的26163参数，总结构参数不变，不能把它当独立验证的泛化提升。
+
+代码只新增tools/s43_integration、configs/s43_integration、tests/test_s43_integration.py；原model/model.py/MANO/损失/训练/评测/原型核心和canonical checkpoint SHA保持。新配置键由wrapper消费，未开启即legacy。训练和在线共享SequenceBank.reset/ingest/readout/release；query只读，commit才更新手态。任意连续51D输出不在K3候选内时，每50ms明确conditional_restart/uniform phase，不继承错误旧phase。
+
+验收：38单元契约；真实checkpoint forward/backward及非零适配梯度；6组MANO/FK/量化光度严格等价加速；原生8prefix旧builder严格一致；实际前态扰动200prefix batch/online严格一致；真实ch_local/lfz_global混序列100ms packet四种表示maxdiff0，batch/单独预测maxdiff约3e-7，单seq reset不污染另一seq；真实NaN padding过滤、原loss与backward finite。
+
+旧分支复现：完整ycy_global1434步 + zgz_local1204步（含49个<50ms段），两独立process原ET与新standard接口pred/GT/end/run逐数组bit-exact，四指标差0。修复短段不应消耗init-noise RNG；新单序列CLI仍不冒充跨录制共享RNG的整套正式评测。原A0公共ycy_local在内存上限修复前后预测也exact。
+
+小训练：32 FIT两窗clip、16 SELECT；A1/A2/A3/A4/A5均100实际optimizer步、同seed3407、batch2、同样本索引、TBPTT1、Adam .001、clip5、BN固定。lead来自无GT公共初态的canonical两步预热；第二窗每次从本臂own detached prediction重建表示。目标只监督/评分。FIT probe只固定前8clip，SELECT为全部16；短clip loss不是长流稳定性。
+
+- a1_legacy: FIT 0.006933→0.007009；SELECT 0.013193→0.013577；trainable 111。
+- a2_enhanced: FIT 0.006933→0.006731；SELECT 0.013193→0.013640；trainable 123。
+- a3_br: FIT 0.049787→0.026826；SELECT 0.076094→0.047621；trainable 5334。
+- a4_br_adapter: FIT 0.049787→0.039544；SELECT 0.076094→0.053922；trainable 5223。
+- a5_br_readout: FIT 0.049787→0.019666；SELECT 0.076094→0.047608；trainable 31497。
+
+完整public回放：6模型×4录制（ycy/zgz各local/global）=24任务，全部valid run、预热和尾事件已处理；合计31,014评分packet、558,483,852次source消费（同录制按模型重复，非独立样本数），总数/顺序digest精确一致，最终序列状态release。valid-runs外无有效标签事件不冒称已评分。A3/A4无unsupported，A5 ycy_local近πchart触发155次公开hold，仍消费所有事件并计入评分，不静默clip或用旧LN旁路救结果。
+
+增量成本：普通ingest只更新触及槽/source；phase推进全KMPQ，reset/commit后全MANO/FK/三角光度与模板重建，readout全图归约，CNN仍完整masked-dense CPU前向。C++常色光度保留全部51时间点且与原整数路径一致（约19ms对约5.85s），不是时间近似；新分支尚未接部署SparseExecutor/CUDA graph。在线表示状态有界、日志/导出trace O(T)另算，peak_accounted不是RSS。
+
+前态影响：固定SELECT四窗、root-x0/5/15mm，legacy/enhanced事件图不变，BR R和模板变化；fresh vs stale误差非单调，15mm可降低RA却增加绝对误差。不能由接口parity或训练loss下降宣布纠错有效。
+
+失败与修复均保留：初次新MODEL键被原strict model拒绝，wrapper仅剥自身键修复；100000源上限被global真实50ms峰值157293触发，现固定262144并通过160000真重数无丢失契约；并发统计代码变更触发来源保护，第一次回放现场归档replay_attempt1*，冻结依赖后完整重跑。后续A5与standard短段修复另存execution_amendment_02，旧执行代码保留executed_sources_v1。没有据结果改seed/步数或开启大训练。
+
+结论：接入和真实训练/完整回放已经执行；B-R长闭环明显退化，原LNES预训练主干的接口适配限制、有限root-x候选/常色光度、phase重启与长历史分布差仍未闭合。A5改善只部分归于读出适配，不证明B-R信息更强，也不排除充分训练的可能；当前默认不启用。余项为稳健chart重基、更多可观测关节方向、长clip训练、真正稀疏/GPU执行及S39 W200/filter协议验证。
+
+代码/配置/命令 `tools/s43_integration/README.md`；完整报告 `outputs/s43_integration_20261027/report.md`；逐录制 `replay/*.json,*.npz`；权重与曲线 `train/*/last.ckpt,train.json`；机器判断 `decision.json`；独立审查 `training_replay_independent_audit.json`、`a5_padding_independent_audit.json`。
+
+
+<a id="s43-rethink-design-20261027"></a>
+
+### S43 第二轮表征重设计与100单元交叉审查（2026-10-27，仅研究设计）
+
+用户要求基于B-R原型／接入的实际结果，重新提出三种原理不同的事件驱动MANO表示，按10类专业视角×10问题交叉审查并选主案。本轮只做既有证据核对、主源文献浏览、数学定义与文档；没有导入项目模型、读取新数据成绩、训练或改生产代码／配置／数据／旧模型指针。不是新的性能预注册或正式主行。
+
+产物：`docs/S43_三种表征方案与主方案定义_第二轮重设计_20261027.md`；完整明细`docs/S43_100单元交叉审查_第二轮重设计_20261027.md`；统一入口`docs/S43表征调研.md`已指向当前阶段，前八编旧B-R称谓按历史解释。原始v1/v2、R1/R2 JSON、主源readscope、数学核查和manifest在`outputs/s43_rethink_20261027/`。
+
+真实执行者root、flux_design、set_design、material_design共4个代理；R1为100唯一交叉单元，每个同时判断A/B/C，共300项；R2为另执行者对同100单元逐项反驳。R3三份作者修订、R4综合选型已完成。不是100名真人／独立模型投票，意见相关，不作功效或显著性证据。覆盖回执`review_coverage.json`无缺失／重复／空必填项，R1/R2执行者逐单元不同；字段完整不保证科学正确。
+
+三个对象：A传感器有向关系记忆＋MANO轮廓作用后绑定；B连续事件可行纤维，默认经验集合诊断；C带版本的材料soft-splat＋有界支撑重绑，保留为稳定材料条件备用。选A为下一最小研究原型，依据错误前态下观测复用的任务必要性、可审查的有限核合同与直接反证，不是已有精度／模块数／投票胜出。旧S43/S39默认不变，B-R失败分支保留。
+
+关键修订：有向pair与HATS有直接先例，后绑定恒等式不算数学创新；主投影直接用Z，撤回F投影等价Z的一般说法（交叉极性会合并）；严格半开cutoff、完整同刻multiset与水位等待；任意当前截止＋固定输出lag，非任意过去在线查询；轮廓SDF法向形状导数、interior不套面法向；Gram非Fisher／后验；B硬界未闭合不能认证真实覆盖；C首版φ/w不读F/U，支撑内按块替换，递归扩展才需依赖后缀；GT监督与部署输入oracle分开；全局几何、索引、等待／重绑／读出计入总成本。
+
+纯算术审计（不是任务实验、没有MANO/数据/模型）：`python outputs/s43_rethink_20261027/check_algebra.py`，7个手写事件、6个半开cutoff，递推与直接pair和式最大误差4.44e-16、同刻置换0；直接Z读出的Ψ梯度误差约5.08e-13，构造的支持零方向不变误差约1.94e-16，交叉极性F合并反例通过。对应`algebra_checks.json`。这些只检验有限公式，不证明事件物理、任务有效性或不确定性校准。
+
+未来恰好三个核心实验：E1合法时间关系是否改变所需当前MANO目标；E2同raw／同可部署修正来源下后绑定是否帮助纠错；E3在逐组控制的可辨识性干预下是否保留支持，并将可靠性与资源结论分报。固定原LNES、能解释同类收益的简单增强、A及HATS/TORE/EST+同query强对照；共同typed读出和各自合理读出；GT辅助上界单列，合成／现有v2e录制／未来真实传感器分层。所有阈值、功效及有限预算网格需读数前另行预注册，本轮没有使用zgz新读数选案。
+
+最终判断`outputs/s43_rethink_20261027/decision.json`：DESIGN_REVIEW_COMPLETE_NOT_EXPERIMENT_VALIDATED。若强近邻＋同查询或A-only解释全部收益而无独立任务／服务价值，停止新表示主张，可收缩为任务适配／诊断；不默认加模块或扩大训练。
+
+
+<a id="s43-rel-prereg-20261027"></a>
+
+### S43 有向关系记忆：机制实验、完整配对微调与在线评估预注册（2026-10-27）
+
+本轮用户明确授权从A原型推进到完整训练与在线推理。新科学读数前冻结 outputs/s43_rel_20261027/protocol.json。新增代码只在tools/s43_rel、tests/test_s43_rel_*、configs/s43_rel；生产/旧B-R/S43/S39指针不改。仅物理GPU4–7，0–3由他人使用；CPU并行。前置工程单测/真实checkpoint smoke已做且披露，不作任务读数。
+
+四臂S43、简单增强、空间反向Z平均抹顺序、完整Z。保原LN/render共同通路，加真实A输入通道和typed几何增量；不称完全替代LNES。全base可训练，新增支路zero-init，原MANO/51D/监督保留，新增结构单列。
+
+先工具验收再E1时间必要性、E2几何重读、E3支持与分列的成本。合成和现有v2e录制分开。基础录制16固定窗，FIT7/SELECT2选择，TORE4同核强控，common RBF与typed MLP300步。时间破坏保指定简单统计，只称诊断，不冒充物理重生成；公式成立不升级成任务有效。
+
+small120步×B4×clip2；根据FIT/SELECT做一轮记录修正。full6000实际optimizer步×B8×clip4，每臂192000输出，历史6.144M的1/32，全9人原72trials，四臂同canonical6000步初值/抽样/优化机会。这是完整预注册配对微调，不冒充历史同样本量fresh训练。Adam1e-4/warm500/cosine/TBPTT1，自反馈detach；sensor连续tail只在valid-run边界reset，末短尾消费再release，不以随机窗重置截尾。last固定，不择seed/最好点。
+
+完整W50/raw公共初始化与GT初始化上界分列，25/50/100ms查询、1ms异步/分块、局部屈曲/前态扰动。MPJPE/MPVPE local/global及实际端到端延迟/吞吐/显存/维护全账，非CPU核或缩放时延代理。非劣参考max(.5mm,5%)，单seed描述。科学负结果如实保留；当前用户授权一次修正后完整训练作否证，实现/非有限错误先修，不为交付强称成功。效果/资源/阈值/全部输入身份见冻结JSON。
+
+
+<a id="s43-rel-r1-prereg-20261027"></a>
+
+### S43-REL 唯一读出修正R1预注册（读R1成绩之前）
+
+E1现有数据未过，合成正但TORE4同核相当；E2同核parity0、收益依条件；E3支持代数过、静态闪烁碰撞，不能当confidence。固定E3头a槽FIT标准差过小，SELECT近9.8e4σ外推；E12裸a占大量维度且MLP明显FIT/SELECT差。小训练四臂120步已完成，同source摘要；初轮SELECT逐录制回放还在完成，已见ycy global完整比S43差而local条件性。据此冻结 outputs/s43_rel_20261027/correction_R1_prereg.json，一轮只改读出，不改A/Z/时间核/输入/监督/样本/seed/步数。
+
+prototype将(a,lambda)投至固定MANO关节基diagG，保f，用FIT RMSfloor1/clip8，取消逐轮廓槽标准化和裸static a；RBF/MLP原预算不变。S43 typed支路改joint_gram token[signedlog(sum_hG_jk)51,log1p(diagG_jh)24]，75→32共享MLP及direction/输出形状参数数保持；仅多一张51²支持C，计实际成本，绝不解释为precision。allzero支持hardgate；旧points版本保留，checkpoint强校验。R0全部回放sourceguard结束后才接线，避免混版本；R1重新canonical初始化120步同FIT7排程，再冻结全6000步。TORE同核解释、合法物理matchedpair缺失仍保留，不因R1较好重写原负裁决；本轮无第二科学修正。
+
+
+<a id="s43-rel-mean-shape-extension-20261027"></a>
+
+### S43-REL 部署输入边界补充：公共均值手形回放（读数前，2026-10-27）
+
+原四臂协议沿用 S43 的 aux/sequence_gt β，只能支持给定手形的条件诊断。为落实用户“GT 辅助仅诊断或上界、不进入可部署输入”的要求，在任何新增 β=0 任务成绩之前冻结 outputs/s43_rel_20261027/mean_shape_deployment_extension.json。原训练、一次 R1 修正、6000 步预算、最终检查点、原机制门和负结果都不改，不按新增成绩调参或选模型。
+
+增加冻结原 S43 与四个配对微调模型共五组，每组在 zgz_local/global 两条完整 valid-run 流采用公共 β=0、公共初态、相同两窗因果 canonical 预热、W50/raw、hop50/commit50。推理 reader 只消费 events/offsets、外供 K 和有效区间，不打开姿态 .meta，不访问 aux 的 betas 字段；所有预测落盘后才启动独立评分，预测 MANO 使用 β0、GT MANO 使用真实评分 β，禁止两者误共用 β。四项原 J0/V0/absolute 指标及额外关节腕点对齐 MPVPE 分开保存。β0只代表公开均值形状的部署输入，模型仍经过形状条件监督；不声称形状免标定精度已保证，也不声称真实硬件测量。
+
+新增五组资源测量共用 ch_local 的3300ms前缀（100ms预热+64×50ms输出），实际计入末端MANO FK与mesh传输。等原完整回放、成本测量及审计结束后先串行测资源，再并行十条 β0 流；只使用物理 GPU4–7。Torch allocator峰值与只读NVML设备采样峰值分列，后者报告空闲基线和观测增量，不冒称精确进程峰值。代码为独立 mean_shape_* 工具，原训练22依赖和已封存 replay/benchmark/deployment 不变。可选运动分层只复用已登记 GT 事后 mask，按同(run_id,end_ms)对齐已保存误差，不新增筛样或阈值。
+
+
+<a id="s43-rel-results-20261027"></a>
+
+### S43-REL 原型→S43接入→完整配对微调与部署回放：最终结果（2026-10-27）
+
+本节是本轮实验记录的统一入口，按实际工件整理；本次仅整理文档，没有新增训练、评测或重算成绩。读数前记录保留于[原预注册](#s43-rel-prereg-20261027)、[R1修正](#s43-rel-r1-prereg-20261027)及[β0扩展](#s43-rel-mean-shape-extension-20261027)，其中的进行中措辞不覆盖下面的最终状态。
+
+分节：[预算与四组设置](#s43-rel-training-20261027) · [三个核心实验](#s43-rel-mechanisms-20261027) · [β0部署与成本](#s43-rel-deployment-20261027) · [给定手形诊断](#s43-rel-conditional-20261027) · [流式验收](#s43-rel-streaming-20261027) · [扰动/手指/失败负载](#s43-rel-robustness-20261027) · [归因与剩余问题](#s43-rel-attribution-20261027) · [证据索引](#s43-rel-artifacts-20261027) · [复现命令](#s43-rel-reproduction-20261027)。
+
+**NO_GO_S43_DEFAULT_REPLACEMENT。工程实现与有限核合同通过，重建精度大体保持；时间关系、几何重读或支持量的独特任务价值未建立，完整服务成本明显上升。原 S43/S39 默认指针及旧分支保持，不因完成训练而升级新方法。** [最终决策](../outputs/s43_rel_20261027/final_decision.json)与[交付状态](../outputs/s43_rel_20261027/DELIVERY_STATUS.json)给出完整证据身份。
+
+<a id="s43-rel-training-20261027"></a>
+
+#### 1. 执行范围、四组对照与可比预算
+
+四臂从相同 canonical S43 step6000 开始，全网络配对微调各6000实际optimizer步、B8×clip4，共192000输出/臂，合计768000输出；每臂4326713676次事件消费，6000条step_source_digest与最终摘要四组完全相同。该预算是历史6144000输出/臂的1/32，不能称等原预算fresh训练。seed3407，原72trials/九个训练受试者，BN统计冻结，原MANO/监督/评价代码不改，Adam1e-4/warm500/cosine，TBPTT1、公共初态、自身预测detach反馈，sensor跨clip/optimizer连续。ycy/ylf在full中已纳入训练，最后ycy只作训练域诊断。检查点固定最后6000，不选最好步或新seed。
+
+训练尾界补注：[完整训练审计](../outputs/s43_rel_20261027/audits/full_training.json)核对634次reset、3,549,253条末尾事件及13,844ms短尾消费。短于50ms的run共同排除在训练样本池外，有限6000步结束时仍在active run之后的将来尾迹留在检查点；不能将这些尚未来到的事件写成已消费。评估则消费每条完整valid-run的预热、普通段和全部末尾，二者边界分开。
+
+四个配置分别为[s43](../configs/s43_rel/r1/s43.yaml)、[enhanced](../configs/s43_rel/r1/enhanced.yaml)、[no_order](../configs/s43_rel/r1/no_order.yaml)、[full](../configs/s43_rel/r1/full.yaml)。全部保留原LNES/render、MANO解码及监督；只增加sensor特征与typed读出增量，未将几何模板伪装为LNES。原base为2,821,973参数，sensor增量名义540（full/no_order只有162个结构活跃权重），typed为45,100；表中2.87M是含关闭支路的wrapper名义总数，不代表基线实际使用新增分支。
+
+<a id="s43-rel-mechanisms-20261027"></a>
+
+#### 2. 三个核心实验与唯一R1修正
+
+原型E1/E2、E3、R0-small、唯一预注册R1修正、R1-small及完整四臂均已实际运行。R1去掉裸轮廓a/逐槽低方差标准化捷径，改固定MANO坐标的joint-Gram读出；A/Z/时间核、数据、监督及预算不改。R1后现有数据双读出2%联合门仍不支持：RBF full/no_order 25.50/27.10mm，MLP28.51/28.89mm；合成full与TORE4同核相当。未找到保护简单边际且目标不同的物理匹配对，时间破坏仅是同目标非物理诊断。E2证明同有限核重读正确，未证明普遍纠错；E3支持因子合同通过，静态闪烁碰撞否定其运动置信度解释。原负结果全部保留。
+
+机制原始读数：[E1/E2初轮](../outputs/s43_rel_20261027/mechanisms/e12/summary.json)、[E1/E2修正后](../outputs/s43_rel_20261027/mechanisms/e12/R1/summary.json)、[E3支持/反例/成本](../outputs/s43_rel_20261027/mechanisms/e3/summary.json)。合成任务、现有v2e任务、纯代数验收分别解释，均不能替代完整S43任务效果。
+
+<a id="s43-rel-deployment-20261027"></a>
+
+#### 3. β0部署结果、完整服务成本与内存
+
+下面是**不使用GT姿态或手形作为推理输入的β0部署条件**。输入仅事件、外供K/序列区间、公共初态和β0；全部预测落盘后才读姿态及真实β评分。预测FK用0、GT FK用实际评分β。模型训练仍有形状条件监督，不把β0称作形状免标定精度保证。J0为腕点对齐MPJPE；原MPVPE按V0（顶点0）独立对齐，另存绝对与关节腕点对齐V误差，二者不混称。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| 冻结原始S43（公共初始化） β=0 | 13.62 | 8.43 | 11.57 | 6.86 | 10.77 | 9.79 ms | - | 2.87 M |
+| S43 配对FT6000 β=0 | 13.61 | 8.90 | 11.46 | 7.19 | 11.03 | 9.79 ms | - | 2.87 M |
+| S43＋增强20ch FT6000 β=0 | 13.61 | 8.90 | 11.57 | 7.24 | 11.02 | 21.60 ms | - | 2.87 M |
+| S43＋空间无向Z R1 FT6000 β=0 | 13.53 | 9.01 | 11.49 | 7.31 | 11.05 | 59.29 ms | - | 2.87 M |
+| S43＋有向Z R1 FT6000 β=0 | 13.85 | 8.83 | 11.74 | 7.18 | 11.10 | 57.62 ms | - | 2.87 M |
+
+β0下 full 对配对S43：绝对MPJPE local/global 30.98/30.27 对 31.63/30.78mm；绝对MPVPE 30.80/30.13 对 31.42/30.65mm。关节腕点对齐MPVPE为 13.31/8.67 对 13.07/8.74mm。绝对误差的小幅下降不等同局部姿态或独特有向机制已改善；冻结原始S43与配对微调S43也同时保留，避免只比较弱化基线。
+
+β0完整软件event-to-mesh成本：full P50/P95/P99 57.62/64.14/95.71ms，16.84输出/s、64253events/s；S43 P50 9.79ms、100.87输出/s。full的64/64查询超过50ms间隔，不能称20Hz实时。维护均值约ingest25.45、全局几何20.34、关系读出4.23、网络/观测传输6.73、最终MANO/mesh传输1.39ms；父子计时不可重复相加。只有事件记忆写入局部增量，FK/轮廓/查询/CNN仍全局。实测含原MANO末端解码与778顶点/21关节CPU传输，不含物理传感器等待和日志序列化；1ms因果目标滞后另列。
+
+core驻留18616960B/序列、共享拓扑5510720B，原W50 raw payload另设8MiB硬界，超载整包拒绝而非裁count；模型、workspace及输出日志另算。full Torch allocated/reserved 50.53/74MiB，S43 43.89/54MiB；full RSS峰值 1061.1MiB含加载/哈希/进程开销，不是表示状态。NVML设备20Hz观测full基线/峰值/增量约624.1/1060.2/436.1MiB，S43增量416.1MiB；raw设备used含reserved，观测峰不是精确进程瞬时峰，Torch峰独立保留。
+
+计时边界补注：上表Latency是同一ch_local缓存前缀上实际软件event-to-mesh服务P50，包含输入mmap访问、1ms事件打包、逐包来源ID摘要及ingest/query/commit/末端网格解码；全文件source哈希、冷加载、预热和输出JSON/NPZ写盘另计。预哈希可能预热OS文件页，不能据此声称排除了所有输入I/O或测到了真实硬件采集延迟。各臂资源包含共同canonical预热副本，参数列只数被评价wrapper。[β0逐查询资源](../outputs/s43_rel_20261027/mean_shape/results.json)保存P50/P95/P99、吞吐、分项、显存与RSS完整字段。
+
+<a id="s43-rel-conditional-20261027"></a>
+
+#### 4. 给定手形条件诊断与历史协议参考
+
+下面为原S43兼容的**给定序列手形条件诊断**，aux β来自sequence_gt，不将其写成无GT部署精度。参考余量max(.5mm,5%)内full local/global增量+0.163/−0.052mm，只能记描述性精度保持；不代表通过新机制门。历史S39和PCA行协议/成本不同，不参与配对判定。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| 冻结原始S43（公共初始化） | 13.19 | 8.14 | 11.14 | 6.71 | 10.42 | 9.75 ms | - | 2.87 M |
+| S43 配对FT6000 | 13.13 | 8.60 | 11.10 | 7.08 | 10.64 | 9.70 ms | - | 2.87 M |
+| S43＋增强20ch FT6000 | 13.27 | 8.62 | 11.20 | 7.13 | 10.72 | 21.50 ms | - | 2.87 M |
+| S43＋空间无向Z R1 FT6000 | 13.49 | 8.73 | 11.38 | 7.19 | 10.88 | 58.61 ms | - | 2.87 M |
+| S43＋有向Z R1 FT6000 | 13.29 | 8.55 | 11.20 | 7.06 | 10.69 | 57.05 ms | - | 2.87 M |
+
+主表沿冻结root_align(x)=x−x[..., :1,:]、单位mm：MPJPE减joint0腕坐标，MPVPE独立减vertex0坐标，不把后者称为减关节腕坐标。local/global来自zgz两个完整录制，RA总列按输出帧数加权。
+
+首行是已发表背景值，协议和成本口径不同；其余五行为本轮公共初始化/W50/raw单seed结果。
+
+Latency为ch_local固定3.2s实际前缀的sensor-to-mesh服务P50，包含末端MANO FK和778顶点/21关节CPU传输；不含物理等待与序列化。
+
+Params为实际wrapper名义总参数，含disabled支路；active/结构非零参数另见JSON。FLOPs未实测，填-。
+
+历史原S43的W50原始协议、同一模型的S39栈及原S39同时列出，来源为[冻结历史行与身份](../outputs/s43_rel_20261027/report/historical_reference_rows.json)。这些历史结果不参与当前配对非劣判断，新的REL在S39栈下尚未评测。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| 历史原S43（W50原始协议，无滤波） | 12.80 | 8.01 | 10.77 | 6.65 | 10.24 | 7.80 ms | 0.101 G | 2.82 M |
+| 同一S43（S39栈/W200协议） | 10.60 | 7.99 | 9.37 | 6.60 | 9.21 | 8.39 ms | 0.127 G | 2.82 M |
+| S39历史参照（S39栈/W200） | 10.27 | 7.36 | 8.94 | 6.25 | 8.71 | 4.10 ms | 1.252 G | 2.80 M |
+
+以上为既有冻结结果，同时列出原S43的W50原始和S39栈两种口径；不是本轮新表示在这些旧协议上的新评测。历史Latency为缩放/稀疏执行器口径，FLOPs列沿用原MACs统计，不能与本轮masked-dense软件sensor-to-mesh实测直接比较。新四臂仅使用共同public初始化、W50/raw当前协议，单独成表。
+
+<a id="s43-rel-streaming-20261027"></a>
+
+#### 5. 因果/状态验收与完整流式回放
+
+异步与状态：107项统一测试通过；同ms重数/正lag/半开前缀、空输入、有界内存、reset/release、混序列、padding、状态导出/恢复、真checkpoint backward均验收。新A/Z及f/a/λ在共同真实前缀分块条件下逐位一致；增强EMA存在小舍入差，实际sensor差在预设容差内。最后权重的训练B2与在线B1同输入审计通过，非零新增支路已学习，不以零头掩盖接口差异。训练clip为梯度累积、TBPTT1，不重置观测历史。
+
+完整最终回放共54条：四微调臂各10条不同query/commit策略=40、冻结canonical四录制=4、β0五模型两录制=10。每条消费全部valid-run预热、普通包及末尾，计数/顺序摘要一致，不将重复模型/时序回放当独立样本。β0每模型zgz_local消费1792402事件/1137输出，global48388002事件/1384输出；源事件全数消费。原给定β下25/50/100ms比较在共同563/692个时刻上进行，共享GT完全相同；四臂25ms额外query而50ms提交时，共有50ms预测与原策略逐位相同。full共有帧local MPJPE按25/50/100为13.684/13.238/13.250，S43为13.399/13.066/13.265mm；global full8.550/8.575/8.562，S43为8.553/8.602/8.678mm。额外查询未建立更强任务价值，且成本上升。β0此次只测hop50，不把给定β的间隔/扰动结果冒充β0结论。
+
+<a id="s43-rel-robustness-20261027"></a>
+
+#### 6. 前态误差、局部手指与失败负载
+
+前态扰动用共同S43部署前态、固定8个地址/录制，root-x5/15mm及真实index-MCP右z0.1/0.3rad，fresh/stale保持同一扰动前态；不反馈扰动预测，A/Z不改。full重绑对RA风险的改善仅约0.0004–0.0263mm，绝对方向不一致（约±0.15mm），不构成稳定纠错证据。GT只作事后评分。β0固定局部手指主分层local72帧，full/S43 RA-MPJPE11.056/11.039mm，绝对误差28.314/30.021mm；global0样本，明确缺证据，不能宣称全域手指增益。
+
+36个均匀合成背景压力案例中，full和no_order在150k events/50ms、三种hop均预测到无效近裁面（6失败工作负载）；失败日志和非零返回保留，不hold/clamp，不填不存在的吞吐/时延。其他case完成计算不等于证明背景下正确重建。该结果与现有v2e完整任务数据分开；实现计数、编译及内存界检查均未发现这些错误。完整data回放54条均完成。
+
+<a id="s43-rel-attribution-20261027"></a>
+
+#### 7. 原分支复现、失败归因与剩余问题
+
+原分支复现：同CPU旧legacy与新s43 wrapper四录制短前缀逐值一致；ycy_global完整1432输出、线程1/2也逐值一致。原CPU与GPU整条轨迹不能称allclose：相同前态直接映射差可被递推放大，历史FAIL与后续数值诊断都保留，不只归为chart或已确认TF32因素。当前五组在统一GPU执行器下比较；硬件为物理GPU4–7 L20，0–3未计算使用。
+
+归因：有限表示实现正确；R0读出病态已完成一次修正，其他读出/优化容量不能被普遍排除；本轮是预训练起点1/32历史输出量，不能声称优化全局充分；现有v2e伪GT、低带宽标签、一个留出人两录制和物理匹配证据缺口限制任务结论。核心的“独特可用运动证据”未建立，不能由重读恒等式或支持Gram正定性替代任务/服务价值。geometry_fast只是等价工程候选，未进入本轮默认训练/评测，不用单FK加速包装全系统优势。新的REL S39栈未执行；原S43 W50原始与S39栈历史口径另见report/historical_reference_rows.md，不把历史值当新测量。
+
+<a id="s43-rel-artifacts-20261027"></a>
+
+#### 8. 代码、配置、检查点与证据入口
+
+| 内容 | 实际入口 | 用途/边界 |
+|---|---|---|
+| 最终判断与执行状态 | [final_decision.json](../outputs/s43_rel_20261027/final_decision.json)、[DELIVERY_STATUS.json](../outputs/s43_rel_20261027/DELIVERY_STATUS.json) | 执行完成，科学结论为NO_GO，默认分支不替换 |
+| 主协议、唯一修正、部署补充 | [protocol](../outputs/s43_rel_20261027/protocol.json)、[R1](../outputs/s43_rel_20261027/correction_R1_prereg.json)、[β0扩展](../outputs/s43_rel_20261027/mean_shape_deployment_extension.json) | 保留读数前顺序、阈值、输入与预算身份 |
+| 给定手形诊断 | [结果JSON](../outputs/s43_rel_20261027/report/results.json)、[九列表](../outputs/s43_rel_20261027/report/main_table.md)、[资源JSON](../outputs/s43_rel_20261027/report/resources.json) | aux β来源于sequence_gt，不能当无GT手形部署成绩 |
+| β0部署 | [结果JSON](../outputs/s43_rel_20261027/mean_shape/results.json)、[九列表](../outputs/s43_rel_20261027/mean_shape/main_table.md)、[访问隔离与预测先保存的回放目录](../outputs/s43_rel_20261027/mean_shape/replays/) | pred使用β0，GT真实β只作预测后评分；五模型两录制均完整 |
+| 完整训练与训练/在线一致性 | [full_training](../outputs/s43_rel_20261027/audits/full_training.json)、[full_training_online](../outputs/s43_rel_20261027/audits/full_training_online.json)、[四臂前缀](../outputs/s43_rel_20261027/audits/control_prefix_final.json) | 实际6000步、配对摘要、数值恢复、非零新增头与相同前态条件 |
+| 查询与干预 | [固定commit纯query](../outputs/s43_rel_20261027/audits/final_fixed50_purequery.json)、[共同cadence网格](../outputs/s43_rel_20261027/audits/final_common_cadence_grid.json)、[扰动与手指分层](../outputs/s43_rel_20261027/robustness/full_final/report.json) | 区分多次查询与多次反馈；分层GT只评分 |
+| 原分支与mesh审计 | [原分支数值核对](../outputs/s43_rel_20261027/audits/canonical_numeric_audit_summary.json)、[mesh独立审计](../outputs/s43_rel_20261027/audits/mesh_deployment_independent_audit.json) | 同CPU旧新一致；跨CPU/GPU差异不伪称allclose |
+| 107测试与压力失败 | [最终测试日志](../outputs/s43_rel_20261027/finalization/unit_tests_final.log)、[逐资源任务日志](../outputs/s43_rel_20261027/postprocess/) | 6个高率背景失败保留，不用计算成功替代任务有效 |
+| 最终外供流客户端 | [6000权重β0客户端回执](../outputs/s43_rel_20261027/engineering/external_client/ch350/final_full_beta0_mesh.summary.json) | 350ms、14,191事件消费一次、5个778顶点/21关节mesh，无GT读取 |
+| 实现、环境与方法说明 | [代码/命令README](../tools/s43_rel/README.md)、[R1配置目录](../configs/s43_rel/r1/)、[环境身份](../outputs/s43_rel_20261027/environment_snapshot.json)、[方法与贡献说明](#s43-rel-doc-20261027) | 训练/在线共用core；原理段不升级成性能创新 |
+| 完成门 | [postprocess](../outputs/s43_rel_20261027/postprocess_complete.json)、[finalization](../outputs/s43_rel_20261027/finalization_complete.json)、[β0扩展](../outputs/s43_rel_20261027/mean_shape_deployment_complete.json) | 已实际完成；失败工作负载也如实登记 |
+| 交付归档 | [manifest](../outputs/s43_rel_20261027/delivery/manifest.json)、[逐文件校验](../outputs/s43_rel_20261027/delivery/verification.json)、[114文件与四组部署权重包](../outputs/s43_rel_20261027/delivery/s43_rel_source_evidence_weights.tar.gz) | 归档是当时交付快照，本次整理不重打包、不改旧SHA |
+
+检查点角色：各臂last.ckpt保留模型、Adam/scheduler/RNG、lane游标、前态与完整sensor数值历史，正式accuracy使用它；step=6000.ckpt是同一最终模型的weights-only部署文件，资源基准与外供客户端使用它，避免加载训练状态。两者权重等价已核验，文件SHA不同，不能混写成同一文件。四组训练目录为[s43](../outputs/s43_rel_20261027/train/full_r1/s43/)、[enhanced](../outputs/s43_rel_20261027/train/full_r1/enhanced/)、[no_order](../outputs/s43_rel_20261027/train/full_r1/no_order/)、[full](../outputs/s43_rel_20261027/train/full_r1/full/)。
+
+源码身份分阶段登记：训练22项依赖保持冻结；后来的完整mesh解码、target-free资源reader及客户端有[工程登记与最终source freeze](../outputs/s43_rel_20261027/engineering/mesh_service_final_sourcefreeze.json)，β0路径有[独立formal source freeze](../outputs/s43_rel_20261027/mean_shape/formal_sourcefreeze.json)。不把后来工程完善的源码身份追写成R0/R1-small当时执行版本。完整数据划分、原模型与旧分支保持，未清理原负结果。
+
+<a id="s43-rel-reproduction-20261027"></a>
+
+#### 9. 复现命令（本次整理未执行）
+
+下面命令按阶段选择执行，不是要求一次性运行整块脚本；orchestrate launch在后台启动作业，small未完成并核对前不要直接再启动full。命令从仓库根执行，仅物理GPU4–7可用于本轮复现。新输出目录和新tag用于保留已有结果。所有结果目录拒绝覆盖时，换新目录，而非删除已评分结果。β0正式工具仍校验原postprocess/finalization完成门；给定手形和β0两种条件不要混用。
+
+~~~bash
+cd /data1/lyq/code/mesh/EventHands1
+export PY=/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python
+export REL_STUDY=outputs/s43_rel_20261027
+export REL_REPRO=outputs/reproduce_s43_rel_record_20261027
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OMP_NUM_THREADS=2
+
+# 单元验收
+CUDA_VISIBLE_DEVICES="" "$PY" -m pytest -q tests/test_s43_rel_*.py
+
+# E1/E2：重新提取并运行原预算读出；输出到新目录
+CUDA_VISIBLE_DEVICES=4 "$PY" -m tools.s43_rel.mechanisms \
+  --out "$REL_REPRO/e12" --stage all --device cuda:0 --workers 8
+"$PY" -c 'import os; from pathlib import Path; from tools.s43_rel.readouts import summarize; summarize(Path(os.environ["REL_REPRO"]) / "e12")'
+
+# E3：正式支持/实际前缀/合成负载；已有缓存的任务读出另列
+CUDA_VISIBLE_DEVICES="" "$PY" -m tools.s43_rel.support_experiment \
+  --out "$REL_REPRO/e3" --duration-ms 1000
+CUDA_VISIBLE_DEVICES="" "$PY" -m tools.s43_rel.support_experiment \
+  --existing-cache "$REL_STUDY/mechanisms/e12/existing_features.npz" \
+  --target-unit mm --out "$REL_REPRO/e3_task"
+
+# R1明确读取原冻结E12缓存和基线分数，不把新提取缓存冒充原身份
+CUDA_VISIBLE_DEVICES=4 "$PY" -m tools.s43_rel.readouts_revision --run \
+  --prereg "$REL_STUDY/correction_R1_prereg.json" \
+  --device cuda:0 --out "$REL_REPRO/e12_R1"
+
+# small/full四臂配对训练：均使用新tag，full是预训练起点微调
+"$PY" -m tools.s43_rel.orchestrate launch --stage small \
+  --tag records_reproduce_small_r1 --config-dir configs/s43_rel/r1
+"$PY" -m tools.s43_rel.orchestrate launch --stage full \
+  --tag records_reproduce_full_r1 --config-dir configs/s43_rel/r1
+
+# 给定aux形状条件诊断，原数据口径：last.ckpt
+CUDA_VISIBLE_DEVICES=4 "$PY" -m tools.s43_rel.replay \
+  --config configs/s43_rel/r1/full.yaml \
+  --checkpoint "$REL_STUDY/train/full_r1/full/last.ckpt" \
+  --recording zgz_local --hop 50 --duplicate-query --threads 2 \
+  --out "$REL_REPRO/conditional/full_zgz_local_h50" --device cuda:0
+
+# β0部署输入：全部预测保存后才读GT评分
+CUDA_VISIBLE_DEVICES=4 "$PY" -m tools.s43_rel.mean_shape_replay \
+  --config configs/s43_rel/r1/full.yaml \
+  --checkpoint "$REL_STUDY/train/full_r1/full/last.ckpt" \
+  --recording zgz_local --threads 2 --device cuda:0 \
+  --out "$REL_REPRO/mean_shape/replays/full_zgz_local_h50"
+
+# β0完整mesh资源，默认用最终step=6000 weights-only
+CUDA_VISIBLE_DEVICES=4 "$PY" -m tools.s43_rel.mean_shape_benchmark \
+  --arm full --device cuda:0 \
+  --out "$REL_REPRO/mean_shape/resources/full_h50.json"
+
+# 真正无标签客户端，events为N×4整数[x,y,t,p]，p只能0/1
+CUDA_VISIBLE_DEVICES=4 "$PY" -m tools.s43_rel.online \
+  --events "$REL_STUDY/engineering/external_client/ch350/events.npy" \
+  --time-unit ms \
+  --calibration "$REL_STUDY/engineering/external_client/ch350/calibration.json" \
+  --config configs/s43_rel/r1/full.yaml \
+  --checkpoint "$REL_STUDY/train/full_r1/full/step=6000.ckpt" \
+  --hop 50 --start-ms 0 --stop-ms 350 --device cuda:0 \
+  --out "$REL_REPRO/client_full_beta0.jsonl"
+
+# 已完成结果的安全再导出见下一段，不重新运行正式汇总入口。
+~~~
+
+其余微调臂按同样方式替换config/checkpoint；mean-shape扩展中的canonical用s43.yaml并省略checkpoint。完整注册批次曾由final_pipeline、postprocess、finalize_queue、mean_shape_queue串联执行，已完成的原批次不要重复启动。新tag训练结果的实际目录遵循orchestrate输出，不能将新tag自动当成原固定full_r1汇总路径。
+
+正式汇总入口当时由队列实际执行，原主study结构、完成门和最后检查点身份已固定，不能将任意新tag目录视作完整study：
+
+~~~text
+python -m tools.s43_rel.report
+python -m tools.s43_rel.mean_shape_report
+~~~
+
+这些入口会重新检查工件并写回部分派生审计摘要，且已有结果会触发防覆盖；上面仅登记原执行入口，本次整理未重新运行。若只是把已完成的两种条件结果再导出到新位置，使用下面的展示导出API，避免触及原报告和审计文件。此操作只读取已保存JSON，不重算模型、GT或核验全套源工件，不能冒称重新完成实验：
+
+~~~bash
+CUDA_VISIBLE_DEVICES="" "$PY" - <<'PY'
+import json
+import os
+from pathlib import Path
+from tools.s43_rel.report import write_final
+from tools.s43_rel.mean_shape_report import write as write_mean
+
+study = Path(os.environ["REL_STUDY"])
+destination = Path(os.environ["REL_REPRO"])
+conditional = json.loads((study / "report/results.json").read_text())
+public_mean = json.loads((study / "mean_shape/results.json").read_text())
+write_final(conditional, destination / "collected_report")
+write_mean(public_mean, destination / "collected_mean_shape_report")
+PY
+~~~
+
+本次整理只把既有实验记录、实际命令和工件索引收拢到本账本；没有重跑上述命令，没有改变注册门槛、数据、模型或科学裁决。[整理前快照与修改身份](../outputs/s43_rel_20261027/record_consolidation_20261027/manifest.json)单独登记，原交付包与它保存的旧版账本哈希保持不动。后续默认不扩大此机制的训练；继续需要强简单表示不能解释的任务证据。
+
+
+<!-- S43_DOCS_MERGE_20261028:BEGIN rel -->
+<a id="s43-rel-doc-20261027"></a>
+
+## S43-REL：实现、完整配对训练与流式结果（2026-10-27）
+
+> **合并版范围注（2026-10-28）：** 本节逐行并入原 `docs/S43_REL_实现训练与流式结果_20261027.md`（并入前 SHA256 `b5c68ac01fde575eeadd0fb71ea84805dd242b24b4f2eec3e27ba5ddadd8d01b`，363 行）：S43-REL 的实现边界、完整配对训练、九列表、query 间隔、完整 mesh 服务与失败负载、机制证据、复现入口与论文可用表述。并入只将原标题整体下移一级（跳过代码围栏）、把指向 S43 设计稿的链接改为研究稿锚点；数字、表格、命令与裁决不改。与本账本上方的[最终结果](#s43-rel-results-20261027)属同一轮（2026-10-27）；“本轮”“本文”指原文件写入时点。该文件曾是 Stage 1 归因协议的冻结依赖（`outputs/s43_revisit_20261028/stage1_protocol.json`）；其原字节保存在 `outputs/s43_docs_merge_20261028/originals/`，`tools/s43_revisit/validate_records.py` 对缺失的原路径回退到该备份核对 SHA。
+
+本轮已完成四臂各 6000 次优化更新、规定的完整流回放、机制与训练—在线一致性审计，以及独立的 **β=0 无个体手形输入部署扩展**。执行完成不代表新机制成立：给定真实来源手形 β 的条件诊断中，full 通过预注册的配对非劣描述门，但总体 RA-MPJPE 为 **10.69 mm**，对照 S43 为 **10.64 mm**；β=0 完整流中为 **11.10 对 11.03 mm**。full 的绝对位置误差有所下降，关节对齐精度没有稳定优势，新增有向关系的独特任务价值尚未建立。固定现有文件前缀上的完整 mesh 服务 P50 为约 **57–58 ms**，也没有通过 50 ms 服务期限。最终决定为 [NO_GO_S43_DEFAULT_REPLACEMENT](../outputs/s43_rel_20261027/final_decision.json)，原 S43、S39 生产路径与默认模型不变。
+
+本文以实际工件为依据：[主结果](../outputs/s43_rel_20261027/report/results.json)、[β=0 结果](../outputs/s43_rel_20261027/mean_shape/results.json)、[主完成回执](../outputs/s43_rel_20261027/finalization_complete.json)、[β=0 完成回执](../outputs/s43_rel_20261027/mean_shape_deployment_complete.json)。`NONINFERIOR_DESCRIPTIVE` 只表示固定 local/global RA-MPJPE 非劣门的描述性结果，不表示机制、创新性、形状泛化或实时服务得到验证。
+
+### 1. 检验的问题与实现边界
+
+研究问题是：保留 S43 原 LNES／预测渲染主路，先写入与手态无关的有序事件关系，再按当前部署 MANO 手态后绑定，能否提供超出简单增强和空间无向支持的价值。实现没有把新证据压成两通道伪 LNES 后冻结主干；原网络全部参数参与微调，sensor 和 typed 两种增量分别接入原特征和读出，原 MANO 51D 状态、解码、损失和评价保持一致。
+
+```mermaid
+flowchart LR
+  E[完整 1 ms 事件组] --> Z[MANO 无关 A/Z 局部写入]
+  E --> L[最近 W50 LNES / 简单增强]
+  S[已提交 state 与 K / β0] --> G[全局 FK 与可见轮廓重绑]
+  Z --> Q[后绑定 f / a / λ]
+  G --> Q
+  Q --> T[R1 关节基 C / diagG 读出]
+  Z -->|A 六通道增量| N[原 S43 ＋零初始化支路]
+  L --> N
+  S -->|原 render 与前态条件| N
+  T --> N
+  N --> P[51D 状态]
+  P --> M[原 MANO：778 顶点 / 21 关节]
+  P --> C[detach 后按日程 commit]
+  C --> S
+```
+
+图示 β=0 部署情形；给定手形诊断另用外供序列 β。**只有 A/Z 写入是局部更新**，查询仍包含全局 FK、轮廓重建、连接和 CNN。commit 只改变部署手态，不回写过去 A/Z，也不等于全链逐事件增量计算。
+
+#### 1.1 固定传感器记忆与因果合同
+
+240×180 传感器按 2×2 cell 建立 120×90 格点、169,040 条有向局部边，反向边完整保存。A 是三极点一阶指数痕迹；Z 保存四种极性组合的严格正滞后事件对，τ=(2,8,32) ms、证据年龄 γ=(16,64) ms，共 24 槽。写入不读 MANO、ROI、K/β 或标签。同 ms 作为完整多重集合封口，先由旧 A 产生 pair 更新，再写本组 A，禁止靠同组排列创造运动方向。
+
+令事件 \(e_i=(c_i,t_i,p_i)\)、证据截止 \(T\) 只接收 \(t_i<T\)，固定边 \(a\to b\) 的定义为
+
+\[
+A_{cpr}(T)=\sum_{i:t_i<T}\mathbf1[c_i=c,p_i=p]\,e^{-(T-t_i)/\tau_r},
+\]
+\[
+Z_{abpqrl}(T)=\sum_{\substack{t_i<t_j<T\\c_i=a,c_j=b\\p_i=p,p_j=q}}
+ e^{-(t_j-t_i)/\tau_r}e^{-(T-t_j)/\gamma_l}.
+\]
+
+Z 是加权事件对数，不是速度或物理似然。对完整时标组的计数 \(n_{cp}(t)\)，将旧状态解析衰减到 t 后，所有边先执行 \(Z^+_{abpqrl}=Z^-_{abpqrl}+A^-_{apr}n_{bq}(t)\)，随后才执行 \(A^+_{apr}=A^-_{apr}+n_{ap}(t)\)。全部 pair 读取同一份组前 A，因此同 ms 没有正滞后贡献。来源防重依靠有序 `source_range` 与单调 `packet_ordinal`，不是任意乱序UID的无限历史去重。固定图／极性／τ/γ改变须重建状态；当前接口也不恢复任意过去的在线前缀。完整原理与合同见[主方案定义 §4–10](网络结构与可观测性诊断研究.md#s43-redesign-20261027)。
+
+每条 lane 独立持有数值历史，只在真实 valid-run 边界 reset；优化步、detach、query 和 commit 不清空指数尾迹。原 W50 LNES 单独读取最近 50 ms raw support。query25 的重叠 W50 不能重复 ingest；query100 也必须 ingest 中间全部事件，只把最后 W50 交给原 LNES。所有预热和末尾不足一窗的事件均消费并登记，短尾不制造额外预测或反馈。没有把随机窗口前的历史静默置零，也没有逐样本巨型 Z 磁盘缓存。
+
+原 LNES raw support 设置 **262,144 事件/50 ms** 上限，即 8 MiB 的 N×4 int64 payload。超域在任何 A/Z 或观测窗口写入前预检并整包拒绝，不裁事件重数；这是明确的负载合同，不是“任意事件率内存恒定”。该上界不包含 core、拓扑、几何、模型、workspace、mmap 文件页或输出日志。
+
+#### 1.2 后绑定几何与 R1 读出
+
+每次 query 由当前预测状态、外供 K 和 β 重新做全局 FK／自遮挡轮廓绑定。128 个轮廓样本以 4 px 软邻域连接事件边，每边至多 4 个样本，形成方向量 f[51,24]、几何作用行 a[128,51]、非负支持 λ[128,24]。局部手指旋转使用右 SO(3) 作用，平移／旋转的作用尺度为 5 mm／0.1 rad；不在 π 附近依赖轴角坐标差分。K 从原 640×480 条件到事件 240×180 只缩放一次。
+
+其中 \(a_{\ell j}=n_\ell^\top\partial_{\xi_j}u_\ell\) 是当前规则轮廓分支的法向作用，\(h=(p,q,r,l)\)；固定边单位方向为 \(\hat\delta_e\)，距离权重 \(w_{e\ell}\propto(1-r_{e\ell}/4)^2\) 按每条边归一。保留未相消 Z 后读取
+
+\[
+m_{\ell h}=\sum_e w_{e\ell}Z_{eh}(n_\ell^\top\hat\delta_e),\qquad
+f_{jh}=\sum_\ell a_{\ell j}m_{\ell h},
+\]
+\[
+\lambda_{\ell h}=\sum_e w_{e\ell}Z_{eh}(n_\ell^\top\hat\delta_e)^2\ge0,\qquad
+G_h=\sum_\ell\lambda_{\ell h}a_\ell^\top a_\ell.
+\]
+
+几何是查询条件，不回写上述传感器和极性统计。经验投影 f／支持 λ 不保全完整高阶事件分布；有限查询的 \(a\nu=0\) 只是作用零空间，不是完整raw流的物理不可辨识定理。
+
+R0 的未加权轮廓点 a 能携带裸几何先验，且逐槽标准化出现外推问题。本轮只作了**一次预注册科学修正 R1**，改用固定 MANO 自由度坐标中的观测加权支持：
+
+\[
+C=a^\top\operatorname{diag}\!\left(\sum_h\lambda_{\ell h}\right)a,
+\qquad (\operatorname{diag}G)_{jh}=\sum_\ell\lambda_{\ell h}a_{\ell j}^{2}.
+\]
+
+每个自由度读取 `[signedlog(C_jk), log1p(diagG_jh)]`，51+24=75 维，共享 75→32 MLP；方向分支仍为 f1224→32，最后零初始化层产生 51D 增量。只物化一张 51² C 和 51×24 diagG，不物化 24 张完整 Gram；额外成本为 O(Ns·51²+Ns·51·24)。无支持硬门包含偏置。C/diagG 是经验支持特征，**不是 Fisher、精度矩阵或校准后验**；f=0、λ>0 也可以来自相反运动或静态闪烁。规则轮廓分支不解决外部遮挡、纹理法向及角点／遮挡切换，`branch_regular` 被记录但不是当前神经头的可靠性输入。
+
+默认 `SUPPORT_READER=points` 保留 R0；R1 用 `joint_gram`，checkpoint 对 reader 严格检查。R0 原始负结果保留，R1-small 重从公共 canonical 起点训练，没有沿用小阶段优选权重。见[唯一修正预注册](../outputs/s43_rel_20261027/correction_R1_prereg.json)。
+
+#### 1.3 四臂、参数与保留的限制
+
+| 臂 | 共同主路 | 新 sensor 输入 | typed 输入 |
+|---|---|---|---|
+| s43 | 原 W50 LNES、预测 render、原 CNN/MLP 与 51D 解码 | 关闭 | 关闭 |
+| enhanced | 相同 | W50 last/first/log-count/四个时间粗 bin，以及同 τ 连续 EMA，共 20 通道 | 关闭 |
+| no_order | 相同 | A 六通道 | 空间反向 Z 对称化后的同一 R1 头 |
+| full | 相同 | A 六通道 | 原有向 Z 的同一 R1 头 |
+
+`no_order = 0.5*(Z_e,pq + Z_reverse(e),pq)` **不交换 p/q**；它仍保留正滞后、τ/年龄核、极性和强度，不能称“去掉全部时间信息”。同几何下，它使方向 f 相消，同时在浮点误差内保持 λ 和支持。两种公共前态下的实际匹配审计中，λ 相对 L2 差为 8.63e−9／1.50e−8，f 范数由 993.72／1160.73 降至约 2e−13；见[空间干预审计](../outputs/s43_rel_20261027/audits/spatial_order_intervention.json)。各臂自身递推后几何可以不同，不能把完整轨迹解释成逐步 λ 严格相同。
+
+sensor 的 3×3、20→3 卷积增量注入原 conv1 特征，typed 增量加入原 rn.fc；都零初始化。s43 的新增路径硬关闭，不能靠偏置学常数。参数明细如下，不能用统一的名义总数掩盖实际新增自由度。
+
+| 臂 | 原 base 参数 | sensor 名义／结构活跃 | typed 名义／活跃 | requires-grad 总数 |
+|---|---:|---:|---:|---:|
+| s43 | 2,821,973 | 540／0 | 45,100／0 | 2,821,973 |
+| enhanced | 2,821,973 | 540／540 | 45,100／0 | 2,822,513 |
+| no_order / full | 2,821,973 | 540／162 | 45,100／45,100 | 2,867,613 |
+
+所有 wrapper 名义总参数均为 2,867,613，含关闭或输入恒零的槽；full/no_order 的 sensor 仅前六通道结构活跃。原稀疏 mask 与 LNES 全零门保留，A 增量只在旧 LNES/render 活跃域进入主干。因此这是 **S43 加观测记忆**，不是独立替代 LNES 的新前端；保存完整尾迹也不意味着首版网络能在所有空间位置或空流状态自由利用它。
+
+### 2. 完整训练、数据域与来源账
+
+四臂 seed=3407，从相同的原 S43 step6000 预训练检查点配对微调。small 为 120×B4×clip2=960 个监督输出；正式 full 各 **6000 次 optimizer 更新×B8×clip4=192,000 输出**，仅为历史 6,144,000 样本的 **1/32**，不称等原预算从头训练。clip4 是四个自身反馈 phase 后更新，TBPTT=1，不是跨四步保留反向图。Adam lr=1e−4、warmup500 后 cosine、梯度裁剪10、BF16 训练；BN 统计冻结，原网络参数仍可训练，原 loss 不变。每 phase 的预测 detach 后成为本臂前态，完整数值 sensor 历史保留。 A/Z和CPU几何是固定、detach的观测特征；loss梯度训练sensor／typed adapters及原S43参数，跨已提交手态和记忆不反传（TBPTT=1），可线性重读不表示全轨迹可微。
+
+small/机制阶段是 FIT7／SELECT2。完整阶段纳入全部九名原训练受试者、72 个 trial（含 v2–v4 变体），不是 72 次独立采集；**ycy、ylf 也参加 full 训练**。最终 ycy 是训练域回放，不能沿用小阶段 SELECT 的未见个体含义。zgz 用作锁定设计后的报告；项目历史已多次使用该人，不能包装成新建立、从未接触的盲测。没有在完整权重、种子或 query 间隔中按 zgz 选最好结果。
+
+| 臂 | 实际更新 | 实际监督输出 | 实际 ingest 事件行 | 单卡作业 wall 时间 |
+|---|---:|---:|---:|---:|
+| s43 | 6000 | 192,000 | 4,326,713,676 | 27.11 min |
+| enhanced | 6000 | 192,000 | 4,326,713,676 | 70.10 min |
+| no_order | 6000 | 192,000 | 4,326,713,676 | 151.47 min |
+| full | 6000 | 192,000 | 4,326,713,676 | 153.78 min |
+
+总计约 6.71 个“分配一张卡的 wall 小时”，包含 CPU 准备与等待，不是纯 GPU kernel 时间。四臂均使用物理 GPU4–7；未使用 GPU0–3。实际训练 journal 的 6000 个 step 输入摘要全部配对相同，总摘要为 `f78f7f1a79a51676c268dd3dce3a80b4e78308b155c4db78448420cc065ea941`。事件行包含重复遍历，不能当作独立原生事件数。独立 offset/clock 回放核验 192k 输出、72 条有输出 trial、634 次 reset、3,549,253 条短尾事件；依据实际记录的摘要，不宣称独立重新 hash 了数十亿行原事件。
+
+训练检查点保留 optimizer、scheduler、RNG、lane 游标、自身前态及完整数值记忆。有限 6000 步后尚未消费的将来 run 尾部仍留在检查点，未冒称全数据无限遍历；训练短于50ms的 run 共同排除。最终使用最后6000步权重，不选最佳步。[完整训练审计](../outputs/s43_rel_20261027/audits/full_training.json)为 `PASS_WITH_EXPLICIT_PROTOCOL_DIFFERENCES`，无 hard failure，四臂执行依赖源 guard 均通过。
+
+#### 2.1 正式回放合同与两种形状条件
+
+每个 valid-run 从公共 `[0,0,0.6 m]+48个0` 开始，共享两次冻结 canonical 的因果 W50 预热，然后按本臂预测递推。证据是半开 ms 前缀，输出目标 `t_query=cutoff−1ms`；这是 1ms 回溯输出，不是零等待。短 run 即使没有评分输出也消费其事件，run 之间不跨无效间隙保留历史。已知有效段的输入不等于具备在线检测、分割和重捕获能力。
+
+主四臂40条配对流任务、canonical四条参考流均完成；四个源录制的有效原生行数为：ycy_local 3,717,165、ycy_global 39,183,073、zgz_local 1,792,402、zgz_global 48,388,002，总93,080,642。每种臂和 cadence 有意重用同一来源，不能把40次回放当40条独立录制。预热、普通段与尾事件均核对 native count／来源摘要。
+
+**给定手形诊断**的 K/β 来自原 aux，β 来源是 sequence_gt。姿态 GT 仅在推理完成后评分，但这不等于没有 GT 来源的个体条件。**独立 β=0 部署扩展**则在 warmup、网络、几何及预测 FK 全部固定十维 β=0，推理 reader 只读事件、offset、K、valid-runs，不打开 `.meta`，不访问 aux β；全部预测保存后才用 GT51＋真实 β 评分，预测 mesh 用0、GT mesh 用真实 β。10条完整回放和5个整mesh资源任务全部退出0，访问 guard 的阻断尝试均为0。它验证可部署输入，不改变训练仍有个体形状监督的事实，也不保证无需手形校准仍能保持精度。改变 β 同时改变 renderer、查询与反馈，不只是最后 mesh 尺寸换算。
+
+### 3. 当前协议九列表：先区分锚点
+
+下面误差单位均为 mm。冻结评分实现是 `root_align(x)=x-x[..., :1,:]`：**MPJPE 减 joint0／腕点，MPVPE 则独立减 vertex0（V0）**。V0 不是腕关节；表中的 MPVPE 不能称“腕点对齐顶点误差”。RA-MPJPE 总列按 local1137、global1384，共2521个实际输出加权，不是两名受试者，也不是 PA/Procrustes 对齐。
+
+Latency 来自固定 ch_local 文件前缀的同步 sensor→mesh778/21 CPU 输出 P50，非整条 zgz 计时；完整准确率回放先保存 pose51，之后离线 FK 评分。两种计时边界不混写。名义 Params 包含关闭支路；本轮 FLOPs 未测，用“—”。
+
+#### 3.1 给定手形 β 的条件诊断
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE（递推） | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| 冻结 S43／公共初始化 | 13.19 | 8.14 | 11.14 | 6.71 | 10.42 | 9.75 ms | — | 2.87 M |
+| S43 配对 FT6000 | 13.13 | 8.60 | 11.10 | 7.08 | 10.64 | 9.70 ms | — | 2.87 M |
+| S43＋简单增强 FT6000 | 13.27 | 8.62 | 11.20 | 7.13 | 10.72 | 21.50 ms | — | 2.87 M |
+| S43＋空间无向 Z／R1 FT6000 | 13.49 | 8.73 | 11.38 | 7.19 | 10.88 | 58.61 ms | — | 2.87 M |
+| S43＋有向 Z／R1 FT6000 | 13.29 | 8.55 | 11.20 | 7.06 | 10.69 | 57.05 ms | — | 2.87 M |
+
+full 相对配对 S43 的 local RA +0.163 mm、global −0.052 mm；预注册允许劣化 margin 分别0.657／0.500mm，因此两项非劣通过。总体 RA +0.045mm，没有总体优势；相对 no_order −0.187mm 的单种子差也不足以独立确立有向关系的任务作用。绝对相机坐标 J/V 如下，避免对齐指标遮住平移和形状条件的影响。
+
+| 网络 | local 绝对 J／V | global 绝对 J／V | 总体绝对 J／V |
+|---|---|---|---|
+| 冻结 S43／公共初始化 | 36.30／36.05 | 32.31／32.15 | 34.11／33.91 |
+| S43 配对 FT6000 | 31.21／30.98 | 26.00／25.82 | 28.35／28.15 |
+| S43＋简单增强 FT6000 | 31.18／30.96 | 25.97／25.78 | 28.32／28.12 |
+| S43＋空间无向 Z／R1 FT6000 | 30.98／30.76 | 25.64／25.44 | 28.05／27.84 |
+| S43＋有向 Z／R1 FT6000 | 29.62／29.41 | 25.71／25.52 | 27.47／27.28 |
+
+full 总体绝对 J 从 S43 的28.35降到27.47mm，而 RA 略差；这是位置／姿态分量不同的混合结果，不能只挑绝对下降称整个跟踪改善。训练域 ycy 的 RA local/global：canonical4.20／15.52、S43 FT3.48／3.48、enhanced3.44／3.44、no_order3.47／3.46、full3.42／3.47mm。训练域拟合改善明显大于新人的差异，不能将其当独立泛化证据。
+
+#### 3.2 β=0 可部署输入的独立完整流结果
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE（递推） | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| 冻结 S43／公共初始化 | 13.62 | 8.43 | 11.57 | 6.86 | 10.77 | 9.79 ms | — | 2.87 M |
+| S43 配对 FT6000 | 13.61 | 8.90 | 11.46 | 7.19 | 11.03 | 9.79 ms | — | 2.87 M |
+| S43＋简单增强 FT6000 | 13.61 | 8.90 | 11.57 | 7.24 | 11.02 | 21.60 ms | — | 2.87 M |
+| S43＋空间无向 Z／R1 FT6000 | 13.53 | 9.01 | 11.49 | 7.31 | 11.05 | 59.29 ms | — | 2.87 M |
+| S43＋有向 Z／R1 FT6000 | 13.85 | 8.83 | 11.74 | 7.18 | 11.10 | 57.62 ms | — | 2.87 M |
+
+| 网络 | local 绝对 J／V | global 绝对 J／V | 总体绝对 J／V |
+|---|---|---|---|
+| 冻结 S43／公共初始化 | 39.25／39.05 | 37.07／36.97 | 38.05／37.91 |
+| S43 配对 FT6000 | 31.63／31.42 | 30.78／30.65 | 31.16／30.99 |
+| S43＋简单增强 FT6000 | 32.63／32.43 | 30.54／30.41 | 31.48／31.32 |
+| S43＋空间无向 Z／R1 FT6000 | 32.48／32.28 | 30.43／30.28 | 31.35／31.18 |
+| S43＋有向 Z／R1 FT6000 | 30.98／30.80 | 30.27／30.13 | 30.59／30.43 |
+
+β=0 下 full 总体 RA 比 S43 差0.068mm、比 no_order 差0.047mm；绝对 J 比 S43 低0.576mm。由条件诊断转到 β=0 后，原先相对 no_order 的微小 RA 排序没有保持，不能声称有向 Z 的独特部署精度优势。补充的**joint0腕点对齐 MPVPE**总体为 canonical10.43、S4310.69、enhanced10.70、no_order10.73、full10.76mm；它与九列表中 V0 对齐 MPVPE 是不同指标。
+
+#### 3.3 历史参考独表
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| 历史原S43（W50原始协议，无滤波） | 12.80 | 8.01 | 10.77 | 6.65 | 10.24 | 7.80 ms | 0.101 G | 2.82 M |
+| 同一S43（S39栈/W200协议） | 10.60 | 7.99 | 9.37 | 6.60 | 9.21 | 8.39 ms | 0.127 G | 2.82 M |
+| S39历史参照（S39栈/W200） | 10.27 | 7.36 | 8.94 | 6.25 | 8.71 | 4.10 ms | 1.252 G | 2.80 M |
+
+这些是冻结历史结果，原 S43 的 W50 原始协议与 S39/W200 栈同时保留。历史 Latency 是缩放／稀疏执行器口径，历史 FLOPs 列沿用 MACs 统计，不能与当前实际 masked-dense sensor→mesh 服务排行。没有把新四臂在旧 S39 栈重评；也不能以历史 S43 的10.24对当前full10.69作配对因果比较。
+
+### 4. Query 间隔、纯查询和前态依赖
+
+#### 4.1 共同100ms帧，而非混合不同采样网格
+
+query25／50／100 都用原 W50 LNES 与完整连续 sensor 前缀，但各自 commit 会改变后续递推。本表只用相同 `(run_id,end_ms)` 的交集：local563帧、global692帧，GT逐位相同。单元为 **J0对齐 MPJPE／绝对 MPJPE**。各自全流网格均值完整保留在主 JSON 的 `cadences`，不拿不同样本构成解释成纯频率效应。
+
+| 臂 | 录制 | 共同帧数 | query/commit25 | query/commit50 | query/commit100 | query25、commit50 |
+|---|---|---|---|---|---|---|
+| s43 | local | 563 | 13.399／33.150 | 13.066／31.283 | 13.265／28.767 | 13.066／31.283 |
+| s43 | global | 692 | 8.553／26.661 | 8.602／25.779 | 8.678／25.129 | 8.602／25.779 |
+| enhanced | local | 563 | 13.323／34.147 | 13.200／31.247 | 13.332／29.392 | 13.200／31.247 |
+| enhanced | global | 692 | 8.601／27.589 | 8.640／25.862 | 8.669／24.450 | 8.640／25.862 |
+| no_order | local | 563 | 13.494／33.020 | 13.466／31.088 | 13.032／29.893 | 13.466／31.088 |
+| no_order | global | 692 | 8.741／25.345 | 8.766／25.511 | 8.764／26.593 | 8.766／25.511 |
+| full | local | 563 | 13.684／31.878 | 13.238／29.746 | 13.250／28.586 | 13.238／29.746 |
+| full | global | 692 | 8.550／25.522 | 8.575／25.587 | 8.562／26.222 | 8.575／25.587 |
+
+full 的共同帧 RA 差很小，绝对位置随反馈日程变化且 local/global方向不同；不能由加密 query 推出更好精度。`query25、commit50` 在共同50ms输出上与标准query/commit50 **逐位一致**，四臂均通过[固定commit纯查询审计](../outputs/s43_rel_20261027/audits/final_fixed50_purequery.json)。额外只读query没有偷偷增加反馈或重复消费事件；该不变性不代表增加查询没有计算成本。[共同网格完整结果](../outputs/s43_rel_20261027/audits/final_common_cadence_grid.json)。
+
+#### 4.2 共享前态扰动：fresh 与 stale 不稳定支持纠错
+
+[完整权重稳健性报告](../outputs/s43_rel_20261027/robustness/full_final/report.json)在每条zgz录制固定8个 eligible query 上，以配对训练 S43 的同一已部署前态为锚，四臂共享前缀与扰动；只比较typed几何重绑fresh/stale，不commit这些诊断输出。该 CPU 诊断不是各臂长时自由反馈的收敛域测试。GT在预测保存后才评分。
+
+下表为 full **fresh−stale**，负值较好，单位mm；nominal差为0。
+
+| 共同前态扰动 | local 绝对J／RA-J变化 | global 绝对J／RA-J变化 |
+|---|---:|---:|
+| 根 x＋5mm | +0.122／−0.004 | −0.092／−0.000 |
+| 根 x＋15mm | +0.006／−0.000 | +0.039／−0.026 |
+| 食指MCP右局部z＋0.1rad | +0.102／−0.006 | +0.077／−0.021 |
+| 食指MCP右局部z＋0.3rad | −0.128／−0.002 | −0.149／−0.019 |
+
+量级小、绝对误差符号混合，尚不支持一般性的“错误前态下重新绑定能可靠纠错”。它确认部署了可重新查询的接口，不等于得到普遍有效的测量更新。
+
+#### 4.3 预测后才由GT划分的局部手指运动
+
+预定描述条件是同run相邻50ms、根平移<2mm且根旋转<2°，五指中最大“四个腕相对FK关节平均位移”>5mm/50ms。仅在全部预测完成后使用GT标记，不能把这些掩码输入查询。zgz_local 主分层72个、另一mean20定义11个、食指分层23个；zgz_global主／次分层均为0，必须写**缺证据**。
+
+| 形状条件 | 臂 | local主分层n | 绝对J | J0对齐J |
+|---|---|---:|---:|---:|
+| 给定β | s43 | 72 | 29.20 | 10.59 |
+| 给定β | enhanced | 72 | 28.70 | 10.58 |
+| 给定β | no_order | 72 | 28.92 | 10.78 |
+| 给定β | full | 72 | 27.60 | 10.73 |
+| β=0 | s43 | 72 | 30.02 | 11.04 |
+| β=0 | enhanced | 72 | 30.39 | 10.96 |
+| β=0 | no_order | 72 | 29.74 | 11.02 |
+| β=0 | full | 72 | 28.31 | 11.06 |
+
+β=0复用相同保存地址的掩码，不重新调阈值或挑子群。full绝对位置较低，腕对齐手指误差没有一致优势。标签是现有拟合／插值链的伪GT，不能据此宣称物理高频运动准确性；相邻帧也不增加独立受试者数。全部预定掩码和四分位结果见稳健性与β=0 JSON，而不是只保留最好的分层。
+
+### 5. 完整 mesh 服务、内存和失败负载
+
+#### 5.1 计时与资源测量范围
+
+正式服务成本包含：新事件解析／ingest、当前几何重绑、选边readout、表示构造、CPU→GPU观测与条件传输、原网络、预测GPU→CPU、commit、原base._fk末端MANO，以及778顶点＋21关节传回CPU。每query使用GPU同步；mesh输出float32米制相机坐标，payload9,588B。原解码只加一次MANO hand mean；独立测试核对均值、单位与纯解码不改模型／手态历史、不额外commit。
+
+输入events/offsets的mmap访问、1ms包转换和来源ID摘要包含在外层service wall内；预先sourcehash通常已预热文件页，所以这是当前缓存文件前缀下的测量，不保证没有输入缺页／I/O。物理传感器／watermark等待、输出JSON序列化和输出写盘不在service wall内；协议声明1ms回溯目标，实际物理到达等待未测，不能加上“sensor-to-mesh”名称就称真实硬件端到端时延。编译／加载／100ms两次预热不混入稳态分位数，完整sourcecount仍包括预热。当前已缓存构建下full reset/compile约0.023s、加载1.64s、预热0.34s，**不是冷机器编译耗时保证**。计时输入哈希在服务wall外按1MiB流式完成，测前后身份验证；资源reader不打开姿态`.meta`或`.tsub`。给定β的资源测量仍依赖externalconditional β，β=0版本另有访问guard。
+
+以下为 **β=0**，物理GPU4 NVIDIA L20、CPU线程2、固定ch_local前3300ms（100ms预热＋3200ms/64次50ms query）的实际完整mesh服务；共消费247,738事件，其中稳态query阶段244,177。各臂都保留共同canonical预热模型，因此进程资源含两个模型实例和workspace，而Params列只数被评价wrapper。
+
+| 网络 | P50／95／99（ms） | 超过 50 ms | 输出/s | 事件/s | Torch 分配／保留峰值（MiB） | NVML 采样增量（MiB） | 进程 RSS 峰值（MiB） |
+|---|---|---|---|---|---|---|---|
+| 冻结 S43／公共初始化 | 9.79／10.52／11.72 | 0/64 | 100.97 | 385,242 | 43.9／54.0 | 416.1 | 952.6 |
+| S43 配对 FT6000 | 9.79／10.76／12.77 | 0/64 | 100.87 | 384,843 | 43.9／54.0 | 416.1 | 970.6 |
+| S43＋简单增强 FT6000 | 21.60／24.99／28.55 | 0/64 | 45.31 | 172,880 | 50.5／74.0 | 436.1 | 979.8 |
+| S43＋空间无向 Z／R1 FT6000 | 59.29／65.61／99.34 | 64/64 | 16.35 | 62,398 | 50.5／74.0 | 436.1 | 1049.1 |
+| S43＋有向 Z／R1 FT6000 | 57.62／64.14／95.71 | 64/64 | 16.84 | 64,253 | 50.5／74.0 | 436.1 | 1061.1 |
+
+Torch allocated/reserved是分配器峰值，不是GPU进程全部显存。NVML为**设备级20Hz只读采样**，统一基线624.1MiB，采样raw峰为canonical/S431040.2MiB、其他1060.2MiB；上表报告减基线增量416.1／436.1MiB。它包含设备reserved、driver/context和可能的其他占用，采样峰是观测下界，不能称精确process瞬时峰。RSS含解释器、库、模型、mmap页等，不等于表示本身驻留量。
+
+full的β=0每query平均成本：ingest25.45ms、geometry20.34ms、readout4.23ms、representation0.85ms、network（含观测传输）6.73ms、条件传输0.12ms、预测传输0.05ms、commit0.02ms、末端mesh1.39ms，其中FK1.27ms、meshD2H0.07ms。外层平均59.38ms；父项和子项不可重复相加。瓶颈主要在CPU记忆维护和全局几何，并非只有最后mesh解码。
+
+固定状态数组为core **18,616,960B/序列**、共享拓扑5,510,720B；enhanced只需额外259,224B一阶EMA。该前缀raw窗口峰12,114事件/387,648B，最终窗口136,192B不能误写成峰值。再加几何/KD-tree、A全图拷贝、模型及workspace，才对应进程测量。core有界不表示输出轨迹有界：JSONL／NPZ日志随T增长，单列为O(T)持久化成本。
+
+#### 5.2 Cadence期限与合成压力失败
+
+给定β的实际文件前缀完整服务：
+
+| 臂 | hop25 P50／P95／P99 ms；超期 | hop50 P50／P95／P99 ms；超期 | hop100 P50／P95／P99 ms；超期 |
+|---|---|---|---|
+| s43 | 8.01／8.47／9.08；0/128 | 9.70／10.42／11.62；0/64 | 13.19／14.36／16.16；0/32 |
+| enhanced | 15.80／18.15／20.66；1/128 | 21.50／24.77／29.28；0/64 | 33.92／38.50／44.28；0/32 |
+| no_order | 46.27／49.41／51.29；128/128 | 58.61／64.86／97.24；64/64 | 86.08／97.96／153.62；1/32 |
+| full | 44.42／48.10／50.51；128/128 | 57.05／63.37／101.55；64/64 | 82.23／94.30／154.01；1/32 |
+
+β=0的full在50ms也64/64超期。固定前缀和缓存执行条件下都不能称完整系统稳定实时；h100虽大多数完成也有1/32超期。更不能由batch训练吞吐、单FK/J或原稀疏延迟外推服务保证。
+
+合成压力是**均匀背景事件**，与现有v2e手部文件的任务精度分开。4臂×10k/50k/150k事件每50ms×3种hop共36个工作负载，30完成、6失败：full与no_order在150k/50ms、hop25/50/100均code1，预测MANO进入近裁剪面导致几何非法。该负载低于rawcap，日志不是计数overflow、cap拒绝或编译错误。失败按合同保留，不clamp、不hold前态；没有给失败任务虚构latency或吞吐。它说明本部署链在该高率合成背景下失效，**不能泛化为现有手部文件失败**；反过来，其他30项完成也不证明在背景中估计了正确手态。见[资源证据](../outputs/s43_rel_20261027/report/results.json)及[原始压力日志目录](../outputs/s43_rel_20261027/postprocess/)。
+
+### 6. 机制证据、实现审计与可归因结论
+
+E1–E3完成后并未把负门改成“已验证创新”。E1现有数据固定原型用了18条基础录制、FIT224／SELECT64窗口，SELECT仍只有两人；R1后RBF full/no_order25.50／27.10mm，但MLP28.51／28.89mm不足预注册2%余量，**两头联合门仍不支持**。R0负结果完整保留。受控合成silhouette中，R1 full/同核TORE4的RBF1.189／1.196、MLP1.159／1.149mm；强近邻相当或略好，没有建立唯一表示优势。这不是原TORE完整架构排行榜，也不能推出所有流上数学等价。[E1/E2 R1](../outputs/s43_rel_20261027/mechanisms/e12/R1/summary.json)。
+
+E2的raw同核心重建／重新查询最大差0，只证明有限核重读一致；fresh/stale任务改善跨条件和头不一致。E3确认同刻组、支持Gram和nullspace合同，也保留静态闪烁、相反证据及高阶分布碰撞反例，禁止把非零支持当运动置信度。现有时间破坏是保持目标不变的非物理输入干预；合成silhouette在保护边际下修改0个时间戳，720个不同目标候选没有找到精确保护边际的物理匹配对，故物理任务充分性证据缺失。[E3](../outputs/s43_rel_20261027/mechanisms/e3/summary.json)。
+
+实现验收与科学收益分开：
+
+| 验收 | 已观察结果 | 不能外推的结论 |
+|---|---|---|
+| 同源1000ms，chunk1/7/50 × query25/50/100 | 公共前缀A/Z/f/λ逐位相同；重绑不改A/Z | 不证明神经自由反馈稳定 |
+| 6000步配对训练与source guard | 四臂完成、输入摘要相同、依赖不变 | 不代表原历史预算或多seed结论 |
+| 最后权重B2训练包 vs B1/1ms在线、两条FIT原生前200ms | A/Z/f/a/λ一致；网络批量数值差约1e−7；权重/BN不变 | 不等于不同前态下长期预测逐位相同 |
+| 四臂query25、固定commit50 | 公共输出与query50逐位一致 | 不表示额外query免费 |
+| 独立mesh／无标签输入审计 | mean只加一次、米制、无target读取、无额外commit | 不保证形状未知时精度 |
+| 最终CPU单测 | 107 passed，18 warnings | 不替代机制和服务负读数 |
+
+详见[完整权重训练—在线审计](../outputs/s43_rel_20261027/audits/full_training_online.json)、[四臂前缀审计](../outputs/s43_rel_20261027/audits/control_prefix_final.json)、[mesh独立审计](../outputs/s43_rel_20261027/audits/mesh_deployment_independent_audit.json)、[最终单测日志](../outputs/s43_rel_20261027/finalization/unit_tests_final.log)。
+
+canonical新GPU轨迹没有伪称复现旧CPU轨迹：旧公开回放对比失败回执保留；同线程CPU、同源短前缀旧Integration与新Relation的LNES/prev/pred逐位相同，ycy_global完整CPU轨迹1432输出也逐位一致，支持接口等价。跨CPU/GPU长递推姿态参数最大差0.14–0.87rad，FK轨迹平均差约2–6mm，不能写allclose或仅归为不可见扭转。未隔离TF32／渲染／其他backend贡献，不把某一项认定唯一原因。[数值审计](../outputs/s43_rel_20261027/audits/canonical_numeric_audit_summary.json)区分了本轮统一GPU执行器四臂比较与旧CPU运行身份，不能用平均评分接近掩盖轨迹差异。
+
+综合这些结果，可归因的交付是：**前态无关写入、当前几何后绑定、独立query/commit和有界状态的可执行接口**，以及围绕它的对照、失败和成本账。完整单种子微调显示部分绝对位置改善；空间方向、重新绑定及局部手指对齐精度没有稳定的独立收益。它目前不构成替换S43/S39的性能依据，也没有证明相对于强近邻表征的独特任务价值。原LNES/render、训练先验、个体形状条件和查询几何的贡献仍混合在最终网络中，不能全部归功有向Z。
+
+### 7. 可复现入口、输入格式与身份
+
+实现入口位于 [tools/s43_rel](../tools/s43_rel/README.md)，R1配置在 [configs/s43_rel/r1](../configs/s43_rel/r1/)。下列命令从仓库根执行，输出使用新目录。GPU映射只使用物理4–7；`CUDA_VISIBLE_DEVICES=4`后的`cuda:0`是物理4，不是物理0。
+
+```bash
+export PY=/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python
+export OUT=outputs/s43_rel_20261027
+export OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=2
+
+# 配对完整训练：冻结协议与授权门仍由入口核验，tag不要覆盖正式结果
+$PY -m tools.s43_rel.orchestrate launch --stage full --tag reproduce_full_r1 \
+  --config-dir configs/s43_rel/r1
+
+# 给定aux形状条件诊断；并非无GT来源的β部署
+CUDA_VISIBLE_DEVICES=4 $PY -m tools.s43_rel.replay \
+  --config configs/s43_rel/r1/full.yaml \
+  --checkpoint "$OUT/train/full_r1/full/last.ckpt" \
+  --recording zgz_local --hop 50 --device cuda:0 --out outputs/reproduce_conditional
+
+# β=0完整流：推理不读pose/auxβ；预测保存后评分
+CUDA_VISIBLE_DEVICES=4 $PY -m tools.s43_rel.mean_shape_replay \
+  --config configs/s43_rel/r1/full.yaml \
+  --checkpoint "$OUT/train/full_r1/full/last.ckpt" \
+  --recording zgz_local --device cuda:0 --out outputs/reproduce_beta0
+
+# β=0完整mesh资源，默认读取正式step6000权重
+CUDA_VISIBLE_DEVICES=4 $PY -m tools.s43_rel.mean_shape_benchmark \
+  --arm full --device cuda:0 --out outputs/reproduce_beta0_resource.json
+```
+
+standalone客户端不实例化SequenceReader，不读取target或dataset `.meta`。`events.npy`为mmap N×4 `[x,y,t,p]`，原生字节序整数数组，像素240×180、客户端要求极性0/1；明确`--time-unit ms|us`。us按已声明1ms分组floor，只在有界packet内转换，不从组内排序提取信息；跨ms组乱序明确拒绝，同bin内us先后不作为可用信息。校准JSON含原640×480 `K_cam[3,3]`，可选`betas[10]`和公共`initial_state[51]`，缺省β=0。timestamp列是mmap视图，分块检查／searchsorted定位，不复制整条O(T)时间戳；输出轨迹日志另为O(T)。
+
+```bash
+CUDA_VISIBLE_DEVICES=4 $PY -m tools.s43_rel.online \
+  --events "$OUT/engineering/external_client/ch350/events.npy" --time-unit ms \
+  --calibration "$OUT/engineering/external_client/ch350/calibration.json" \
+  --config configs/s43_rel/r1/full.yaml \
+  --checkpoint "$OUT/train/full_r1/full/step=6000.ckpt" \
+  --hop 50 --start-ms 0 --stop-ms 350 --device cuda:0 \
+  --out outputs/reproduce_stream.jsonl
+```
+
+该350ms样例来自现有hand_data51事件文件，不是新硬件采集或新精度试验。最终full6000权重已实际完成均值β客户端前向：14,191事件全部消费一次、两次共同预热后产生5个mesh，`GT_or_target_files_read=false`，源文件测前后均未变；见[实际客户端回执](../outputs/s43_rel_20261027/engineering/external_client/ch350/final_full_beta0_mesh.summary.json)。默认每输出包含51D、米制vertices/joints，另写summary及源bytes/calibration身份。API的五行调用合同为：
+
+```text
+tracker.reset(seq, boundary_ms, public_state, beta0, K_cam)
+tracker.ingest(packet, watermark_ms=T, packet_ordinal=k, source_range=(lo, hi))
+result = tracker.query(T)  # T−1ms，只读手态；重复查询不commit
+mesh, costs = decode_surface(model, result["state"], beta0)
+tracker.commit(result)    # 仅按冻结日程提交预测
+```
+
+训练执行依赖22项固定清单，后续独立replay/资源/客户端工程完善有单独amendment和before_sources，不覆盖R0/R1-small历史源码身份。主科学协议SHA256为 `49a5f259f6f821e26816f896f0e316d2481320adef4aaa83c0b4e74df63e4bb1`；R1预注册SHA256为 `f45e560cc51c045f5f4cb029c0f6e9d42961a7760c00a3ce369ad5486bafcf42`。最后训练权重、样本摘要、源码和数据SHA均随工件保存；资源采用weights-only step6000时其文件SHA另列，不能混成同一个文件。
+
+| 阶段 | 身份工件 | 边界 |
+|---|---|---|
+| R1训练与主accuracy | [protocol](../outputs/s43_rel_20261027/protocol.json)、[R1登记](../outputs/s43_rel_20261027/correction_R1_prereg.json)、[训练审计](../outputs/s43_rel_20261027/audits/full_training.json) | 给定β条件、冻结22依赖、四臂完整训练 |
+| 完整mesh服务 | [正式source freeze](../outputs/s43_rel_20261027/engineering/mesh_service_final_sourcefreeze.json)，2026-10-27 21:17 | 增加末端FK/传输、target-free资源reader、hash在计时外 |
+| β=0部署扩展 | [扩展合同](../outputs/s43_rel_20261027/mean_shape_deployment_extension.json)、[正式source freeze](../outputs/s43_rel_20261027/mean_shape/formal_sourcefreeze.json)，22:58 | 无auxβ/pose推理、真实β只后评分、未重训或择scores |
+
+### 8. 论文可用的贡献表述与限制
+
+可写为：我们实现并检验了一种在固定传感器图中保存有限核事件关系、在当前MANO状态下后绑定方向与观测加权关节支持的接口。该实现保留原S43解码与监督，明确同刻组、半开前缀、来源防重、连续历史、独立query/commit和负载边界；通过配对全网络微调、完整源流、均值形状无标签推理、干预和资源测量，区分了接口一致性、绝对位置改善与尚未建立的方向独特收益，并公开失败负载。
+
+贡献不能写成指数事件对、线性后绑定、SO(3)作用或Gram的数学首创；不能将支持改名为校准不确定性。本轮只有seed3407，现有手部事件文件属于v2e／合成数据链，provenance并未闭合为可验证真实硬件实验；另造的silhouette／均匀背景是受控合成证据，不能与硬件泛化混写。训练仍使用个体形状监督；β=0证明输入可部署而非保证跨手形精度。当前没有多seed功效、真实传感器迁移、第二关节体或独立高频物理GT证据，也没有确认完整系统在声明高率域的实时能力。query25/100精度及扰动诊断仅在给定β条件执行；β=0扩展的正式精度cadence固定50ms，未据此声称其他频率的无手形部署结果。
+
+最合适的结果身份是**可复现的接口与诊断性负结果**：执行与实现验收完成，唯一任务／效率价值仍未成立。进一步方向须另立问题与证据，不能用本次小幅混合指标包装成已建立的显著性能创新。
+<!-- S43_DOCS_MERGE_20261028:END rel -->
+
+
+<a id="s43-revisit-prereg-20261028"></a>
+## 2026-10-28 S43-REL 后续：失败归因阶段预注册
+
+用户授权从已完成 REL 继续失败归因、2023—2026 文献核查、三案重设计与新前端实现，分阶段推进；旧 REL 负裁决与默认 S43/S39 保留。新工作目录 `tools/s43_revisit/`、`outputs/s43_revisit_20261028/`。
+
+阶段一协议 [stage1_protocol.json](../outputs/s43_revisit_20261028/stage1_protocol.json) 冻结于当地00:31:28，SHA256 `e81f43be5391128ed3449965fcaf4c5c209583ddd67c9f216c0d81dedc13bdc7`。先验披露见 [边界说明](../outputs/s43_revisit_20261028/stage1_prereg_disclosure.md)：旧结果、源码/曲线已知，六项无标签代数工程检查已执行；不把它们伪称预注册前未知。新任务读出分数尚未读取。
+
+P2复用冻结E12原288窗（FIT224／SELECT64，SELECT仅ycy/ylf，且非原canonical训练独立受试者），八种特征、RBF与固定预算MLP，共同context/样本/目标，区分生产C+diagG与原离线diagG读出。P3检查同源前缀下梯度、旧掩码/门、优化设定与成本，不新增zgz选分；只用CPU。数学非单射不等于MANO任务损失，负读出结果也不证明表示充分。更后续的表示/训练另立读数前协议。
+
+
+<a id="s43-revisit-stage1-results-20261028"></a>
+## 2026-10-28 S43-REL 后续 Stage1：归因小实验已完成
+
+完整分析写入[表征调研第九编](网络结构与可观测性诊断研究.md#s43-part-09)，可重建命令 `CUDA_VISIBLE_DEVICES="" /data1/lyq/miniconda3/envs/EventHandsTrain/bin/python -m tools.s43_revisit.report_attribution`。本轮全CPU，无新zgz选分、无新GPU训练、旧源/缓存/结果未改；旧四臂及默认模型不变。
+
+- P1代数碰撞与正控，不将非单射当任务损失。P2八包×两头、FIT224/SELECT64原缓存：生产包SELECT RA RBF/MLP10.225/8.772mm，slotGram10.465/8.723、点因子10.087/8.685，均未过预定taskcost门。裸几何RBF10.146，不能将完整包对简单输入的优势全归事件对。[结果及预算](../outputs/s43_revisit_20261028/rep_p2/results.md)。
+- P2后另登记的方向拆分：共同支持上加入f，两头绝对误差省0.985/0.610mm（四录制同向），RA仅省0.115/0.180mm（2/4、3/4同向）；无向f与support-only预测逐位同。方向非零信息成立于此有限条件，但未建立有向Z独特/跨域/局部指测量价值。[登记](../outputs/s43_revisit_20261028/stage1_direction_extension.json)、[结果](../outputs/s43_revisit_20261028/rep_direction/results.md)。
+- I0/I1实际梯度：旧mask外超过一像素halo的新A路径硬零；有历史f/λ但emptyLN时旧零门仍令新路径输出/梯度全零。零初始化存在可训练参数起步路径，不是全死支路。冻结删支路改变输出而不等于改善精度。[实际回执](../outputs/s43_revisit_20261028/interface_audit/results.json)。
+- O1读分前另登记16条固定训练域首2s短流，canonical/500/2000/6000各四条；6000相对早期普遍改善，不能断言优化已坏。四录制均在完整训练域，SELECT名不构成新人留出。[登记](../outputs/s43_revisit_20261028/stage1_optimization_extension.json)、[预测后评分结果](../outputs/s43_revisit_20261028/interface_optimization/results.json)。45个BN buffer冻结、主干确实更新、full更频繁梯度裁剪与1/32输出预算见[训练审计](../outputs/s43_revisit_20261028/interface_training/results.json)。
+- 实际mean59.38ms中ingest25.45、全局几何20.34；当前wrapper有每ms O(C)扫描，显式邻边多槽维护也有必要成本。exact sparse FK微基准2.08倍而完整bind仅1.30倍，不当整链加速。[成本账](../outputs/s43_revisit_20261028/cost_audit/results.json)。
+
+新增文献方法卡18篇（含3顶刊）与根侧三维几何/异步补充，均注明主源、发表身份与实际读取范围；不是穷尽综述。新科学问题是：在根运动/形状/外观混淆下，有界表示能否保留区分局部关节轨迹且能反驳错误前态的事件证据。三案v0与100视角正在审查，尚未选择/跑新前端，不升级为Nature级原创或有效结论。
+
+
+<a id="s43-witness-prereg-20261028"></a>
+## 2026-10-28 第三轮三案与关节反证片段原型：读数前协议
+
+Stage1后形成A原生时空场、B关节反证片段、C遮挡顺序三种对象。100格R1（每格评ABC）与不同执行者100格R2全部完成，58保留/42修订；不是100真人/独立模型或投票选型。已核原R1字节SHA未被跨审后改写，完整[审查及身份](../outputs/s43_revisit_20261028/battle/summary.json)、[关键争议](网络结构与可观测性诊断研究.md#s43-third-round-100-20261028)。
+
+主原型优先B，备选A，C留条件研究；这是要检验的问题优先级，不是已过实验或Nature级原创认证。[完整定义](网络结构与可观测性诊断研究.md#s43-third-round-design-20261028)。
+
+[Stage2冻结协议](../outputs/s43_revisit_20261028/stage2_protocol.json)于01:16:30冻结，SHA256 `a7f227609a738e92c3968a904d852ff88385d4917bfdc710edd0b14a1372b041`，在witness任务评分前；此前纯几何/接口工程可执行，不能冒充任务成功。核心M128/10ms封槽/50ms历史，当前全块、全粗历史、细片段、geometry及metadata均入6MiB声明预算；只在旧存活入选内容+新候选上维护，**不是精确全窗topK或无损更正**。
+
+三决定实验：E1同预算任务信息/可恢复正控；E2先错anchor再选、撤注入错后同reader读（绝不给当前正确手指），比较quota/generic等强简单；E3公共前缀/同刻/chunk/状态与实际维护-几何-查询成本。synthetic80条（40 clean+40物理后平面运动边）与现有288片段分报，现有anchor继承旧给定形状历史，只算条件信息诊断，不能伪称β0部署。新reader无LNES；63D关节delta/10模式是原子信息代理，尚非完整51D系统。
+
+任务提取/拟合前再保存实际实现源码与工程验收sourcefreeze。B只有在两合理reader上超过预定强简单选择且不由coverage/context解释，才进入独立前端训练；没有learnedtask-saliency控制时不宣称排除DEVO式coreset。允许至多一轮另登记的针对性修正，原负读数保留。若无独特价值转A作为工程问题，不为凑Nature目标强开大训。本轮用户已授权这些阶段，无重复请求许可。
+
+<a id="s43-witness-results-20261028"></a>
+## 2026-10-28 B关节反证片段：原子任务与完整表示资源实验完成，未过
+
+[任务解释](../outputs/s43_revisit_20261028/witness_atomic_v1/atomic_interpretation.md)、[完整验收](../outputs/s43_revisit_20261028/witness_atomic_v1/completion_validation.json)、[调研第十编](网络结构与可观测性诊断研究.md#s43-part-10)。首任务实际源码冻结SHA `44bfc3cf01900f17c65cba87104e6ab1e40a47a675fd19b02c4a475eaa9037e1`；绑定11份代码、285输入和工程回执，旧源与输入末检未变。80合成源、288现有片段全部完成。现有给定形状历史为条件诊断，不伪称β0部署。
+
+既有SELECT J0关节误差（mm，63D代理，非完整MANO主行）：CNN/RBF的B为10.4068／12.5162，quota10.4117／12.5155，field2 **10.2519／12.3460**，完整1px超预算场10.2487／12.3475。B对field2两头、四录制均差，三种选择前态条件全部FAIL。事后描述恒等前态9.3204，两头完整细场也更差；因此当前读出泛化／虚假纠偏仍是竞争解释，不能说完整事件没有任务信息。5份共同CNN各2000步B32，共1万optimizer步／32万同源view，非320k独立样本。[预算账](../outputs/s43_revisit_20261028/witness_atomic_v1/reader_accounting.json)。
+
+合成10类OOF：B CNN21.25%、RBF10.00%；完整场22.50%／11.25%，chance10%。完整细场CNN FIT各折93.3–100%。moving-bg受控±动作差异质量保留：B83.51%、quota86.11%、uniform31.90%，不是GT事件归属或部署输入。[独立事后复核](../outputs/s43_revisit_20261028/witness_posthoc/synthetic_diagnosis_v2/report.md)核验160栅格逐位相同、360对不同动作无精确碰撞，但部分5mm动作几乎零像面事件；精确可分与跨上下文稳定可读不能混用。
+
+[E3正式v2资源](../outputs/s43_revisit_20261028/witness_resources_v2/results.md)：真实ch3300ms／247738原生事件，β0公开固定手态，两CPU线程，13个case；非网络估计器、非完整sensor→mesh。hop50 P50／P95／P99 ms：B **125.24／136.95／141.40**（64/64超50ms），quota76.36／88.45／90.67，uniform40.11／64.06／78.67，field2 **14.84／16.39／22.13**。B均值124.17ms，selection/kernel83.83ms包含在ingest99.53ms内。B数值/policy5.515MiB，field2 4.120MiB，均≤6MiB而非等量分配。固定commit50插query25，64共同前缀内容／grid／字典SHA一致；查询不改证据但仍付费。v1漏采warmcache峰的计量缺陷及全13case修订保留，不能用旧低数覆盖。
+
+工程偏离：原双warm-policy6.03149MiB FAIL保留；读数前独立runtime R1缓存有界后midcommit5.51651MiB。lane/time-origin tiehash修订先于任务，旧真tie选集变化披露。首fit因缺threadpoolctl以0优化步／0任务分数失败；只新增threadpoolctl3.6.0并归档环境身份，复用已成功观测后完整队列完成。无torch/numpy/scipy更改、无重训择分。正式B未采用可选batch primitive，不能借其速度声称全链更快。
+
+**裁决：B没有超过强简单控制的独特任务作用，当前成本更高，不进入完整S43训练。** 旧REL与S43/S39不变。按原路线转A检验“相同完整证据上的MANO解释”，B原负裁决不因新reader诊断而撤销。
+
+<a id="s43-field-query-prereg-20261028"></a>
+## 2026-10-28 备选A：原生时空场与MANO查询读数前协议
+
+[Stage3冻结协议](../outputs/s43_revisit_20261028/stage3_field_query_protocol.json)于当地02:25:25登记，已披露B失败与恒等前态参考；在A正式任务张量／拟合／评分前。沿用相同80合成／288既有源、原FIT/SELECT，旧B字典仅作reader×storage诊断，不读取旧LNES/A/Z输入、不开新zgz选分。
+
+九组global-only、event-grid、hand-box、static、同精确端点generic-trajectory、anatomical、anatomical时间坍缩、witness-anatomical、quota-anatomical。局部grid为8×90×49×2，90=5指×3骨段×3锚×2假说；该原子实现是备选定义20骨段单假说的明确收窄，掌部由全局分支观察。固定骨向patch，真正逐bin右乘SO(3) FK；generic共享精确端点而非人为错误方向。native-ms八bin时标不冒称亚ms连续观测。hand-box只保ROI，不含指槽语义。
+
+每组／每域／每折独立2000步B32CNN，45份合计90k optimizer步／2.88M同源views，Adam1e−3 seed3407 FP32／关闭TF32，物理GPU4–7并行；另FIT-only规范化RBF。除global-only有效参数更少的诊断外，局部对照活跃参数相同。相对Stage2共同头的变化不得全归表示。错误anchor同时作用于坐标、context与FK残差基点，纠正只撤注入错。时间坍缩守恒空间／极性计数及曝光。
+
+工程共享core固定数值4,408,000B含pending/provenance；14测试、真实50384事件的1/7/50ms分包20共同前缀逐位通过。[源码身份与回执](../outputs/s43_revisit_20261028/field_engineering/sourcefreeze.json)。query/probe最终实现、全输入与工程验收将在首正式prepare前再冻结。完整方法是否推进按协议中的identity、强generic、两reader和录制稳定性判断，非见文件存在即开大训。A任务结果另记，当前本段没有A分数。
+
+A首任务实际sourcefreeze已于当地02:37登记：[actual_sourcefreeze.json](../outputs/s43_revisit_20261028/field_query_engineering/actual_sourcefreeze.json)，SHA256 `03f285756fef89d939b5dcc228551ddfdcc8284abe006b0d98d2030ddf39717f`，绑定2598份来源/工程文件及最终query/core/probe，之后启动prepare。核心14、query15、probe最终10项新测试分列（共39项），不并入旧REL107；最初8项是补充完整性检查之前的工程时点。独立审查见[只读实现审查](../outputs/s43_revisit_20261028/field_query_independent_review.md)。[读数前判读边界](../outputs/s43_revisit_20261028/stage3_pre_score_interpretation.json)保留原两reader门：CNN单独有效仍算原门FAIL，若有稳定机制信号，只能另立新研究协议检验完整MANO读出，不能事后改门或把有限63D代理当普遍不可能性。
+
+实际执行入口[run_field_atomic_v1.sh](../outputs/s43_revisit_20261028/field_query_engineering/run_field_atomic_v1.sh)与[固定四卡队列](../outputs/s43_revisit_20261028/field_query_engineering/fit_queue.py)已保存；这是运行记录，未表示45份已完成。全部预测保存并核验前不计算A任务指标。
+
+<a id="s43-field-query-results-20261028"></a>
+## 2026-10-28 A原生场／MANO查询：45拟合与16资源case完成，原门全部FAIL
+
+[完整任务结果](../outputs/s43_revisit_20261028/field_atomic_v1/report/summary.md)、[门计算](../outputs/s43_revisit_20261028/field_atomic_v1/report/gate_calculations.json)、[最终验收](../outputs/s43_revisit_20261028/field_atomic_v1/completion_validation.json)、[研究判读](网络结构与可观测性诊断研究.md#s43-part-11)。45个CNN各2000步，90000总optimizer步、288万同源views；不是完整51D训练。所有原生来源／旧字典与sourcefreeze末检未改，全部固定预测保存后统一评分。
+
+正常SELECT J0（mm，CNN/RBF）：handbox14.2704／21.1870，static12.6383／20.8272，matched-linear12.3183／20.8273，anatomical12.3223／20.8275，timecollapse11.4532／20.6387，B内容11.4188／19.8492，quota11.2192／19.6964；保持条件前态9.3204。原双reader／identity门全部FAIL，预先限定的CNN-only后继条件也没满足；不是Nature原创或完整方法成功。
+
+合成OOF CNN static33.75%、linear36.25%、anatomical31.25%，RBF约10%。几何坐标相对强generic改善不等于有可用纠偏；曲线未胜同端点直线，保留时间未显示必要。绝对误差与J0方向可能不同，原结果分报。注意Stage3训练同时扰动anchor/context/target基点，与Stage2选择错但查询回nominal不同；后续一次针对性复核将隔离前态训练增强／scale，原结果和门不改。
+
+[16-case完整表示资源](../outputs/s43_revisit_20261028/field_query_resources_v1/results.md)与[计量说明](../outputs/s43_revisit_20261028/field_query_resources_v1/measurement_notes.json)：CPU2、相同247738来源、公开β0／手态，16/16成功，无网络/mesh。hop50 P50 core15.28、static20.46、linear29.63、anatomical28.99ms；anatomical hop25已有125/128超25ms，query25/commit50为88/128。64共同prefix field/coords/local5逐位一致。numeric core4,408,000B，含历史几何最高4,416,000B，临时／输出／共享常量／RSS另列。不用该报告填写完整sensor→mesh列。
+
+<a id="s43-field-reader-r1-prereg-20261028"></a>
+## 2026-10-28 A读出一次针对性修正：增强与归一化隔离预注册
+
+[R1协议](../outputs/s43_revisit_20261028/stage3_reader_R1_protocol.json) SHA256 `4fbbf4df4b689f9737ec7fa27691b670eca3f2c17ff9b7c82cb1db3932750705`，在R1任务前登记，明确已知A全负。七组global、handbox、static、anatomical、时间坍缩、quota及context-only，两种训练设定共14CNN×2000步B32（28000更新／896k同源views）和RBF。只用原现有288窗、224 nominal FIT，不引入新数据或zgz选分。
+
+第一设定删除训练的错误前态views，但逐字保留原三error FIT的input/context/target统计及RBF bandwidth；第二设定仅在同224 nominal FIT按原规则重估这些统计／bandwidth。二者差异叫联合normalization/conditioning，不能只归target std；RBF本身无target标准化，库672→224是删augmentation的一部分。context-only无旧all3头，固定统计版带宽从all3 FIT context-only输入按同规则推导，不借别组的measurement度量。全部14份固定预测后再评分，原A/B门FAIL保留。
+
+<a id="s43-field-mano-reader-prereg-20261028"></a>
+## 2026-10-28 独立MANO约束读出：Stage4读数前协议
+
+[Stage4协议](../outputs/s43_revisit_20261028/stage4_mano_reader_protocol.json) SHA256 `abbc69ebccc791974ef340d9498933cd5feb2e79e46542c11c393a00a4f235a1`，在新51D实验前冻结，R1结果尚未用于选型。它是用户完整MANO接口目标的独立诊断，不将原63D实验失败说成所有MANO读出不可能，也不将新结果回写原门。
+
+同七组context-only、global、handbox、static、static时间坍缩、anatomical、quota；相同编码器，两种输出均从严格零残差／identity开始。51D头输出dt3＋16个右乘局部旋转，以固定.01m／.1rad解码为精确MANO21；63D头以固定.01m输出关节残差。共同固定10mm scalar joint-MSE，无逐轴target mean/std、无额外GT输入。MANO manifold与自由关节头的参数差异实报，不伪称字节相等。
+
+复用原80合成／288现有输入，合成也使用连续joint目标而非10类强制选动作；不把新null控制偷偷加到训练。原all3 error FIT、corrected不训练。70CNN×2000步B32＝140k更新／448万同源views，全部固定预测先保存再统一评分；实际decoder/FK/梯度/均值一次／identity工程验收与sourcefreeze先于任务。现有条件仍为给定β，不得填作β0完整流、MPVPE或整mesh结果。是否进入独立S43前端小训练与充分训练，须以实际可用纠偏与强generic比较决定。
+
+<a id="s43-field-observability-diagnostics-20261028"></a>
+## 2026-10-28 A查询捕获与静止null控制：离线诊断完成
+
+[覆盖报告](../outputs/s43_revisit_20261028/field_query_coverage_v1/summary.md)与[GT读取前freeze](../outputs/s43_revisit_20261028/field_query_coverage_v1/freeze.json)：6项纯算术／poison-label工程测试，5531份身份和108个预测marker/NPZ在GT语义读取前绑定，前后SHA均保持。9200个查询view对应368原case，不是9200独立样本。现有SELECT64正常anatomical同骨最后bin覆盖85.03%，root-x/yaw错时62.67%／59.69%；ylf_global分别45.97%／40.83%。static正常79.55%，同端点linear与anatomical均85.03%。synthetic动态100%、static98.94%，不能用共同捕获不足普遍解释合成阴性。所有GT点in-view100%，没有剔除出视野难点制造高覆盖。此处骨点几何覆盖不代表真实轮廓、事件存在或来源身份，完整global场仍在。
+
+[null预注册](../outputs/s43_revisit_20261028/witness_posthoc/null_control_v1/prereg.json)、[sourcefreeze](../outputs/s43_revisit_20261028/witness_posthoc/null_control_v1/sourcefreeze.json)、[结果](../outputs/s43_revisit_20261028/witness_posthoc/null_control_v1/report.md)：3工程测试，新增8条仅含同root／背景运动而无指动作的源，旧80动作／reader／十分类分数不改。null与动作的初始mask全部相同，8context旧动作重生成逐位匹配。
+
+80对null-vs-action有2对原生[0,50)事件**精确相同**：case024为0对0事件，case064为22378对22378事件；两者均为yaw0.3、root不平移、食指正向动作，分别无／有同背景。活动指J0相差4.999862mm、全21关节J0差0.952517mm，mask轨迹完全相同。非零L1≤4仅2对。原360不同动作之间无精确碰撞仍成立；它们没有包括null，因此不能由原十类可区分性证明“动作是否发生”可辨识。
+
+边界：这是固定二值前景辐亮度／背景／阈值生成器下的反例，不是所有有纹理真实事件手部都如此；已有事后root-only mask分析已提示这两处退化，预注册如实披露其为预期而非盲测新发现。GT/null仅用于明确离线诊断，未加到部署输入或偷偷加入Stage3/4训练。该结果支持继续研究可观测的关节新息与不可区分候选，而不支持按先验强行纠偏。
+
+<a id="s43-field-reader-r1-results-20261028"></a>
+## 2026-10-28 A读出R1完成：人工前态增强导致本轮主要恶化，但仍无实质收益
+
+[结果与完整表](../outputs/s43_revisit_20261028/reader_r1_atomic_v1/report/summary.md)、[因果对照](../outputs/s43_revisit_20261028/reader_r1_atomic_v1/report/causal_comparisons.json)、[14拟合验收](../outputs/s43_revisit_20261028/reader_r1_atomic_v1/completion_validation.json)。最终actualfreeze `caef120d50bde4fab26b14044cb83a7d73ca463fe50c59801bd94a47c2c238ff`，14×2000步／B32＝28000更新、896000同源view，全部预测固定后统一评分。
+
+固定所有原统计／RBF带宽，仅删除错误前态训练views，正常query global CNN **21.6671→10.1527mm**、RBF **21.1058→11.0124mm**；进一步nominal重估统计为10.1547／11.0113。恶化主因因此在这份增强／训练曝光分配，而非单纯target std、SGD数值或场统计。相同2000更新下nominal曝光更多也属于该训练制度变化，不将它偷换成“所有前态扰动训练都不好”。
+
+nominal own CNN：handbox9.3584、static9.2392、anatomical9.2406、时间坍缩9.4258、quota9.5038mm；identity9.3204，static仅省约0.081mm，未达0.25mm／2%门，static≈anatomical。对应RBF约10.976／10.996／10.994／10.958／10.373，均差于identity。context-only CNN固定／自统计10.5322／10.8888。原A/B负门不改，不能宣布新表示有效。
+
+边界：这里只诊断新Stage3有限头的人工三条件前态训练，不能回溯认定旧REL自身递推微调也败于同一增强；二者协议不同。nominal-only的wrong-query评价是额外分布外压力。没有β0全流／MPVPE／完整mesh新结果。
+
+工程失败保留：最初编排文件名queue.py遮蔽stdlib queue，以0job／0优化步失败；原日志／原freeze保留，首fit前用runpy从repo路径执行相同已冻结脚本并追加launcher_wrapper_amendment，不改科学源、预算或样本后完成。
+
+Stage4在首fit前增加[nominal guard addendum](../outputs/s43_revisit_20261028/stage4_nominal_guard_addendum.json)，SHA `7dad0bb50db059156ee29c43a7b186122a02db5b2183c11c6aa520c77dc8ea7f`。原70 all3 fits不改，另existing handbox／static×51D／63D四个nominal-only控制，合计74fits／148k更新／4736000views，全部齐后才评分。该补充由已经完成的R1因果读数触发，早于任何Stage4拟合／分数，避免只在已知不利制度上判断MANO接口；不是看Stage4成绩后追加择优。
+
+Stage4实际首任务freeze已于当地03:30完成：[actual_sourcefreeze.json](../outputs/s43_revisit_20261028/field_mano_engineering/actual_sourcefreeze.json)，SHA `b894e062c874dadab3f40fae454c32cfa261707f5aff8352cc71a481e617a231`；[实际启动](../outputs/s43_revisit_20261028/field_mano_engineering/launch.json)绑定74fits和读数前addendum，GPU4–7运行。源文件实际名为`tools/s43_revisit/newfield_mano_probe.py`。新decoder10测试、probe11测试、CPU/GPU B32两头FK/backward与相同identity工程通过；完整来源／回执均绑实际freeze。此处仅记录已经启动，未把它写成74任务已完成或新方法通过。
+
+[decoder数值核验](../outputs/s43_revisit_20261028/field_mano_decoder_engineering/receipt.json)：与原S43实际`_fk`完整778/J21最大差5.96e−8m，51维零／非零动作梯度有限差分误差≤6.86e−9；这是工程正确性而非重建精度。两个头没有target mean/std默认偏移，初始预测均为相同前态。训练通过矩阵FK，只有保存／commit时转换detach axis-angle，不暗中截断FK训练梯度。
+
+<a id="s43-field-engineering-progress-20261028"></a>
+## 2026-10-28 完整前端工程准备：保留S43主干的模型与紧凑读出通过smoke
+
+`tools/s43_revisit/s43_field_model.py`是尚未科学训练的opt-in模型：保留原S43 RN、MANO `_fk`／原损失与原51D更新约定，改为field40＋合法前态render的新stem、计数／render活动mask与必要local reader；不调用旧LNES forward／mask／gate，不默改root-compose。global-only、handbox、static三臂；local尾层零初始化，主field路也全部可训，非LNES主路上的增强。旧prev_mlp开关明确单列，默认兼容保留，是否影响最终方法须训练后消融。
+
+模型9项CPU测试已通过；实际GPU7 B2三臂用ch前100ms／3561事件、β0／公开前态执行原loss forward/backward，无optimizer，仅toy监督进入loss，未读取真实GT或Stage4成绩。它证明端到端可运行，不能充当训练／精度／递推效果结果。该短smoke在共享主机执行，不当独占速度基准。
+
+`tools/s43_revisit/field_tensor.py`是独立可选工程适配，未改变已冻结Stage3/4任务：调用同snapshot的整数rasterize，只传8bin fine int64与曝光，在CPU／GPU共同Torch公式重建F16/C8/Q16及local cell3。r2实际payload1,382,528B，相比完整grid40的6,912,000B约1/5；这是字节量，不是已测整链加速。fine／coarse计数支持均进入活动mask，coverage不能伪造事件。
+
+CPU9测试通过、GPU可见时10测试通过；[GPU数值回执](../outputs/s43_revisit_20261028/s43_field_model_engineering/field_tensor_gpu_receipt.json)核res1/2及partial/full曝光，GPU对CPU最大差2.98e−8、对NumPy1.49e−8，整数snapshot／version不变，support逐位同。默认旧任务仍用其冻结NumPy grid，不把本次工程差异冒称它们的任务输入早已变为GPU。全量训练／部署延迟是否获益仍待实际系统测量。
+
+<a id="s43-field-mano-reader-results-20261028"></a>
+## 2026-10-28 Stage4完成：MANO约束读出有作用，关节语义输入仍未胜简单ROI
+
+[74拟合完整结果](../outputs/s43_revisit_20261028/field_mano_atomic_v1/report/summary.md)、[固定比较](../outputs/s43_revisit_20261028/field_mano_atomic_v1/report/comparisons.json)、[验收](../outputs/s43_revisit_20261028/field_mano_atomic_v1/completion_validation.json)。原70个all3训练与首fit前增加的4个nominal guard全部保留，共148000更新／4736000重复监督view；全部固定预测保存后评分，原始来源、冻结代码及预算末检通过。现有288窗仍是给定β／合法历史锚点条件诊断，不是β0部署流；不得填作完整MPVPE或递推主表。
+
+| nominal训练／正常SELECT，mm | 自由63D关节头 J0 / absolute | 精确51D MANO头 J0 / absolute |
+|---|---:|---:|
+| hand-box同容量强简单控制 | 9.3583 / 23.4917 | **8.7711 / 23.8758** |
+| static骨段语义查询 | 9.5050 / 25.7760 | 8.9626 / 27.0033 |
+| 保持原前态 | 9.3204 / 25.3239 | 9.3204 / 25.3239 |
+
+MANO头在hand-box／static上分别减少约0.587／0.542mm J0误差，说明输出约束与读出适配确实影响结论。但static比同容量hand-box差0.1916mm，仅2/4录制同向，ycy_local差1.0557mm；原解剖语义推进门仍FAIL。不能将“MANO解码有用”替换为“关节语义事件表示必要”。all3训练下七组MANO J0为9.6452–11.4587mm，均差于identity9.3204；nominal regime同时改变训练view分配及FIT统计，不能只归因target std。
+
+合成连续关节OOF也未通过：MANO global约22.001、static13.664mm，而恒等约0.953mm；训练上下文外虚假纠偏仍严重，不能据此证明原始事件没有信息。原十类分类、null可观测性反例、真实条件读出分别报告，不合并成一条正面证据。
+
+111份固定导出状态（37份MANO拟合×初／中／末样本）重新执行原S43 FK，完整778点／21关节最大差7.45e−8m；[导出核验](../outputs/s43_revisit_20261028/newfield_mano_export_audit.json)。这是状态／decoder一致性，不是111次独立精度实验。旧B、Stage3及Stage4机制门的负裁决均保留。
+
+<a id="s43-field-full-prereg-20261028"></a>
+## 2026-10-28 Stage5新实验：LNES-free前端与同预算完整S43训练协议
+
+[完整协议](../outputs/s43_revisit_20261028/stage5_s43_full_protocol.json)于当地03:54登记，SHA256 `0254d1a0afaf7fc437f88c434c68e4a84b72a18b366cf64c1be3724501659852`；首fit前的[第五臂补充](../outputs/s43_revisit_20261028/stage5_box_time_addendum.json) SHA `88fa2a9311744f99de218d15cfb2baa9f63aaab83623c079f6722aa1589398fe`。该新任务实验依据用户明确要求完整前端与充分可比训练而执行：固定224个条件窗口不能排除S43实际主干、数据规模、预训练输入转换及自身反馈的影响。**这是新的任务层实验，不是将原门改成PASS，也不是声称已经选到Nature级创新。**
+
+五个训练臂为原S43、field_box、field_box_collapse、field_static_collapse、field_static；另保留冻结canonical评测。四个新前端均不依赖LNES，使用相同完整原生计数场、原RN／MANO／监督，区别仅为同容量的手框或骨段静态查询、保留或坍缩时间。F16/C8/Q16＋两通道合法前态render进入新42→3适配层；局部5通道patch编码后保留8×90时槽身份。活动mask来自真实F/Q计数或前态render，不沿用旧LNES mask／zero-event gate；原prev_mlp默认保留，其存在单独披露，不假称已完成消融。新前端活跃参数较原S43多，正式表必须实报。
+
+| 阶段／每臂 | 实际监督输出 | batch×clip | Adam初始LR | LR预热输出 | 数据 |
+|---|---:|---:|---:|---:|---|
+| small工程／优化检查 | 32768 | 8×4 | 0.000125 | 1024 | FIT7 |
+| full固定预算训练 | 6144000 | 64×4 | 0.001 | 65536 | 原9人／72录制 |
+
+共同seed3407、TBPTT1、gradclip10、cosine最低0.02倍，所有臂BN实际训练。6.144M是**真实有监督输出**而非padding或warmup，等于历史S43样本数、为旧REL192k的32倍；batch／更新次数／反馈协议不同，不冒称重演canonical优化轨迹。五臂来源、顺序、有效监督mask及预算严格配对，各自手态由自身输出递推。每run公开初态[0,0,0.6]＋零旋转，β输入为0；前100ms执行两次自身50ms预热，不借canonical教师前态。GT51／β_target只在构造全部输入后由隔离reader提供给原监督；不进入表示、渲染或前向输入。ycy／ylf在full中成为训练录制，其后结果只能叫训练域诊断。
+
+小训练五臂完成并通过源码、输入、梯度、预算／恢复验收后，五臂各自从同canonical及同新层seed重新开始full，不复用最佳pilot、不按SELECT／zgz精度挑臂。physical GPU4–7，每卡一进程，第五臂排队；GPU0–3不用。最终固定末权重，不选中间点或追加seed／epoch。旧源码、标签、K及默认路径不改。
+
+[数值合同](../outputs/s43_revisit_20261028/stage5_numeric_policy_clarification.json) SHA `7712f6fdd606fc90921eb8aac6fa6b255c5a8c1733b89079e9fb394b563b00a9`：网络BF16，原loss／MANO／render与最终51D状态FP32；通过实例级fc输出转FP32维持原加法／SO3更新，避免把0.6m附近BF16量化误当新表示作用。五臂相同，不新增损失项／输出clamp。与旧whole-network BF16轨迹的差别明确披露。
+
+[评测合同](../outputs/s43_revisit_20261028/stage5_evaluation_protocol.json) SHA `70be35e8a24bfaf232c538b3249af614b23108759362ae3a0215ee6bebb672a0`：所有五个full权重封存后才执行固定120条语义回放与评分，冻结S43也用相同新输入协议重放。β0部署为主，给定β明确为GT辅助条件诊断；保留历史local／global录制和J0／V0／递推RA定义，补报absolute/root与真关节腕对齐顶点误差。含25／50／100ms查询、固定commit50的额外query25、三种固定前态扰动及旧冻结局部运动分层。主口径W50原始无滤波；不能把其改名为S39的W200栈。
+
+资源实测安排在训练全部结束后：完整source→表示→几何→网络→778/21输出→commit，独立无profile主计时与重新reset的分项计时，核两次输出一致。原S43的原生服务单独计量，不能用共同审计runtime额外维护的未用field抬高基线成本。真实事件和固定30%独立均匀噪声分报；当前是合成传感器噪声压力，不称真实运动背景。正式精度／延迟／FLOPs／显存结果尚未产生。
+
+<a id="s43-field-full-r1-20261028"></a>
+## 2026-10-28 Stage5首尝试失败与R1：查询重捕获，不修饰错误手态
+
+attempt0实际freeze `d97e98b50ff0cc8905a582eb396b1971e48e4691d475a322abca6626e0e00dee`，04:35启动。field_box在第13次完成更新／400个监督输出后，由有限但越过0.03m近平面的预测关节触发hand-box查询ValueError；[原失败](../outputs/s43_revisit_20261028/s43_full_field_v1/train/small/field_box/failure.json)及原源码快照全部保留。故障处未保存previous_pose，不能断言仅根z或某根手指导致。其他臂随即中断，所有丢弃计算／优化输出另记，不复用部分权重；无完成pilot、无full训练或新heldout分数。
+
+[R1读数前协议](../outputs/s43_revisit_20261028/stage5_reacquisition_R1_protocol.json) SHA `0f865d0afabc2d998296b44ceea86bcf0853e3219740c4a3dfd5ae292219abef`。新opt-in包装在所有local臂使用相同规则：若任一初始指关节z≤0.03m，或构造出的查询没有任何合法二维采样点，改为固定全图9×10中心、同8bin／7²patch，读取**同一完整观测场**；关联标志明确为0，不能把这些槽再称手指对应。既不读GT／事件目标，也不clip、hold、重置当前51D状态；NaN／Inf继续报错。在域内query和模型输出与原版逐位相同，模型参数／初值／loss／LR／BN制度不变。
+
+纯GT-free零优化首60批train／eval漂移探针都没有复现异常，只能排除该前缀下“BN模式单独必然导致异常”，不能据此选择新训练模式。CPU query／GPU实际input的16-worker并行均比serial慢且数值相同，正式配置用1个lane／geometry worker，不将“可并行”写成加速。[Torch线程8→1→8→1审计](../outputs/s43_revisit_20261028/s43_field_thread_engineering/receipt.md)同样无稳定整链收益：真实GPU B64稳态inputs＋query，8线程902.95／907.71ms、1线程934.96／942.69ms，全部field／query／51D预测exact，最大差0。因此保留8线程，不改运行配置；这是共享主机零优化工程测量，不含mesh和服务I/O，不能填主时延列。
+
+R1实际freeze [actual_sourcefreeze.json](../outputs/s43_revisit_20261028/s43_full_field_R1/engineering/actual_sourcefreeze.json) SHA `fa2fb3d7a1f6159b96279f21db2d106d014809192dcf5a719faed57087b91249`，05:08启动[五臂队列](../outputs/s43_revisit_20261028/s43_full_field_R1/orchestrator_launch.json)。所有pilot从头执行，预算／来源不改。新工厂`tools/s43_revisit/s43_field_model_reacquire.py`、runtime／trainer／queue均为独立新文件，attempt0和更早冻结代码未改。[外部身份与已存checkpoint审计](../outputs/s43_revisit_20261028/s43_full_field_R1/audits/external_identity_and_checkpoints.json)核canonical／config、optimizer计数、相对原初值的BN更新与状态／RNG保存，仍不能代替未完成的pilot／full验收。
+
+**当前是进行中状态。** 小训练已出现负z与大幅错误前态，原S43臂也有；R1防止的是查询API中断，未证明这些状态可恢复。正式结果必须同时呈现重捕获频率、camera-invalid比例、absolute/root误差，不能仅靠J0对齐掩盖绝对发散。全部full精度与资源结果完成前，不宣布替换S43、不写正面方法贡献。
+
+原S43小训练已完成32768个实际监督输出、1032次Adam更新，完整结束时钟993.53s，其余四臂仍在执行；[完成回执](../outputs/s43_revisit_20261028/s43_full_field_R1/train/small/s43/complete.json)。首轮B64输入profile为零Adam／无GT的固定真实前缀：[分项及原pstats](../outputs/s43_revisit_20261028/s43_full_field_R1/engineering/profile_b64/notes.md)。第三阶段322877事件，sourcepeek31.6ms、inputs992.0ms、query302.0ms；inputs内ingest207.6、snapshot188.2、tensorize545.0ms，后者含rasterize308.2ms，不能相加重复计费。CPU粗格sum约197ms后被GPU再次汇总，是明确实现冗余，不是表示原理必要成本。正以独立新文件检验去除重复汇总／复制的等价实现，现有pilot及冻结源不改，尚未声称加速或切换full执行。
+
+<a id="s43-field-full-execution-20261028"></a>
+## 2026-10-28 完整训练执行冻结：相同计数、去除重复读出，自动接完整评测
+
+上一段“正检验”是此前时点。[fast读出验收](../outputs/s43_revisit_20261028/field_tensor_fast_engineering/receipt.md)已完成：新`field_tensor_fast.py`直接从同一冻结uint32环按8bin汇总到独立int64批数组，省去snapshot整环复制、未用CPU coarse、uint64 stack／astype；原整数ingest、Torch运算顺序及数值语义不变。CPU10项／GPU11项通过，真实B64 field／51D预测逐位同；CPU完整模型参数梯度逐位同，GPU梯度最大差1.49e−7，旧路径重复本底1.34e−7。最初过强GPU梯度逐位断言的失败保留，未改数值合同或优化策略。
+
+[实际own-prefix完整runtime对照](../outputs/s43_revisit_20261028/s43_full_field_R1/engineering/fast_runtime_prefix/receipt.json)核field、预测、BN、corestate、source与恢复一致；真实full9／B64首三prefix的第三阶段input＋query从1.10041降至0.58586s。仍是共享主机零优化工程测量，不含backward／完整服务，不填主时延。即使按此理想上限约109输出/s，6.144M每臂至少15.6小时；真实反传、warmup和更高事件率还会增加耗时，不承诺短时全训完成。未减少预算、未加新cache或修改查询机制。
+
+[新full实际freeze](../outputs/s43_revisit_20261028/s43_full_field_R1/engineering/full_execution_sourcefreeze.json)于05:48登记，SHA `2d0969ce7de66fb393cc9fc8fa0d2c5285c85b5df0501301a83016d312c19d98`，绑定41code／17controls／5configs／4engineering；[独立末审](../outputs/s43_revisit_20261028/s43_field_full_execution_independent_review/final_review_v2.md)未见阻断。`runtime_fastreadout.py`、`s43_field_full_training.py`及full queue是新独立源，不覆盖R1小训练或更早源。checkpoint明确`native_ring_readout_full_v1`／`native_ring_bins_v1`，在线严格加载同版本，共用fast读出。
+
+旧dispatcher仅在第五个small worker已启动后暂停，small子进程继续；五个small完成后重新执行原fa2冻结的预算／配对／源门，再退休旧dispatcher、启动新五臂fresh canonical full。只接管调度，不接管pilot权重，不伪记训练失败。原small／full配置身份分别保留。[执行补充](../outputs/s43_revisit_20261028/s43_full_field_R1/engineering/full_execution_extension.json)。
+
+独立postmaster已启动，流程为small gate→五臂完整预算→full audit→固定120回放→评分→52项资源case→只读汇总回写本账本与调研文档。任一失败保留日志，不自动择优／重训或改科学门。full主报告计划位置为`outputs/s43_revisit_20261028/s43_full_field_R1_evaluation_v1/`；本段记录的是已启动的自动链，**不是完整训练／评分已完成**。
+
+运行状态可用以下命令查询；它只读进度，不读任务指标或GT：
+
+```bash
+/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python -m tools.s43_revisit.report_full_field \
+  --train-root outputs/s43_revisit_20261028/s43_full_field_R1 \
+  --eval-root outputs/s43_revisit_20261028/s43_full_field_R1_evaluation_v1 --status-only
+```
+
+<a id="s43-field-thread-erratum-20261028"></a>
+## 2026-10-28 执行身份勘误：NumPy使用MKL，不能用OPENBLAS环境值代替实际线程数
+
+[追加勘误与实际threadpool_info](../outputs/s43_revisit_20261028/s43_full_field_R1/engineering/thread_identity_erratum/erratum.json)不覆盖任何冻结回执。环境实际加载MKL；`OPENBLAS_NUM_THREADS=1`不限制MKL，`torch.set_num_threads(n)`在该环境同时改变共享MKL线程数。正式五臂训练配置仍为Torch8／MKL8，未改设置或live进程。
+
+此前工程回执把OPENBLAS环境请求值写成“NumPy BLAS1”属于误标，应撤回该身份解释。full9 B64 profile／fast own-prefix脚本实际Torch8／MKL8；训练模块内`engineering()`另有显式Torch4，因此gpu_b8／gpu_b64／gpu_fast_b64实际为Torch4／MKL4，不能按caller的OMP环境声称Torch8。旧8→1实验若未在set_torch之后独立clamp BLAS，则是Torch＋MKL组合执行对照，不能单归因Torch。数值结果及old／fast相同设置的配对时间保持原样有效，不因此重写分数、源freeze或预算。
+
+正式服务资源将记录实际`threadpool_info()`，不只记录环境请求值。本段是工程身份更正，不是新任务实验、精度结果或新的训练修订。
+
+<a id="s43-field-full-start-20261028"></a>
+## 2026-10-28 06:30 五臂小训练完整验收，足额full实际启动
+
+[原fa2协议的五臂验收](../outputs/s43_revisit_20261028/s43_full_field_R1/audits/pilot.json)为PASS；每臂32768实际监督输出、1032次Adam更新，总163840输出。各臂输入／监督／有效mask／逐更新预算严格配对，均消费816007992原生事件、33024次自身输出；255个warmup及1个最后预算未选输出不计监督。旧source未变，原共同参数确实更新、输入防火墙违规计数全0。没有用pilot heldout精度选择臂或权重。
+
+| 小训练 | 完整结束时钟 s | 统一全图重捕获 / 全部query | 已提交负root-z / 全部输出 |
+|---|---:|---:|---:|
+| S43 | 993.53 | 无该机制 | 771 / 33024 |
+| field_box | 3904.93 | 3572 / 33024 | 1095 / 33024 |
+| field_static_collapse | 3735.11 | 3408 / 33024 | 1352 / 33024 |
+| field_static | 3703.47 | 3651 / 33024 | 1165 / 33024 |
+| field_box_collapse | 3893.71 | 3592 / 33024 | 1128 / 33024 |
+
+时钟含训练末来源终核，不含排队及早先模型／数据建立，不是独占推理延迟。上表负z和重捕获是全小训练过程计数，包含初始适配和warmup，不是末模型评测错误率；既不能隐藏这些状态，也不能据此推断末权重部署必然发散。新old读出一致性和API可运行不能替代重建精度结果。
+
+[调度交接](../outputs/s43_revisit_20261028/s43_full_field_R1/pilot_full_execution_transfer.json)于06:30:39完成，绑定原pilot audit与新2d0969ce full源；旧dispatcher退休，所有small权重和日志保留。full前四臂已经产生真实Adam更新，不只是创建配置：S43、field_box、field_static_collapse、field_static使用物理GPU4–7、每卡一臂（实际映射以job回执为准）；第五臂field_box_collapse等待首空卡。各full初始模型digest与对应pilot的**初始**digest相同，未带入pilot末权重。
+
+每臂full目标仍6144000实际监督，合计30720000。新完整网络、原MANO解码与监督均真实运行；目前仅有训练健康与配对检查，尚未产生新heldperson／完整递推精度。自动后链已运行，日志`outputs/s43_revisit_20261028/s43_full_field_R1/logs/postmaster/`；成功后会将固定精度、β诊断、查询／扰动／分层结果和正式资源数值回写本账本与调研文档，失败保留现场而不自动改门或择优。
+
+<a id="s43-field-slot-algebra-20261028"></a>
+## 2026-10-28 新读出边界：静态重复槽不是独立运动证据
+
+full已开始、任何新full评分之前，追加[无GT／无GPU／无训练代数审计](../outputs/s43_revisit_20261028/field_slot_algebra_audit_v1/summary.md)。固定公开手态、β0、K和随机合法原生计数field，直接调用冻结query／reader，不改变进行中的臂或门。
+
+正常static的90槽＝45个骨段锚点×两个同位置槽；45对grid／flags／patch／共享CNN输出均逐位重复，每bin只有45个独立位置。局部head第一层5760列可按配对合为2880列，preactivation最大差2.08e−17；反对称权重扰动在该分支不起作用。手框及两种R1重捕获各有90个不同位置，这类强制配对冗余不存在。
+
+由此只能说：**相同登记参数量与相同采样调用数，不等于相同独立观测数或相同正常分支函数自由度。** 它不证明无法预测运动符号，也不证明整个R1模型容量减半——重捕获会使这部分反对称权重重新起作用，完整global分支也始终存在。不能用零初始化末层的相同51D输出来作平凡证明；本审计检验的是编码和非平凡首层。
+
+当前五臂继续按冻结协议运行，保留实际采样、计算和槽位冗余，不借此改臂或择优。static对box只检验这两个具体分配／读出实现；若static不占优，还需区分独立位置数、覆盖及语义组织，不能扩大成所有MANO条件表示失败。未来若修正静态查询，应删除无运动含义的重复符号、或以实际不同位置检验同样预算，另行登记，不回改本轮。该发现是表示／读出解释限制，尚无新任务因果分数。
+
+<a id="why-s43-vertex-joint-20261028"></a>
+## 2026-10-28 综合：S43 上的"顶点 / 关节卷积"类方案为什么没有效果（只汇总已登记读数，无新读数；Stage 5 五臂全训仍在进行，不含其结果）
+
+**对象界定。** 用户方向「顶点 / 关节卷积 + FK 点溅射逆深度」的后半段就是 S43 现有的前端：前态 51 维 → MANO FK → 778 顶点点溅射 → sil / 逆深度两面，与事件 LNES 在同一像素网格进入稀疏主干（`#s43-prereg` §2）。前半段——把事件或特征搬到 MANO 顶点 / 关节上做局部算子再读出——在 S43 上一共有六次实际检验（S39 / C1 上的同型实验另列为旁证）：
+
+| 实验（对象 S43） | 做了什么 | 结果 | 出处 |
+|---|---|---|---|
+| S44 P0.4（零训练） | S43 的 A4 活跃位点特征按前态网格归属逐指池化，岭回归读出手指 Δ | 闭环 local 10.94，比原 fc 10.56 / 10.62 / 10.63 更差 | `#s43-addendum-20261021` |
+| REL 有向关系记忆（四臂各 6000 步配对微调，54 条完整回放） | 事件写入前态无关的 A / Z 记忆，查询时绑定到 MANO 坐标、joint-Gram 读出 | β0 RA 11.10 对配对 S43 11.03（非劣，无独特价值）；绝对 J 降 0.6–0.9 mm；服务 P50 57.6 ms 对 9.8 ms | `#s43-rel-results-20261027`、`#s43-rel-deployment-20261027` |
+| 关节反证片段 B（第三轮主原型） | 在关节锚点上选择"有判别力"的事件片段，同 reader 读出 | SELECT J0 10.41 对静态配额 10.41、完整细场 10.25，三种选择条件全 FAIL；成本 P50 125 ms | `#s43-witness-results-20261028` |
+| A 原生场 + MANO 骨段查询（Stage 3，45 个 CNN × 2000 步） | 把原生计数场在 FK 骨段 / 解剖锚点处按 8 bin 取 patch，逐槽编码后读 63D 关节增量 | static 12.64、anatomical 12.32、hand-box 14.27，恒等前态 9.32：全部差于不动 | `#s43-field-query-results-20261028` |
+| A 读出 R1（删除人工错误前态训练 views） | 同上，只改训练 views 分配 | global 21.67 → 10.15；static 9.239 ≈ anatomical 9.241 ≈ hand-box 9.358 ≈ 恒等 9.320；static 只省 0.08 mm，门 FAIL | `#s43-field-reader-r1-results-20261028` |
+| Stage 4 精确 MANO 51D 头（74 拟合） | 把读出换成 MANO 流形上的 51D 更新 | MANO 头比自由 63D 头好 0.54–0.59 mm，但 static（骨段语义）8.96 比同容量 hand-box 8.77 **差 0.19 mm**（2/4 录制同向）；合成 OOF 连续关节 MANO static 13.7 对恒等 0.95 | `#s43-field-mano-reader-results-20261028` |
+
+旁证：S39 上端到端的表面提升读出 M1（1-ring 顶点卷积 + LBS 汇聚到关节）单 seed local −0.36 / global +0.40（`#mv2-m1-s4-20261026`）；C1 上的 778 聚合（AGG778 R2）与 MeshGNN 消息传递（MRF）全部"可忽略带"；S41 P0-a 在冻结 S39 特征上，前态投影 21 关节采样比 GAP 更差（8.80° 对 6.76°，大噪声组 15.4° 对 8.6°）。
+
+**为什么没有效果（按证据强弱排序）。**
+
+1. **关节语义不比"手在哪"多给任务信息。** 凡是能把"骨段 / 关节锚定"与"同容量的手框 / 配准平铺"配对比较的实验，差值都在 ±0.2 mm：Stage 4 static 比 hand-box 差 0.19；R1 static ≈ anatomical ≈ hand-box；S39 PA1 的 lift_lbs 对配准平铺只多 0.66 mm，而其中对 GAP 的 2.43 mm 增益有 2.2 mm 来自"在手附近采样"；AURA 的任务价值几乎全在占据。事件在 50 ms 窗内能说的主要是"哪一块有运动"，不是"哪个关节转了多少"。
+2. **要读的证据本身不在事件里。** 合成 null 对：5 mm 食指动作与无动作在固定辐亮度模型下事件逐位相同（`#s43-field-observability-diagnostics-20261028`）；SRCA 证明 v2e 事件对 > 30 Hz 的运动没有独立于标签的信息；10 类合成动作在关节读出下 OOF 只有 21–34 %（chance 10 %）；SBA R3 的 10 mm 屈曲在 global 单窗识别率也只有 0.72–0.85。顶点 / 关节算子是读出结构，它不能创造证据。
+3. **锚定在前态上的读出，在前态错时反而更差。** 关节 / 顶点锚定把采样位置和坐标系都交给前态；闭环里的误差正是前态误差。S41 P0-a 的关节采样在大噪声下 15.4° 对 GAP 8.6°；Stage 3 训练带错误前态 views 时 global 读出 21.67、删掉后 10.15；XA / FKGRAPH 的 oracle 关联闭环反而变差（"观测是相对 prev 的量"）；XVM 的顶点锚定测量在部署锚点上过度自信（RA 39–66）。这就是 01 文档假设 H2 的"前态污染"。
+4. **S43 的误差不在"相对前态的测量"，而在逐帧绝对映射对新受试者的偏差**（`#why-s43-baseline-20261026`）：前态扰动一步保留率 0.03–0.09；单步从完美前态出发在训练录制比恒等好 0.16 mm、在 zgz 差 4.8 mm；70–87 % 误差能量在 1 s 以上尺度并向训练先验收缩。顶点 / 关节算子改的是"事件如何相对 mesh 被读"，不改映射的泛化；上表六次检验里有五次连 SELECT（训练受试者）都没赢，说明不只是泛化问题，连样本内也没有可读的增量。
+5. **实现与功效限制（是限定，不是原理否定）。** 静态 90 槽实为 45 对逐位重复（`#s43-field-slot-algebra-20261028`），独立观测数只有声明的一半；REL 接入时旧 LNES mask 外一像素以外硬零、空 LNES 门封锁新支路（`#s43-revisit-stage1-results-20261028`）；读出探针多为 2000 步小头、63D 代理、给定 β 条件；E3 / TF 体制对事件保真度不敏感；单测试人 MDE 1.15 / 0.79 mm 高于机制效应 0.3–0.5 mm。这些使"没有效果"只能写成"在这些预算与接口下未检出"，所以 Stage 5 才做同预算完整训练。
+6. **代价方向是反的。** 关节 / 顶点查询把服务成本抬到 S43 的 1.5–12 倍（anatomical 29 ms 对 core 15；REL 57.6 ms；B 125 ms 对 S43 9.8 ms），没有换回精度。
+
+**结论。** "FK 点溅射逆深度"已经是 S43 的输入；在它之上再加顶点 / 关节局部算子，S43 一共六次检验没有一次超过同容量的简单控制（手框、配额、恒等前态）。原因不是算子写错，是 (1) 关节语义相对"手在哪"没有额外任务信息，(2) 50 ms 事件窗里没有可供关节级读出的证据，(3) 锚定在前态上的读出被前态误差污染，(4) S43 真正的误差是逐帧映射对新受试者的偏差。进行中的 Stage 5 五臂全训（`field_static` 对 `field_box` 对 `s43`，同预算 6.144 M 监督输出）是对第 5 条限定的正式检验；其结果出来前，本节结论不变、也不预判。
+
+<!-- EXPERIMENT_RECORD:KA:BEGIN -->
+
+<a id="ka-prereg-20261028"></a>
+
+## KA 预注册：运动学图册等变性检验（第一步，零训练，CPU；2026-10-28，写于任何 KA 读数之前）
+
+### §0 来历、范围与披露
+
+- **来历**：用户要求"关节卷积与现有 LNES 整图卷积分开，只对相关关节做卷积或算子，作为为 mesh 重建设计的新方法"。agent 提出：把卷积定义在由前态 FK 给出的 MANO 表面"运动学图册"上，主张它对深度、根旋转、关节角等干扰等变，从而比整图卷积更适合新受试者泛化；并提出三步检验，用户 2026-10-28 指令"先写第一步的预注册并冻结，然后在 CPU 上跑"。本节只登记第一步：**零训练、CPU、不读 zgz、不训练任何网络**。
+- **不变**：S43 / S39 不变；不改 `model/`、`semkine/`、任何冻结文件、数据、标签、K；划分只用 `splits_semkine.json`。新代码只在 `tools/kin_atlas/`（只读 import `tools/s43_br/geometry.py` 的 CPU MANO FK 与三角光栅器、`model/mano_layer.py`），测试 `tests/test_kin_atlas.py`，产物 `outputs/kin_atlas/`。Stage 5 五臂全训（GPU 4–7）在跑，本步只用 CPU、`nice 10`、48 进程。
+- **写本节时已知、不得用于设定或调整门的事实**：S43 线上 Stage 3 / 4 的场查询读数（骨段 static 对同容量 hand-box：Stage 4 MANO 头 8.96 对 8.77，R1 9.24 对 9.36，`#s43-field-mano-reader-results-20261028`、`#s43-field-reader-r1-results-20261028`）；AURA 的"任务价值主要在占据"（`#aura-results-20261025`）；MV2 PA1 的"对 GAP 的增益大部分来自在手附近采样"（`#mv2-results-20261026`）；`#why-s43-vertex-joint-20261028` 的综合。这些都是**读出探针 / 训练**结果，不是本节的相似度量；本节表示与统计量此前从未在任何数据上计算过。
+- **工程冒烟（非读数）**：合成冒烟只渲染过一次零姿态手（打印形状、事件数 184、耗时）；真实冒烟只扫描 ch_local 的窗口个数（1201）并对一个窗口算特征形状，没有算过任何相似度、AUC 或过滤后窗口数。单元测试 7 项通过（全部为合成 / 模板几何，无录制数据）。
+
+### §1 问题
+
+同一个手指动作，在不同深度、根旋转、关节角背景下产生的事件，提升到运动学图册后，是否比在"按前态做相似变换归一化的手框"里更相似（对动作身份更有区分力）。若不成立，"运动学图册卷积在等变性上优于图像卷积"这条原理在数据上不存在，第二、三步不做。
+
+### §2 表示（同一 50 ms 窗事件、同一前态；`tools/kin_atlas/common.py`）
+
+- `img`：全图计数，32 × 24 网格（参照）。
+- `box16` / `box24`：相似变换归一化手框——中心 = 前态可见顶点投影的质心，尺度 = 1.15 × 其最大离心距，旋转 = 投影的腕 → 中指 MCP 方向朝上；16 × 16 或 24 × 24 网格。**强对照**：每次比较取两种分辨率中 AUC 较高者（对图册保守）。
+- `atlas_rigid`：事件提升到"前态根旋转 / 平移 + MANO 平均手指姿态"网格的最近可见顶点（像面半径 f · 15 mm / z_中位以内，3 × 3 顶点溅射 z-buffer，1 cm 容差），再按顶点的图册格子计数——**刚性 3D 手系**。
+- `atlas_kin`：同上但用完整前态网格（手指关节角）——**运动学图册**，待检对象。
+- 图册（零形状平坦模板上固定）：顶点归属最大蒙皮权重关节（16 部分）；手指部分 = 沿骨轴 4 格 × 绕骨轴 8 格（参照为掌法向）；掌部 = 掌平面 4 × 4 × 正反两面。16 × 32 = 512 格 × 两极性。
+- 特征：log1p 计数，σ = 1 格高斯模糊（图册在部分内，角度环绕，掌两面分开），L2 归一化；相似度 = 余弦。未模糊版本只作描述。
+
+### §3 合成部分（`tools/kin_atlas/synth.py`；机制与工具有效性，非主证据）
+
+- 24 个上下文：从 18 条训练基础录制的 GT 按固定种子抽取（手指姿态、根朝向、betas、K）；手在任一设定下出像面边缘 10 px 则重抽。
+- 动作 10 类：5 指 × 屈 / 伸，三关节按 1 : 1 : 0.67 绕该指屈曲轴（模板系、固定于父系）转动，幅度二分使指尖位移恰为 8 mm，50 ms 内线性；根静止。
+- 相机干扰设定 11 个（绕手顶点质心）：参考（z 0.55）；深度 0.42 / 0.70；滚转 ±30°；偏航 ±35°、俯仰 ±25°（离面 oop）；组合两种（z 0.70 + 偏航 +30° + 滚转 −25°；z 0.42 + 俯仰 −20° + 滚转 +25°）；每（上下文, 设定）一个 ≤ 10 px 的像面偏移。
+- 渲染：带纹理 MANO（种子 7）、背景 0.15、2 倍超采样，240 × 180，每 2 ms 一帧；对数强度越阈产生事件，逐像素阈值 0.15 (1 + 0.03 N(0,1))（实现种子），参考按整倍数重置。A/A 对照：参考设定换第二个阈值实现重渲。表示所用前态 = 窗口起点真值；另以"前态平移 10 mm + 根 5°"的扰动前态算一份（描述）。
+- 统计：对每个（上下文, 动作, 干扰设定），正例 = 同动作的"参考 vs 该设定"，负例 = 该设定下其余 9 个动作；AUC 先在上下文内平均。族：depth、roll、oop、combined；跨上下文族（同动作不同上下文，参考设定）只作描述。区间 = 对上下文的自助 2,000 次。
+
+### §4 真实部分（`tools/kin_atlas/real.py`；主证据）
+
+- 窗口：18 条训练基础录制（FIT7 + SELECT），评测器 50 ms 网格上全部端点（跳过段首），事件 (end − 50, end]，前态 = GT(end − 50)。**不读 zgz**。
+- 手指主导过滤：窗口内根旋转变化 ≤ R°、腕点位移 ≤ D mm、手系指尖最大位移 ≥ 3 mm、前态投影框（+10 px）内事件 ≥ 100。(R, D) 依次取 (1, 2)、(2, 4)、(3, 6)，取第一个使总窗口数 ≥ 400 的档；> 3,000 时按固定种子抽 3,000。
+- 动作描述子：20 个非腕 OpenPose 关节在前态手系（J_h = R_prev^T (J − J_腕)）中的窗口位移，60 维，mm。
+- 干扰不同的对：不同录制，或根朝向差 ≥ 20°，或腕深差 ≥ 5 cm。逐锚点 AUC：正例 = 干扰不同且描述子距离 ≤ 全部干扰不同对的 2 % 分位；负例 = ≥ 50 % 分位（≤ 200 个，固定种子，各表示共用）；对有正例的锚点取平均；表示间差值按锚点配对，以（录制, 1 s）块自助 2,000 次。描述：干扰相同对（同录制、根差 < 10°、深差 < 2 cm）的同一 AUC；干扰不同对上相似度与 −描述子距离的 Spearman；未模糊与扰动前态版本。
+
+### §5 有效性、门与裁决（`tools/kin_atlas/decide.py` 写 `outputs/kin_atlas/decision.json`）
+
+- **有效性（全过，否则 tool_defect，读数只作描述）**：V1 合成 A/A 的 AUC ≥ 0.90（atlas_kin 与较优 box）；V2 合成 oop 族动作标签打乱后各表示 |AUC − 0.5| ≤ 0.05；V3 `tests/test_kin_atlas.py` 通过。
+- **G1（合成，oop + combined 按上下文合并）**：AUC(atlas_kin) − AUC(box) ≥ 0.05，且自助 95 % 下界 > 0。
+- **G2（真实，干扰不同锚点）**：AUC(atlas_kin) − AUC(box) ≥ 0.03，且 95 % 下界 > 0。
+- **G3（真实，关节部分是否必要）**：AUC(atlas_kin) − AUC(atlas_rigid) > 0 且 95 % 下界 > 0。
+- **裁决**：G1 与 G2 都过 → pass，进入第二步（同算量信息探针）；G3 决定第二步用运动学图册还是刚性 3D 手系就够。G2 不过 → fail_real，**这条线停止**（"图册等变优于归一化手框"在真实数据上不成立）。G1 不过而 G2 过 → inconsistent，只作描述，不作主张。
+- **阈值来源**：0.05 / 0.03 / 0.90 / 0.05 为本预注册约定；没有一个取自任何已读数据。合成部分是"算子按设计工作且干扰确实伤害手框"的必要条件，真实部分才是证据；合成里 atlas_kin 的优势部分来自构造，不能单独作为原理证据。
+- **不能主张**：任何精度或泛化提升（本步不训练）；对 zgz 或新受试者的结论；等变性以外的效率主张。
+
+### §6 停止规则与冻结
+
+- 工具缺陷允许一次重设计（须新预注册，原结果保留）；结果失败按 §5 停止。不改门、不换描述子、不调过滤档（档位按 §4 机械选择）。
+- `tools/kin_atlas/freeze.py` 写 `outputs/kin_atlas/protocol.json`：本节（`#ka-prereg-20261028` 至 `KA-PREREG:END`）文本 SHA-256、`tools/kin_atlas/*.py`、`tests/test_kin_atlas.py` 与所 import 模块的 SHA、划分文件 SHA、18 条录制数据文件的 (size, mtime_ns)、git HEAD。修订只进 `amendments`。串联 `outputs/kin_atlas/run_ka.sh`。
+
+<!-- KA-PREREG:END -->
+
+<a id="ka-results-20261028"></a>
+
+## KA 第一步结果（2026-10-28 16:01–16:07，CPU，零训练；`outputs/kin_atlas/decision.json`）
+
+**裁决：inconsistent**——有效性 V1–V3 全过；G1（合成）不过，G2（真实）与 G3（关节部分）过。按 §5 只作描述、不作主张；第二步（同算量信息探针）不自动进入，是否续做由用户决定。协议未修订（`amendments` 为空），串联一次跑完：合成 2,880 次渲染 294 s，真实 2,200 窗 12 s。
+
+**有效性**
+
+| 检查 | 读数 | 结果 |
+|---|---|---|
+| V1 合成 A/A | 五种表示 AUC 均 0.998 | 过 |
+| V2 动作标签打乱（oop） | 0.481–0.490 | 过 |
+| V3 单元测试 | 7 / 7 | 过 |
+
+**G1 合成（oop + combined 按上下文合并，24 个上下文，box = box16）**
+
+| atlas_kin | box16 | 差值 | 95 % CI | 门 ≥ 0.05 |
+|---|---|---|---|---|
+| 0.959 | 0.951 | +0.008 | [+0.004, +0.012] | 不过 |
+
+分族描述（AUC）：
+
+| 族 | atlas_kin | atlas_rigid | box16 | box24 | img |
+|---|---|---|---|---|---|
+| depth | 0.985 | 0.963 | 0.988 | 0.988 | 0.916 |
+| roll | 0.989 | 0.978 | 0.990 | 0.992 | 0.816 |
+| oop | 0.956 | 0.838 | 0.949 | 0.946 | 0.899 |
+| combined | 0.962 | 0.871 | 0.953 | 0.952 | 0.828 |
+| 跨上下文（描述） | 0.942 | 0.868 | 0.930 | 0.925 | 0.856 |
+
+- 相似变换归一化手框对深度与滚转按构造等变，和图册打平；只有离面旋转留下 +0.007–0.009 的小优势。
+- atlas_rigid 在离面旋转下最差（0.838）：平均手指姿态网格把弯曲手指的事件派错，合成里带外份额中位 0.69（atlas_kin 为 0）。
+- 合成每次渲染事件数中位 204、5 % 分位 24，8 次渲染零事件。
+- **设计缺陷披露（agent）**：box 在合成任务上已到 0.951，留给图册的余量只有 0.049，小于门槛 0.05；G1 在这个任务难度下对任何表示都不可通过。冻结前没有做合成余量压测，这是预注册设计失误，不是实现缺陷（V1–V3 全过，`decide.py` 按冻结规则判 inconsistent）。本节不据此改判；若要把 G1 登记为工具缺陷并重设计（§6 允许一次，须新预注册），由用户决定。
+
+**G2 / G3 真实（18 条训练基础录制，档 (1°, 2 mm)，2,200 窗，有正例锚点 1,442；正 / 负例描述子距离中位 7.65 / 15.16 mm；干扰不同对占 92.5 %）**
+
+| 表示 | AUC（干扰不同） | AUC（干扰相同，856 锚点，描述） |
+|---|---|---|
+| atlas_kin | 0.662 | 0.756 |
+| atlas_rigid | 0.637 | 0.754 |
+| box24（较优 box） | 0.604 | 0.722 |
+| box16 | 0.593 | 0.693 |
+| img | 0.497 | 0.706 |
+
+| 差值 | 均值 | 95 % CI（录制 × 1 s 块自助） | 门 |
+|---|---|---|---|
+| G2 atlas_kin − box24 | +0.058 | [+0.051, +0.065] | ≥ 0.03 且下界 > 0：过 |
+| G3 atlas_kin − atlas_rigid | +0.026 | [+0.017, +0.034] | 下界 > 0：过 |
+| atlas_rigid − box24（描述） | +0.032 | [+0.024, +0.041] | — |
+| atlas_kin − img（描述） | +0.165 | [+0.154, +0.175] | — |
+
+**描述性读数**
+
+| 版本 | atlas_kin − 较优 box | atlas_kin − atlas_rigid |
+|---|---|---|
+| 未模糊 | +0.072 [+0.065, +0.078]（box16） | +0.048 [+0.039, +0.056] |
+| 扰动前态（平移 10 mm + 根 5°） | +0.032 [+0.025, +0.039]（box24） | +0.003 [−0.004, +0.009] |
+
+- 真实带外份额中位：atlas_kin 0.068，atlas_rigid 0.388。
+- 相似度与 −描述子距离的 Spearman：atlas_kin 0.054、atlas_rigid 0.087、box −0.01、img −0.093。各表示对动作的分级相似几乎不跟描述子距离走，绝对区分力弱（AUC 0.60–0.66）。
+
+**解读边界（不作主张）**
+
+1. 合成与真实方向一致（图册 ≥ 手框），但合成的门在任务难度上不可达，所以"算子按设计工作且干扰确实伤害手框"这一必要条件没有得到合成支持；按冻结规则只能描述。
+2. 真实优势的来源未分离：atlas_kin 用前态手指姿态做提升，可见顶点集合本身随姿态变化，而 50 ms 的手指位移与起始姿态相关，所以 G2 / G3 的一部分可能是"姿态指纹"而不是"动作等变"。本步没有"只有前态可见性、没有事件"的对照，这是第二步之前必须补的零模型。
+3. 关节部分（G3）的优势在前态误差 10 mm + 5° 时消失（+0.003，CI 含 0）；S43 在 zgz 上的闭环误差在 local 约 12.8 mm，所以在部署前态下"运动学图册"可能退化为"刚性 3D 手系"。刚性 3D 提升对手框的优势在扰动下仍保留（+0.032）。
+4. 只用训练受试者、GT 前态、不读 zgz；不能主张新受试者泛化、精度或效率。
+
+**状态**：没有训练网络、没有主行，所以没有九列表行。S39 / S43 不变。待用户决定：(a) 按 inconsistent 结案；(b) 把 G1 登记为余量缺陷，重设计更难的合成任务（新预注册）；(c) 在新预注册下补"姿态指纹"零模型并以扰动前态为主口径，再决定是否进入第二步。
+
+<!-- EXPERIMENT_RECORD:KA:END -->
+
+
+<a id="xj-prereg-20261029"></a>
+## 2026-10-29 XJ：位置与运动联合关联读出——训练前预注册
+
+用户本轮明确授权“收敛为一个方案，然后开始训练”。方案收敛为附录S的单方法分阶段实现：本次先做局部能力训练，冻结canonical S43作为合法全手条件，自身反馈前态，训练双时间F16→37通道局部CNN→a/d及关联→一次联合更新。完整模型解冻另须通过本协议最终SELECT门；不把本阶段称完整主表训练。新材料点目标只作beta0几何代理，不称真实事件材料身份或轮廓位移。
+
+协议写于任何XJ真实数据样本、损失或新模型读数之前，冻结于 `outputs/xvm_joint/20261029_070707/protocol.json`，SHA256 `01addd04558c0e6db35f7c23d7bb86e6249b5929c24286fcd2646b121b58e7d9`；配置 `outputs/xvm_joint/20261029_070707/config.json`。seed3407，Adam1e-3，B4，12000更新，先CPU验证再物理GPU2训练，GPU3检查，GPU0–1不用，4–7现有作业不动。FIT7训练、SELECT(ycy/ylf)只在最终检查，zgz不读；唯一原划分与数据/K/标签不改。源码完成后另冻结实现与CPU检查，真实样本读取和优化器在该冻结之后。最终门、对照、停止规则、预算及能力边界详见协议；任何失败保留，不改门重跑。
+
+新代码仅在 `tools/xvm_joint/` 和对应新测试；当前打开的 `semkine/encoder.py` 及其他冻结文件不改。使用科研工作流的freeze/hypotheses/implementation阶段（scientific-critical-thinking、hypothesis-generation、test-driven-development、verification-before-completion），用户本轮指令已经授权本次训练，不另造批准签名，不调用Jev。S39/S43不替换。
+
+**XJ 读数前实现具体化。** 原protocol保持冻结；在任何真实样本/模型读数前，config明确局部参考扰动概率0.5、平移σ10mm、根σ5°、手指σ2°，3σ截断，只作用局部查询参考，不改全手分支输入或提交历史；NLL固定来源组权重、validity BCE权重0.1、末态21关节MSE(m²)权重1000，均FP32。细目 `outputs/xvm_joint/20261029_070707/predata_concretization.json`。正式冻结包含这些具体值与CPU工程修订，不改SELECT门。
+
+**XJ 实际源码冻结与CPU验收。** 新模块29项CPU契约检查全部通过，静态集成审查无未解除高/中风险。实际sourcefreeze为 `outputs/xvm_joint/20261029_070707/sourcefreeze.json`，SHA `4a1972446902b280cc5d89761f1c5e01d6432d65e874801385dd32db87fe348a`；绑定协议、配置、canonical权重、唯一划分和113个实际可执行源。自此可读取FIT7实际样本作零优化器CPU/GPU工程检查。GPU真实前向/反向通过同一freeze后才允许正式Adam更新。`semkine/encoder.py`及其他保护文件均与本轮起点SHA一致。
+
+**XJ 工程修订1（零优化器／零监督）。** 首次真实CPU检查在首warmup遇旧加载器将`model`占为非package模块，导致旧几何导入失败。已保存原失败及v1完整113源ZIP；在新geometry内独立二值三角光栅，逐像素验证与旧恒定前景mask一致。v2共31项CPU检查通过；新实际冻结 `outputs/xvm_joint/20261029_070707/sourcefreeze_v2.json`，SHA `f069c5ed5f9fb92aec93a78e8025d8639c3ac26dd6448da54cb5cc4331b68570`，显式绑定v2几何／统一CPU回执。协议、目标、预算和科学门不变，允许重跑真实工程，不按方法失败改门。
+
+<a id="xj-run-20261029"></a>
+## 2026-10-29 XJ 阶段一训练已实际启动
+
+31项CPU契约检查、真实CPU和GPU各3次前向/1次反向/0次优化器工程通过；物理GPU2、seed3407、B4、Adam1e-3、12000更新。进程PID 3555385。本次核验已观察到110次更新、checkpoint 110步；权重摘要相对初始已变化，Adam/源游标/自身状态/RNG与输入—监督hashchain已保存。零初始化后CNN、均值/误差/关联/有效性各模块均实测有有限非零梯度。
+
+状态 `outputs/xvm_joint/20261029_070707/train/status.json`，日志 `outputs/xvm_joint/20261029_070707/logs/train.log`，核验 `outputs/xvm_joint/20261029_070707/training_start_verification.json`。实际使用 `sourcefreeze_v2.json`（f069c5ed…），旧导入失败完整保留。GPU0–1未用、4–7旧作业未动；当前encoder等8个保护文件SHA不变，未读zgz。当前是局部能力训练，冻结canonical S43全手条件，尚无新精度主行或机制通过结论。
+
+
+<a id="s43-audit-hook-repair-20261029"></a>
+## 2026-10-29 Stage 5 audit hook 累积缺陷修复（纯工程，不读精度）
+
+用户指令“修复 hook 的重复注册”。原 `tools/s43_rel/mean_shape_replay.py` 的 `InferenceAccessGuard.__enter__` 每次注册一个永久 Python audit hook；退出只将该 guard 失活，历史 hook 仍被逐一调用。正式 full 每 phase 新建 guard，单次更新输入/前向由早期约 2–4 s 增长至 S43 约 35 s、field 约 96–100 s，loss/backward 仍约 0.17 s；当前 CPU 瓶颈不能当作正常恒定吞吐。此处只读训练健康/计数，未读新任务精度、heldout 或 zgz 分数。
+
+修复为独立 `tools/s43_rel/access_guard.py`：每进程一个非绑定分发 hook，仅引用 active scopes；末 scope 退出恢复 NumPy getter 并释放 guard；保留进程全局、嵌套、异常及 worker 线程的访问防火墙，fork 后清空继承 scope、复用继承 hook。`tools/s43_revisit/s43_field_hook_repair.py` 显式替换 guard，并向原 postmaster→queue→train/audit→collect/evaluation/report 子进程传递修订身份。旧冻结源码、protocol、config、原 sourcefreeze SHA 和 checkpoint 字节保持；**实际执行身份必须同时引用原 freeze 与本次 amendment，不能只报旧 freeze**。
+
+27 项 CPU 测试全部通过（新 guard 8、启动包装器 7、原部署/训练桥/后链 12），覆盖 1000 次 scope 只注册一次、guard 释放、真实 `.meta`/NPZ `betas` 拦截、允许成员 receipt、嵌套/跨线程/异常/fork、恢复参数与子进程传播、修复源码变更拒绝。独立 CPU probe：完成 1000/8000/20000 个 scope 后同样 2000 次 audit 分别 0.000479/0.000473/0.000475 s，hook 数始终 1；仅作工程描述，不充当模型时延。验证见 [validation.json](../outputs/s43_revisit_20261028/s43_full_field_R1/engineering/audit_hook_repair_20261029/validation.json)。
+
+已有进程的历史 audit hooks 无法卸载，因此接管采用“核对 PID/argv/启动身份与 GPU → 暂停控制器和四 worker → 存档原日志/完整曲线/完整 checkpoint → 校验 checkpoint 的 source/config/预算时钟及 optimizer/schedule/自身前态/RNG → 原进程退出 → 使用修复包装器从最近完整 last.ckpt 续训”。未落盘尾段另存并按原顺序重放，不增加有效监督预算，不把重放另计独立样本；第五臂继续原队列，不按中途精度选择。全五臂末权重齐备后才进入原固定评测/报告后链。接管前的纯工程记录与实际检查点、PID、修复代码 SHA 由 [amendment.json](../outputs/s43_revisit_20261028/s43_full_field_R1/engineering/audit_hook_repair_20261029/amendment.json)、[handoff.json](../outputs/s43_revisit_20261028/s43_full_field_R1/engineering/audit_hook_repair_20261029/handoff.json) 和同目录 `launches/` 保留；实际恢复状态在下段核验后追加。
+
+
+**10:31 接管 / 10:33 实际恢复核验 PASS（UTC+8）。** 原 postmaster/queue 与四 worker 已按身份核对后退出，旧 launch/lock、日志、完整曲线及完整 checkpoint 存档在上述工程目录 `before/`；新 postmaster PID 3582094、queue 3582096。物理 GPU4/5/6/7 分别为 S43 3582160、field_box 3582159、field_static_collapse 3582162、field_static 3582161，各 launch receipt 中 `audit_hook_registrations=1`，四曲线均已实际前进，未发现 failure。原 full freeze SHA `2d0969ce7de66fb393cc9fc8fa0d2c5285c85b5df0501301a83016d312c19d98` 不变；单独 amendment SHA `5956cc1c2573513436b8ef83224f4200ea89b5acedc1cdcbe554505e347d9b00` 标识修复实现及检查点接管。
+
+恢复点的实际监督输出依次为 S43 **1,310,788**、box **262,332**、collapse/static **524,438 / 524,438**。暂停前已记录但未落盘尾段分别 **37,431 / 248,115 / 0 / 512** 输出；这些旧曲线已存档，续训按原来源和 RNG 重放，不能把恢复点计数误报成暂停前全部已保存，也不能重复累计最终预算。原 trainer 另外保留 `uncheckpointed_trace_after_*.json`。S43 与 box 各前20个重放更新、static前2个重放更新的输入摘要、监督摘要、source chain、phase mask/预算及原 raw loss 均与存档逐位一致（最大 raw-loss 绝对差 0）；collapse 正好在保存边界，未有可重放对照片段，不声称该项比较已验证。
+
+恢复后最初23–32个更新中，最近20次输入＋前向中位数：S43 **35.32→2.35 s（约15倍）**；box **102.36→3.17 s**、collapse **96.60→3.16 s**、static **97.53→3.18 s（约30–32倍）**，loss/backward 仍约0.17–0.18 s。此为共享主机训练日志上的工程描述，前后输入阶段不同，不充当模型服务时延或性能结论。旧冻结代码和新 repair sources 再核 SHA 均未变，见 [live_verification.json](../outputs/s43_revisit_20261028/s43_full_field_R1/engineering/audit_hook_repair_20261029/live_verification.json)。第五臂仍排队，原全部训练→固定回放/资源→报告后链保留；本次没有新精度读数，不改任何既有科学裁决或 S43/S39 默认模型。
+
+<a id="xj-final-select-prereg-20261029"></a>
+## 2026-10-29 XJ 完训与最终SELECT评估细化（读结果前）
+
+阶段一已完成12000更新/47677实际监督输出，固定末权重SHA `1604c3c48e4e7c35e6338e98c60f15c88dd326fb4a0f1c4709c537281678f6f7`，11:50北京时间完成。用户要求查看效果，按原阶段一协议做最终SELECT对照，不读zgz、不选checkpoint。原数值门不变；原协议未明确的absolute-FK单位、先录制后person等权、四臂独立闭环、fallback分母和NA规则在任何SELECT模型输出/标签之前细化于 `outputs/xvm_joint/20261029_070707/evaluation_20261029_151303/protocol.json`，SHA `5e1886c2b0e9c1985a27bf565f349943a626e4f94584e424303a09af9f08e172`。这不是把事后补充伪称训练前已有细节。元数据计数为16录制、预计20360有监督窗口（只读manifest/valid_runs，未读SELECT输出）。GPU2/3按person并行，各臂前向完后方读监督；仅允许通过冻结数学parity的执行优化。训练与旧科学结果不改。
+
+
+**15:32 最终SELECT实际启动。** 评估源码freeze `outputs/xvm_joint/20261029_070707/evaluation_20261029_151303/sourcefreeze.json`，SHA `e1553027582e0ca1d9fa8bd8687242ce97ca4955067667b9a9f8d5bf92342e06`，绑定122个源码/测试和12项输入/工程/审查身份。CPU候选/几何逐位检查10项、guard检查8项、最终评估器9项均通过；FIT7三包GPU几何与四臂入口零GT/零优化器检查均通过，独立静态审查无阻塞。只读导入修复后的单钩访问防火墙，不改冻结训练源。执行为GPU2→ycy、GPU3→ylf，各卡4个独立录制worker、每worker allocator cap4GiB；每录制仍四臂各持自身状态，全部16录制与20360评分窗口为完整性硬检查。PID3655214，原有GPU4–7作业不动；并行吞吐不作服务时延主张。
+
+
+<a id="xj-select-results-20261029"></a>
+## 2026-10-29 XJ 阶段一最终 SELECT：三门通过，收益主要在整手位置
+
+**结论：CONTINUE_PERMITTED。** 固定12000步末权重在原训练划分内的 ycy／ylf 全部16条录制（含相关变体）完成20444次packet前向、20360个评分窗口。G1位置代理、G2绝对关节／腕点非劣、G3运动关联相对纯空间关联的整体优势均通过；独立原始证据重算一致。此结论只允许推进完整方法，不等于完整方法已训练或zgz精度已提升。
+
+**训练与权重。** seed3407，FIT7局部模块训练12000次Adam更新／47677个实际监督输出，11:50（UTC+8）完成，约4小时28分。冻结canonical S43 W50原始无滤波分支，beta输入为0；训练的局部模块185512参数。固定末权重 `train/checkpoint_012000.ckpt`，SHA `1604c3c48e4e7c35e6338e98c60f15c88dd326fb4a0f1c4709c537281678f6f7`。这不是九人完整端到端6.144M输出预算的主表训练。
+
+**评价范围。** ycy、ylf是新增局部模块未用的SELECT人员，但冻结S43此前已经用原九人训练，故不是新受试者泛化。没有读zgz，没有改唯一split、K或标签。所有四臂各自持有反馈前态与上一步绝对提议；全部前向结束后才读当前监督。预测MANO beta0、终点GT用原beta_target；位置a只计beta0规范顶点法向几何代理，不能称已恢复真实事件材料身份。
+
+### 冻结门的全部读数（仅本账本，非正式zgz主行）
+
+G1在primary同一支撑／候选／法向／固定来源权重上比较a与aA；按录制先求均值，再在人内等权。
+
+| SELECT人 | a头MAE / px | 绝对分支派生aA MAE / px | 降低比例 | G1 ≥10% |
+|---|---:|---:|---:|---|
+| ycy | 1.896179 | 2.426286 | 21.848% | PASS |
+| ylf | 1.169652 | 1.878829 | 37.746% | PASS |
+
+终点为camera空间实际MANO FK的21关节／joint0欧氏误差，单位mm。J0相对误差为各自减去自身腕点；与原主表口径分开。
+
+| SELECT人 | 臂 | 绝对21关节 | 绝对腕点 | 绝对778顶点 | J0相对21关节 | V0相对778顶点 | J0相对778顶点 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| ycy | primary | 20.768856 | 18.862709 | 20.616139 | 9.990867 | 7.785007 | 9.613503 |
+| ycy | spatial | 21.258281 | 19.361435 | 21.098850 | 9.926429 | 7.764524 | 9.554883 |
+| ycy | global | 23.793255 | 21.954739 | 23.625096 | 9.961078 | 7.816400 | 9.586037 |
+| ycy | derived | 23.737691 | 21.954285 | 23.573949 | 9.962995 | 7.832999 | 9.589424 |
+| ylf | primary | 14.469111 | 14.348551 | 14.455848 | 3.293283 | 2.914860 | 3.190094 |
+| ylf | spatial | 15.752617 | 15.726848 | 15.749543 | 3.203997 | 2.860758 | 3.106395 |
+| ylf | global | 18.927516 | 18.834153 | 18.922128 | 3.197219 | 2.875521 | 3.099895 |
+| ylf | derived | 18.863498 | 18.764028 | 18.856873 | 3.193661 | 2.873016 | 3.096636 |
+
+G2：ycy和ylf的绝对关节、实际腕点均优于独立global闭环，分别满足不劣于global×1.05的门。G3：全部16录制等权的primary绝对关节误差 17.618983，spatial 18.505449，降低 0.886465 mm（约4.79%），严格小于门通过。没有按单条录制选臂，也没有把变体／帧当独立重复做CI或p值。
+
+### 怎样解释这个正结果
+
+1. 相对旧XVM只证明近GT条件下局部运动可读，这轮首次支持：经过自身前态与位置扰动训练的联合a/d局部头，在本SELECT条件下能超过绝对分支派生的位置代理，并形成更好的闭环整手位置。它支持继续研究，不能据此把局部头称为独立传感器。
+2. 收益主要是整手／根位置。primary相对global的绝对关节改善ycy约3.024、ylf约4.458 mm，腕点改善约3.092／4.486 mm；J0相对关节反而增加约0.030／0.096 mm。因此不能宣称手指形状或关节细节已改善。
+3. motion-conditioned assignment的整体绝对误差优于同权重spatial控制，但门是聚合比较，不保证每条录制都改善，不是独立种子稳定性结论。
+4. derived臂仅替换a/d均值，保留本臂trained covariance／validity／assignment；它不是全分支绝对信息控制。自身闭环在非空、相机有效且更新为零时aA≈0、dA≈nominal，因而derived接近global是该定义的预期，不应把这两臂当作两份独立证据。
+5. 单seed、两个原训练域人员、相关变体、规范顶点代理、标签／事件尺度滋扰均限制外推；没有证明zgz、新受试者或完整公共事件场绝对分支有效，也未产生完整模型服务时延／FLOPs／正式九列主行。
+
+### 可复核证据与后续边界
+
+最终评估在物理GPU2／3执行，各卡4个独立录制worker，固定同seed与末权重。全回放耗时1680.37 s，约28分钟；并发吞吐不当作模型Latency。所有原始fallback帧均保留终点分母，没有置信筛除；位置支撑逐录制无缺失。详细覆盖、unknown、熵与fallback见逐帧trace及独立审读。
+
+- 结果 `outputs/xvm_joint/20261029_070707/evaluation_20261029_151303/results.json`，SHA `2b34717f13373bc0626a3745fa30a51d036b9e98cd7fd22f59f69f22c1362772`。
+- 执行freeze SHA `e1553027582e0ca1d9fa8bd8687242ce97ca4955067667b9a9f8d5bf92342e06`，源代码/数据/权重身份复核未变；保护文件包括当前 `semkine/encoder.py`。
+- 原始重算 `analysis/select_raw_integrity.json`：全部20444帧的监督payload／双链、trace↔NPZ token、reset／四臂自身前态／previous_absolute逐位一致；所有终点数组重聚合与汇总差0 mm，访问guard违规为0，固定来源组权重检查通过。原事件字节未在本次核验重读，几何投影mask本身未重复生成。
+- CPU独立MANO FK重算：每录制评分首／中／末帧、四臂六项指标，共48个时刻；最大CPU与保存GPU指标差 0.000038147 mm，小于预先声明0.01 mm。只用已保存状态和监督，不另读原数据。
+
+**决定：阶段一验收通过，当前只登记允许进入完整方法阶段。** 完整公共事件场绝对分支／端到端训练、完整九人预算与正式zgz主行均未执行，不自动把本轮当作最终模型采用，不改S43／S39。
+
+**独立审读补充限定（不改任何门或裁决）。** G3将整套trained matching输入替换成空间logit，同时改变候选内分配与unknown总质量，不是只删除单独运动变量的同容量因果对照。primary与spatial在评分窗口上的来源加权unknown均值约0.079／0.541、录制等权局部平移原始更新均值约4.377／3.361 mm；因此目前不能区分“运动对应更正确”与“减少拒绝／加大局部纠偏剂量”的贡献。primary有效来源覆盖约72.64%（来源加权），条件候选熵约0.337；这些分数不证明真实事件材料对应正确或置信已校准。所有相机无效／空窗fallback计数为0；各local臂全部20444输出中no-active为51，其中评分窗口为3，均保留终点分母。
+
+derived与global只是汇总终点指标接近，不能说两条轨迹逐帧相同。derived局部平移原始更新均值约5×10⁻⁶ mm，微小FP32差异仍可被非线性递推放大。它作为所登记的均值替换控制保留，但不能当成严格逐位A/A或第二份独立传感器证据。后续完整方法若要主张运动的独立因果贡献，应先固定同容量、unknown质量／纠偏剂量匹配的识别对照；此处只登记为未解决问题，不追加读数或训练。
+
+<!-- EXPERIMENT_RECORD:C1SF-PREREG-20261029:BEGIN -->
+<a id="c1sf-prereg-20261029"></a>
+## C1SF 预注册：XYZ-C1 训练受试者 GT 前态单步 + 三个单因素配对重训（2026-10-29，写于任何 C1SF 读数之前）
+
+**授权与范围（用户 2026-10-29）。** 用户原话："1.零训练：冻结 C1，在训练受试者上做 GT 前态单步评测，与 zgz 对照，区分'受试者偏差'和'结构本身有害'。 2.单因素配对重训：C1 加 SCALE_MODE: depth，并把 zn 改成相对前态根深度的量。 3.损失从参数空间的 log10 加权 MSE改成SO(3) + 平移 + FK。这三部分能不能安排上。第一步进行完，第二部和第三步分别每次只改一个，然后双卡训练。GPU4-7"。同日用户先让停掉 GPU 4–7 上的 S43 Stage 5 五臂全训（15:46 停，产物保留）。只用物理 GPU 4–7，CPU 全量。对象 C1 = `xyz_c1_stable_s3407` step 6000（`outputs/xyz_c1_repro/baseline.json`）。S39、S43、C1 均不替换；新代码全部 opt-in，不改任何冻结文件。
+
+**来历。** 会话里对 C1 的诊断：zgz_local 的 GT 前态单步（E3）C1 为 15.35 mm，恒等（不更新）为 4.41；匹配的 C0（去掉显式 3D 通道）在 local 优于 C1（XA 两种子 6.9 mm；XCL E3 local −5.28；冻结 C1 几何置零 E3 local −3.26）。现有读数分不开四个解释：受试者映射偏差、zn 绝对深度越界（zgz_local 腕深 705–749 mm，训练端点 4,549,824 个中只有 1,176 个落在此深度）、标签–事件几何不一致、训练先验。本轮三步各拆一个：第一步分"受试者偏差"与"结构本身有害"；第二步两臂检验深度越界；第三步检验损失。
+
+**已见读数披露。** 写本节前读过：XCL 十模型三读数、晚期检查点、E4 钳位与冻结干预；XA 结论；AURA、MRF、AGG778 结果；XDG / XDF / XDI 摘要；S39 主行。从未读过 C1 在训练受试者上的任何读数；本轮没有任何 C1SF 读数。写本节前做过的只有工程检查：`tests/test_c1sf.py` 8 项 CPU 测试；腕行近似与 FK 腕点的深度差（256 个随机姿态：中位 0.39、p95 1.02、最大 1.62 mm，几何检查）；18 条基础训练录制的端点计数 22,958（数据计数）。
+
+**配对前提（不过即停，向用户报告）。**
+- **P0-E 评测配对**：XCL 之后 `model/model.py`、`semkine/xyz_mesh.py` 加过 opt-in 接线。当前代码下冻结 C1 的 zgz E1、E3、E3 几何置零、E3 H3 置零四条 trace，须与 XCL 同名 trace 逐数组相等（`tools/xcl/evaluate.py` 的 `compare_traces`）。
+- **P0-T 训练配对**：`c1replay` 50 步预检（C1 原配置，只改步数与验证间隔）的初值、样本索引、训练包与 C1 正式训练逐步相等，且第 1–3 步的预测、损失、梯度 SHA 与 C1 记录相等。不等则不开任何正式训练。
+- **每臂预检**（50 步双卡，25 / 50 步各一次完整验证并返回训练）：初值与 C1 相同；dz 以外各臂的训练包与 C1 逐步相同；dz 的样本索引相同、训练包不同（确认改动生效）。
+
+**第一步 Z1（零训练）。**
+- 读数：冻结 C1，在 18 条基础训练录制（9 人 × global / local，不含 `_v2`–`_v4`）上做 GT 前态单步，与 XCL E3 同一 capture 与 FK 评分代码，共 22,958 个端点；同端点的恒等基线；干预 `geometry_zero`、`h3_zero` 各一遍。zgz 侧用 P0-E 的当前代码 E3 和同端点恒等。
+- 统计量：每个域 Δ = C1 E3 RA − 恒等 RA。训练侧取该域 9 条录制 Δ 的中位，zgz 侧为 `zgz_<域>` 的 Δ，r = 训练中位 / zgz Δ。
+- 判读（描述性，阈值预先写定）：r ≤ 0.25 →"以受试者偏差为主"；r ≥ 0.5 →"结构本身有害"；其间为"混合"；zgz Δ ≤ 0 为"不适用"。干预差值的中位只作描述：`h3_zero` 在训练受试者上也变好，说明事件通路在样本内也注入误差。
+- 局限：训练录制是样本内，记忆会让训练侧 Δ 偏小，判读因此偏向"受试者偏差"；训练 local 的深度在训练分布内，所以 Z1 的"受试者偏差"同时包含深度越界和 σ\* 缺口，Z1 自身分不开，由第二步分。
+
+**第二、三步：三个单因素配对臂。** 全部 seed 3407、fresh 6000 步、2 × 512、BF16、`legacy_none`、worker 12 / prefetch 1，严格数值合同与 C1 相同（`tools/c1sf/train.py` 沿用 `tools/xyz_c1_repro/train.py` 的审计回调）。配置由 `tools/c1sf/make_configs.py` 生成，`tests/test_c1sf.py` 锁定每臂相对 C1 只差登记的一处。
+- **DZ**：`AUG.DOMRAND.SCALE_MODE: depth`（S39 的 dz 增强，缩放解释为手前后移动，训练深度最多扩到 1.25 倍）。
+- **ZR**：`zn = (z − z_root) / 0.1`，`z_root` 为 MANO 关节回归器腕行作用在前态网格上的深度（`semkine/c1sf_zrel.py`）。dXYZ、关联、参数与初值都不变；常数参照 0.45 m 时与 C1 逐位相同（测试）。
+- **SO3**：`LOSS.TYPE: so3_trans_fk`，ROT 1 / TRANS 1 / FK 2，原样取 S39 的设置（`LAMBDA_*` 保留但该损失不读）。已知风险：平移项是 β = 1 m 的 SmoothL1，S4 记录过它对平移约束很弱；C1 读出又不接 t，闭环绝对平移可能漂，腕点绝对误差一并报告。
+- **排程**（`tools/c1sf/chain.py`，脱离会话运行）：Z1 + P0-E（GPU 4–7 单卡评测）→ 预检（c1replay + dz，然后 zr + so3）→ 正式：dz 在 GPU 4–5、zr 在 GPU 6–7 并行，so3 排在先空出的一对；评测在训练不用的卡上跑；主行（含时延）最后在 GPU 4 串行，此时 4–7 无其他作业 → `tools/c1sf/decide.py`。
+- **每臂读数**（与 XCL 同一评测器）：E1 step 6000（两次 fresh 加载，须逐数组相等）、E1 5000 / 5500、E2（C1 的 E1 trace 作共同前态）、E3、E3 `geometry_zero`、E3 `h3_zero`、主行。C1 参照用当前代码重评（P0-E 保证与 XCL 相同）；C1 的 E1 5000 / 5500 取 XCL 读数；C1 的 E2 即其 E1（XCL 约定）。
+- **判读**（单 seed 描述性，阈值预先写定，`outputs/c1sf/20261029/protocol.json` 的 `gates`）：
+  - 每臂对 C1，local / global RA 用 XCL 规则：|E1 差| ≥ 5 / 8 mm，E1 / E2 / E3 差严格同号，5000 / 5500 / 6000 的 E1 差至少两个同号 →"方向支持"，否则"噪声带内"。
+  - 机制（只看 DZ、ZR）：任一臂 E3 local 比 C1 好 ≥ 2.0 mm，且该臂冻结几何置零的 E3 local 差 ≥ −1.0 mm（3D 通道不再有害）→"越界解释得到支持"；两臂几何置零差都 ≤ −2.0 mm 且 E3 local 变化都 < 2.0 mm →"回声解释得到支持"；其余"未定"。
+  - SO3 只按 XCL 规则描述，另报腕点绝对误差。
+- **不做**：不补种子、不加长、不改门、不按读数选检查点。失败保留、该臂终止，其余继续；任何续做由用户另定。zgz 照旧开发 = 测试，EvRealHands 不碰。
+
+**产物与入口。** 代码 `tools/c1sf/`（common、make_configs、train、evaluate、chain、decide、freeze）、`semkine/c1sf_zrel.py`、`tests/test_c1sf.py`；配置 `configs/c1sf_20261029/`；产物 `outputs/c1sf/20261029/`（protocol.json、status.json、receipts/、evaluations/、step1.json、decision.json、report.md）。冻结用 `tools/c1sf/freeze.py`（本节文本的 SHA 一并冻结）。
+<!-- EXPERIMENT_RECORD:C1SF-PREREG-20261029:END -->
+
+<a id="c1sf-z1-results-20261029"></a>
+### C1SF 第一步 Z1 结果与评测配对（2026-10-29，v1 协议下读出）
+
+- **P0-E 评测配对 PASS**：当前代码下冻结 C1 的 zgz E1、E3、E3 几何置零、E3 H3 置零四条 trace 与 XCL 同名 trace 逐数组相等（`outputs/c1sf/20261029/pairing_eval.json`）。XCL 之后加进 `model/model.py`、`semkine/xyz_mesh.py` 的 opt-in 接线没有改变 C1。
+- **P0-T 训练配对（v1 预检）PASS**：c1replay 50 步与 C1 正式训练的初值、样本索引、50 步训练包全部相同，第 1–3 步预测、损失、梯度 SHA 相同；dz 预检 50 步训练包全部按预期改变（`outputs/c1sf/20261029/receipts_v1/preflight_v1.json`，v1 规则）。
+- **Z1**（冻结 C1，GT 前态单步，RA mm；Δ = C1 − 恒等；`step1.json`）：
+
+| 域 | zgz：C1 / 恒等 / Δ | 训练受试者 Δ 的中位（9 条录制） | r | 预注册分类 |
+|---|---|---|---|---|
+| local | 15.35 / 4.41 / +10.94 | +2.07（9 / 9 条 > 0） | 0.19 | 以受试者偏差为主 |
+| global | 4.82 / 2.43 / +2.39 | +1.76（9 / 9 条 > 0） | 0.74 | 结构本身有害 |
+
+- 描述：冻结干预在训练受试者上与 zgz_local 反号。训练受试者上把几何通道或 H3 置零都会变差（local 中位 +2.47 / +2.74，global +3.29 / +2.42）；zgz_local 上置零反而变好（几何 −3.26，H3 −5.48）；zgz_global 与训练受试者同号（+3.31 / +1.61）。即事件与几何通路在样本内有用，在 zgz_local 上有害。所有录制上 C1 都比恒等差约 2 mm，这部分是样本内也存在的结构性害处；zgz_local 另多出约 9 mm。
+- 局限照预注册：训练录制是样本内；zgz_local 的额外 9 mm 同时包含受试者、深度越界与 σ\* 缺口，由第二步分。
+
+<!-- EXPERIMENT_RECORD:C1SF-AMEND1-20261029:BEGIN -->
+<a id="c1sf-amend1-20261029"></a>
+### C1SF 协议修订 1：GPU 2–7、数据加载资源、驱动从预检开始（2026-10-29，写于任何臂的读数之前）
+
+- **来由（用户原话）**："你现在继续，把GPU2-3也用上，并且我感觉能不能调整一下训练参数呢，GPU每次浪费比较多"。
+- **改了什么**：
+  - **GPU**：物理 GPU 2–7 三对。dz、zr、so3 三臂正式训练同时开，各占一对，不再让 so3 排队。
+  - **数据加载**：`TRAIN.NUM_WORKERS` 12 → 16、`TRAIN.PREFETCH_FACTOR` 1 → 2。数据增强按 (seed, 样本序号) 单独播种（`semkine/dataset.py` `__getitem__`），所以这两项不改变任何训练样本；c1replay 预检在新设置下重跑，要求与 C1 的训练包逐步相同、第 1–3 步预测 / 损失 / 梯度逐位相同，不过即停。
+  - **评测并发**：batch 1 的 trace 评测单进程只用 L20 约 25 %，每卡同时跑两个 trace 评测；结果是确定性的，E1 两次 fresh 加载仍须逐数组相等。主行（时延）仍在最后单独串行。
+- **没改什么**：batch 512 / 卡、学习率、步数、精度、损失、调度、三臂各自的唯一改动、全部判读规则和阈值。这些会改变优化过程，C1 用 L20 时每卡已占 33–45 GB 显存，也无法加大 batch。
+- **执行细节**：v1 驱动在第一步完成后、c1replay / dz 的 v1 预检进行中被停掉（只杀驱动，子进程跑完）；两项 v1 预检按 v1 规则验收通过并保留。r2 配置在 `configs/c1sf_20261029/r2/`，r2 预检在 `outputs/c1sf/20261029/preflight_r2/`，r2 驱动状态在 `status_r2.json`；v1 的 `protocol.json`、配置、`status.json`、预检和源码副本（`v1_frozen_sources/`）原样保留。新协议 `protocol_r2.json` 绑定 v1 协议的 SHA。
+- **读数披露**：修订前已读 Z1 结果（上节）、P0-E 配对、v1 预检验收；没有任何臂的读数。
+- **第一次 r2 启动（工程失败，保留）**：r2 驱动的日志文件名与 v1 预检日志重名，`open('x')` 拒绝覆盖，驱动在派发任何作业之前停止；当次的 `protocol_r2.json`、`status_r2.json` 等原样移到 `outputs/c1sf/20261029/registrations/r2_launch1/`。修法只有一处：r2 日志改写到 `logs_r2/`；随后重新冻结 `protocol_r2.json`。
+<!-- EXPERIMENT_RECORD:C1SF-AMEND1-20261029:END -->
+
+<a id="c1sf-results-20261029"></a>
+### C1SF 第二、三步结果：三个单因素配对臂（2026-10-29，协议修订 1 下读出；单 seed3407 描述性）
+
+- **执行**：r2 驱动 16:17–18:40（北京时间）跑完，`status_r2.json` 为 COMPLETE，没有失败。
+  - c1replay 的 r2 预检在新加载设置下与 C1 逐位相同（P0-T 仍过）。
+  - 三臂的预检与正式训练验收全部 PASS（`receipts/formal_{dz,zr,so3}.json`）。三臂各占一对卡同时训练，用时约 2 h 05 min。
+  - 三臂 E1 两次 fresh 加载逐数组相等。
+  - C1 同环境重测主行的准确率与已发布基线行逐位相同，时延 13.93 对 13.89 ms。
+  - 另一会话的 XJ 评测曾在 GPU 2 / 3 上与 dz 训练同时运行（见 `#xj-zgz-results-20261029` 的测量环境说明）。确定性算法下这只影响速度，不影响数值。主行是在 GPU 4 上串行测的。
+- **主表**（`outputs/c1sf/20261029/report.md`，`tools/c1sf/decide.py` 经 `tools/report_table.py` 生成）：
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| XYZ-C1 基线（xyz_c1_stable_s3407，C1SF 同环境重测） | 27.99 | 21.06 | 22.50 | 15.35 | 24.28 | 13.93 ms | 0.231 G | 0.46 M |
+| C1SF dz（seed3407）：C1 + depth 尺度增强 | 24.53 | 12.98 | 20.50 | 11.36 | 18.35 | 13.95 ms | 0.231 G | 0.46 M |
+| C1SF zr（seed3407）：C1 + zn 相对前态根深度 | 24.01 | 13.89 | 20.72 | 11.36 | 18.60 | 14.42 ms | 0.231 G | 0.46 M |
+| C1SF so3（seed3407）：C1 + SO(3)+平移+FK 损失 | 23.51 | 9.37 | 19.52 | 8.01 | 15.94 | 14.09 ms | 0.231 G | 0.46 M |
+
+- **XCL 单 seed 规则**（RA mm，臂 − C1，负 = 更好；`decision.json`）：
+
+| 臂 | local E1 / E2 / E3 | local 晚期 E1（5000 / 5500 / 6000） | local | global E1 / E2 / E3 | global 晚期 E1 | global |
+|---|---|---|---|---|---|---|
+| dz | −3.46 / −1.21 / −6.77 | −7.15 / −10.43 / −3.46 | 噪声带内 | −8.08 / −2.00 / −0.49 | −0.43 / −1.95 / −8.08 | 方向支持 |
+| zr | −3.98 / −2.61 / −5.55 | −7.73 / −7.82 / −3.98 | 噪声带内 | −7.17 / −2.65 / −0.23 | +0.06 / −2.47 / −7.17 | 噪声带内 |
+| so3 | −4.48 / −1.89 / −4.83 | −0.11 / −7.45 / −4.48 | 噪声带内 | −11.70 / −5.79 / −0.29 | +0.92 / −4.83 / −11.70 | 方向支持 |
+
+- **机制（预注册，只看 dz / zr）：越界解释得到支持。**
+  - zgz_local 的 E3 从 C1 的 15.35 降到 dz 8.59（−6.77）、zr 9.80（−5.55）。
+  - 冻结几何置零从"有用"变成"有害"：C1 置零 −3.26（3D 通道有害），dz +2.53，zr +5.08（3D 通道有用）。
+  - H3 置零：C1 −5.48，dz +0.57，zr +0.19。事件通路在 zgz_local 上不再注入误差。
+  - so3（只改损失）E3 local 也降了 4.83，但几何置零仍 −2.04、H3 置零仍 −2.85，3D 通道仍然有害。损失改动的收益走的不是修越界这条路。
+- **描述（不改判读）**：
+  1. **global"方向支持"多半来自 C1 自己 6000 步的退化。** C1 的 E1 global 在 5000 / 5500 / 6000 步为 13.29 / 15.99 / 21.06（MRF 已记录同一现象）。5000 步时三臂与 C1 相差 ≤ 0.9 mm，三臂 E3 global 差只有 −0.2～−0.5。只有 so3 在 5500、6000 两点（11.16、9.37）都低于 C1 晚期最好的 13.29；dz 只有 6000 步低于，zr 两点都不低于。
+  2. **local 单步改善大，闭环不过阈。** zgz_local 上 C1 比恒等差 10.94 mm，三臂把这个缺口分别缩小 62 %（dz）、51 %（zr）、44 %（so3）。E3 local 仍约为恒等 4.41 的两倍（8.59 / 9.80 / 10.52）。E1 local 只改善 3.5–4.5 mm，未到 5 mm 阈，晚期差波动大。
+  3. **腕点绝对误差**（E1，mm，local / global）：C1 73.4 / 30.0；dz 28.7 / 48.5；zr 69.6 / 46.2；so3 67.4 / 38.5。
+     - local：只有 dz 把绝对腕点降了 45 mm，与"深度增强覆盖 zgz_local 腕深 705–749 mm"一致；zr 只改相对量，绝对位置不变。
+     - global：三臂的绝对腕点都变差 8.5–18.6 mm。so3 的预注册风险（平移约束弱）在 global 上表现为 +8.5 mm。
+  4. 三臂离 S39 仍远（local 23.5–24.5 对 10.27）。
+- **按预注册不做**：不补种子、不加长、不组合（dz + zr、dz + so3 等组合未登记）。续做由用户决定。S39 / S43 / C1 不变。
+- **文档勘误（不影响任何门）**：上一条记录（XVM joint 阶段一）的最后两段落在了 C1SF-PREREG 起始标记之后。这两段是"独立审读补充限定"与"derived 与 global 只是汇总终点指标接近……"，在 v1 冻结与修订 1 冻结之间加入：v1 冻结副本 `prereg_section.md` 不含这两段，修订 1 的冻结副本 `prereg_section_r2.md` 含有，其 SHA 原样保留。账本里已把两段移回原记录末尾，C1SF 的门、规则与文本都没有改动。
+
+
+
+<a id="xj-zgz-prereg-20261029"></a>
+## 2026-10-29 XJ 固定末权重zgz评测：用户追加授权，读数前冻结
+
+用户明确要求“你现在在zgz数据集上进行评测”，因此建立新zgz评估协议，不修改旧训练／SELECT协议的禁读范围或结果。协议 `outputs/xvm_joint/20261029_070707/zgz_20261029_161948/protocol.json` SHA `35a855c60d88afcc2a88766ef690ccc8ab6b7fb95e217ea91d0cfad674ac143b`，实际执行sourcefreeze SHA `9a843cdd74a2b4296ab7387280438041006275fb20ed0621ce46fcda5c5ce41d`，139个源码／测试及31个输入／原始数据身份。固定12000步XJ局部末权重，canonical S43固定6000，seed3407；不追加训练、不选checkpoint。
+
+用原evalx.run_sequence的manifest顺序、跨序列rng0、GT起点＋原噪声、首窗评分，zgz_global1386／local1204共2590帧；无SELECT两窗warmup。XJ按训练保留β0，另跑同β0的独立S43控制；预测FK为β0、GT FK为真实β。历史已知β／SparseExecutor的S43/S39行只作参照，不混为同条件配对。主口径W50原始无滤波；副口径为W200裁段首＋Count50＋原ramp1000 AdaptiveFilter，局部运动／计数仍50ms，重叠历史只写一次。关节减joint0、顶点减vertex0；overall按2590帧加权。
+
+30项CPU契约检查、独立静态审查与FIT7 ch_global前三包两口径／两臂的GPU零GT／零优化器检查均通过，工程GPU峰值约57MB。只用物理GPU2／3，准确率8个worker全部结束后才各卡串行测资源，完整packet含F16／CPU几何／CNN／求解／过滤；原表packet预制与磁盘排除保持并披露。MAC为全实际标准层下界，不能拿历史稀疏0.101G冒充本轮masked-dense＋local执行。主行通过原make_s36_row包装与report_table生成，单seed描述、不作采用或可靠性结论；不改S39/S43默认模型。
+
+
+<a id="xj-zgz-results-20261029"></a>
+## 2026-10-29 XJ阶段一固定末权重：zgz全量评测结果
+
+**结论。** W50原始口径下，XJ相对同β0、同执行路径的S43控制有小幅根对齐关节误差改善；S39栈数值增益很小。主要收益仍是整手／腕点绝对位置。此处只评价已训练的局部模块，完整网络并未端到端重训，不替换正式S43／S39。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：W200＋DT2＋ramp1000（历史参照） | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S43：W50原始，已知β／稀疏执行（历史参照） | 12.80 | 8.01 | 10.77 | 6.65 | 10.24（10.29 / 10.23 / 10.20） | 7.80 ms | 0.101 G | 2.82 M |
+| XJ 阶段一，β0，W50原始，seed3407 | 12.62 | 8.31 | 10.81 | 6.77 | 10.32 | 403.70 ms | 1.582 G | 3.01 M |
+| S43 同口径控制，β0，W50原始，seed3407 | 13.33 | 8.40 | 11.34 | 6.85 | 10.69 | 61.81 ms | 1.311 G | 2.82 M |
+| XJ 阶段一，β0，S39栈，seed3407 | 10.82 | 8.46 | 9.64 | 6.82 | 9.56 | 417.78 ms | 1.582 G | 3.01 M |
+| S43 同口径控制，β0，S39栈，seed3407 | 10.87 | 8.50 | 9.69 | 6.82 | 9.60 | 69.50 ms | 1.311 G | 2.82 M |
+
+
+本轮新行均为单seed3407、固定末权重；XJ只完成局部模块训练。新行保持β0输入与预测FK，GT用真实β；历史行的手形／执行条件不同，仅作参照。
+Latency包含完整packet内的F16、几何、局部CNN、求解与过滤；沿原表排除磁盘及packet预制。FLOPs列为实际执行标准层的MAC下界，未计functional MANO/FK、有限差分、SDF与求解器。
+
+
+**测量环境与重复性限定。** 新行的Latency是在GPU2／3同时有另一独立C1SF训练时，按固定Full=1.75ms标定与min(3pass)方法实测；测量期间的进程证据见shared_gpu_context.json与resource_context_timeline.jsonl。它不是空卡／独占性能，不能与历史SparseExecutor成本直接作效率优越结论。CPU几何／F16／局部网络／求解／过滤／反馈全部包含；磁盘和packet预制沿旧表排除。MAC列为实际全标准层下界，尚未包含functional MANO／有限差分／SDF／分派与求解的总运算。
+
+新模型两口径的3次600包计时回放末态SHA均不相同；S43控制均相同。该事实不改变已保存单次zgz轨迹的计分，但本轮未量化差异幅度、未重复zgz准确率，不能声称逐位复现或稳定性成立；也未把原因归给具体算子或共享负载。所有计时／profile访问防火墙回执均无GT读取尝试。
+
+### 配对读数与解释（账本详细指标，非新增主列）
+
+- W50原始：整体RA-MPJPE 10.315401 对 10.690556 mm，降低 0.375155 mm（3.509%）；绝对关节 28.922147 对 37.920946 mm，实际腕点 27.340276 对 36.163821 mm。
+- S39栈：整体RA-MPJPE 9.555122 对 9.602789 mm，降低 0.047667 mm（0.496%）；绝对关节 30.133317 对 38.188247 mm，实际腕点 28.965349 对 36.995955 mm。
+
+本次zgz的J0关节误差在两种录制类型、两种口径下均数值下降，不能沿用前次SELECT“J0略增”的结论；但根对齐只去除平移，仍含根旋转与手指因素，尚未独立识别手指关节贡献。S39-global的V0顶点误差反而由6.820311到6.824533 mm，不能声称所有指标均改善。
+
+这是一套局部a／d、trained matching、联合误差与几何更新的整体增量效果，没有在本次zgz逐项消融；不能把它单独归因给运动信息或事件材料对应更正确。SELECT中G3的unknown质量／纠偏剂量混杂仍在。新局部头只经过FIT7的47677个监督输出，继承的S43全手分支用原九人训练；当前新增参数185512，总参数3007485。不是同预算完整架构重训比较，亦不是足以采用的新主方法。zgz按现有项目规则是开发=测试基准，不能把本轮说成从未用于开发的封存测试。
+
+### 数据、源码、权重与完整性
+
+- 原manifest的zgz_global1386帧、zgz_local1204帧，每口径／臂2590帧，总8case/10360个保存输出；GT起点＋原噪声、manifest顺序连续rng0、首窗计分，无两窗warmup排除。
+- 预测输入及FK保持β0，GT FK用真实beta_target；唯一直接配对对象是新跑的同β0控制。历史S43／S39行手形条件、种子数和执行实现不同，仅作背景。
+- 固定XJ局部12000步checkpoint SHA1604c3c48e4e7c35e6338e98c60f15c88dd326fb4a0f1c4709c537281678f6f7；canonical S43固定6000。sourcefreeze9a843cdd74a2b4296ab7387280438041006275fb20ed0621ce46fcda5c5ce41d绑定139源／31输入身份；旧训练／SELECT freeze和当前encoder等保护源未变。
+- 原evalx轨迹被复用；W50原始为主，W200裁段首＋原ramp1000／Count50为副，F16只写新50ms，关节按joint0、顶点按vertex0对齐，总体按2590帧加权。
+- 通过原make_s36_row.main的测量证据包装输出固定step主行，原report_table再生九列表，单seed3407明确标注；无checkpoint或逐序列挑选，无新训练。
+- 独立已冻核验器检查8case原始状态、共同init、ownprev、end/run/GT、prediction digest／输入滚链／GT guard、metric数组均值、成本身份与表格再生均通过。CPU从已存状态对24帧做5项FK指标抽核，最大差约3.53×10⁻⁵ mm，小于预先声明0.01 mm；未重新做事件推理或用新结果调整任何门。原始核验PASS不等于重复性PASS。
+
+成本实测（原始毫秒，不经过1.75ms缩放）：
+
+- w50/primary：469.069653 ms/packet；Full原始anchor 2.033357 ms；标准层MAC 1582107264；params 3007485；3pass末态逐位一致=False。
+- w50/global：71.823165 ms/packet；Full原始anchor 2.033357 ms；标准层MAC 1311419520；params 2821973；3pass末态逐位一致=True。
+- s39/primary：476.983824 ms/packet；Full原始anchor 1.997991 ms；标准层MAC 1582107264；params 3007485；3pass末态逐位一致=False。
+- s39/global：79.350281 ms/packet；Full原始anchor 1.997991 ms；标准层MAC 1311419520；params 2821973；3pass末态逐位一致=True。
+
+**决定：记录单seedzgz增量效果，不作采用、可靠性或实时性通过结论。** W50的整体根对齐收益约0.38 mm，S39栈约0.05 mm；绝对位置收益更大，但当前执行成本高，独占成本与重复性均未验收。完整公共事件场绝对分支／端到端训练仍未进行，不自动开下一轮。
+
+
+<a id="xyz-scope-correction-20261029"></a>
+## 2026-10-29 用户纠正研究对象：S37 XYZ-C1，而非S43
+
+用户明确指出“不是，我现在研究的是S37的XYZ部分啊”。原附录R对象确为XYZ-C1的首次事件射线—前态MANO关联；附录S随后把基线改成S43，导致XJ实施为冻结S43主干＋局部CNN＋外部联合更新。这是agent对研究范围的偏移。旧XJ训练／SELECT／zgz工件和数值保留，仅限其已声明S43条件，不作为S37 XYZ-C1模块的实施或改善证据。
+
+本课题的基底重新明确为 `outputs/xyz_c1_repro/baseline.json` 指定的 `xyz_c1_stable_s3407`（step6000，SHA41a8dc3feac3e7cffc5b19ec93491ec2c7a841c902ee583c39d8435eb5c08091），不是XCL A3F0/full_oracle，也不是s37_routed或S43。真正接点是 `_xyz_mesh_forward` 中 `associate_rays` 的候选／分配，之后仍沿原φ→778顶点聚合→MeshGNN→LBS/残余槽→51D读出。token7已有时间和SAE年龄，不能称原输入完全没有运动信息；缺口是首次关联未显式使用跨时刻运动约束。
+
+正确候选须先从因果事件支撑读出法向运动，使其在首次射线候选／相容性中起作用，并将运动记录送入原φ；不能只在末端加S43绝对提议或51D外部求解器。运动提名与可学习权重应与no_grad的离散候选构造分开，防止新CNN断梯度；需保留事件单位质量及unknown/残余通路，并匹配质量／容量控制。任何新的XYZ训练必须另有正确对象的预注册／冻结与CPU验收，原XJ协议不能冒用。当前尚未启动这版XYZ训练或读取新XYZ任务分数。范围核对文件 `outputs/xyz_motion_scope_20261029/scope_correction.json`。
+
+
+<a id="xyz-c1-readonly-synthesis-20261029"></a>
+## XYZ-C1已完成实验与理想实验的只读联合诊断（2026-10-29）
+
+用户要求深度分析S37 XYZ-C1及既有真实／理想实验，主要问题位于哪里。本轮只读历史，未调用模型、未训练、未读取C1SF正式在训臂或Stage5过程结果；只纳入已结案公开Z1。对象为 `xyz_c1_stable_s3407`；S43/XJ与XDL/Q1不作为原C1本体因果证据，ABCD为C0派生旁证。
+
+综合见[研究稿附录T](网络结构与可观测性诊断研究.md#xyz-c1-bottleneck-synthesis-20261029)。主要判断是优先检查前态条件化记录→可靠纠错更新的接口：正确前态下原C1也误更新；训练录制已有害处，zgz_local另有更大条件缺口且几何记录／H3冻结干预反号。AGG778 R2、MRF与AURA未提供足以把778池化、局部图范围或部位ID精化列为首要杠杆的证据。这是限定条件的综合与研究优先序，不是单模块因果责任份额。人、深度、录制尺度、损失与噪声训练等因素尚未独立分开，不能预判C1SF正式臂。
+
+解释勘误保留：H3置零不是state-only；geometry_zero只清dXYZ／zn；FΩ保留结构并重训投影与下游；P4的φ 0.166不是原C1信息上限；AGG R1巨大特征迁移缺口被R2修正工具后推翻。原数字、原门和历史停止决策不改。
+
+[来源散列清单](../outputs/xyz_c1_readonly_audit_20261029/evidence_manifest.json)、[逐声明数值／范围检查](../outputs/xyz_c1_readonly_audit_20261029/claims_scope_check.json)、[关联复核](../outputs/xyz_c1_readonly_audit_20261029/association_review.json)、[算子修订复核](../outputs/xyz_c1_readonly_audit_20261029/final_operator_review.json)、[运动终稿复核](../outputs/xyz_c1_readonly_audit_20261029/final_motion_review.json)。独立审查意见已纳入。未新增性能主行、未修改生产模型或数据。
+
+
+<a id="s45-adoption-20261029"></a>
+## S45固定采用与剩余单步／闭环缺口分析（用户2026-10-29决定）
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S45：XYZ-C1 + SO(3)+平移+FK 损失（seed3407） | 23.51 | 9.37 | 19.52 | 8.01 | 15.94 | 14.09 ms | 0.231 G | 0.46 M |
+
+**采用：** 用户将C1SF-so3、seed3407、固定6000步权重命名为S45，后续本XYZ课题以其为基底。唯一身份 `outputs/s45/baseline.json`，权重SHA `d0164d55660c31184e8fd0b70f22f56cf9a7a064a216073862c9c56653d7dce0`；原权重、配置与评测保留，主行仅作别名。S45仅改SO(3)+平移+FK损失，未含DZ/ZR；学习率warmup500后constant。采用是用户选择，不是新的单seed可靠性或local方向门通过。历史撤回的s45_meshrootjoints不与此S45混用。AGENTS已登记。
+
+**继续分析：** S45 E3 local10.52280，对保持4.41165仍多6.11114mm；修复的是旧额外缺口的44.14%，剩55.86%。自身／固定C1／GT前态的E1／E2／E3为23.51319／26.10292／10.52280mm，不作加法责任分解。几何记录与H3置零仍分别改善E3 local2.0394／2.8525mm。
+
+**新增缓存事后描述：** 同段龄组1、2–5、6–10、>10，S45 local E1为12.14／16.70／20.28／24.97mm，同端点事件E3为11.09／9.97／10.02／10.60mm。目标／GT前态／端点／run及2590包事件指纹一致；分组加权重构原总分通过。这削弱“只是后段动作对所有前态都更难”的解释，指向错误前态条件及其与动作的交互；未单独识别关联／φ／读出，也不能把E1−E3称可加累积漂移。片段、段龄与动作条件仍混杂，global只有单段，不外推总体结论。
+
+完整推导、截距／斜率分离假说、反证条件与限制见[研究稿附录U](网络结构与可观测性诊断研究.md#s45-residual-analysis-20261029)；[独立来源审计](../outputs/s45/20261029/so3_evidence_audit.json)、[缓存诊断](../outputs/s45/20261029/loop_diagnosis.json)、[同段龄GT对照](../outputs/s45/20261029/segment_age_E3_control.json)、[终稿独立复核](../outputs/s45/20261029/final_synthesis_review.json)。分析规格先保存且明确事后，未训练、未模型推理、未FK、未读取raw数据、未改历史门。
+
+
+<!-- EXPERIMENT_RECORD:S45LOC-PREREG-20261029:BEGIN -->
+<a id="s45loc-prereg-20261029"></a>
+## S45-LOC 预注册：冻结 S45 零训练定位——仿真事件 / 事件×MANO 关联 / 7 维与 13 维记录 / 读出（2026-10-29，写于任何 S45-LOC 读数之前）
+
+**授权与范围（用户 2026-10-29）。** 用户原话："你现在分析S45，你现在重新进行确认一下，然后继续分析这个部分前态条件关联／关系φ → 学习到的51D纠错更新……你继续分析这个问题，接着给我细化，我要具体知道问题出在哪里。是我的仿真event的问题还是event 和mano的关联问题还是后续的7维以及13维特征问题。" 解读为：对固定 S45（`outputs/s45/baseline.json`，权重 SHA `d0164d55…`）做零训练、冻结权重的定位读数。不训练、不微调、不择权重、不改任何冻结文件；新代码只在 `tools/s45loc/`、`tests/test_s45loc.py`，产物在 `outputs/s45loc/20261029/`。只用物理 GPU 4–7（每卡两个进程）与 CPU；单 seed3407 描述性；不设改变任何历史裁决的门；S39 / S43 / C1 / S45 不变。上一轮 S45 分析"本次没有授权新增训练或新模型评测"属于上一轮请求的范围；本轮按用户新指令只增加零训练冻结推理，仍不含任何训练。
+
+**对象与已知数（复核，非新读数）。** S45 zgz_local E1 / E2 / E3 = 23.513 / 26.103 / 10.523 mm，恒等（保持 GT 前态）4.412，单步超出 X = 6.111 mm；C1 E3 15.351，S45 收窄旧缺口 44.14 %。13 维关系输入 = token7〔x/W、y/H、极性、t/Δt、log1p(相邻事件间隔/1 µs)、同极性 SAE/Δt、异极性 SAE/Δt〕+ dXYZ（3）+ zn =(z−0.45)/0.1 + valid + hit（`semkine/xyz_mesh.py` 的 REL_IN）。
+
+**读数前已看到 / 已做的（披露）。**
+1. 无模型的录制统计：每条录制每个 W50 端点的原始事件数与 GT 深度。zgz_local 事件中位 660 / 50 ms（p10 104），训练录制里最稀的 lr_local_v4 中位 1063；根关节深度 zgz_local 0.725 m，训练 local 中位 0.580 m，最深的训练 local（lyh）0.661 m，所有基础与变体训练录制都 ≤ 0.67 m。划分文件本身标注 zgz_local 为 "low event rate (1490 ev/50ms, ~1/20 of same-subject global)"；C1SF 预注册已记 zgz_local 腕深 705–749 mm，训练端点 4.55 M 中只有 1,176 个落在此深度。这正是本轮设 zn 与密度两条干预的原因。
+2. 工程烟测（scratchpad，不进账本）：完整 b0_zgz_e3 逐数组复现 C1SF S45 E3（2590 端点全部字段相等；local 10.5228 / 恒等 4.4117，均为已知数）；b0_zgz_e1 前 12 端点逐数组等于缓存 E1；其余全部任务每序列 12 端点跑通，串联驱动端到端通过；捕获统计只做内部一致性检查，未打印数值；zn 平移 0 与恒等 token 分位映射对输出逐位无变化。虚拟变焦移植的像素残差（透视的 dolly-zoom 项）在 zgz_local 抽样上中位 0.42 px、最大 2.3 px，因此 zn 单列平移定为主读数，移植只作几何一致的次读数。
+3. σ* 取自既有 SBA 账本 `outputs/sba/p0v/result.json`（未重算）：zgz_local 0.94，训练 local 中位 0.98，ycy_local 0.93。
+
+**问题与假说。** Q1：zgz_local 单步（E3）超出 X 来自哪一段。
+- H-RO：结构 / 读出。训练录制样本内同样超出恒等。
+- H-FT-zn：绝对深度通道越界。
+- H-EV-density：事件稀疏。
+- H-EV-scale：事件侧 σ* 尺度缺口。
+- H-FT-token：token7 时间列分布偏移。
+- H-AS：关联错误，包括手外事件被关联、手上事件被关联到错部位。窗口内运动对关联的影响只按事件时间四分位描述。
+
+Q2：闭环（E1）为什么远差于 E3。分别看样本内闭环差、zgz 化模拟、深度、关联清洗，以及对注入前态误差的单步保留率。
+
+**任务（33 个，`tools/s45loc/common.py` 的 TASKS；E3 = GT 前态单步，E1 = 自身闭环）。**
+- 基线：b0_zgz_e3、b0_zgz_e1 须与 C1SF S45 缓存逐数组相等（预测、所用前态、目标、GT 前态、端点、段号、四项毫米指标），否则停止并报告；b0_train_e3 跑 18 条基础训练录制（样本内）。
+- b1：训练 local 9 条上 S45 的几何置零与 H3 置零，对照 zgz_local 已知的 −2.04 / −2.85。
+- 深度：b3 把 zgz_local 的 zn 平移到训练 local 中位深度（zn −1.451），为主读数；b2 对 zgz_local 做虚拟变焦移植（k = 0.7998：根深 ×k、fx/fy ×k），为次读数；b2 镜像把训练 local 的 zn 平移到 zgz 深度。
+- σ*：b7 把 zgz_local 事件绕 GT 前态腕点像素缩放 0.98/0.94 = 1.0426；镜像把训练 local 缩放 σ*_zgz/σ*_rec。
+- 密度：b4 对训练 local 每事件按 p = 660 / 该录制中位 随机保留（0.053–0.512）；zgz 化 = 这一保留 + zn 平移到 zgz 深度。
+- token：b6（阶段二）把 zgz_local 的 token 第 4/5/6 列按 zgz → 训练 local 做分位映射（2001 级，分位来自两个 b0 的 token 抽样）。
+- 关联 oracle 清洗：用 XAG GT 伪源（事件自身毫秒的 GT 网格，手上或距轮廓 2 px 内），不可部署。两档：去手外事件；去手外 + 错部位关联事件（前置用模型自己的关联规则对全部原始事件判部位）。每档配同数量的随机丢弃，在 zgz_local 与训练 local 上都跑。
+- 闭环：c1 跑训练 18 条 E1；c2 跑训练 local zgz 化 E1；c3 跑 zgz E1 的移植 / zn 平移；c4 做 E3+扰动（平移 10 mm、根 5°、手指 N(0, 0.05²)），在 zgz_local 与训练 local 上；c5 做 zgz E1 清洗及同量随机对照。
+
+zgz 闭环任务按官方顺序跑 zgz_global → zgz_local，共用初值噪声生成器，干预只作用于 zgz_local；zgz_global 须与基线逐位相同（健全性）。
+
+**读数与标签（`tools/s45loc/analyze.py`，冻结）。**
+- 定义：X = E3 − 恒等（zgz_local）；S = 训练 local 9 条 (E3 − 恒等) 的中位；Z = X − S（zgz 特有部分）。
+- 份额：zgz_local 上的干预取 −Δ/Z；训练上的模拟取 +Δ中位/Z。只有 Z ≥ 1 mm 时才计算 zgz 特有份额。
+- 关联清洗份额 = −(清洗 − 不丢)/X，即净效应；同数量随机对照的差另报，不定标签。
+- 标签：≥ 1/3 记 "major"，0.10–1/3 记 "minor"，其余（含反号）记 "negligible"。各份额互不可加。
+- 区间：zgz_local 配对差报按段（run）块自助 95 % 区间（2000 次）。
+- 闭环：比较样本内 E1−E3 中位与 zgz_local 的 E1−E3。深度与清洗份额以 E1 − 恒等为分母。保留率 ρ = ⟨Δ输出, Δ注入⟩ / |Δ注入|²，在参数空间与关节空间各算一次；平移用绝对关节，其余用根对齐。
+- 描述项：
+  - E3 更新沿真实运动的增益 β，以及偏离运动部分的 RMS（全部端点与最低运动四分位各算一次）。
+  - 关联档案：事件—标签一致率；命中 / 近邻 / 无；部位一致与面一致；对应点误差；按事件时间四分位的部位一致；手外事件被关联率及其质量份额；zn 越界份额；token 时间列；残差质量份额。
+  - 以上都把 zgz_local 与训练 local 的范围并列。
+
+**局限。**
+- 冻结网络上的干预会改变输入分布。zn 平移让 zn 回到训练范围，但 zn 与像面手大小的组合相当于训练里变焦 0.8 的样本。
+- 稀疏落在训练 KEEP 0.25–1.0 随机丢弃的覆盖内，但与深度的组合训练里没见过。
+- oracle 清洗不可部署。
+- 训练录制是样本内，"结构性"只是样本内的代理。
+- 份额不可加，交互未分解；单 seed；zgz 是开发 = 测试集。
+
+**冻结。** `outputs/s45loc/20261029/protocol.json`（`tools/s45loc/freeze.py`）记录常数、任务表、源码 SHA 与本节 SHA。串联由 `tools/s45loc/chain.py` 执行（状态 `status.json`）；任一任务失败即停止派发并保留现场。
+<!-- EXPERIMENT_RECORD:S45LOC-PREREG-20261029:END -->
+
+
+<!-- EXPERIMENT_RECORD:S45LOC-AMEND1-20261029:BEGIN -->
+<a id="s45loc-amend1-20261029"></a>
+## S45-LOC 修订 1：S45 闭环的 GT 姿态 / GT 平移钳位（2026-10-29，写于主读数之后、本修订读数之前）
+
+**为什么加、何时写。** 本修订写在 S45-LOC 主读数之后，读数已披露，故标为事后追加：
+- zgz_local E1 23.51 与训练 local 样本内 E1 中位 22.88 相当，闭环差是结构性的。
+- 闭环下关联塌缩：部位一致 zgz_local 0.43、训练 local 中位 0.53，而 GT 前态下分别是 0.81、0.85。
+- 闭环状态的平移漂移：x / y +5–22 mm，z −56 至 +86 mm。
+- zn 平移使 zgz_local E1 −3.86，但仍留约 55 mm 的深度误差。
+
+主读数分不开闭环差由姿态漂移还是平移漂移驱动，上一轮 S45 分析也列了"尚无 S45 专属 GT-pose / GT-translation 钳位"。C1 在 XCL E4 的对应读数是：GT 姿态钳位 local −15.6，GT 平移钳位 −0.66。这些数只作先验，不迁移到 S45。
+
+**任务（4 个，`tools/s45loc/common.py` 的 AMEND1；与 XCL E4 的 `select_previous` 同语义）。** 每一步的输入状态保留闭环自身的平移、姿态换成 GT 前态（e1_gtpose），或者保留闭环自身的姿态、平移换成 GT 前态（e1_gttransl）。在 zgz 上（官方顺序、共用初值噪声）与训练 local 9 条上各跑一次。代码改动只增加这两个钳位模式和按修订更新的源码哈希核对，E1 / E3 与主协议全部干预的路径不变。烟测在 scratchpad 里每序列 12 端点跑通：钳位分量逐位等于 GT，未钳位分量随闭环变化。
+
+**读数（`tools/s45loc/amend1.py`，冻结）。** 各域报 E1 在两种钳位下的 RA。钳位份额 = (E1 − E1_钳位) / (E1 − E3)，沿用主协议标签：≥ 1/3 "major"，0.10–1/3 "minor"，其余 "negligible"。训练 local 取 9 条份额的中位。描述项：钳位下的部位一致、对应点误差、状态平移偏差。单 seed 描述性，不改任何裁决。
+
+**冻结。** `outputs/s45loc/20261029/amendment1.json`（`amend1.py freeze`），记录改动文件的哈希与本节 SHA；主 `protocol.json` 不改。
+<!-- EXPERIMENT_RECORD:S45LOC-AMEND1-20261029:END -->
+
+
+<a id="s45loc-results-20261029"></a>
+## S45-LOC 结果：冻结 S45 的问题具体出在哪里（2026-10-29，零训练、单 seed3407 描述性）
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S45：XYZ-C1 + SO(3)+平移+FK 损失（seed3407） | 23.51 | 9.37 | 19.52 | 8.01 | 15.94 | 14.09 ms | 0.231 G | 0.46 M |
+
+**裁决（按预注册标签，描述性，不改任何历史裁决，S45 / S39 不变）：**
+- 单步：zgz_local 单步超出（X = 6.11 mm）中，29 % 是结构性的，训练录制样本内同样存在。zgz 特有部分 Z = 4.33 mm 的主因是 13 维记录里的绝对深度通道 zn 越界（major）。仿真事件（密度、σ*、token 时间列）与关联错误都是 negligible。
+- 闭环：local 闭环差不是 zgz 特有的，训练录制样本内一样差。它由前态姿态漂移驱动：GT 姿态钳位 major，GT 平移钳位 negligible。
+
+**复核（R0）。** 两个 zgz 基线逐数组复现 C1SF 的 S45 E3 / E1 缓存（`b0_check.json` PASS）。上一轮全部数字复核一致：E1 / E2 / E3 local 23.513 / 26.103 / 10.523，恒等 4.412，收窄 C1 缺口 44.14 %，E2 对 C1 −1.887（75.4 %），几何置零 / H3 置零 −2.039 / −2.853，段龄剖面，权重 SHA。
+
+**单步（E3，GT 前态）。**
+- 结构性：训练 local 9 条样本内 E3 − 恒等为 +1.19…+2.51（中位 S = 1.78，9/9 > 0，占 X 的 29 %）。更新偏离真实运动的部分 RMS 为 6.1 mm，真运动 5.3 mm；训练 global 中位约 +0.4。
+- 深度（zn）：zgz_local 根深 0.725 m，训练 local 中位 0.580 m、全部训练 ≤ 0.67 m；zgz_local 64 % 记录的 zn > 2.15，训练 local ≤ 0.2 %。
+  - 只平移 zn 到训练中位：E3 −2.62 [−3.44, −1.76]，即 Z 的 60 %，86 % 端点改善。虚拟变焦移植 −2.55，与之逐端点相关 0.964。
+  - 镜像：把训练 local 的 zn 平移到 zgz 深度，中位 +3.67（+1.25…+7.89，9/9），为 Z 的 85 %，随平移量增大。
+  - zn 平移后 E3 的更新幅度回到训练范围：平移 49→18 mm（训练 14–19），根 6.5→4.8°，手指 0.69→0.50 rad。
+  - 几何置零 / H3 置零在训练 local 上有害（+0.89 / +2.02，9/9），在 zgz_local 上有益（−2.04 / −2.85）。反号由 zn 越界解释。
+- 仿真事件：
+  - zgz_local 事件—标签一致率 0.957（训练 local 0.41–0.96，中位 0.92），手外事件 4.3 %（训练 4.0–59 %），都不差。
+  - σ* 绕腕缩放修正 −0.03 [−0.21, 0.15]，镜像 +0.29。
+  - 唯一越界的是事件数（660 / 包，训练 local 中位 1287–12332）。把训练 local 稀疏到同密度只 +0.31（Z 的 7 %）；稀疏 + zgz 深度 +3.56，与 zn 单独的效应相当。
+  - token 时间列分位映射 +0.21 [0.17, 0.29]。
+- 关联：
+  - GT 前态下部位一致 0.811（训练 0.83–0.87），对应点误差 7.5 mm（训练 5.2–7.1），只略差。
+  - 窗内运动一致性：部位一致从窗首四分之一到窗尾 0.854→0.775，训练中位 0.878→0.817，同等幅度，是二阶效应。
+  - oracle 清洗：去手外事件 +1.77 [1.10, 2.36]；去手外 + 错部位事件（占 23 %）+1.69 [1.06, 2.25]；训练 local 对同量随机丢弃也变差，9/9。可见关联错误不是单步超出的来源，S45 依赖这些事件。
+- 未归因：Z 里约 1.7 mm，加上 zn 修正后仍残留的假更新底（最低运动四分位超出 10.8→6.8 mm）。
+
+**闭环（E1）。**
+- 训练 local 样本内 E1 18.53–25.61（中位 22.88），E3 4.47–5.75；zgz_local E1 23.51 处于样本内典型值。段龄 > 10 时训练 18.6–25.5，zgz 25.0。训练 global E1 7.45–21.03，zgz_global 9.37。
+- 修订 1 钳位：
+  - GT 姿态钳位：zgz_local E1 11.47，去掉闭环差 93 %；训练 local 6.07–7.73，去掉 87–90 %（中位 0.88）。
+  - GT 平移钳位：zgz_local 24.55（−8 %）；训练中位份额 0.08（−0.20…+0.35）。
+- 闭环下关联塌缩（部位一致 zgz 0.43 / 训练中位 0.53，对应点误差 24 / 21.5 mm），状态平移有偏（训练 x +5…+19、y +9…+22、z −34…+86 mm；zgz (+22, +15, −56) mm）。但 GT 姿态钳位下关联更差（0.37–0.53），RA 却回到单步水平。所以关联塌缩与平移漂移是姿态漂移的伴随现象，不是 RA 闭环误差的驱动。
+- zn 平移使 zgz_local E1 −3.86 [−4.54, −2.91]（闭环超出的 20 %，minor），深度误差仍约 55 mm（由 −56 变为 +54）。
+- oracle 清洗使闭环 +3.71 [2.33, 6.80]，变差。
+- 单步保留率 ρ（参数 / 关节）：平移 10 mm 为 zgz 0.33 / 0.27、训练 0.45 / 0.38；根 5° 为 0.36 / 0.35、0.42 / 0.35；手指小噪声为 0.23 / 0.25、0.36 / 0.37。小扰动一步能去掉 55–77 %，闭环累积的大姿态误差却自洽地保持。
+- zgz 化模拟使训练闭环中位 +5.94；其预注册份额的分母塌缩（23.51 − 22.88 = 0.63），只报原值。
+
+**限定。** 冻结网络上的干预改变了输入分布：zn 平移相当于训练里变焦 0.8 的组合；oracle 清洗不可部署。训练录制是样本内，"结构性"只是代理。份额不可加。单 seed；zgz 是开发 = 测试集。本轮测不到仿真对真实传感器的保真度，只说明 zgz_local 的仿真事件没有特有缺陷。
+
+推导、机制与下一步命题见[研究稿附录V](网络结构与可观测性诊断研究.md#s45loc-localisation-20261029)；产物 [summary.json](../outputs/s45loc/20261029/summary.json)、[amend1_summary.json](../outputs/s45loc/20261029/amend1_summary.json)、[report.md](../outputs/s45loc/20261029/report.md)、[protocol.json](../outputs/s45loc/20261029/protocol.json)、[amendment1.json](../outputs/s45loc/20261029/amendment1.json)。
+
+**补充（事后，只读 C1SF 缓存，无新推理）：用户在 C1SF 训练过的 DZ / ZR 与本节结论的对照。** DZ = C1 + depth 尺度增强，ZR = C1 + zn 相对前态根深度，两者都用 C1 原损失，都没有与 SO3 组合；此后没有任何 S45 + DZ / ZR 的权重。zgz_local 上的对照：
+
+| | E3 | E3 超出 | E3 平移更新均值 xyz (mm) | E1 | E1 状态平移偏差 xyz (mm) | 最低运动四分位超出 |
+|---|---|---|---|---|---|---|
+| C1 | 15.35 | 10.94 | (6.7, 15.6, −58.6) | 27.99 | (10.7, 10.1, −67.9) | +18.0 |
+| DZ | 8.59 | 4.17 | (0.1, 4.9, 4.3) | 24.53 | (0.5, 3.5, 18.5) | +7.3 |
+| ZR | 9.80 | 5.39 | (2.8, 5.6, 7.4) | 24.01 | (3.8, 2.1, 63.0) | +8.8 |
+| S45 | 10.52 | 6.11 | (21.0, 12.3, −42.8) | 23.51 | (21.9, 14.5, −56.2) | +10.8 |
+
+- DZ / ZR 消除了 E3 里"把手往镜头拉"的深度跳变：中位平移更新 62 / 49 mm → 8 / 10 mm。几何置零也由有益转为有害：C1 −3.26、S45 −2.04 → DZ +2.53、ZR +5.08。这在重训模型上印证了本节冻结干预的结论：zn 绝对深度越界是单步 zgz 特有部分的主因。
+- 以 C1 样本内超出 2.07 为参照，DZ 去掉 C1 zgz 特有部分约 76 %，ZR 约 63 %；S45 的冻结 zn 平移约 60 %。
+- 低运动假更新底仍在（+7–9 mm）。
+- 闭环三者都约 24 mm：DZ 把闭环深度偏差降到 +18.5 mm，ZR 的深度则自由漂到 +63 mm，RA 都不变。这与 GT 平移钳位无效、闭环由姿态漂移驱动一致。
+
+未做的只剩"S45（SO3 损失）+ DZ 或 ZR"的组合；按本节读数，预期只作用于单步，不会解决闭环。
+
+
+<!-- EXPERIMENT_RECORD:S45DEEP-PREREG-20261029:BEGIN -->
+<a id="s45deep-prereg-20261029"></a>
+## S45-DEEP 预注册：S45 的更新是事件驱动的测量更新，还是带弱事件项的姿态先验收缩（2026-10-29，写于任何 S45-DEEP 读数之前）
+
+**授权与范围。** 用户原话："S45（SO3 损失）+ DZ / ZR 的组合现在重新训练一版可以感觉是有效的，但是感觉预期提升没有很大。我需要你找到深层且更本质的原因。更详细的原因。" 解读为：继续做零训练、冻结 S45 的诊断推理，不训练网络；唯一的拟合是闭式 ridge 探针（不改任何权重）。只用 GPU 4–7（每卡两进程）+ CPU；单 seed 描述性；S39 / S43 / C1 / S45 不变。代码 `tools/s45loc/deep.py`，产物 `outputs/s45loc/20261029/deep/`。
+
+**读数前已看到的（S45-LOC 现有数组上的事后描述，已披露）。**
+- **沿视线方向分解。** S45 在 GT 前态的单步更新，其能量有 58 % 沿视线方向（各向同性为 33 %），即误更新偏向事件看不见的方向。闭环误差却近各向同性（沿视线 27–39 %），垂直视线的 RMS 达 23–30 mm，是看得见的错位。注入扰动沿视线分量的保留率（0.38–0.75）高于垂直分量（0.16–0.37）。
+- **训练姿态 PCA。** 闭环的手指误差有 62–83 % 能量落在训练姿态前 5 个主成分（各向同性 11 %，单步误差 18–25 %）。
+- **向训练均值姿态收缩。** 闭环手指姿态的收缩系数，训练 local 为 +0.64…+1.01，zgz_local 为 +0.47。单步（E3）每步收缩 6–14 %（zgz 17 %，最低运动四分位 22 %）。
+- **均值姿态基线。** 直接输出训练均值手指姿态（根与平移取 GT）的 RA 为 17–21 mm，闭环 E1 为 18.5–25.6 mm。
+
+**假说。**
+- H-prior：S45 的更新 ≈ 向训练均值姿态的收缩 + 很弱的事件项。闭环里收缩反复作用，把手指拉向均值。
+- H-event：事件项很强、只是捕获范围有限。
+
+H-prior 有两种成因要区分：
+- 表示：13 维记录 → φ → 槽特征不携带手指姿态信息。
+- 训练目标：信息在特征里，但读出学成了收缩。训练噪声合同里 30 % 的样本是 0.3 rad/DOF，几乎与真实姿态的分散一样大。
+
+**任务（12 个，`deep.py` TASKS）。**
+- **f1 不动点。** zgz_local 与训练 local 9 条，每 8 个端点取 1 个。同一个包反复送入 K = 20 次，起点三种：GT 前态、均值姿态（根与平移取 GT）、自身闭环状态。保存第 1、2、3、5、10、20 次。
+- **f2 事件依赖。** E3 的事件换成网格后移 20 步（1 s）那个端点的包，与自身包的 E3 对照。
+- **f3 流形内外扰动。** 手指 AA 加一个范数 0.25 rad 的扰动，方向沿训练姿态前 5 个或后 15 个主成分，用自身事件；前 5 个另跑一遍后移事件。
+- **f4 闭环重放。** 重放自身闭环（须与 S45-LOC 的 E1 预测逐位相等），记录 17 槽特征 zs。
+
+**读数与标签（冻结在 `deep.py analyze`）。**
+- **f1。** 从 GT 起点迭代 20 次后，手指收缩系数中位 k ≥ 0.5 记"先验吸引子"，≤ 0.2 记"事件锚定"，其余记"中间"。同时报 GT 起点与闭环起点在第 20 次的手指距离，对照它们在第 0 次的距离。
+- **f2。** 自身事件下的手指更新（训练姿态基坐标）中，被后移事件更新解释的 R² 取中位：≥ 0.5 记"手指更新对事件盲"，≤ 0.2 记"事件驱动"。另报事件部分沿真实运动的增益。
+- **f3。** 同时满足以下两条，记"流形内误差不由事件纠正"：
+  - ρ_前5,自身 − ρ_后15,自身 ≥ 0.3；
+  - |ρ_前5,自身 − ρ_前5,后移| ≤ 0.1。
+- **f4。** ridge 探针在闭环状态上预测 GT 当前手指姿态的前 10 个主成分坐标。外层留一录制，λ 在预注册网格里内层留一选择。比较 [zs + 前态] 探针、[前态] 探针、S45 读出与均值姿态的 RMS。
+  - [zs + 前态] ≤ 0.7 × [前态]：记"特征里有信息"；≥ 0.9 ×：记"特征里没有信息（表示瓶颈）"。
+  - 在"有信息"的前提下，[zs + 前态] ≤ 0.8 × S45 读出：记"信息在但读出没用上（训练 / 目标瓶颈）"。
+  - zgz_local 用训练 9 条拟合后的探针单独报告。
+
+**局限。** 线性探针只给信息量下界；后移事件不是"无事件"，而是与前态无关的错误事件；冻结网络上的迭代与扰动属于离分布输入；训练录制是样本内；单 seed。
+
+**冻结。** `outputs/s45loc/20261029/deep/protocol.json`（`deep.py freeze`）记录训练姿态基（均值与主成分）、常数、源码 SHA 与本节 SHA。
+<!-- EXPERIMENT_RECORD:S45DEEP-PREREG-20261029:END -->
+
+
+<a id="s45deep-results-20261029"></a>
+## S45-DEEP 结果：S45 的手指更新是姿态先验收缩，事件里没有手指证据（2026-10-29，零训练、单 seed3407 描述性）
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S45：XYZ-C1 + SO(3)+平移+FK 损失（seed3407） | 23.51 | 9.37 | 19.52 | 8.01 | 15.94 | 14.09 ms | 0.231 G | 0.46 M |
+
+**按预注册标签。** f4 replay 与 S45-LOC 的 E1 逐位相等（10 条录制全部相等）。
+- f1：训练 local k₂₀ = 0.499，zgz_local 0.45，按规则（≥ 0.5 为"先验吸引子"）都记"中间"。训练 local 差 0.001 未达边界，20 次时仍单调上升、未收敛。
+- f2：训练 local R² 0.325，记"中间"；zgz_local 0.616，记"手指更新对事件盲"。
+- f3：两个域都记"流形内误差不由事件纠正"。
+- f4：[zs + 前态] / [前态] = 1.576 / 1.724 = 0.914，记"特征里没有信息（表示瓶颈）"。S45 读出为 1.803，不属于"信息在但没用上"。
+
+**读数。**
+- **f1 不动点（同一个包反复送入）。**
+  - GT 起点：训练 local RA 中位第 1 / 2 / 3 / 5 / 10 / 20 次为 4.93 / 7.82 / 9.96 / 13.12 / 17.61 / 20.97 mm，收缩 k 为 0.10 / 0.16 / 0.20 / 0.27 / 0.38 / 0.50。zgz_local 为 10.64 → 26.61 mm，k 0.18 → 0.45。
+  - 均值姿态起点：k 一直在 0.95–1.0，事件从不把它往 GT 拉。
+  - 闭环起点：保持在 k 0.79–0.85（训练）/ 0.48–0.53（zgz）。
+  - GT 起点与闭环起点的手指距离从 1.71 降到 0.87 rad（zgz 1.51 → 0.44），两条轨迹向均值靠拢。
+- **f2 事件依赖（换成 1 s 后的包）。**
+  - 手指更新中依赖事件的部分，沿真实手指运动的增益只有 0.045（训练）/ 0.058（zgz）。自身更新的增益是 0.37 / 0.42，其中大部分换了错误事件也还在。
+  - 换错事件后单步 RA 变差 +3.4 / +2.8 mm（5.11→8.55、10.52→13.27），说明事件对根 / 整体有作用。
+  - 收缩 k 由 0.10 / 0.17 升到 0.16 / 0.22。
+- **f3 流形内外扰动（0.25 rad）。**
+  - 训练 local：ρ_前5,自身 0.674，ρ_后15,自身 0.181，ρ_前5,后移 0.634。
+  - zgz_local：0.585 / 0.075 / 0.565。
+  - 不合理方向的误差被去掉 82–93 %（先验去噪）；沿常见姿态协同的误差只去掉 33–42 %，而且换成错误事件后几乎不变。
+- **f4 探针（闭环状态，GT 当前手指姿态的前 10 个主成分坐标的 RMS，rad；训练留一录制）。** 均值姿态 2.139；闭环前态 1.801；S45 读出 1.803；[前态] ridge 1.724；[zs + 前态] ridge 1.576。zgz_local 上 [zs + 前态] 为 4.956：训练拟合的探针外推失败（特征越界），zgz 不作解读。
+
+**综合（描述，不改裁决）。** S45 的手指更新主要是学到的姿态先验：向训练均值收缩，并去掉不合理姿态；外加一项随事件变化、但几乎不跟踪真实手指运动的噪声。在闭环状态下，事件特征里几乎没有可线性读出的手指姿态信息。单步看着还行，是因为从 GT 出发只收缩一次（约 10 %）。闭环则让收缩每 50 ms 复利一次，又没有事件回拉力，于是手指塌向均值，误差等同"输出均值姿态"（17–21 mm）。DZ / ZR / SO3 都不改变这一机制，所以闭环都停在约 24 mm。
+
+**局限。** 线性探针是信息下界；同包反复送入与错误事件都是离分布输入；训练录制是样本内；f1 的先验吸引子标签按规则未达成（0.499 / 0.45），只作趋势描述；单 seed。
+
+推导见[研究稿附录W](网络结构与可观测性诊断研究.md#s45deep-mechanism-20261029)；产物 [summary.json](../outputs/s45loc/20261029/deep/summary.json)、[protocol.json](../outputs/s45loc/20261029/deep/protocol.json)。
+
+<!-- EXPERIMENT_RECORD:S45TR-PREREG-20261030:BEGIN -->
+<a id="s45tr-prereg-20261030"></a>
+## S45-TR 预注册：在 S45 上只改一步的八个训练（T0 / T1a / T1b / T1d / N1–N4）（2026-10-30，写于任何 S45-TR 读数之前）
+
+**授权与范围。** 用户 2026-10-29 / 30 确认 `TRAIN.md` 的训练列表（T 系列、N1–N4），2026-10-30 指令："T0 改成用一对卡，然后现在进行训练GPU2-7，CPU全量，"。只用物理 GPU 2–7（三对 2–3 / 4–5 / 6–7），CPU 全量；GPU 0–1 不用。单 seed 3407 描述性；S39 / S43 / C1 / S45 不变。新代码全部 opt-in：`semkine/s45tr_*.py`、`tools/s45tr/`、`tests/test_s45tr.py`、`configs/s45tr_20261030/`；产物 `outputs/s45tr/20261030/`。不改 `model/model.py`、`semkine/xyz_mesh.py`、`semkine/dataset.py`、`semkine/train.py` 等冻结文件。
+
+**底座与配对。** S45 = `c1sf_so3_s3407`（`outputs/s45/baseline.json`，step 6000，SHA `d0164d55…`）。每个 S45 臂 = S45 配置（`configs/c1sf_20261029/r2/c1sf_so3_s3407.yaml`）+ 自己登记的一处改动，fresh 训练（不从 S45 微调），沿用 S45 的严格训练合同：确定性算法、`legacy_none` 采样、双卡 2×512、Adam 0.004、warmup 500 后 constant、6000 步、BF16、worker 16 / prefetch 2、`so3_trans_fk` 1 / 1 / 2，数据与噪声合同不变。包装入口 `tools/s45tr/train.py`（同 `tools/c1sf/train.py`）。配对验收（`tools/s45tr/common.py verify_run`，对照 S45 的训练记录）：
+- 每 rank 的实际样本索引与 S45 逐个相同；初始模型张量与 S45 相同（T1a 只有登记的 `xyz.rel.0.weight` 与新增 `xyz.evgnn.*` 例外）；
+- N1 / N2 / T1a / T1b 的训练包与 S45 逐包相同；T1d 小字段逐包相同（另加 XAG 源字段）；N3 / N4 只有前态不同。
+- 前提 P0：`s45replay`（S45 配方原样走新入口 50 步）必须逐位复现 S45 记录的第 1–3 步预测、目标与梯度和全部训练包；不过即停，任何正式训练都不启动。
+- 每臂先 50 步双卡预检（含两次完整验证并返回训练），验收通过才开 6000 步正式训练。主行固定 step 6000，不按中途成绩选点、不加长、不补种子；失败保留，该臂终止。
+
+**各臂（每臂只改一处）。**
+- **N1 读出不见前态姿态。** 读出层输入里的 `prev48` 恒为 0（训练与评测）。实现：`semkine/s45tr_n1.py` 子类只把 `prev48` 换成 0；参数、初值、随机流同 S45。
+- **N2 同包不动点一致性。** 训练时同一个包再前向一次，前态 = 第一次输出（截断梯度），第二次输出同样对 GT 计 `so3_trans_fk`，λ = 1；总损失 = 第一项 + λ × 第二项，再 log10。评测不变。
+- **N3 时间偏移前态。** S45 自己的第一个噪声抽样 u ≥ 0.5（即原"大噪声"与"定向噪声"两档）时，前态换成同一有效段在 `start + s·D` 时刻的 GT：D 为 [100, 1000] ms 的均匀整数，s = ±1 各半；越出该段时改用反向，再裁进段内；不加噪声。u < 0.5（小噪声一档）与 S45 逐位相同。偏移的抽样用独立流 `default_rng([seed, idx, 0x4E33])`，S45 自己的随机流只被窥视、不被改变，所以事件、窗口、增强、极性与目标全部同 S45（`tests/test_s45tr.py` 核验）。
+- **N4 自身闭环回放前态（DAgger 一轮）。** 独立硬币 p = 0.5：前态取冻结 S45 在该录制上 W50 闭环（初值噪声同评测）里、窗口起点之前最近一个网格端点（e < start）的状态，不加噪声；否则或没有更早端点时与 S45 逐位相同。状态库由 `tools/s45tr/n4_bank.py` 在全部 72 条训练序列上生成；18 条基础录制须与 S45-LOC `c1_train_e1` 的闭环预测逐位相等。
+- **T0 对应预测器（单独训练，一对卡）。** EventGNN（`semkine/event_gnn.py`，因果 kNN，hidden 96、k 8、窗口 32、3 层）取节点特征，后接对应头：MANO 面 1538 类、部位 16 类、在手上概率；面内重心由预测的模板坐标投到预测面上得到。输入与 S45 相同（stride 采样 ≤ 2048 节点、相同 domrand）。监督：XAG 逐事件伪源（`outputs/xag/sources`，增强前定义、随事件变换，热像素无标签）。训练只用 8 个训练受试者，**留出 ylf**（字母序最后一个，按规则定）的全部 8 条序列作门；zgz 的标签不读。
+  - **门（只在留出受试者上判，读一次）**：手上事件（XAG valid）的模板表面误差中位 ≤ 8.0 mm（MANO 模板平均边长 7.9 mm，即面级），**且**低于同一批事件上 S45 自己的射线关联在 S45 混合训练噪声前态下的中位误差。不过门则 T1b 不训练。
+- **T1a S45 + 事件图 token。** 13 维记录里的 token7 换成 EventGNN 节点特征（96 维，同 T0 的结构参数，随姿态损失端到端训练，无辅助监督）；关系编码器第一层输入随之变为 102 维（在隔离随机流里新建，偏置沿用 S45 初值），其余全部同 S45。
+- **T1b S45 + 对应路由（主方案）。** 只在 T0 过门后训练。S45 射线关联已匹配（q > 0、valid）的事件，若冻结 T0 的在手上概率 ≥ τ = 0.5，则其顶点 / 权重换成 T0 预测的面 + 重心（`semkine/xag.py` 的 `face_route` 路径，权重总量保持）；其余事件与 q、z 及一切其它字段同 S45。T0 不进入姿态网络的参数，不加辅助损失。τ 固定，不调。
+- **T1d S45 + GT 面路由（oracle 上界）。** 配置加 `MODEL.XAG_ASSOC: face_route`、`MODEL.XAG_GNN: legacy`、`DATA.XAG_SOURCE_ROOT: outputs/xag/sources`；不可部署。
+
+**读数（每个正式臂都报，全部描述）。**
+- 九列主表（含 baseline、S39、S45 行），XCL 评分器的 zgz E1 / E2 / E3（与 S45 同一评分器）。
+- 四个机制读数，定义沿用 S45-LOC / S45-DEEP，在 zgz_local 与训练 local 9 条上计算；读数工具先在 S45 上逐数复现参照值（`TRAIN.md` §5 表）才用于各臂：
+  1. 前态保留率（平移 10 mm / 根 5° / 手指 N(0, 0.05²)）及流形内 / 外保留率（沿训练姿态前 5 / 后 15 个主成分 0.25 rad）；
+  2. GT 前态单步向训练均值的收缩 k（全部端点 / 运动最小四分位）；
+  3. 同一个包反复送入 20 次：GT 起点第 20 次的 RA 与 k、均值起点 k、闭环起点去向；
+  4. GT 姿态钳位份额 (E1 − E1_GT姿态) / (E1 − E3)，GT 平移钳位作对照。
+- 各臂主要看自己针对的读数（N1：2、3；N2：3、2；N3：1b、3 均值起点；N4：4、3 闭环起点；T1b / T1d：3 均值起点、4），其余照报。T 系列另报 T1b、T1d 闭环状态下的路由准确率；T0 报部位准确率、模板误差（轮廓 / 内部分开）、面级命中率、手外判别。
+- 对比：各臂 − S45；T1d − T1b；T1a − S45。单 seed，不宣称可靠性。
+
+**顺序与卡位（只是排期，不依赖结果）。** 第一批 N1 / N3 / T1d（`s45replay` 与三臂预检后，三对并行）；第二批 T0 / N2 / T1a；之后 T1b（T0 过门才训）与 N4（状态库就绪、N2 / N3 的读数出来后开训；它的开训不取决于 N2 / N3 的数值）。后写的臂的代码在各自预检前冻结为清单（`outputs/s45tr/20261030/manifests/`），评测与读数工具在第一个评测读数前冻结。串联驱动 `tools/s45tr/chain.py`（状态 `outputs/s45tr/20261030/status.json`）。主行（含时延）在全部训练结束后在 GPU 4 上串行测。
+
+**局限。** 单 seed；T1d 与 T0 的监督来自几何伪源（不是真值）；N3 的偏移前态可能超出事件窗口的纠正范围，这本身是要读的结果；N4 是样本内闭环状态；机制读数是冻结网络上的离分布探针。
+
+**冻结。** `outputs/s45tr/20261030/protocol.json`（`tools/s45tr/freeze.py protocol`）记录本节 SHA、各臂改动与常数、第一批源码、全部配置与它们导入的冻结模块的 SHA。
+<!-- EXPERIMENT_RECORD:S45TR-PREREG-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45TR-AMEND1-20261030:BEGIN -->
+<a id="s45tr-amend1-20261030"></a>
+### S45-TR 修订 1（工程，2026-10-30，写于任何 T1d / T1b 读数之前）
+
+- **事实。** T1d 的 50 步预检在启动时失败（`outputs/s45tr/20261030/logs/preflight_t1d.log`）：`semkine/train.py` 对任何带 `MODEL.XAG_*` 键、又不是 XCL 的配置会 `import tools.xag.train_audit`，而 `tools/xag/` 已在 2026-10-19 XCL 清理中退役删除；它的首批包哈希审计还要求每个包带 XAG 源字段（T1b 的包按设计不带）。失败发生在建模之前，没有任何训练步，不是读数。
+- **修订。** 新入口 `tools/s45tr/train_xag.py`（只用于 T1d、T1b）：在该进程里以这个导入名注册一个只记来源的回调（写 `xag_binding.json`：配置 SHA、XAG 源目录与其 `build_summary.json` 的 SHA，不改训练）和包哈希审计用的 JSON 写函数；T1b 的首批包哈希改用不含 XAG 字段的 `U1aPairStreamCallback`。然后原样调用 `tools/s45tr/train.py`。各臂的配置、改动、门与判读都不变。
+- **处理。** 失败现场移到 `outputs/s45tr/20261030/preflight_failed/s45tr_t1d_s3407_attempt1/`（保留），T1d 预检在原目录 fresh 重跑（作业键 `preflight:t1d:r2`），通过后才开正式训练。冻结清单 `manifests/xag_entry.json`。
+- **排期（不依赖结果）。** N2 预检通过后它的正式训练先占到一对卡（队列先后）；第二批的顺序改为 T0 → T1a → T1d，让 T0 → 门 → T1b 这条最长依赖链先走。
+<!-- EXPERIMENT_RECORD:S45TR-AMEND1-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45TR-AMEND2-20261030:BEGIN -->
+<a id="s45tr-amend2-20261030"></a>
+### S45-TR 修订 2（工程，2026-10-30，写于任何 N2 读数之前）
+
+- **事实。** N2 的 50 步预检在第 1 步反传时显存不足（`logs/preflight_n2.log`：rank 1 已用 41.6 GiB，其中 8.9 GiB 是分配器碎片，再申请 4.5 GiB 失败）。每步两次前向的激活量超过 L20 的 44 GiB；第 1 步之前没有任何读数。
+- **修订（只改资源）。** N2 的进程加环境变量 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`（CUDA 缓存分配器用可扩展段，减少碎片；不改任何算子、数值、批量、步数或判读）。失败现场移到 `preflight_failed/s45tr_n2_s3407_attempt1/`，预检以 `preflight:n2:r2` 在原目录 fresh 重跑。
+- **再失败时（预先登记）。** 若仍显存不足，N2 的第一次前向改用激活重算（`torch.utils.checkpoint`，同输入同算子、确定性重算，数学上不变），另立修订 3 并重新预检；不改批量、不改 λ。
+<!-- EXPERIMENT_RECORD:S45TR-AMEND2-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45TR-AMEND3-20261030:BEGIN -->
+<a id="s45tr-amend3-20261030"></a>
+### S45-TR 修订 3（工程，2026-10-30，写于任何 T1a / T0 / T1b 读数之前）
+
+- **事实。** T1a 的 50 步预检在第 1 步反传时显存不足（`logs/preflight_t1a.log`：一次申请 18 GiB）。原因：确定性算法下，EventGNN 的 `EdgeConv` 用按通道展开的 `gather` 取邻居，它的反传要对 512 × 2048 × 8 × 96 个元素的线性下标排序；另外三轮逐边张量要常驻显存。T0 / T1b 用同一函数（`semkine/s45tr_t1a.py node_features`），尚未运行。
+- **修订（只改实现，数学不变）。** `node_features` 的每一轮改为：邻居用按行的 `index_select` 取（反传只排序 B·N·k 个行下标），公式与权重同 `EdgeConv.forward`；有梯度时每轮做激活重算（`torch.utils.checkpoint`，确定性重算）。`tests/test_s45tr_t1a_r2.py` 核验：新一轮与 `EdgeConv` 输出一致；重算版的特征与梯度与逐轮直算一致。T1a 的进程另加 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`（同修订 2）。
+- **处理。** 失败现场移到 `preflight_failed/s45tr_t1a_s3407_attempt1/`，T1a 预检以 `preflight:t1a:r2` 重跑。冻结清单 `manifests/t1a_r2.json` 取代 `t1a.json` 里该文件的 SHA。结构参数（hidden 96、k 8、窗口 32、3 层）与判读不变。
+<!-- EXPERIMENT_RECORD:S45TR-AMEND3-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45TR-AMEND4-20261030:BEGIN -->
+<a id="s45tr-amend4-20261030"></a>
+### S45-TR 修订 4（工程，2026-10-30，写于任何 T0 读数之前）
+
+- **事实。** T0 的 50 步预检训练完成，但其后的门脚本冒烟（对预检网络跑一遍 `t0_gate.py`）在取对应时报 dtype 不符（`logs/preflight_t0.log`）：前向在 bf16 autocast 里算，取面时在 autocast 外用 fp32 的面分类层。没有写出任何门读数（`gate.json` 不存在）。
+- **修订。** `semkine/s45tr_t0.py face_argmax` 把节点特征转成面分类层的 dtype 再算（autocast 内外结果一致，`tests/test_s45tr_t0_r2.py`）。网络、损失、门与判读不变。
+- **处理。** 失败现场移到 `preflight_failed/t0_preflight_attempt1/`；T0 预检以 `preflight:t0:r2` 重跑，正式训练与门为 `formal:t0+gate:r2`；依赖它的 T1b 作业与其评测、读数、主行改用 `:r2` 键重新登记（原作业因依赖失败而跳过，保留在队列里）。冻结清单 `manifests/t0_r2.json`。
+<!-- EXPERIMENT_RECORD:S45TR-AMEND4-20261030:END -->
+
+- **排期调整（修订 4 附记，只改先后）。** 新登记的 T0 / T1b 作业排在队列末尾，会让 T0 → 门 → T1b 这条最长依赖链排到 T1a、T1d、N4 之后。驱动按队列顺序起作业，故把尚未开始的 `preflight:t0:r2 … accept:formal:t1b:r2` 与 `preflight:t1a:r2 … accept:formal:t1a:r2` 两组整体移到 `formal:t1d:r2` 之前一次（`queue.json` 的 `reorders` 字段记录）；作业、依赖、命令都不变，没有作业被删除。第二批的实际顺序为 T0 → T1a →（T0 过门）T1b → T1d → N4。
+- **排期调整 2（只改先后，2026-10-30 01:25）。** 按当前速度 N2 约 05:10 结束；若 T1d 此时接下这对卡，N2 / N3 的机制读数（N4 开训的前提）要再等约 1 h。T1d 是 oracle 上界、不在最长依赖链上，故给尚未开始的 `formal:t1d:r2` 加依赖 `roa:n2`、`roa:n3` 并排到 N4 作业之后（`queue.json` 的 `reorders` 第 2 条）；训练内容、配置与判读都不变。
+
+<!-- EXPERIMENT_RECORD:S45TR-AMEND5-20261030:BEGIN -->
+<a id="s45tr-amend5-20261030"></a>
+### S45-TR 修订 5（工程，2026-10-30 07:05，写于任何 N4 读数之前）
+
+- **事实。** N4 的 6000 步正式训练过了第 2500 步检查点后，在反传时显存不足（`logs/formal_n4.log`：物理 GPU 7 上 PyTorch 已分配 24.96 GiB、已保留未分配 16.21 GiB，再申请 5.13 GiB 失败；进程组退出码 −9）。与修订 2 的 N2 是同一种分配器碎片；N4 的 50 步预检已通过。N4 还没有任何评测或读数（`evaluations/n4`、`readouts/n4` 都不存在）。
+- **修订（只改资源）。** N4 的进程加 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`（同修订 2；不改算子、数值、批量、步数、状态库或判读）。正式训练 fresh 重跑 6000 步（严格合同不支持续训，不从第 2500 步接着训），作业键 `formal:n4:r2`；N4 的预检回执沿用（预检通过，包装入口与配置都没改）。依赖它的验收、评测、读数与主行以 `:r2` 键重新登记（原作业因依赖失败而跳过，保留在队列里）。
+- **处理。** 失败现场（含第 500–2500 步检查点与训练记录）移到 `outputs/s45tr/20261030/formal_failed/s45tr_n4_s3407_attempt1/` 保留，不评、不读。
+- **预先登记。** 正在跑的 T1d 正式训练没带这个变量；若它也因显存不足失败，按本修订同样处理（`formal:t1d:r3`，fresh 6000 步）。N4 带了这个变量若仍失败，该臂终止，不再改。
+<!-- EXPERIMENT_RECORD:S45TR-AMEND5-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45RF-PREREG-20261030:BEGIN -->
+<a id="s45rf-prereg-20261030"></a>
+## S45-RF 预注册：回复力从哪里来——P1 S45 闭环状态上的单步纠错是不是事件驱动的（2026-10-30，写于任何 P1 读数之前）
+
+**授权与范围。** 会话中按用户指令（"根据这次的训练结果继续分析，目前最有效的方向应该是哪个"）分析了 S45-TR，提出两项零训练冻结探针；用户 2026-10-30 指令："先做 P1，再做 P2"。本节只登记 P1；P2（冻结 T0 路由的新息校准）在它的第一个读数之前另写预注册。
+- 零训练：只读 S45-TR 已冻结的权重（S45，及 T1d / N4 / N2 / T1a 的 step 6000，按 S45-TR 回执核 SHA）；不改任何冻结文件、数据、标签或 K。
+- 只用物理 GPU 2–7（沿用 S45-TR 的卡位，每卡至多两个进程），CPU 全量；GPU 0–1 不用。
+- 单 seed 3407，描述性；S39 / S43 / C1 / S45 不变。
+- 代码 `tools/s45rf/`（`common.py`、`p1.py`），测试 `tests/test_s45rf.py`；产物 `outputs/s45rf/20261030/p1/`。
+
+**问题。** S45-TR 的 E2 里，各网络吃同一批 S45 自己在 zgz 上的 E1 闭环状态；N4 的手指更新沿"前态自身误差"方向的增益与 oracle T1d 相当（见"读前已见"）。这份纠错是"把状态拉向事件所显示的姿态"（事件驱动），还是只看前态就能做的去偏（状态驱动）？前者说明可部署的记录里有手指回复力的信息，"在自身闭环状态上训练纠错"这条备选路线值得训练；后者说明它只是对 S45 状态样式的记忆。
+
+**为什么换事件而不删事件。** S45 系列对空事件包硬编码为零更新（`model/model.py` `_xyz_mesh_forward` 在 `events.shape[0] == 0` 时返回 0），删掉事件只会得到恒等，所以只能换成别的时刻的事件。
+
+**任务（每个网络、每个任务一个进程；zgz_global + zgz_local 全部 2590 个端点）。**
+- `e2_true`：前态 = S45 的 zgz E1 轨迹在该端点的输入状态，事件 = 本端点的包。必须与 S45-TR 的 E2 数组逐位相等（S45 与它自己的 E1 相等）。
+- `e2_shift5`（主）/ `e2_shift20`（后备）：前态同上；事件（T1d 连同其 XAG 来源）换成同一录制里晚 5 / 20 个网格步（250 ms / 1 s）的端点的包，录制内循环（S45-DEEP f2 的约定，它用 20 步）。
+- `e3` / `e3_lag25`（只 S45、N4）：前态 = 窗首 GT / 窗首前 25 ms 的 GT（不早于所在有效段的起点）；事件不变。`e3` 必须与已发布的 E3 逐位相等。
+- 网络：N4（主读）；T1d（阳性对照：对应由标签给出，纠错按构造由事件驱动）；S45（参照）；N2、T1a（描述）。
+
+**分解与估计量。** 手指 45 维轴角，标量增益，每条录制每一维去均值（固定效应），两条 zgz 录制合并。in = 输入前态，g = 本端点的 GT（窗首 / 窗末），s = 换入的包所在端点的 GT，μ = S45-DEEP 冻结的训练均值手指姿态（`outputs/s45loc/20261029/deep/protocol.json` 的 `pose_basis.mean`）：
+- 本包：Δ = a_m (g_end − g_prev) + a_e (g_prev − in) + β (μ − in)
+- 换包：Δ = c_M (s_end − s_prev) + K (s_prev − g_prev) + c_E (g_prev − in) + c_B (μ − in)
+- 若网络把状态拉向事件所显示的姿态（增益 k），换包时它会沿 s_prev − g_prev 走：K = k，且 k 同时计入 a_e 与 c_E；只看前态的去偏给 K = 0、c_E = a_e。事件份额 s = K / a_e。
+- 线性模型自检：|c_E − a_e| ≤ max(0.04, 0.30 |a_e|) 且 |c_M − a_m| ≤ max(0.04, 0.30 |a_m|)。
+- 区间：每条录制内连续 20 个端点（1 s）为一块，按录制分层、本包与换包配对的块自助 2000 次（种子 20261030），百分位 95 %（去均值在全样本上做一次）。
+
+**有效性（先判，判过才读 N4 的分类）。**
+1. 复现：五个网络的 `e2_true`、S45 与 N4 的 `e3` 与已发布数组逐位相等；换包任务的前态 / 目标与 `e2_true` 相同，换入的 GT 与平移后的端点一致（`p1.py check`）。任何一项不过即停，不做分解。
+2. 阳性对照 T1d：先看主平移 `e2_shift5`，T1d 自检通过且按下面的规则判为事件驱动，才在 `e2_shift5` 上读 N4；否则看 `e2_shift20`（同一标准），过则在其上读 N4；两者都不过 → 工具不能判别，停，不读 N4 的分类。平移的选择只看 T1d，不看 N4。
+
+**判读（N4，手指，主读）。**
+- 事件驱动：s ≥ 0.5 且区间下界 ≥ 0.3。
+- 状态驱动：s ≤ 0.3 且区间上界 ≤ 0.5。
+- 其余记"不确定"；N4 自检不过记"不确定（线性分解不成立）"。
+- 预先写定的含义：事件驱动 → "自身闭环纠错训练（状态库换成被训网络自己的闭环状态，DAgger 第二轮）"保留并升为与对应路线并列的候选，"观测缺新息"解释修正为"可部署记录里有部分手指回复信息"；状态驱动 → 该备选放弃，"观测缺新息"解释加强；不确定 → 不据此开训练。
+
+**描述（不判）。** S45（吃自己的状态，a_e ≈ 0，只报 K 与 a_e）、N2、T1a 的同样分解；根（3 维）与平移（3 维）分块（不含 μ 项）；每条录制分开；各条件的 RA。N4 状态库滞后检查（训练时库状态取窗口起点之前最近的端点，滞后 0–50 ms）：每个端点 L = RA(e3_lag25) − RA(e3)，ΔL = L(N4) − L(S45)，两条录制合并，块自助区间；上界 < 0 记"滞后伪影得到支持"，下界 > 0 记"不支持"，其余"不确定"。只作描述，不改 P1 的判读。
+
+**压测（冻结前，`p1.py power`，只用缓存的本包 E2 与 GT；`outputs/s45rf/20261030/p1/power.json`）。** 用 N4 / T1d 实际的本包拟合（a_m、a_e、β）与实际的换包几何，按已知份额 s ∈ {0, 0.25, 0.5, 0.75, 1} 合成换包响应，噪声 = 本包拟合残差按 20 端点块重采样 × {1, 2, 3}，每格 50 次、块自助 400 次，按本节规则判读：
+- s = 0：噪声 ×1–×2 时 100 % 判"状态驱动"，×3 时 86–100 %；
+- s ≥ 0.75：×1–×2 时 100 % 判"事件驱动"，×3 时 86–100 %；
+- s = 0.25：判成"事件驱动"不超过 1 / 50；s = 0.5 在两类之间（边界，按设计）；
+- 自检误报：×1–×2 时 0，×3 时 ≤ 4 / 50。
+设计期据此把自检容差从 max(0.03, 0.25 |·|) 放宽到 max(0.04, 0.30 |·|)（初版在 ×3 噪声下误报至多 11 / 50）。
+
+**读前已见（披露）。**
+- S45-TR 的全部读数（主表、E1 / E2 / E3、四个机制读数、T0 门）。
+- 会话中对缓存 E2 做的分解（不同估计量：未去均值、各录制分开、均值姿态取训练 local 目标的均值）：手指 a_e（zgz_local / zgz_global）N4 0.155 / 0.115、T1d 0.158 / 0.175、S45 ≈ 0、N2 0.024 / 0.048、T1a 0.023 / 0.054；a_m N4 0.116 / 0.058、T1d 0.152 / 0.114；只用前态的线性岭回归对手指更新的 R² N4 0.17 / 0.25、T1d −0.02 / 0.30。按本节估计量（合并、去均值、S45-DEEP 均值）：N4 a_m 0.092、a_e 0.129；T1d a_m 0.141、a_e 0.166（`power.json` 的 `fits`）。
+- 设计期从缓存算过回归量的量级与相关：1 s 平移时 zgz_local |s_prev − g_prev| 中位 1.84 rad，大于 |g_prev − in| 的 1.32 rad；250 ms 时为 0.68 rad，条件数 2.9–4.2。据此把 250 ms 定为主平移、1 s 为后备。
+- 没有任何换包或滞后读数。工程烟测在 CPU 上每个任务只跑每条录制前 3 个端点，写在会话临时目录，未做任何回归：五个网络的 `e2_true` 与缓存的 GPU 值相差 ≤ 6e-4（T1a，事件图的 CPU / GPU 数值差；其余 ≤ 2e-6），输入前态逐位相同；换包只在 S45 与 T1d 上跑通；S45 的 `e3`（与缓存差 4e-7）/ `e3_lag25` 跑通。
+
+**冻结。** `outputs/s45rf/20261030/p1/protocol.json`（`tools/s45rf/p1.py freeze`）记录本节文本与 SHA、源码与依赖的 SHA、五个网络的权重 SHA、S45 E1 / E3 轨迹与参照数组的 SHA、`power.json` 的 SHA、常数与门值。驱动 `p1.py chain`（日志 `p1/logs/`），失败保留、不重试。
+<!-- EXPERIMENT_RECORD:S45RF-PREREG-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45RF-P1-RESULTS-20261030:BEGIN -->
+<a id="s45rf-p1-results-20261030"></a>
+## S45-RF P1 结果：N4 的手指纠错是不是事件驱动——按预注册判"不确定（线性分解不成立）"（2026-10-30，零训练、单 seed3407 描述性）
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S45：XYZ-C1 + SO(3)+平移+FK 损失（seed3407） | 23.51 | 9.37 | 19.52 | 8.01 | 15.94 | 14.09 ms | 0.231 G | 0.46 M |
+| S45-TR N2：同包不动点一致性（λ=1） | 21.82 | 9.05 | 18.43 | 7.02 | 14.98 | 14.07 ms | 0.231 G | 0.46 M |
+| S45-TR N4：S45 自身闭环回放前态（DAgger 一轮） | 28.00 | 12.22 | 23.86 | 9.11 | 19.56 | 14.08 ms | 0.231 G | 0.46 M |
+| S45-TR T1a：事件图节点特征替换 token7 | 20.61 | 9.86 | 17.48 | 7.94 | 14.86 | 15.59 ms | 0.732 G | 0.49 M |
+| S45-TR T1d：XAG GT 面路由（oracle，不可部署） | 14.89 | 7.14 | 12.15 | 5.81 | 10.74 | 15.32 ms | 0.227 G | 0.46 M |
+
+**按预注册。** P1 没有新网络、没有新主行，上表是被探的冻结网络。
+- 复现全部通过（`p1/check.json`）：五个网络的 `e2_true` 与 S45-TR 的 E2（S45：它自己的 E1）逐位相等；S45 / N4 的 `e3` 与已发布 E3 逐位相等；换包与滞后任务的前态、目标、换入 GT 与登记一致。
+- 阳性对照 T1d 在主平移 250 ms 上自检不过（c_M 0.193 对 a_m 0.141，差 0.052 > 容差 0.042），按规则改用后备 1 s。T1d 在 1 s 上自检通过、事件份额 1.05 [0.88, 1.25]，判事件驱动，工具有效。
+- N4 在 1 s 上 K 0.068、份额 0.53 [0.38, 0.73]，但自检不过（c_M 0.042 对 a_m 0.092，差 0.050 > 0.04），记**不确定（线性分解不成立）**。
+- 按预先写定的含义：不据此开训练。"自身闭环纠错训练"这条备选既未升格，也未放弃。
+
+**读数（手指，合并两条 zgz，块自助 95 %）。**
+
+| 网络 | a_m | a_e | 250 ms：K / 份额 / 自检 | 1 s：K / 份额 / 自检 |
+|---|---|---|---|---|
+| T1d | 0.141 | 0.166 | 0.288 / 1.74 / 不过 | 0.174 / 1.05 [0.88, 1.25] / 过 |
+| N4 | 0.092 | 0.129 | 0.141 / 1.10 [0.92, 1.32] / 过 | 0.068 / 0.53 [0.38, 0.73] / 不过 |
+| N2 | 0.038 | 0.032 | 0.059 / 1.84 / 过 | 0.030 / 0.92 [0.58, 1.42] / 过 |
+| T1a | 0.034 | 0.027 | 0.046 / 1.67 / 过 | 0.018 / 0.67 [0.28, 1.15] / 过 |
+| S45（吃自己的状态） | 0.031 | 0.009 | 0.064 / — | 0.023 / — |
+
+**描述（不改判读）。**
+- **所有网络都会跟随换入的事件，包括本身不纠错的 S45。** S45 的 a_e 只有 0.009，换包后手指 K 仍有 0.023–0.064，根 K 0.42–0.53，平移 K 0.73–1.06。网络会响应"人为造成的事件—状态明显错位"，却不纠正自己积累的误差；K 里混有这种通用跟随，不纯是纠错拉力。250 ms 时各网络的 K 都大于自己的 a_e（份额 > 1），响应随错位幅度非线性，这也是对照在主平移上失效的原因。
+- **手指跟随的强弱：** T1d > N4 > N2 ≈ S45 ≈ T1a（1 s：0.174 / 0.068 / 0.030 / 0.023 / 0.018）。N4 是其它可部署网络的 2–4 倍，约为 T1d 的 40 %。若把 S45 的跟随当作通用底，N4 高出的部分约为它自身 a_e 的 35 %（1 s）/ 60 %（250 ms）。这是事后算术，不是登记的估计量。
+- **分录制（1 s）：** N4 global 0.65（自检过）、local 0.53（自检不过）；T1d 1.07 / 1.06。
+- **滞后检查：** ΔL = −0.05 [−0.11, +0.02] mm，不确定。25 ms 滞后本身只让 E3 变差 0.04–0.23 mm，所以 N4 的 E3 变差（+3.67 mm）不是状态库滞后造成的。
+
+**解释边界。** 线性拉力模型在 1 s 上对 T1d 成立、对 N4 不成立。N4 的纠错里有事件成分（它跟随换入事件的程度明显高于其它可部署网络），但这一份额无法从通用跟随里干净地分出来。单 seed、zgz 两条录制；E2 的前态是 S45 的状态，不是 N4 自己的。
+
+产物：`outputs/s45rf/20261030/p1/`（`summary.json`、`report.md`、`check.json`、`power.json`、`protocol.json`）。S39 / S43 / C1 / S45 不变。
+<!-- EXPERIMENT_RECORD:S45RF-P1-RESULTS-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45RF-P2-PREREG-20261030:BEGIN -->
+<a id="s45rf-p2-prereg-20261030"></a>
+## S45-RF P2 预注册：冻结 T0 的路由按部位聚合后有没有可用的新息（2026-10-30，写于任何 P2 读数之前；P1 已完成）
+
+**授权与范围。** 同 S45-RF（用户 2026-10-30："先做 P1，再做 P2"）。
+- 零训练：冻结 S45（只用它的射线关联与 FK）与冻结 T0（S45-TR `t0/t0_final.ckpt`）；不改任何冻结文件、数据、标签或 K。
+- 只用物理 GPU 2–7（每卡至多两个进程）+ CPU；GPU 0–1 不用。单 seed 描述性；S39 / S43 / C1 / S45 不变。
+- 代码 `tools/s45rf/p2.py`，测试 `tests/test_s45rf_p2.py`，产物 `outputs/s45rf/20261030/p2/`。
+
+**问题。** T0 的逐事件模板误差中位 14.9 mm（门 8 mm，FAIL），但网络用的是按部位聚合后的观测：随机误差会在聚合中平均掉，系统误差不会。要回答三件事：
+- 在真实闭环前态下，T0 的对应按部位聚合后，"观测 − 预测"能解释多少真实的部位位移；
+- 它落在两个训练结果已知的锚点之间的什么位置（XCL：GT 部位路由训练后无增益，GT 面路由有增益；S45-TR T1d 在 S45 上复现了面路由的增益）；
+- 对应要多准才够（剂量—反应）。
+
+**数据。** 决定：T0 的留出受试者 ylf 的全部 8 条序列（2 条基础录制 × 4 个事件变体）。描述：zgz 两条。取 W50 评测网格的每个端点（每个有效段的第一个端点跳过）。前态两种：
+- loop：S45 自己在上一端点的闭环状态（ylf 用 S45-TR N4 状态库，网格与评测逐点一致；zgz 用 S45 的 E1 轨迹）；
+- gt：窗首 GT（只用于 F 与描述）。
+
+每个窗口用 S45 的采样事件（≤ 2048）和它对前态网格的射线关联。共同事件集 E* = XAG 来源有效（在手上、面已知）且被射线关联匹配（q > 0、valid）的事件；所有来源都在 E* 上比较。
+
+**来源（每个 E* 事件得到前态网格上的一个点和一个部位）。**
+- ray：S45 的关联。
+- part_oracle：XAG 部位路由，即 XCL A1。
+- face_oracle：XAG 面 + 重心，即 XCL A2 / T1d。
+- t0：T0 的 argmax 面 + 投影重心。
+- noise4 / 8 / 16 / 32 / 64：把来源面换成模板测地距离在 [r/2, 3r/2] mm 内的面的质心。
+- partswap40：每个事件以 0.4 的概率把来源面换成另一个部位的均匀随机面（质心），其余保留来源面 + 重心。
+- shuffled：来源的面 + 重心在窗口内的 E* 事件之间打乱。
+
+**度量。**
+- 新息 ν = 事件射线的 (x, y) − 该点的投影（归一化像平面）；按来源给出的部位（16 个 LBS 部位）聚合，每个部位至少 3 个事件。
+- 真值 D_p = 部位 p 全部顶点在窗末 GT 网格与前态网格上的投影位移均值。
+- 可见部位对 V* = face_oracle 在该部位有 ≥ 3 个事件的（窗口，部位）。
+- 信息量 I：每条序列每个部位去均值后，用 ν̄ 对 D 做标量线性回归，计算它在该来源覆盖的部位对上解释的能量，再除以 V* 上去均值 D 的总能量（没覆盖的部位对不解释任何东西）；增益 c 一并报告。
+- F（描述）：gt 前态下，用 loop 拟合的 c 算出 c·ν̃，取它与 D̃ 之差的均方根，再除以 loop 前态下 D̃ 的均方根。含义是"正确前态上的虚假新息"。
+- 区间：按"基础录制 × 1 s 时间块"重采样（同一录制的 4 个变体共用块）2000 次，种子 20261030，各来源配对；去均值用全样本均值。
+
+**有效性（先判，判过才读 T0）。** 在 ylf、loop 前态上要求 I(face_oracle) − I(part_oracle) ≥ 0.15，且 I(shuffled) ≤ 0.25 × I(face_oracle)。不过 → 探针不能复现已知的训练对比，停，不读 T0 的分类（建议改用训练校准 T1d-σ）。
+
+**判读（ylf，loop 前态）。** 记 mid = (I(part) + I(face)) / 2。
+- T0 无用：I(t0) ≤ I(part)。
+- T0 有望：I(t0) ≥ mid。
+- 其余记"部分"。与判定相关的配对差若 95 % 区间跨 0，另记"边界"。
+- 需要的精度 r*：满足 I(noise r) ≥ mid 的最大 r；都不满足记"< 4 mm"。
+
+预先写定的含义：
+- 有望 → 建议训练 T1b（另写预注册，并明确记为对 T0 已失败之门的偏离），同时配一条按 T0 误差分位加噪的 T1d-σ 作校准。
+- 部分 → 先训 T1d-σ，测训练后的耐受度；T1b 暂不训。
+- 无用 → 不训 T1b。对应路线要靠"以前态为条件"的对应预测器（T0′），其精度目标取 r*；若 r* < 4 mm，判 50 ms 事件上的对应路线不可行。
+
+**描述（不判）。** 掌 / 指分开的 I；各来源的覆盖率；zgz 上的同样读数；gt 前态的 I 与 F；T0 与射线关联在 E* 上的模板误差中位。另把 I(t0) 与 partswap40、各 noise 档并列：接近 partswap40 读作"T0 的损失以部位混淆为主"，接近某个 noise 档读作"以部位内随机误差为主"（只作描述）。
+
+**试运行（冻结前，训练受试者 ch，loop 前态，只算锚点、不跑 T0）。**
+- 初版（噪声档 4 / 8 / 12 / 16 mm，归档于 `p2/archive_dry_r1/`）：I(face) 0.955、I(part) 0.119、I(ray) 0.049、I(shuffled) 0.133，有效性通过；但 16 mm 的随机测地噪声下 I 仍有 0.925，剂量—反应在测试范围内找不到门槛。
+- 据此（只看了 ch，没读 ylf / zgz，没跑 T0）把噪声档改为 4 / 8 / 16 / 32 / 64 mm，并加 partswap40（对应 T0 门读数里约 60 % 的部位准确率），用最终代码重跑（`p2/summary_dry_ch.json`）：face 0.955、part 0.119、ray 0.049；noise 4 / 8 / 16 / 32 / 64 = 0.947 / 0.946 / 0.924 / 0.796 / 0.417；partswap40 0.345；shuffled 0.133。锚点差 0.84，打乱 / 面 0.14，有效；ch 上 r* = 32 mm。
+- 试运行的描述：按部位聚合后，与前态无关的随机对应误差（≤ 32 mm）基本无害；损失信息的是"取前态网格上最近点"型的对应（ray、part_oracle）与部位混淆（partswap40）。
+
+**读前已见（披露）。**
+- S45-TR 与 P1 的全部读数。
+- T0 门读数（ylf，训练噪声前态下）：模板误差中位 14.9 mm，部位准确率 60 %，面准确率 6 %。
+- 工程烟测：CPU 上 ch_local 跑 5 个窗口（无 T0），ylf_local 两种前态各跑 3 个窗口（T0 在这 3 个窗口上面准确率 4 %、部位 55 %），只验证代码路径，未算任何 I。
+- 没有任何 ylf / zgz 的 I 读数。
+
+**冻结。** `outputs/s45rf/20261030/p2/protocol.json`（`p2.py freeze`）记录：本节文本与 SHA、源码与依赖 SHA、S45 / T0 权重 SHA、ylf 状态库与 S45 E1 轨迹 SHA、XAG 来源构建摘要 SHA、试运行摘要 SHA、常数与门值。驱动 `p2.py chain --domain ylf` 与 `--domain zgz`；失败保留、不重试。
+<!-- EXPERIMENT_RECORD:S45RF-P2-PREREG-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45RF-P2-RESULTS-20261030:BEGIN -->
+<a id="s45rf-p2-results-20261030"></a>
+## S45-RF P2 结果：冻结 T0 的路由按部位聚合后与"部位路由"同样无用（2026-10-30，零训练、单 seed 描述性）
+
+**按预注册（ylf，loop 前态）。** P2 没有新网络、没有新主行；被探的是冻结 S45 的关联与冻结 T0（S45 的主表行见 `#s45rf-p1-results-20261030`）。
+- 有效性通过：I(face_oracle) − I(part_oracle) = 0.950 − 0.201 = 0.749（门 0.15）；I(shuffled) / I(face) = 0.078（门 0.25）。
+- **T0 判"无用"（边界）**：I(t0) = 0.195 [0.136, 0.261]，不高于 I(part) = 0.201，配对差 [−0.073, +0.066] 跨 0；比中点 0.576 低 [−0.44, −0.31]。
+- 所需精度 r* = 32 mm：随机测地噪声 32 mm 时 I = 0.749 ≥ 中点，64 mm 时 0.306 < 中点。
+- 按预先写定的含义：不训 T1b；对应路线要靠"以前态为条件"的对应预测器（T0′），精度目标取 r* = 32 mm（r* ≥ 4 mm，不判对应路线不可行）。
+
+**读数（I [95 %]；c 为增益；F 为 gt 前态上的虚假新息）。**
+
+| 来源 | ylf loop | ylf gt（I / F） | zgz loop | zgz gt（I / F） |
+|---|---|---|---|---|
+| ray（S45 的关联） | 0.094 [0.072, 0.117] | 0.204 / 0.305 | 0.152 | 0.221 / 0.430 |
+| part_oracle（XCL A1） | 0.201 [0.163, 0.239] | 0.324 / 0.284 | 0.283 | 0.446 / 0.374 |
+| face_oracle（A2 / T1d） | 0.950 [0.944, 0.956] | 0.853 / 0.172 | 0.931 | 0.913 / 0.230 |
+| **t0** | **0.195 [0.136, 0.261]**（c 0.42） | **0.021 / 0.513** | **0.280** | **0.081 / 0.587** |
+| noise 4 / 8 / 16 mm | 0.942 / 0.939 / 0.911 | 0.752 / 0.670 / 0.380 | 0.919 / 0.910 / 0.877 | 0.857 / 0.814 / 0.602 |
+| noise 32 / 64 mm | 0.749 / 0.306 | 0.110 / 0.022 | 0.737 / 0.364 | 0.262 / 0.073 |
+| partswap40 | 0.234 | 0.013 / 0.525 | 0.310 | 0.049 / 0.609 |
+| shuffled | 0.074 | 0.007 / 0.418 | 0.120 | 0.023 / 0.548 |
+
+**描述（不改判读）。**
+- **误差的结构比逐事件精度重要。** 在 E* 上，T0 的模板误差中位为 17.5 mm（ylf loop），比射线关联的 20.5 mm 还小，与 noise16 的位移量级相当；但它的信息量只有 0.195，落在 partswap40（0.234）与部位路由（0.201）一档，而不在随机噪声档（16 mm 0.911）。按预先写定的描述映射，读作"T0 的损失以部位混淆为主"。T0 的增益 c = 0.42（随机噪声档约 1.0），说明它的新息还被压缩、有偏。
+- **S45 自己的关联在自己的闭环状态上几乎不带新息。** ylf 上 I(ray) = 0.094，zgz 上 0.152——对"关联只能确认前态"的直接量化。
+- **两种工作区的精度要求不同。** 纠正闭环里的大误差时，按部位聚合可以容忍与前态无关的随机误差到约 32 mm；而在正确前态上跟踪 50 ms 内的小运动时（gt 前态），16 mm 噪声就只剩 0.38（ylf），需要 ≲ 8 mm。
+- **T0 会扰动正确前态。** gt 前态上 T0 几乎不带运动信息（I 0.021 / 0.081），虚假新息 F 0.513 / 0.587，是真实来源里最高的（face 0.172 / 0.230，ray 0.305 / 0.430）。
+- 掌 / 指：T0 掌 0.334、指 0.189（ylf loop）。zgz 的各项与 ylf 同向（T0 0.280 ≈ 部位路由 0.283，同样判"无用 / 边界"）。
+
+**解释边界。** I 是线性、按部位聚合的信息量代理；它复现了 XCL 的训练对比（部位路由无增益 / 面路由有增益），但没有训练过同等误差下的网络，r* 是代理上的精度，不是训练后的耐受度。ylf 是 T0 的留出受试者，但 S45 训练时见过 ylf（loop 前态是 S45 的样本内闭环状态）。
+
+产物：`outputs/s45rf/20261030/p2/`（`summary_ylf.json`、`summary_zgz.json`、`report_*.md`、`summary_dry_ch.json`、`archive_dry_r1/`、`protocol.json`）。S39 / S43 / C1 / S45 不变。
+<!-- EXPERIMENT_RECORD:S45RF-P2-RESULTS-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45CT-PREREG-20261030:BEGIN -->
+<a id="s45ct-prereg-20261030"></a>
+## S45-CT 预注册：T1d 的收益来自对应信息还是标签伪影——对应扰动训练 σ16 / π（2026-10-30，写于任何 S45-CT 读数之前）
+
+**授权与范围。** 用户 2026-10-30："沿用 GPU 2–7，开始训练"，即批准会话中的 S45-CT 设计。
+- 训练：两臂各 fresh 6000 步，另加 `t1dreplay` 50 步代码复现。全部沿用 S45-TR T1d 的严格合同：seed 3407、确定性算法、legacy_none、双卡 2×512、Adam 0.004、warmup 500 后 constant、BF16、worker 16 / prefetch 2、`so3_trans_fk` 1 / 1 / 2。验收与读数都是零训练。
+- 资源：只用物理 GPU 2–7。训练每臂一对卡；评测 / 读数每卡至多两个进程；主行在 GPU 4 串行。CPU 全量；GPU 0–1 不用。
+- 两臂都用标签（XAG 源），不可部署；它们是机制检验，用来决定要不要做可部署的对应预测器 T0′。单 seed 描述性；S39 / S43 / C1 / S45 不变。
+- 代码边界：只在 `semkine/s45ct_route.py`（opt-in 钩子）、`tools/s45ct/`、`tests/test_s45ct.py`、`configs/s45ct_20261030/`，不改任何冻结文件。产物 `outputs/s45ct/20261030/`。
+
+**要区分的两个解释。**
+- **A（对应信息）**：T1d 的收益来自"每个事件对应到表面哪一点"这条与前态无关的信息。按部位聚合后随机误差会被平均掉，所以训练出的网络能容忍可部署预测器量级的随机误差（S45-RF P2 代理：16 mm 噪声时 I = 0.911）。
+- **B（标签伪影）**：两种形式。B1：需要近乎精确的对应，即代理高估了训练后的容忍度。B2：收益来自标签泄露的 GT 占据（哪些面在发事件），与配对无关。
+- 现有数据分不开：T1d 只用精确标签训练过；P2 的 I 是冻结网络上的线性代理；冻结网络直接换路由是离分布的（XCL：冻结 C1 换成 A2 路由，E2 变差 +3.6）。
+
+**臂（相对 T1d 只改一处：面路由要替换的那些事件的（面，重心））。**
+- **σ16**：面换成 MANO 模板测地距离 8–24 mm 内的均匀随机面（环为空时取距离最接近 16 mm 的面），重心取 1/3。即 P2 的 noise16。
+- **π（shuffle）**：（面，重心）在同一包的这些事件之间，按源行哈希的顺序循环错开一位。事件数 ≥ 2 时每个都被换，包内面集合不变。即 P2 的 shuffled。
+- 只改面路由本来会替换的事件（mask & q > 0 & valid & 已知 XAG 源）；q、z、事件质量和其余字段同 T1d。训练与评测都用这一扰动；扰动按原始事件行号确定性生成，不动全局随机流。
+- 对照：现有的 T1d 与 S45（同一严格合同、seed、样本索引、初值）。
+
+**指标与阈值（来自 S45-TR 已有读数，冻结）。**
+- **主指标** R = (S45 − 臂) / (S45 − T1d)。取 9 条训练 local 录制各自 E1 RA 均值的中位数，固定 step 6000（S45 22.88、T1d 6.88）。高：≥ 0.6；低：≤ 0.3。依据：5 个不加信息的可部署臂 R 都 ≤ 0.27。
+- **机制** C = 从训练均值手指姿态出发、同一个包第 20 次的 RA ÷ 第 1 次的 RA（训练 local 中位数）。收敛：≤ 0.8；发散：≥ 1.0。依据：T1d 0.53，其余 6 个网络 1.07–1.70。
+- **迁移护栏**：zgz local 的 E1 在 5000 / 5500 / 6000 三个点都低于 S45 同步值（3 / 3）。依据：现有臂里只有 T1d 做到。
+- **稳定性护栏**：样本内 E3 中位数 ≤ S45 + 0.5 mm（现有臂最多 +0.26）；zgz global 的 E1（6000）≤ S45 + 8 mm，超过则记"反向"。
+- **描述**：P1 估计量下的 E2 a_m / a_e；代理 I 与训练后 R 的对照；九列主行。
+
+**每臂类别。** 按 R 档（高 / 中 / 低）× C 档（收敛 / 中 / 发散）：
+- 高 × 收敛：迁移护栏 3 / 3 记"保留"，否则记"仅样本内"；
+- 低 × 发散：记"丢失"；
+- 高 × 发散，或低 × 收敛：记"不一致"；
+- 其余：记"部分"；
+- R ≤ −0.3，或 zgz global 超过 S45 + 8 mm：记"反向"。
+- 晚期检查点：5000 / 5500 步的 R 档（各用同步的 S45 / T1d 作参照）与 6000 步不同，记"不稳"。
+
+**判读（按优先级从上到下）。**
+1. 任一臂"反向"：网络无条件信任被扰动的路由 → T0′ 必须带校准过的置信度并做门控（先用代理 F 检验）；停掉一切不带置信度的预测路由。
+2. 任一臂"不稳"：功效不足 → 该臂与 T1d 各补一个种子 3408，按同一阈值用两种子均值判。
+3. 任一臂"不一致"：机制读数与闭环结果不一致 → 零训练，用 P1 式的 E2 分解读该臂；不下结论。
+4. π"保留"：B2 → 停 T0′，停止把 T1d 当作对应的上界；下一步做零训练探针，看事件能否预测 GT 占据。
+5. σ16"保留"且 π 为"丢失"或"仅样本内"：A → 做 T0′，以代理 I 作验收（ylf 闭环前态 I ≥ 0.58）；若 σ16 的 E3 护栏不过，再加一道"F 不高于射线关联"的门。停：8 mm 逐事件门、用现有 T0 训练 T1b；N4-r2 搁置。
+6. σ16"保留"且 π"部分"：R(σ16) − R(π) ≥ 0.3 按 A 处理，否则按 B2 处理。
+7. σ16"丢失"：B1 → 停对应路线与 T0′。S45 递推线是否继续由用户决定（线内只剩 N4-r2，而 P2 显示 S45 自己的关联信息量约 0.09）。
+8. σ16"部分"且 π 为"丢失"或"仅样本内"：容忍边界约在 16 mm → 只加一臂 σ8（同样设计）；T0′ 的目标暂定为 ≤ 8 mm 随机误差且部位正确。
+9. σ16"仅样本内"且 π 为"丢失"或"仅样本内"：混杂（域偏移）→ 零训练，用 S45-LOC 的 zn 平移读数读 σ16。
+10. 其余组合：证据不足，只报读数，不下结论。
+
+**第 0 步验收（读任何臂之前，`decide.py acceptance`）。**
+1. **代码复现与配对**：`t1dreplay`（T1d 配方走本入口跑 50 步）逐位复现 T1d 记录的第 1–3 步预测、目标与梯度。两臂预检通过配对验收：样本索引与 T1d、S45 相同，初值与 T1d 相同，训练包与 T1d 逐包相同（扰动只发生在模型内部）。
+2. **扰动审计**（512 个固定训练包，冻结 T1d，`audit.py`）：σ16 被换的面 ≥ 99 % 落在 8–24 mm、中位数在 13–19 mm、重心为 1/3；π 每包面集合不变、≥ 90 % 的事件被换；两者从记录下来的输入重算，结果逐位相同。
+3. **代理复现**（`proxy.py`，与 P2 同一批窗口、前态和公式）：face oracle 与 P2 相差 ≤ 1e-6；I(σ16) 落在 P2 noise16 的 95 % 区间、两侧各放宽 0.02 之内；I(π) 落在 P2 shuffled 的区间、两侧各放宽 0.02 之内。
+4. **评测复现**：T1d 经本评测入口重评的 E1，与已发布数组逐位相等。
+5. **区分能力**：S45 − T1d 的样本内 E1 中位差在 5000 / 5500 / 6000 都 ≥ 10 mm，则主指标用 R；否则按预先写定改用 C 作主指标，阈值不变。
+- 第 1–4 项任何一项不过，即为工具问题：不开正式训练，不读任何臂；修好后另写修订再验收。
+
+**排期与预算。** 预检三对卡并行（约 10 min）→ 第 0 步验收（GPU 2–7，约 10 min）→ 两臂正式训练各占一对卡、并行（约 2.6 h）→ 评测与读数（E1 三个点、E2、E3；tl_e1 三个点、tl_f1、tl_e3、zl_e3）→ 主行在 GPU 4 串行 → `decide.py final`。合计约 12 GPU·h，墙钟约 4 h。驱动为 `tools/s45ct/run.py run`（状态 `status.json`，日志 `logs/`），失败保留、不重试。训练失败按 S45-TR 先例，只做工程修订后 fresh 重跑一次。
+
+**读前已见（披露）。** S45-TR、S45-RF P1 / P2 的全部读数（阈值即由此而来）。工程烟测：在 CPU 上、真实 T1d 前向里装上钩子，跑 zgz_local 2 个窗口和 2 个训练包，只确认被路由事件 100 % 被改、路由之外 0 个被改；判读辅助函数在已有 S45-TR 读数上复算出 S45 22.88、T1d 6.88、T1d C = 0.526。没有任何臂的读数。
+
+**冻结。** `outputs/s45ct/20261030/protocol.json`（`tools/s45ct/run.py freeze`）：本节文本与 SHA、全部源码 / 依赖 / 配置的 SHA、T1d 与 S45 的检查点 SHA、作业图。
+<!-- EXPERIMENT_RECORD:S45CT-PREREG-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45CT-AMEND1-20261030:BEGIN -->
+<a id="s45ct-amend1-20261030"></a>
+### S45-CT 修订 1（工程，只改资源，2026-10-30，写于任何臂的读数之前）
+
+- **事实。** 驱动按作业图把三个预检（t1dreplay、σ16、π，都加载 XAG 来源）同时放在三对卡上。约 3 分钟后（04:02 UTC），t1dreplay 与 σ16 的进程组以 −9 退出，日志为 "DataLoader worker … exited unexpectedly"；当时主机共享内存已用 155 GB。实测一个加载 XAG 来源的训练（2 个 rank 加各自的加载进程）约占 100 GiB（PSS），三个并发超出本机 503 GB 的内存。π 的预检不受影响。两个失败都发生在最初几十步，没有产生任何读数；第 0 步验收与正式训练因依赖失败被跳过（`status.json`）。
+- **修订（只改资源）。** 同时运行的 S45-CT 训练（全部加载 XAG 来源）最多两对卡。加载进程数、预取、批量、种子、算子与判读都不变——这些属于与 T1d 的配对合同，验收会逐项核对。
+- **处理。** 失败现场移到 `preflight_failed/<run>_attempt1/` 保留；t1dreplay 与 σ16 的预检在原目录 fresh 重跑。第一个驱动里已经成功完成的作业（审计、代理复现、T1d 重评、S45 / T1d 的晚期样本内读数、π 预检及其验收）沿用，不重跑；其它失败一律保留、不重试。新驱动 `tools/s45ct/run_r2.py`（状态 `status_r2.json`，日志 `logs_r2/`），等第一个驱动结束后启动；冻结清单 `manifests/amend1.json`。
+- **预先登记。** 若两对并发仍因内存失败，按同样规则改为一次一对（修订 2），不改其它任何东西。
+<!-- EXPERIMENT_RECORD:S45CT-AMEND1-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45CT-AMEND2-20261030:BEGIN -->
+<a id="s45ct-amend2-20261030"></a>
+### S45-CT 修订 2（工程，只改资源，2026-10-30，修订 1 预先登记的处理，写于任何臂的读数之前）
+
+- **事实。** 按修订 1，σ16 与 π 的正式训练两对并发（04:18 UTC 开始）。两臂都完成了第 500 步的检查点、快照与第一次完整验证（`validation_rank*_step000500.json` 均为 PASS），回到训练约 45 秒后（04:32:16 UTC）两臂的 rank 0 同时以 −9 退出。原因是配置为常驻加载进程（`PERSISTENT_WORKERS: true`）：第一次验证后，每个训练常驻的加载进程从 2 × 16 增加到 2 × (16 + 4)，并各自缓存 XAG 来源，两个训练叠加超出主机内存。S45-TR 的 T1d 当时是唯一一个加载 XAG 的训练，同样的配置没有出事。两个 rank 1 进程失去 rank 0 后卡在通信上，已清理。没有产生任何臂的评测或读数。
+- **修订（修订 1 已预先登记）。** S45-CT 训练一次只跑一对卡（`MAX_PAIRS = 1`），σ16 先、π 后；评测与读数照常用其余空闲卡。加载进程数、常驻设置、预取、批量、种子、算子与判读都不变。
+- **处理。** 失败现场（含第 500 步检查点与训练记录）移到 `formal_failed/<run>_attempt1/` 保留，不评、不读；σ16 与 π 在原目录 fresh 重训 6000 步。之前已经成功完成的作业（第 0 步验收及其全部依赖）沿用，其它失败保留、不重试。新驱动 `tools/s45ct/run_r3.py`（状态 `status_r3.json`，日志 `logs_r3/`），冻结清单 `manifests/amend2.json`。预计墙钟多出约 2.6 h。
+<!-- EXPERIMENT_RECORD:S45CT-AMEND2-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45PX-PREREG-20261030:BEGIN -->
+<a id="s45px-prereg-20261030"></a>
+## S45-PX 预注册：把前态 MANO 顶点位置放进每条事件记录（13 → 16 维）——pxc / pxm（2026-10-30，写于任何 S45-PX 读数之前）
+
+**授权与范围。** 用户 2026-10-30："反正现在卡也空着，你再给我训一个版本，S45，但是单个 event 从 7 维到 13 维的时候也把上一个状态的 MANO 的 x，y，z 也当作已知信息放在维度里，你看看怎么设计。"
+- 训练：两臂各 fresh 6000 步，全部沿用 S45 的严格合同：seed 3407、确定性算法、legacy_none、双卡 2×512、Adam 0.004、warmup 500 后 constant、BF16、worker 16 / prefetch 2、`so3_trans_fk` 1 / 1 / 2、原数据与噪声合同。验收与读数都是零训练。
+- 资源：只用物理 GPU 2–7，CPU 全量，GPU 0–1 不用。S45-CT 驱动还在运行时，只用 GPU 6–7，一次只跑一个训练，且只在卡空闲（< 1 GiB）、主机可用内存 ≥ 160 GiB 时启动；这期间不测主行（S45-CT 在 GPU 4 测时延）。S45-CT 结束后用 GPU 2–7：评测 / 读数每卡至多两个进程，主行在 GPU 4 串行。
+- 两臂都可部署（不用标签）。单 seed 描述性；S39 / S43 / C1 / S45 不变。
+- 代码边界：只在 `semkine/s45px.py`（opt-in，替换构造用的 `XYZMeshNet` 类，不改 `semkine/xyz_mesh.py`）、`tools/s45px/`、`tests/test_s45px.py`、`configs/s45px_20261030/`，不改任何冻结文件。产物 `outputs/s45px/20261030/`。
+
+**现在的 13 维里有什么（设计分析，不是读数）。**
+- 每条（事件, 顶点）记录：token7（x / W、y / H、极性、包内时间、log 事件间隔、两个 SAE 时间）+ dXYZ = (z·d − V_j) / 1 cm + zn = (z − 0.45 m) / 0.1 m + valid + hit。
+- 因为 X = z·d 由事件像素和 z 决定，顶点的相机坐标 V_j = z·d − 1 cm·dXYZ 本来就是记录内容（x / W、y / H、zn、dXYZ）与 K 的确定函数。所以字面上的"加相机 XYZ"只把它从非线性可得变成线性可得。其中 z 已经显式在里面（zn），而 zn 正是 S45-LOC 查到在 zgz_local 越界的那一维（0.725 m 对训练 ≤ 0.67 m）。
+- 记录里真正没有的是：这个顶点在手上的什么位置（顶点身份 + 关节姿态下的位置）。
+
+**臂（相对 S45 只改一处：每条匹配记录多 3 个输入，即该记录关联的前态网格顶点 V_j）。**
+- **pxc（相机系，字面版本）**：p = (V_j − (0, 0, 0.45 m)) / 0.1 m。
+- **pxm（MANO 系）**：p = (V_j − W) / 0.1 m，W = J_regressor[0]·V_prev。W 即前态网格上的腕点，同 C1SF ZR，与 FK 腕点差 ≤ 5 mm。p 就是去掉平移的 MANO 自身坐标，对平移不变。
+- 接入方式：3 → 64 的零初值、无偏置映射，加到关系编码器 φ 第一层的输出上（ReLU 之前），即 XVM C1+sign 的接口，原样复用。它在隔离的随机流里最后建，所以 S45 的全部张量、初值和建模后的随机流都不变，初始函数与 S45 逐位相同。参数 +192，其余与 S45 完全相同。
+- 没有采用的读法：每条记录都放状态平移 t = prev[0:3]。它和 pxc 是同一类绝对位置信息，而且正是 XDG / S45-LOC 记录过的分布外风险，故不单列。
+
+**假设与预期（写于任何读数之前）。**
+- H_PX：φ 知道关联顶点的位置后，能相对手来解释每个事件，更新里事件驱动的部分变大，闭环变好。
+- 已有证据预期两臂都无效：S45-DEEP 测得手指更新约等于学到的姿态先验，依赖事件的部分只跟踪真实手指运动的 5 %；闭环状态的槽特征只比前态好 9 %，问题在"不依赖前态的观测"的表示与训练目标，而加入的是依赖前态的信息。pxc 另有 zgz 分布外的风险。
+- 若 H_PX 成立，机制读数应当：读数 3 的均值起点 k@20 低于 S45 的 0.95–1.0；读数 2 的收缩 k 下降；读数 4 的姿态钳位份额下降。
+
+**第 0 步（工程验收，在任何正式训练之前）。**
+- 每臂 50 步预检，第 25 / 50 步各一次完整验证并回到训练，要求：
+  - 样本索引与每个训练包都等于 S45 的；
+  - S45 的每个初始张量都相等，唯一的新张量是 `xyz.sign_in.weight`（64 × 3，初值为零）；
+  - 第 1 步的预测、目标和 S45 的每个梯度都与 S45 记录的第 1 步逐位相同；
+  - 第 2 步的预测与 S45 不同（臂已离开 S45），并且新映射到第 50 步非零。
+- 另需 S45-TR 的 P0（`s45replay` 逐位复现 S45）在案，且 S45-TR 的冻结文件未变。
+- 任一预检不过，不开任何正式训练。单元测试 `tests/test_s45px.py` 在冻结前通过。
+
+**读数（固定末点 step 6000；5000 / 5500 只看稳定性）。**
+- zgz：E1 取 5000 / 5500 / 6000 三点；E2 喂 S45 自己的 E1 状态；E3 用 GT 前态；九列主行。
+- 训练受试者：9 条 local 录制的自身闭环 `tl_e1`，取 5000 / 5500 / 6000 三点。
+- 机制：S45-TR 的四项读数（step 6000，全部 20 个任务），工具原样复用。
+- S45 参照值（写本节时读过的 S45 已发表值，只用来定样本内门槛）：
+  - zgz E1 local 29.72 / 24.41 / 23.51，global 14.22 / 11.16 / 9.37；E3 10.52 / 4.53。
+  - 样本内 22.62 / 21.65 / 22.88（极差 1.23 mm）。
+  - 来源：C1SF 评测、S45-TR / S45-CT 读数。
+
+**判读规则（每臂对 S45，`tools/s45px/decide.py`）。**
+- **zgz（XCL 单 seed 规则，分 local / global）**：
+  - 更好 = 同时满足：第 6000 步 E1 的 S45 − 臂 ≥ 5 mm（local）/ 8 mm（global）；E1 / E2 / E3 都偏向该臂；三个检查点中至少两个过同一门槛。
+  - 更差：镜像条件。
+  - 发散：E1 global 比 S45 高 8 mm 以上。
+- **样本内**：
+  - 更好 = 5000 / 5500 / 6000 三点的 S45 − 臂都 ≥ 2.5 mm（约为 S45 三点极差的 2 倍），且第 6000 步 9 条录制中至少 7 条偏向该臂。
+  - 更差：镜像条件。
+- **每臂分类**（按以下优先级）：
+  1. reverse：任一更差，或发散；
+  2. better：zgz 任一域更好，且样本内更好；
+  3. sample_only：只有样本内更好；
+  4. zgz_only：只有 zgz 更好；
+  5. noise：其余。
+
+| 判读 | 条件 | 结论 | 下一步（预先写定） |
+|---|---|---|---|
+| REVERSE | 任一臂 reverse | 加入前态位置让网络更差 | 停止这条线并登记 |
+| A_MANO | pxm better | 记录缺的是"顶点在手上的位置" | 另行预注册第二个种子（3408）的 pxm 与 S45，同一规则；采用前不做别的组合 |
+| A_CAMERA | pxc better，pxm 不是 | 收益只需要相机位置 | 先对 pxc 做 S45-LOC 式的零训练平移 / 深度移植读数；不采用 |
+| B_SAMPLE_ONLY | 有 sample_only，没有 better / reverse | 只帮训练受试者拟合，不迁移 | 停止这条线 |
+| E_ZGZ_ONLY | 有 zgz_only，其余 noise | 只作描述 | 不跟进训练 |
+| C_NULL | 两臂都 noise | 缺顶点位置不是瓶颈（与 S45-DEEP 一致） | 停止这条线 |
+
+**约定。**
+- 不择末点，不在本研究里补种子，不在 zgz 上调门槛。
+- 失败保留、不重试；只允许工程修订，并在读数之前登记。
+- 机制读数只作描述，不进入判读。
+- S45-CT 不受影响（见上面的资源规则）。
+<!-- EXPERIMENT_RECORD:S45PX-PREREG-20261030:END -->
+
+<!-- EXPERIMENT_RECORD:S45PX-AMEND1-20261030:BEGIN -->
+<a id="s45px-amend1-20261030"></a>
+### S45-PX 修订 1（工程，只改验收判据，2026-10-30，写于任何读数之前）
+
+- **事实。** pxc 预检正常训练完成（50 步，第 25 / 50 步完整验证 PASS 并回到训练）。冻结的验收 `accept:preflight:pxc` 判 FAIL（`receipts/preflight_pxc.json`，保留）：
+  - 两个 rank 第 1 步的预测、目标和 S45 的每个梯度都与 S45 逐位相同；
+  - 但第 2 步的预测也与 S45 相同，而预注册写的是"第 2 步离开 S45"。
+- **原因（设计时的判断错误，不是实现缺陷）。** S45 读出层的输出层 `xyz.fc2` 初值为零。第 1 步时它上游的所有参数（包括新映射）的梯度都恰好为零：预检快照里第 0 → 1 步只有 `xyz.fc2.weight / bias` 变了。所以：
+  - 第 2 步的前向仍等于 S45 的；
+  - 新映射在第 2 步才第一次拿到非零梯度；
+  - 函数最早在第 3 步离开 S45。
+- **修订（只改验收判据）。** 判据改为：第 1、2 步的预测、目标和 S45 的每个梯度都与 S45 逐位相同，第 3 步的预测不同；其余冻结检查原样执行，任一不过即失败。
+  - 新增 `tools/s45px/accept_r1.py`（预检回执写到 `receipts_r1/`，正式回执照原登记写到 `receipts/`）。
+  - 新增 `tools/s45px/train_r1.py`：正式训练入口，只把冻结 `train.py` 的绑定检查换成读 `receipts_r1/`。
+  - 新增 `tools/s45px/run_r2.py`：续跑驱动，状态 `status_r2.json`、日志 `logs_r2/`。
+  - 冻结清单 `outputs/s45px/20261030/manifests/amend1.json`。
+  - 用修订后的判据对 pxc 预检试算（不写回执），两个 rank 都是第 1、2 步相同、第 3 步离开。
+- **处理。** 两个预检训练本身有效，沿用、不重训；被取代的验收回执保留。臂、配方、读数、判读规则、资源规则都不变。若 pxm 预检也只因此判据失败，按本修订一并重验。
+<!-- EXPERIMENT_RECORD:S45PX-AMEND1-20261030:END -->

@@ -1,0 +1,14 @@
+{
+  "template": "original horizontal strip, 248:66",
+  "protocol": "W50 raw with independent SAE writer and query",
+  "query_hop_ms": 50,
+  "window_ms": 50,
+  "first_query_offset_ms": 49,
+  "dpi": 600,
+  "formats": [
+    "SVG",
+    "PDF",
+    "PNG",
+    "TIFF"
+  ]
+}

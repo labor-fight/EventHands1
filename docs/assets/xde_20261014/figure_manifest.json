@@ -1,0 +1,24 @@
+{
+  "source_sha256": {
+    "outputs/xde/e1/xa_c0_s3407_clean_local.json": "fbf07e9d277b9f6f076a27ca83177294ecd7c90ca7377c80d438a7efc18b200d",
+    "outputs/xde/e1/xdl_q0_s3407_clean_local.json": "0b379d5baa00d626b834ec223b3ea185600aa023ce7f3e198a70d42ee9a8156f",
+    "outputs/xde/e1/xdl_q1_s3407_clean_local.json": "423857936f3819fe26789d4cb35d775ff1476e641a0f593edb27fe26f0ecb5a0",
+    "outputs/xde/e1/xdl_n1_s3407_clean_local.json": "414ccb5d6280f23399c7ee03241b9c4ffc697cd9e3f270012b52ceafd53b9f1c",
+    "outputs/xde/e2/heads/state_w128_s1701.json": "19976bcb88c9b90688d0be2800b544dde280229a752cd958545ecb2494bee7c9",
+    "outputs/xde/e2/heads/pre_w128_s1701.json": "c2837b3068e3d743891b5837916523b3bced324b66bddcec2abc67252d4bded2",
+    "outputs/xde/e2/heads/post_w128_s1701.json": "1d2e6bd69dc060d9a346adb5f1347b29008920f1b7074fc8a56c893bcb3df91c",
+    "outputs/xde/e2/heads/wrong_pre_w128_s1701.json": "2e4d46197da6fec038909b11ce620093a3670b026de1a0eb98932fcfed62a77c",
+    "outputs/xde/e2/heads/wrong_post_w128_s1701.json": "a20185b6fff18692262aa961da6e2313befb88811e388623a695cd5af7c29ede",
+    "outputs/xde/e2/heads/state_w128_s1702.json": "0fc224cb3a62171f4d4ef2b700be56f69b6e7fdf9cb00a266985029a2f6aa769",
+    "outputs/xde/e2/heads/pre_w128_s1702.json": "0d56b1b767c4a091a8b862bbdcde88e9e2e6e09d1d7684326bf8520b65348159",
+    "outputs/xde/e2/heads/post_w128_s1702.json": "a460f8149f74a8547cbbefb25065113f93c0fbb729762a5b1037289a55535c3c",
+    "outputs/xde/e2/heads/wrong_pre_w128_s1702.json": "3c8ea85cb982847d5d9dd8f89d69551b875430be38f7cf1adf6ced1efb3d69c9",
+    "outputs/xde/e2/heads/wrong_post_w128_s1702.json": "78e35e9f8252a2367d3295e2275d6b5ca804b4671a6a5251324d43dd23ce3b8d"
+  },
+  "producer_sha256": "2d44dd47ee849ee9801148771af80107d3b3eb21f9b4cf7e7f3063c92c6e41c2",
+  "scope": "diagnostic plot, no new official main row; all head seeds retained",
+  "figure_sha256": {
+    "png": "6044fcfcd0653098ff45a085786f317c1f5fe7746882d37a45d4ae482c468893",
+    "svg": "12f8e230833f18a44210b6c3676f348746744e39d608f59488e79a9cc9b12978"
+  }
+}

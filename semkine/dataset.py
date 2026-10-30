@@ -199,6 +199,8 @@ class SemKineDataset(Dataset):
         clip_k: int = 0,
         clip_window: int = 200,
         clip_frac: float = 0.5,
+        xag_source_root: Optional[str] = None,
+        xag_require_depth: bool = False,
     ):
         if input_mode not in self.INPUT_MODES:
             raise ValueError(f"INPUT_MODE must be one of {self.INPUT_MODES}, got {input_mode!r}")
@@ -207,6 +209,12 @@ class SemKineDataset(Dataset):
         self.components = np.asarray(components, dtype=np.float32)
         self.mano_npz = str(mano_npz)
         self.input_mode = input_mode
+        self.xag_source_root = str(xag_source_root) if xag_source_root else None
+        self.xag_require_depth = bool(xag_require_depth)
+        if self.xag_require_depth and not self.xag_source_root:
+            raise ValueError("full_oracle requires DATA.XAG_SOURCE_ROOT and its depth sidecar")
+        if self.xag_source_root and input_mode == "legacy_lnes":
+            raise ValueError("DATA.XAG_SOURCE_ROOT requires raw_packed or both input")
         self.window_min, self.window_max = int(window_min), int(window_max)
         self.width, self.height = int(width), int(height)
         self.fixed_window = fixed_window
@@ -423,7 +431,7 @@ class SemKineDataset(Dataset):
         return ev[:, 0].astype(np.int64), ev[:, 1].astype(np.int64), \
             np.clip(ev[:, 2].astype(np.int64), 0, 1), us
 
-    def _domrand_events(self, xs, ys, ps, us, window, dr, camera_K, rng):
+    def _domrand_events(self, xs, ys, ps, us, window, dr, camera_K, rng, source_rows=None):
         """Geometric map, dropout and hot pixels, in the draw order the S1 arms were trained with.
 
         Factored out so the S22 leading window can be transformed by the *same* virtual camera as
@@ -437,6 +445,8 @@ class SemKineDataset(Dataset):
             if m is not None:
                 keep = keep & m
             xs, ys, ps, us = xs[keep], ys[keep], ps[keep], us[keep]
+            if source_rows is not None:
+                source_rows = source_rows[keep]
         hot = DR.sample_hot_pixels(dr.n_hot, window, self.width, self.height, rng)
         if hot is not None:
             # Hot pixels are camera noise: injected after the geometric map, since a hot
@@ -445,8 +455,14 @@ class SemKineDataset(Dataset):
             ys = np.concatenate([ys, hot[:, 2]])
             ps = np.concatenate([ps, hot[:, 3]])
             us = np.concatenate([us, hot[:, 0] * 1000 + rng.integers(0, 1000, len(hot))])
+            if source_rows is not None:
+                source_rows = np.concatenate([source_rows, np.full(len(hot), -1, np.int64)])
             order = np.argsort(us, kind="stable")
             xs, ys, ps, us = xs[order], ys[order], ps[order], us[order]
+            if source_rows is not None:
+                source_rows = source_rows[order]
+        if source_rows is not None:
+            return xs, ys, ps, us, source_rows
         return xs, ys, ps, us
 
     @staticmethod
@@ -484,6 +500,8 @@ class SemKineDataset(Dataset):
         start = end - window + 1
 
         xs, ys, ps, us = self._raw_events(h, end, window)
+        source_rows = np.arange(int(h.offsets[start]), int(h.offsets[end + 1]), dtype=np.int64) \
+            if self.xag_source_root else None
         target = self._to_target(h.pos51[end])
         prev = self._to_target(h.pos51[self._prev_index(start, end, run_a)])
         camera_K = h.camera_K.copy()
@@ -492,7 +510,11 @@ class SemKineDataset(Dataset):
         n_slots = self.height * self.width * 2 * window
         dr = DR.sample_params(self.domrand, rng, n_slots)
         if self.domrand.enabled:
-            xs, ys, ps, us = self._domrand_events(xs, ys, ps, us, window, dr, camera_K, rng)
+            if source_rows is None:
+                xs, ys, ps, us = self._domrand_events(xs, ys, ps, us, window, dr, camera_K, rng)
+            else:
+                xs, ys, ps, us, source_rows = self._domrand_events(
+                    xs, ys, ps, us, window, dr, camera_K, rng, source_rows=source_rows)
             stacked, camera_K = DR.transform_labels(
                 np.stack([prev, target]), dr, camera_K, h.j0, self.render_scale
             )
@@ -518,6 +540,7 @@ class SemKineDataset(Dataset):
             is_end=bool(end == int(self.index[idx][3]) - 1),
             meta={"window_ms": window, "end_idx": end, "seq": h.seq,
                   "category": h.category, "domrand": dr},
+            source_rows=source_rows,
         )
         if self.input_mode == "legacy_lnes":
             # Legacy 5-tuple so the existing training loop and model take this dataset as-is.
@@ -714,7 +737,7 @@ class SemKineDataset(Dataset):
         return self._legacy_tuple(packet)
 
     def _pack(self, si, h, xs, ys, p_eff, us, window, *, t_start_us, t_end_us,
-              target, prev, camera_K, is_start, is_end, meta) -> EventPacket:
+              target, prev, camera_K, is_start, is_end, meta, source_rows=None) -> EventPacket:
         out: Dict[str, object] = {}
         if self.input_mode in ("legacy_lnes", "both"):
             out["lnes"] = self._splat_lnes(xs, ys, p_eff, us // 1000, window,
@@ -727,6 +750,21 @@ class SemKineDataset(Dataset):
                 ev[:, 2] = us.astype(np.float32) * 1e-6
                 ev[:, 3] = p_eff
             out["events"] = ev
+        xag = {}
+        if self.xag_source_root:
+            if source_rows is None:
+                raise RuntimeError("XAG packet construction lost original event rows")
+            from semkine.xag_sources import load_sources
+            # Compute from the exact integer microseconds before packing float event time.
+            args = (self.xag_source_root, h.seq, source_rows, int(t_start_us) // 1000 + us // 1000)
+            # Preserve the exact legacy call and its six-field output unless A3 is requested.
+            if self.xag_require_depth:
+                dr = meta.get("domrand")
+                if dr is not None and getattr(dr, "scale_mode", "focal") != "focal":
+                    raise ValueError("full_oracle source depth requires the C1 focal augmentation")
+                xag = load_sources(*args, require_depth=True)
+            else:
+                xag = load_sources(*args)
         return EventPacket(
             events=out.get("events", np.zeros((0, 4), np.float32)),
             sequence_id=si,
@@ -740,6 +778,7 @@ class SemKineDataset(Dataset):
             camera_K=np.asarray(camera_K, np.float32),
             lnes=out.get("lnes"),
             meta=meta,
+            **xag,
         )
 
     def _leading_packet(self, idx, si, h, main_start, window, dr, flip, swap_mask,
@@ -764,12 +803,18 @@ class SemKineDataset(Dataset):
         else:
             start_l = end_l - w + 1
             xs, ys, ps, us = self._raw_events(h, end_l, w)
+        source_rows = (np.arange(int(h.offsets[start_l]), int(h.offsets[end_l + 1]), dtype=np.int64)
+                       if w >= 1 else np.zeros(0, np.int64)) if self.xag_source_root else None
         target = self._to_target(h.pos51[int(main_start)])
         prev = self._to_target(h.pos51[start_l])
 
         if self.domrand.enabled:
             if w >= 1:
-                xs, ys, ps, us = self._domrand_events(xs, ys, ps, us, w, dr, camera_K, rng)
+                if source_rows is None:
+                    xs, ys, ps, us = self._domrand_events(xs, ys, ps, us, w, dr, camera_K, rng)
+                else:
+                    xs, ys, ps, us, source_rows = self._domrand_events(
+                        xs, ys, ps, us, w, dr, camera_K, rng, source_rows=source_rows)
             stacked, camera_K = DR.transform_labels(
                 np.stack([prev, target]), dr, camera_K, h.j0, self.render_scale
             )
@@ -787,6 +832,7 @@ class SemKineDataset(Dataset):
             is_start=bool(start_l == run_a), is_end=False,
             meta={"window_ms": max(w, 0), "end_idx": end_l, "seq": h.seq,
                   "category": h.category, "domrand": dr, "leading": True},
+            source_rows=source_rows,
         )
 
 
@@ -1136,4 +1182,6 @@ def build_dataset(cfg: dict, split: str, components: np.ndarray,
         clip_k=int(data.get("CLIP_K", 0) or 0) if train else 0,
         clip_window=int(data.get("CLIP_WINDOW", 200)),
         clip_frac=float(data.get("CLIP_FRAC", 0.5)),
+        xag_source_root=data.get("XAG_SOURCE_ROOT"),
+        xag_require_depth=str(cfg.get("MODEL", {}).get("XAG_ASSOC", "base")) == "full_oracle",
     )

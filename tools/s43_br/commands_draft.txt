@@ -1,0 +1,60 @@
+# S43 B-R minimal prototype: command draft (CPU only)
+# Run from /data1/lyq/code/mesh/EventHands1.
+# Existing outputs are preserved. The *_replay names below are examples for a
+# fresh reproduction; choose another suffix if those names already exist.
+# Sources/protocol are captured by each experiment command before execution.
+
+export CUDA_VISIBLE_DEVICES=''
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+PY43=/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python
+
+# 1. Representation contracts; no dataset-performance evaluation.
+"$PY43" -m unittest discover -s tests -p test_s43_br.py -v
+
+# 2. Synthetic MANO contexts (independent context-level splits).
+"$PY43" -m tools.s43_br.synthetic --out outputs/s43_br_20261027/synthetic_replay --workers 6
+
+# 3. Existing FIT/SELECT shared causal inputs. Frozen S43 from a public fixed
+# initial pose, two prior W50 prefixes; labels are only targets. No zgz here.
+"$PY43" -m tools.s43_br.cache_data --output-prefix outputs/s43_br_20261027/data/existing_fit_select_replay --subjects ch lfz lpc lr ycy ylf --samples-per-recording 8 --threads 4
+
+# 4. Three-arm features; either choose fresh *_replay outputs or use the already
+# generated v1 snapshots listed below, never overwrite an existing artifact.
+"$PY43" -m tools.s43_br.experiment features --kind synthetic --source outputs/s43_br_20261027/synthetic_replay --axis root_x --out outputs/s43_br_20261027/features/synthetic_root_x_replay.npz --workers 6
+"$PY43" -m tools.s43_br.experiment features --kind synthetic --source outputs/s43_br_20261027/synthetic_replay --axis index_y --out outputs/s43_br_20261027/features/synthetic_index_y_replay.npz --workers 6
+"$PY43" -m tools.s43_br.experiment features --kind existing --source outputs/s43_br_20261027/data/existing_fit_select_replay --axis root_x --out outputs/s43_br_20261027/features/existing_root_x_replay.npz --workers 6
+"$PY43" -m tools.s43_br.experiment features --kind existing --source outputs/s43_br_20261027/data/existing_fit_select_replay --axis index_y --out outputs/s43_br_20261027/features/existing_index_y_replay.npz --workers 6
+
+# 5. Initial validation/SELECT only; common exact kernel readout plus appropriate
+# CNN / evidence MLP controls, each with the registered 400-step training budget.
+"$PY43" -m tools.s43_br.experiment evaluate --source outputs/s43_br_20261027/features/synthetic_root_x_replay.npz --out outputs/s43_br_20261027/results/synthetic_root_x_validation_replay.json --steps 400 --eval-split validation
+"$PY43" -m tools.s43_br.experiment evaluate --source outputs/s43_br_20261027/features/synthetic_index_y_replay.npz --out outputs/s43_br_20261027/results/synthetic_index_y_validation_replay.json --steps 400 --eval-split validation
+"$PY43" -m tools.s43_br.experiment evaluate --source outputs/s43_br_20261027/features/existing_root_x_replay.npz --out outputs/s43_br_20261027/results/existing_root_x_select_replay.json --steps 400 --eval-split validation
+"$PY43" -m tools.s43_br.experiment evaluate --source outputs/s43_br_20261027/features/existing_index_y_replay.npz --out outputs/s43_br_20261027/results/existing_index_y_select_replay.json --steps 400 --eval-split validation
+
+# 6. Before any correction: save the first-round outputs, classify the failure,
+# write one targeted amendment + source identities, and lock the final variant.
+# Do not select that amendment from synthetic test or zgz.
+# The final reproduction instructions must name the actual accepted amendment;
+# this draft deliberately does not guess its parameters or invent a result.
+
+# 7. Final synthetic test, only after correction is fixed. Example original-v1
+# evaluation (use the corrected feature snapshots if the amendment changes them):
+"$PY43" -m tools.s43_br.experiment evaluate --source outputs/s43_br_20261027/features/synthetic_root_x_replay.npz --out outputs/s43_br_20261027/results/synthetic_root_x_test_replay.json --steps 400 --eval-split test
+"$PY43" -m tools.s43_br.experiment evaluate --source outputs/s43_br_20261027/features/synthetic_index_y_replay.npz --out outputs/s43_br_20261027/results/synthetic_index_y_test_replay.json --steps 400 --eval-split test
+
+# zgz requires the explicit report-only switch, after final variant locking:
+# "$PY43" -m tools.s43_br.cache_data --output-prefix outputs/s43_br_20261027/data/zgz_report_replay --subjects zgz --samples-per-recording 8 --threads 4 --allow-zgz-report-only
+# Then construct features for that cache and evaluate with --train-source set to
+# the corresponding FIT/SELECT feature file and --eval-split test.
+
+# Existing reusable, precomputed artifacts (not canonical full S43 main rows):
+# outputs/s43_br_20261027/data/existing_fit_select.{npz,json}
+# outputs/s43_br_20261027/features/synthetic_root_x_v1.npz
+# outputs/s43_br_20261027/features/synthetic_index_y_v1.npz
+# outputs/s43_br_20261027/features/existing_root_x_v1.npz
+# outputs/s43_br_20261027/features/existing_index_y_v1.npz
+# Legacy features/synthetic_root_x.npz predates the overflow-tail numerical fix
+# and is retained for provenance only; it must not be used for outcome claims.

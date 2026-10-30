@@ -1,0 +1,11 @@
+{
+  "template": "original horizontal strip, 248:66",
+  "protocol": "W50 raw",
+  "dpi": 600,
+  "formats": [
+    "SVG",
+    "PDF",
+    "PNG",
+    "TIFF"
+  ]
+}

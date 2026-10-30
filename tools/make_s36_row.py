@@ -127,6 +127,15 @@ def eval_seed(run_name: str, seed: int, device, split: str = "val_core", subject
         step, ckpt = resolve_step_ckpt(run, step_policy)
         sel = {"step": step, "ckpt": str(ckpt)}
     cfg = load_config(json.loads((run / "training_metadata.json").read_text())["config_path"])
+    xag = any(k.startswith("XAG_") for k in cfg.get("MODEL", {}))
+    if xag:
+        from tools.xag.prepare import OUT as XAG_OUT, verify
+        from tools.xag.run import check_checkpoint
+        verify()
+        registered = [r for r in json.loads((XAG_OUT/"protocol.json").read_text())["runs"] if r["name"] == run.name]
+        if len(registered) != 1 or step_policy != 6000 or sel["step"] != 6000:
+            raise RuntimeError("XAG evaluation requires a registered fixed-step6000 run")
+        check_checkpoint(registered[0], record=False)
     root = Path(cfg["DATA"]["ROOT"])
     mani = splits_manifest(cfg)
     seqs = sequences_for_split(root, split, mani)
@@ -146,6 +155,13 @@ def eval_seed(run_name: str, seed: int, device, split: str = "val_core", subject
            "local": {k: wmean([r for r in res if LOCAL(r["seq"])], k) for k in METRICS},
            "global": {k: wmean([r for r in res if not LOCAL(r["seq"])], k) for k in METRICS},
            "per_seq": {r["seq"]: {k: r[k] for k in METRICS} for r in res}}
+    if xag:
+        from tools.xag.prepare import sha
+        agg["xag_binding"] = {
+            "checkpoint_sha256": sha(sel["ckpt"]),
+            "config_sha256": sha(cfg["_config_path"]),
+            "training_binding": json.loads((run/"xag_binding.json").read_text()),
+        }
     if step_policy == "selection" and split == "val_core" and not subject:
         drift = abs(agg["overall"]["mpjpe_ra_mm"] - sel["mpjpe_ra_mm"])
         print(f"  s{seed}: step={sel['step']} RA={agg['overall']['mpjpe_ra_mm']:.4f} "
@@ -203,7 +219,8 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
         prev = torch.from_numpy(pos51[a].copy()).view(1, -1).to(device)
         for end in np.arange(a + STEP_MS - 1, b, STEP_MS, dtype=np.int64):
             ev5 = ET._window_events(events, offsets, tsub, int(end), STEP_MS)
-            packets.append(ET.make_eval_packet(ev5, prev, betas, K, STEP_MS, device))
+            packet = ET.make_eval_packet(ev5, prev, betas, K, STEP_MS, device)
+            packets.append(ET.attach_xag_sources(packet, cfg, seq, offsets, int(end), STEP_MS, device))
             counts.append(len(ev5))
             if oracle:
                 gts.append(torch.from_numpy(pos51[end].copy()).view(1, -1).to(device))
@@ -328,6 +345,15 @@ def macs_forward_packet(cfg):
                              delta_t_s=torch.tensor([0.05]), is_sequence_start=torch.zeros(1, dtype=torch.bool),
                              is_sequence_end=torch.zeros(1, dtype=torch.bool), target=prev.clone(),
                              prev_state=prev, betas=torch.zeros(1, 10), camera_K=K, lnes=None)
+    if str(cfg.get("MODEL", {}).get("XAG_ASSOC", "base")) != "base":
+        # The MAC fixture is synthetic for every arm. These are explicit synthetic
+        # source labels, not dataset ground truth and never used for accuracy.
+        batch.xag_source_index = torch.arange(n_ev)
+        batch.xag_source_ms = torch.zeros(n_ev, dtype=torch.long)
+        batch.xag_part = torch.zeros(n_ev, dtype=torch.long)
+        batch.xag_face = torch.zeros(n_ev, dtype=torch.long)
+        batch.xag_bary = torch.full((n_ev, 3), 1. / 3.)
+        batch.xag_valid = torch.ones(n_ev, dtype=torch.bool)
     from semkine.routed_readout import PerJointRootFusion
 
     def _count_root_fusion(mod, x, y):
@@ -335,10 +361,23 @@ def macs_forward_packet(cfg):
         mod.total_ops += torch.DoubleTensor([x[0].shape[0] * mod.n_joints
                                              * (mod.in_dim * mod.hidden + mod.hidden * mod.out_dim)])
 
+    def _count_attention(mod, x, y):
+        # MHA uses functional projections/SDPA, which thop cannot see. Include
+        # Q/K/V/output projections plus QK and attention-value matrix products.
+        q, k, v = x[:3]
+        b, nq, c = q.shape if mod.batch_first else (q.shape[1], q.shape[0], q.shape[2])
+        nk = k.shape[1] if mod.batch_first else k.shape[0]
+        nv = v.shape[1] if mod.batch_first else v.shape[0]
+        mod.total_ops += torch.DoubleTensor([b * (2*nq*c*c + (nk+nv)*c*c + 2*nq*nk*c)])
+
     try:
         macs, _ = profile(_Wrap(m), inputs=(batch,), verbose=False,
-                          custom_ops={PerJointRootFusion: _count_root_fusion})
-        return float(macs), "forward_packet"
+                          custom_ops={PerJointRootFusion: _count_root_fusion,
+                                      torch.nn.MultiheadAttention: _count_attention})
+        note = "forward_packet"
+        if "XAG_GNN" in cfg.get("MODEL", {}):
+            note += "; XAG MHA includes QK/AV and projections; synthetic source fixture for oracle; offline GT cache excluded"
+        return float(macs), note
     except Exception as e:                   # e.g. a CUDA-only conditioning path on CPU
         return float("nan"), f"forward_packet not profilable on CPU: {type(e).__name__}"
 

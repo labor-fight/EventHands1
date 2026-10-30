@@ -1,0 +1,5341 @@
+{
+  "definitions": {
+    "aggregation": "Unweighted mean and NumPy median; strict improvement uses >0 with no tolerance. Samples share packets and are not independent sequence replicates.",
+    "b": "b = 1000 * (pred_clean[:3] - GT_end[:3])",
+    "clean": "initial equals GT at previous_end_ms exactly; target is GT at end_ms, so hold includes actual inter-frame motion.",
+    "coordinates": "Camera-frame MANO transl x,y,z; positive z is increasing camera depth. Source states are meters, converted to mm after float64 subtraction.",
+    "e": "e = 1000 * (pred_delta[:3] - GT_end[:3])",
+    "hold": "h = 1000 * (initial[:3] - GT_end[:3]); improvement_over_hold_mm = ||h|| - ||e||; positive is better.",
+    "r": "r = 1000 * (pred_delta[:3] - pred_clean[:3]); e = b + r exactly up to floating arithmetic.",
+    "rho_limitation": "Historical paired rho compares disturbed output with clean output, not with GT. These recalculations measure actual target error separately.",
+    "squared": "||e||^2 = ||b||^2 + ||r||^2 + 2 <b,r>; terms measured in mm^2. b is repeated for each of 6 perturbations in a scale.",
+    "wrist_equivalence": "With fixed beta, wrist J0(beta)+transl implies wrist-error vector equals transl-error vector algebraically. No FK roundoff or vertex alignment is used here.",
+    "wrong_events": "||pred_wrong[:3]-GT_end[:3]|| - ||pred_real[:3]-GT_end[:3]||, in mm; positive means real events better."
+  },
+  "inputs": [
+    {
+      "bytes": 38393160,
+      "path": "outputs/xdl/packet_bank.json",
+      "role": "packet selection and clock provenance",
+      "sha256": "f3f4fec88f8d22fef25349dc92b6e973906e8a72c5ec9f6d7159429d9d9c030f"
+    },
+    {
+      "bytes": 28426944,
+      "path": "data/hand_data51/val/zgz_global.meta",
+      "role": "GT state at actual end_ms / previous_end_ms",
+      "sha256": "ea7cdd3c15b9fbc8fe298dd68a260ed404a0c57ccf53515a20b7c0f15f0d2116"
+    },
+    {
+      "bytes": 29727,
+      "path": "data/hand_data51/val/zgz_global_aux.npz",
+      "role": "beta/camera provenance only; no FK or camera calculation",
+      "sha256": "f5bb10e12115dd8ae142393e6cafcaab6648e256bd04c5741e70c761ac4b6119"
+    },
+    {
+      "bytes": 26766444,
+      "path": "data/hand_data51/val/zgz_local.meta",
+      "role": "GT state at actual end_ms / previous_end_ms",
+      "sha256": "7533ad0748884a26d6c6de4c8e6af25f2daae909196a9d2ee2665d17eebb0e6e"
+    },
+    {
+      "bytes": 28990,
+      "path": "data/hand_data51/val/zgz_local_aux.npz",
+      "role": "beta/camera provenance only; no FK or camera calculation",
+      "sha256": "7dfc97338c241bbbe78cb2a1f0a4451dfeac4592ff201c822da9980197dfb8f2"
+    },
+    {
+      "bytes": 29638343,
+      "path": "outputs/xdl/diagnostics/xdl_q1_s3407/bank.pt.gz",
+      "role": "existing saved predictions; no new inference",
+      "sha256": "50c6d63fc08731e869d0447ed7ccbbfd3b75c86076c8d2e58572a63ae3dee2f2"
+    },
+    {
+      "bytes": 29640552,
+      "path": "outputs/xdl/diagnostics/xdl_q0_s3407/bank.pt.gz",
+      "role": "existing saved predictions; no new inference",
+      "sha256": "2ebf06edc1cd18ce06ced9ede709b4f4e4feb9c7f1ebe54a44692c760f477e48"
+    },
+    {
+      "bytes": 29455989,
+      "path": "outputs/xdl/diagnostics/xdl_n1_s3407/bank.pt.gz",
+      "role": "existing saved predictions; no new inference",
+      "sha256": "e431193818749ad07a6d6f228c4bf56594ed283f4e87a542aec87fb8e18e7837"
+    },
+    {
+      "bytes": 25796156,
+      "path": "outputs/xdl/diagnostics/xa_c0_s3407/bank.pt.gz",
+      "role": "existing saved predictions; no new inference",
+      "sha256": "dfab646ce11ae06abf4cd09fe89785903693c4bd198c8a80e84cb8af8d8a3c3a"
+    }
+  ],
+  "limitations": [
+    "Single seed and 24 fixed clean packets per sequence; not a new full-sequence accuracy result.",
+    "N1 is separately trained without observation features; it is not a same-weight test-time ablation.",
+    "Old C0 and XDL differ in multiple architecture/training choices; clean bias differences do not identify a unique cause.",
+    "Swap/mirror are the existing interventions; neither establishes event-guided recovery on the current model own natural errors."
+  ],
+  "reproducibility": "No timestamp/random sampling/model import/FK/inference/training. JSON has sorted keys. Same input bytes and software produce identical output; software upgrades may change version strings or floating arithmetic. Existing inputs are read-only.",
+  "results": {
+    "xa_c0_s3407": {
+      "zgz_global": {
+        "clean": {
+          "hold_error_mm": {
+            "mean": 6.65169222436425,
+            "median": 6.371814446967667,
+            "n": 24
+          },
+          "hold_signed_error_xyz_mm": {
+            "mean": [
+              -1.4598094470178087,
+              -0.3212277079001069,
+              0.3962963819503784
+            ],
+            "median": [
+              -1.3112295418977737,
+              0.3252516034990549,
+              0.5907714366912842
+            ],
+            "n": 24
+          },
+          "improvement_over_hold_mm": {
+            "mean": 0.07006327600074462,
+            "median": 0.8290160771918698,
+            "n": 24
+          },
+          "n_strictly_better_than_hold": 15,
+          "packets": [
+            {
+              "clock": {
+                "end_ms": 10149,
+                "previous_end_ms": 10099,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 11.920104960076985,
+              "hold_error_xyz_mm": [
+                -1.1162832379341125,
+                11.618822813034058,
+                2.4178028106689453
+              ],
+              "packet_id": "zgz_global:0:10149",
+              "prediction_error_mm": 7.648008551654414,
+              "signed_error_xyz_mm": [
+                4.8012882471084595,
+                5.935482680797577,
+                0.45794248580932617
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 12999,
+                "previous_end_ms": 12949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.866742687887347,
+              "hold_error_xyz_mm": [
+                -0.4642680287361145,
+                2.773076295852661,
+                0.5592107772827148
+              ],
+              "packet_id": "zgz_global:0:12999",
+              "prediction_error_mm": 5.206578737966592,
+              "signed_error_xyz_mm": [
+                4.847966134548187,
+                -1.1102259159088135,
+                -1.5404820442199707
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 1449,
+                "previous_end_ms": 1399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.344272984652106,
+              "hold_error_xyz_mm": [
+                -5.552597343921661,
+                -0.07814541459083557,
+                4.806339740753174
+              ],
+              "packet_id": "zgz_global:0:1449",
+              "prediction_error_mm": 4.663659162446928,
+              "signed_error_xyz_mm": [
+                -0.33382605761289597,
+                3.988601267337799,
+                2.3936033248901367
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 15899,
+                "previous_end_ms": 15849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.100186741996676,
+              "hold_error_xyz_mm": [
+                4.4847168028354645,
+                1.7201155424118042,
+                1.714766025543213
+              ],
+              "packet_id": "zgz_global:0:15899",
+              "prediction_error_mm": 4.813723005850786,
+              "signed_error_xyz_mm": [
+                0.2444535493850708,
+                4.59829717874527,
+                1.4027953147888184
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 18799,
+                "previous_end_ms": 18749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 10.510797827648863,
+              "hold_error_xyz_mm": [
+                -9.707652032375336,
+                0.2525448799133301,
+                4.021763801574707
+              ],
+              "packet_id": "zgz_global:0:18799",
+              "prediction_error_mm": 5.439204230106908,
+              "signed_error_xyz_mm": [
+                -4.173964262008667,
+                1.5449374914169312,
+                3.126680850982666
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 21699,
+                "previous_end_ms": 21649,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.217097211330671,
+              "hold_error_xyz_mm": [
+                6.859190762042999,
+                1.3865474611520767,
+                -1.7650723457336426
+              ],
+              "packet_id": "zgz_global:0:21699",
+              "prediction_error_mm": 10.510963809593806,
+              "signed_error_xyz_mm": [
+                4.15145605802536,
+                1.9619883969426155,
+                9.454965591430664
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 24549,
+                "previous_end_ms": 24499,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.6254814163372906,
+              "hold_error_xyz_mm": [
+                -0.4692748188972473,
+                0.379219651222229,
+                0.16492605209350586
+              ],
+              "packet_id": "zgz_global:0:24549",
+              "prediction_error_mm": 2.493882868683356,
+              "signed_error_xyz_mm": [
+                0.6639808416366577,
+                -2.3972392082214355,
+                0.17839670181274414
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 27449,
+                "previous_end_ms": 27399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.759457605268689,
+              "hold_error_xyz_mm": [
+                3.512432798743248,
+                0.9723934344947338,
+                -0.9223818778991699
+              ],
+              "packet_id": "zgz_global:0:27449",
+              "prediction_error_mm": 2.6416372206036005,
+              "signed_error_xyz_mm": [
+                1.9562933593988419,
+                1.7281770706176758,
+                -0.4056692123413086
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 30349,
+                "previous_end_ms": 30299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.958539227097348,
+              "hold_error_xyz_mm": [
+                -1.9303485751152039,
+                -0.12943148612976074,
+                0.30475854873657227
+              ],
+              "packet_id": "zgz_global:0:30349",
+              "prediction_error_mm": 1.7976716926683947,
+              "signed_error_xyz_mm": [
+                0.8622929453849792,
+                0.8373558521270752,
+                1.3367533683776855
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 33249,
+                "previous_end_ms": 33199,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.679146069264337,
+              "hold_error_xyz_mm": [
+                -3.655247390270233,
+                0.2712835557758808,
+                0.31888484954833984
+              ],
+              "packet_id": "zgz_global:0:33249",
+              "prediction_error_mm": 14.356459784635815,
+              "signed_error_xyz_mm": [
+                -2.9477477073669434,
+                1.067684730514884,
+                14.009952545166016
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 36099,
+                "previous_end_ms": 36049,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3652210707607142,
+              "hold_error_xyz_mm": [
+                -0.8476488292217255,
+                0.8706450462341309,
+                0.6223320960998535
+              ],
+              "packet_id": "zgz_global:0:36099",
+              "prediction_error_mm": 3.409836451778871,
+              "signed_error_xyz_mm": [
+                1.5477053821086884,
+                -1.0320991277694702,
+                2.857685089111328
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 38999,
+                "previous_end_ms": 38949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 16.6820065612663,
+              "hold_error_xyz_mm": [
+                3.7330761551856995,
+                -14.197900891304016,
+                -7.922947406768799
+              ],
+              "packet_id": "zgz_global:0:38999",
+              "prediction_error_mm": 6.245252296731491,
+              "signed_error_xyz_mm": [
+                0.7527321577072144,
+                -3.99017333984375,
+                -4.745006561279297
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 41899,
+                "previous_end_ms": 41849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 18.573439803233878,
+              "hold_error_xyz_mm": [
+                -1.682749018073082,
+                -17.670772969722748,
+                -5.466699600219727
+              ],
+              "packet_id": "zgz_global:0:41899",
+              "prediction_error_mm": 7.855227878607934,
+              "signed_error_xyz_mm": [
+                -3.0786097049713135,
+                7.192984223365784,
+                0.698387622833252
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 4349,
+                "previous_end_ms": 4299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.575510096003052,
+              "hold_error_xyz_mm": [
+                -7.360532879829407,
+                -0.875033438205719,
+                4.312336444854736
+              ],
+              "packet_id": "zgz_global:0:4349",
+              "prediction_error_mm": 5.450008701010083,
+              "signed_error_xyz_mm": [
+                -0.827394425868988,
+                4.0802061557769775,
+                3.5170912742614746
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 44799,
+                "previous_end_ms": 44749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.743227406510638,
+              "hold_error_xyz_mm": [
+                7.133588194847107,
+                -3.6888346076011658,
+                -3.4566521644592285
+              ],
+              "packet_id": "zgz_global:0:44799",
+              "prediction_error_mm": 4.728079255155389,
+              "signed_error_xyz_mm": [
+                1.2108683586120605,
+                2.4899542331695557,
+                -3.832578659057617
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 47649,
+                "previous_end_ms": 47599,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.136718452558023,
+              "hold_error_xyz_mm": [
+                -7.460486143827438,
+                1.9919006153941154,
+                2.5650858879089355
+              ],
+              "packet_id": "zgz_global:0:47649",
+              "prediction_error_mm": 7.596506682839372,
+              "signed_error_xyz_mm": [
+                -2.889420837163925,
+                3.4124376252293587,
+                6.1411261558532715
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 50549,
+                "previous_end_ms": 50499,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 11.843331313190102,
+              "hold_error_xyz_mm": [
+                -7.677093148231506,
+                8.647546172142029,
+                2.5586485862731934
+              ],
+              "packet_id": "zgz_global:0:50549",
+              "prediction_error_mm": 6.241242594321956,
+              "signed_error_xyz_mm": [
+                4.801210016012192,
+                3.629133105278015,
+                -1.652538776397705
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 53449,
+                "previous_end_ms": 53399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 9.825315689766017,
+              "hold_error_xyz_mm": [
+                1.7976388335227966,
+                -8.807342499494553,
+                -3.9668679237365723
+              ],
+              "packet_id": "zgz_global:0:53449",
+              "prediction_error_mm": 4.4849081326406885,
+              "signed_error_xyz_mm": [
+                3.192119300365448,
+                -0.9465813636779785,
+                -3.004789352416992
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 56349,
+                "previous_end_ms": 56299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.0666766271145904,
+              "hold_error_xyz_mm": [
+                -0.7521491497755051,
+                -0.7352158427238464,
+                0.17756223678588867
+              ],
+              "packet_id": "zgz_global:0:56349",
+              "prediction_error_mm": 5.172281262871168,
+              "signed_error_xyz_mm": [
+                1.1171884834766388,
+                5.050130188465118,
+                -0.02384185791015625
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 59199,
+                "previous_end_ms": 59149,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.526531682604662,
+              "hold_error_xyz_mm": [
+                -3.3346014097332954,
+                1.05353444814682,
+                4.279375076293945
+              ],
+              "packet_id": "zgz_global:0:59199",
+              "prediction_error_mm": 7.135129028737843,
+              "signed_error_xyz_mm": [
+                3.5858526825904846,
+                6.1683207750320435,
+                -0.059545040130615234
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 62099,
+                "previous_end_ms": 62049,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.693649351127977,
+              "hold_error_xyz_mm": [
+                -2.8339624404907227,
+                2.139642834663391,
+                1.016676425933838
+              ],
+              "packet_id": "zgz_global:0:62099",
+              "prediction_error_mm": 2.4140670227419223,
+              "signed_error_xyz_mm": [
+                1.3755708932876587,
+                1.930631697177887,
+                0.45627355575561523
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 64999,
+                "previous_end_ms": 64949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.5510565185640492,
+              "hold_error_xyz_mm": [
+                -1.506175845861435,
+                0.26657432317733765,
+                -0.25719404220581055
+              ],
+              "packet_id": "zgz_global:0:64999",
+              "prediction_error_mm": 4.464682511757778,
+              "signed_error_xyz_mm": [
+                -1.319635659456253,
+                -0.8234381675720215,
+                4.184961318969727
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 67899,
+                "previous_end_ms": 67849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.29972539682987,
+              "hold_error_xyz_mm": [
+                -5.438424646854401,
+                4.49642539024353,
+                1.868605613708496
+              ],
+              "packet_id": "zgz_global:0:67899",
+              "prediction_error_mm": 5.193181515777827,
+              "signed_error_xyz_mm": [
+                1.3651251792907715,
+                5.004122853279114,
+                -0.2536177635192871
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 7249,
+                "previous_end_ms": 7199,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.776376683651782,
+              "hold_error_xyz_mm": [
+                -0.7665753364562988,
+                -0.3670603036880493,
+                1.5598535537719727
+              ],
+              "packet_id": "zgz_global:0:7249",
+              "prediction_error_mm": 27.996902361541178,
+              "signed_error_xyz_mm": [
+                -4.36536967754364,
+                -0.19156187772750854,
+                27.653813362121582
+              ]
+            }
+          ],
+          "prediction_error_mm": {
+            "mean": 6.581628948363504,
+            "median": 5.199880126872209,
+            "n": 24
+          },
+          "signed_error_xyz_mm": {
+            "mean": [
+              0.6891723023727536,
+              2.088713605189696,
+              2.5980149706204734
+            ],
+            "median": [
+              0.989740714430809,
+              1.9463100470602512,
+              0.5781650543212891
+            ],
+            "n": 24
+          },
+          "z_fraction_of_total_squared_error": 0.7094651031207768
+        },
+        "translation_perturbation": {
+          "large": {
+            "amplitude_mm": 50,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 70.3546070500546,
+              "median": 27.03879820523114,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 992.1288050312453,
+              "median": 606.3499538250041,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": 22.434358902008046,
+              "median": 24.3959005123539,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 135,
+            "response_squared_mm2": {
+              "mean": 830.1637523792376,
+              "median": 548.7494712008968,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 91.61044560195306,
+              "median": 13.83017037134837,
+              "n": 144
+            }
+          },
+          "small": {
+            "amplitude_mm": 5,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 70.3546070500546,
+              "median": 27.03879820523114,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 92.23999064359394,
+              "median": 34.45506660246234,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": 1.3184415874621336,
+              "median": 2.2720624530811175,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 100,
+            "response_squared_mm2": {
+              "mean": 20.349145392791034,
+              "median": 13.102297171135868,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 1.5362382007483204,
+              "median": -4.457083909868882,
+              "n": 144
+            }
+          }
+        },
+        "wrong_events": {
+          "mirror": {
+            "n_real_strictly_better": 233,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 66.39973128659578,
+              "median": 58.424556134567624,
+              "n": 240
+            }
+          },
+          "swap": {
+            "n_real_strictly_better": 104,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": -0.3907763126852173,
+              "median": -0.2388462597001763,
+              "n": 240
+            }
+          }
+        }
+      },
+      "zgz_local": {
+        "clean": {
+          "hold_error_mm": {
+            "mean": 3.0440307865041967,
+            "median": 3.1970226301924884,
+            "n": 24
+          },
+          "hold_signed_error_xyz_mm": {
+            "mean": [
+              0.4727204019824664,
+              -0.8228733107292404,
+              0.010815759499867758
+            ],
+            "median": [
+              -0.07144734263420105,
+              -0.5621277377940714,
+              0.1461505889892578
+            ],
+            "n": 24
+          },
+          "improvement_over_hold_mm": {
+            "mean": -10.301086077420262,
+            "median": -5.033425133801488,
+            "n": 24
+          },
+          "n_strictly_better_than_hold": 2,
+          "packets": [
+            {
+              "clock": {
+                "end_ms": 11299,
+                "previous_end_ms": 11249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.901312313749734,
+              "hold_error_xyz_mm": [
+                -3.5124942660331726,
+                1.6018194146454334,
+                0.5628466606140137
+              ],
+              "packet_id": "zgz_local:0:11299",
+              "prediction_error_mm": 8.972707782007236,
+              "signed_error_xyz_mm": [
+                -6.373412907123566,
+                5.334097659215331,
+                3.381788730621338
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 1299,
+                "previous_end_ms": 1249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3948122828714498,
+              "hold_error_xyz_mm": [
+                -0.10944157838821411,
+                0.41303224861621857,
+                1.3277530670166016
+              ],
+              "packet_id": "zgz_local:0:1299",
+              "prediction_error_mm": 39.489200622923846,
+              "signed_error_xyz_mm": [
+                23.439373821020126,
+                22.37585000693798,
+                22.5679874420166
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 3799,
+                "previous_end_ms": 3749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.396019972542903,
+              "hold_error_xyz_mm": [
+                2.271093428134918,
+                -0.5742767825722694,
+                -0.503242015838623
+              ],
+              "packet_id": "zgz_local:0:3799",
+              "prediction_error_mm": 3.9904457273391536,
+              "signed_error_xyz_mm": [
+                3.085613250732422,
+                -1.802782528102398,
+                -1.7755627632141113
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 6299,
+                "previous_end_ms": 6249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.9610399222153383,
+              "hold_error_xyz_mm": [
+                -0.08255243301391602,
+                -1.718892715871334,
+                -2.409636974334717
+              ],
+              "packet_id": "zgz_local:0:6299",
+              "prediction_error_mm": 3.7767104698931657,
+              "signed_error_xyz_mm": [
+                -2.6917830109596252,
+                -0.9490307420492172,
+                -2.473294734954834
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 8799,
+                "previous_end_ms": 8749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.6040531697398794,
+              "hold_error_xyz_mm": [
+                1.4600232243537903,
+                0.5262093618512154,
+                0.4054903984069824
+              ],
+              "packet_id": "zgz_local:0:8799",
+              "prediction_error_mm": 35.77914962637583,
+              "signed_error_xyz_mm": [
+                -8.341215550899506,
+                16.18002075701952,
+                30.802249908447266
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 14592,
+                "previous_end_ms": 14542,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.04156312456108,
+              "hold_error_xyz_mm": [
+                3.5004839301109314,
+                -1.0884925723075867,
+                1.7017722129821777
+              ],
+              "packet_id": "zgz_local:13:14592",
+              "prediction_error_mm": 0.6896360526668257,
+              "signed_error_xyz_mm": [
+                0.3162398934364319,
+                -0.040057115256786346,
+                0.6115436553955078
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 19026,
+                "previous_end_ms": 18976,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.785235479512232,
+              "hold_error_xyz_mm": [
+                3.7493854761123657,
+                -0.21095317788422108,
+                0.4749894142150879
+              ],
+              "packet_id": "zgz_local:47:19026",
+              "prediction_error_mm": 24.71863062872818,
+              "signed_error_xyz_mm": [
+                -5.006514489650726,
+                4.787319106981158,
+                23.72819185256958
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 21897,
+                "previous_end_ms": 21848,
+                "query_start_offset_ms": 0,
+                "state_interval_ms": 49
+              },
+              "hold_error_mm": 3.7530567468153717,
+              "hold_error_xyz_mm": [
+                2.882041037082672,
+                -1.593778608366847,
+                1.79976224899292
+              ],
+              "packet_id": "zgz_local:54:21897",
+              "prediction_error_mm": 4.229340050432309,
+              "signed_error_xyz_mm": [
+                0.7777512073516846,
+                -1.8567917868494987,
+                3.719508647918701
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 25536,
+                "previous_end_ms": 25486,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.115908155239081,
+              "hold_error_xyz_mm": [
+                0.8198767900466919,
+                -0.3371771890670061,
+                0.6777644157409668
+              ],
+              "packet_id": "zgz_local:74:25536",
+              "prediction_error_mm": 5.866184646810375,
+              "signed_error_xyz_mm": [
+                0.18352270126342773,
+                3.7349252961575985,
+                4.519820213317871
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 28086,
+                "previous_end_ms": 28036,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.597312714693755,
+              "hold_error_xyz_mm": [
+                -1.6565993428230286,
+                -3.1895595602691174,
+                0.15181303024291992
+              ],
+              "packet_id": "zgz_local:75:28086",
+              "prediction_error_mm": 14.63077011530471,
+              "signed_error_xyz_mm": [
+                -0.14663487672805786,
+                -13.77375703305006,
+                4.93168830871582
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 30791,
+                "previous_end_ms": 30741,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.4511332924313445,
+              "hold_error_xyz_mm": [
+                -2.1438375115394592,
+                -4.988095257431269,
+                -0.4875659942626953
+              ],
+              "packet_id": "zgz_local:79:30791",
+              "prediction_error_mm": 8.697898054123012,
+              "signed_error_xyz_mm": [
+                -1.2280791997909546,
+                -8.601224981248379,
+                0.40519237518310547
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 33374,
+                "previous_end_ms": 33324,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.6400241631173555,
+              "hold_error_xyz_mm": [
+                -0.6499961018562317,
+                -4.592089913785458,
+                -0.14156103134155273
+              ],
+              "packet_id": "zgz_local:80:33374",
+              "prediction_error_mm": 8.569736887847373,
+              "signed_error_xyz_mm": [
+                -2.916276454925537,
+                1.6310506034642458,
+                7.891476154327393
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 35924,
+                "previous_end_ms": 35874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.45935120398627455,
+              "hold_error_xyz_mm": [
+                0.39630383253097534,
+                0.13245479203760624,
+                -0.1907944679260254
+              ],
+              "packet_id": "zgz_local:80:35924",
+              "prediction_error_mm": 4.68743158271976,
+              "signed_error_xyz_mm": [
+                -0.9763613343238831,
+                4.5376664493232965,
+                0.6544589996337891
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 38424,
+                "previous_end_ms": 38374,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.4189678244984172,
+              "hold_error_xyz_mm": [
+                -0.326644629240036,
+                -0.23583369329571724,
+                -0.11497735977172852
+              ],
+              "packet_id": "zgz_local:80:38424",
+              "prediction_error_mm": 5.414422623843892,
+              "signed_error_xyz_mm": [
+                -4.9079954624176025,
+                -2.1620551124215126,
+                0.7436871528625488
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 40924,
+                "previous_end_ms": 40874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.049179548812672,
+              "hold_error_xyz_mm": [
+                -0.060342252254486084,
+                -1.8295148620381951,
+                0.9210705757141113
+              ],
+              "packet_id": "zgz_local:80:40924",
+              "prediction_error_mm": 13.851369059106979,
+              "signed_error_xyz_mm": [
+                -4.465136677026749,
+                -11.16380759049207,
+                6.876945495605469
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 43424,
+                "previous_end_ms": 43374,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.070349069630675,
+              "hold_error_xyz_mm": [
+                0.9138509631156921,
+                -0.5499786930158734,
+                0.08970499038696289
+              ],
+              "packet_id": "zgz_local:80:43424",
+              "prediction_error_mm": 27.78984485013416,
+              "signed_error_xyz_mm": [
+                -15.013277530670166,
+                12.259836657904088,
+                19.91415023803711
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 45924,
+                "previous_end_ms": 45874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.7210608419774723,
+              "hold_error_xyz_mm": [
+                -0.29759109020233154,
+                0.523245194926858,
+                0.39696693420410156
+              ],
+              "packet_id": "zgz_local:80:45924",
+              "prediction_error_mm": 33.31784273488023,
+              "signed_error_xyz_mm": [
+                -0.5076080560684204,
+                0.12230360880494118,
+                33.313751220703125
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 48532,
+                "previous_end_ms": 48482,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 6.114360309355983,
+              "hold_error_xyz_mm": [
+                -0.30366331338882446,
+                -5.7779778726398945,
+                -1.9769072532653809
+              ],
+              "packet_id": "zgz_local:82:48532",
+              "prediction_error_mm": 11.230826067972455,
+              "signed_error_xyz_mm": [
+                2.831030637025833,
+                -6.921226624399424,
+                -8.379340171813965
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 51168,
+                "previous_end_ms": 51118,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.211498148903338,
+              "hold_error_xyz_mm": [
+                6.087549030780792,
+                -3.665229771286249,
+                -4.115402698516846
+              ],
+              "packet_id": "zgz_local:84:51168",
+              "prediction_error_mm": 7.784899199753418,
+              "signed_error_xyz_mm": [
+                -4.138380289077759,
+                4.309869837015867,
+                4.990339279174805
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 53668,
+                "previous_end_ms": 53618,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.4739972984781597,
+              "hold_error_xyz_mm": [
+                -0.41860342025756836,
+                3.257209435105324,
+                1.1331439018249512
+              ],
+              "packet_id": "zgz_local:84:53668",
+              "prediction_error_mm": 8.246201989619205,
+              "signed_error_xyz_mm": [
+                -2.5295615196228027,
+                3.8752667605876923,
+                6.82520866394043
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 56303,
+                "previous_end_ms": 56253,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.2408227602536788,
+              "hold_error_xyz_mm": [
+                1.3625696301460266,
+                -0.6869425997138023,
+                1.6409754753112793
+              ],
+              "packet_id": "zgz_local:86:56303",
+              "prediction_error_mm": 15.586099028748698,
+              "signed_error_xyz_mm": [
+                5.834661424160004,
+                5.61557337641716,
+                13.317227363586426
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 58803,
+                "previous_end_ms": 58753,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.4330053381696386,
+              "hold_error_xyz_mm": [
+                -3.216419368982315,
+                1.182072563096881,
+                -0.20706653594970703
+              ],
+              "packet_id": "zgz_local:86:58803",
+              "prediction_error_mm": 8.0640579638738,
+              "signed_error_xyz_mm": [
+                -3.5846047103405,
+                -5.261031212285161,
+                4.9498677253723145
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 61505,
+                "previous_end_ms": 61455,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.867292101155375,
+              "hold_error_xyz_mm": [
+                1.7984434962272644,
+                4.406835418194532,
+                -1.0178089141845703
+              ],
+              "packet_id": "zgz_local:89:61505",
+              "prediction_error_mm": 10.875446520288413,
+              "signed_error_xyz_mm": [
+                0.7641054689884186,
+                -3.318757750093937,
+                10.328471660614014
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 64005,
+                "previous_end_ms": 63955,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3553830933895101,
+              "hold_error_xyz_mm": [
+                -1.1181458830833435,
+                -0.7530446164309978,
+                0.1404881477355957
+              ],
+              "packet_id": "zgz_local:89:64005",
+              "prediction_error_mm": 14.023952448793985,
+              "signed_error_xyz_mm": [
+                -5.098395049571991,
+                -12.860850431025028,
+                2.2969841957092285
+              ]
+            }
+          ],
+          "prediction_error_mm": {
+            "mean": 13.34511686392446,
+            "median": 8.835302918065125,
+            "n": 24
+          },
+          "signed_error_xyz_mm": {
+            "mean": [
+              -1.278872446467479,
+              0.668850300523142,
+              8.089264233907064
+            ],
+            "median": [
+              -1.8788203597068787,
+              0.041123246774077415,
+              4.940778017044067
+            ],
+            "n": 24
+          },
+          "z_fraction_of_total_squared_error": 0.5978781610252799
+        },
+        "translation_perturbation": {
+          "large": {
+            "amplitude_mm": 50,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 290.8466989112762,
+              "median": 78.08145775060504,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 1711.298985206885,
+              "median": 1591.317925514591,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": 12.684140951493935,
+              "median": 11.033359691403021,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 107,
+            "response_squared_mm2": {
+              "mean": 1306.1466975864485,
+              "median": 1254.8532262800582,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 114.30558870916042,
+              "median": 33.52160688738345,
+              "n": 144
+            }
+          },
+          "small": {
+            "amplitude_mm": 5,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 290.8466989112762,
+              "median": 78.08145775060504,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 320.3809778215861,
+              "median": 109.54726550873596,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": -8.30888021431012,
+              "median": -3.4510379607867225,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 29,
+            "response_squared_mm2": {
+              "mean": 31.112649018454704,
+              "median": 21.374094042672738,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": -1.578370108144795,
+              "median": -5.470220218808073,
+              "n": 144
+            }
+          }
+        },
+        "wrong_events": {
+          "mirror": {
+            "n_real_strictly_better": 220,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 31.1670658287408,
+              "median": 33.20928047089012,
+              "n": 240
+            }
+          },
+          "swap": {
+            "n_real_strictly_better": 97,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": -0.7175433481961678,
+              "median": -0.449711761739381,
+              "n": 240
+            }
+          }
+        }
+      }
+    },
+    "xdl_n1_s3407": {
+      "zgz_global": {
+        "clean": {
+          "hold_error_mm": {
+            "mean": 6.65169222436425,
+            "median": 6.371814446967667,
+            "n": 24
+          },
+          "hold_signed_error_xyz_mm": {
+            "mean": [
+              -1.4598094470178087,
+              -0.3212277079001069,
+              0.3962963819503784
+            ],
+            "median": [
+              -1.3112295418977737,
+              0.3252516034990549,
+              0.5907714366912842
+            ],
+            "n": 24
+          },
+          "improvement_over_hold_mm": {
+            "mean": -3.334372962994161,
+            "median": -3.1498446708028567,
+            "n": 24
+          },
+          "n_strictly_better_than_hold": 6,
+          "packets": [
+            {
+              "clock": {
+                "end_ms": 10149,
+                "previous_end_ms": 10099,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 11.920104960076985,
+              "hold_error_xyz_mm": [
+                -1.1162832379341125,
+                11.618822813034058,
+                2.4178028106689453
+              ],
+              "packet_id": "zgz_global:0:10149",
+              "prediction_error_mm": 12.922561629591998,
+              "signed_error_xyz_mm": [
+                6.8773627281188965,
+                10.204046964645386,
+                3.9461255073547363
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 12999,
+                "previous_end_ms": 12949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.866742687887347,
+              "hold_error_xyz_mm": [
+                -0.4642680287361145,
+                2.773076295852661,
+                0.5592107772827148
+              ],
+              "packet_id": "zgz_global:0:12999",
+              "prediction_error_mm": 11.66494165147651,
+              "signed_error_xyz_mm": [
+                6.486237049102783,
+                -9.388074278831482,
+                -2.4214982986450195
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 1449,
+                "previous_end_ms": 1399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.344272984652106,
+              "hold_error_xyz_mm": [
+                -5.552597343921661,
+                -0.07814541459083557,
+                4.806339740753174
+              ],
+              "packet_id": "zgz_global:0:1449",
+              "prediction_error_mm": 5.8212687352449715,
+              "signed_error_xyz_mm": [
+                -5.634643137454987,
+                -1.1975616216659546,
+                -0.838935375213623
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 15899,
+                "previous_end_ms": 15849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.100186741996676,
+              "hold_error_xyz_mm": [
+                4.4847168028354645,
+                1.7201155424118042,
+                1.714766025543213
+              ],
+              "packet_id": "zgz_global:0:15899",
+              "prediction_error_mm": 5.878692359000605,
+              "signed_error_xyz_mm": [
+                5.517199635505676,
+                2.0278850570321083,
+                -0.08493661880493164
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 18799,
+                "previous_end_ms": 18749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 10.510797827648863,
+              "hold_error_xyz_mm": [
+                -9.707652032375336,
+                0.2525448799133301,
+                4.021763801574707
+              ],
+              "packet_id": "zgz_global:0:18799",
+              "prediction_error_mm": 10.415681078971671,
+              "signed_error_xyz_mm": [
+                -6.232231855392456,
+                -7.639259099960327,
+                3.359675407409668
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 21699,
+                "previous_end_ms": 21649,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.217097211330671,
+              "hold_error_xyz_mm": [
+                6.859190762042999,
+                1.3865474611520767,
+                -1.7650723457336426
+              ],
+              "packet_id": "zgz_global:0:21699",
+              "prediction_error_mm": 15.033667757087748,
+              "signed_error_xyz_mm": [
+                12.803442776203156,
+                6.833508610725403,
+                3.9225220680236816
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 24549,
+                "previous_end_ms": 24499,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.6254814163372906,
+              "hold_error_xyz_mm": [
+                -0.4692748188972473,
+                0.379219651222229,
+                0.16492605209350586
+              ],
+              "packet_id": "zgz_global:0:24549",
+              "prediction_error_mm": 11.714986327345564,
+              "signed_error_xyz_mm": [
+                8.816607296466827,
+                -6.42220675945282,
+                -4.273593425750732
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 27449,
+                "previous_end_ms": 27399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.759457605268689,
+              "hold_error_xyz_mm": [
+                3.512432798743248,
+                0.9723934344947338,
+                -0.9223818778991699
+              ],
+              "packet_id": "zgz_global:0:27449",
+              "prediction_error_mm": 6.784011439432131,
+              "signed_error_xyz_mm": [
+                3.83143313229084,
+                4.096574150025845,
+                -3.815889358520508
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 30349,
+                "previous_end_ms": 30299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.958539227097348,
+              "hold_error_xyz_mm": [
+                -1.9303485751152039,
+                -0.12943148612976074,
+                0.30475854873657227
+              ],
+              "packet_id": "zgz_global:0:30349",
+              "prediction_error_mm": 10.577890932385534,
+              "signed_error_xyz_mm": [
+                0.7933378219604492,
+                -9.019941091537476,
+                -5.4683685302734375
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 33249,
+                "previous_end_ms": 33199,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.679146069264337,
+              "hold_error_xyz_mm": [
+                -3.655247390270233,
+                0.2712835557758808,
+                0.31888484954833984
+              ],
+              "packet_id": "zgz_global:0:33249",
+              "prediction_error_mm": 8.641272277968058,
+              "signed_error_xyz_mm": [
+                3.2126903533935547,
+                3.960179165005684,
+                6.976187229156494
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 36099,
+                "previous_end_ms": 36049,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3652210707607142,
+              "hold_error_xyz_mm": [
+                -0.8476488292217255,
+                0.8706450462341309,
+                0.6223320960998535
+              ],
+              "packet_id": "zgz_global:0:36099",
+              "prediction_error_mm": 5.535825770828423,
+              "signed_error_xyz_mm": [
+                3.1912289559841156,
+                -4.435807466506958,
+                -0.8860230445861816
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 38999,
+                "previous_end_ms": 38949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 16.6820065612663,
+              "hold_error_xyz_mm": [
+                3.7330761551856995,
+                -14.197900891304016,
+                -7.922947406768799
+              ],
+              "packet_id": "zgz_global:0:38999",
+              "prediction_error_mm": 21.79115381926104,
+              "signed_error_xyz_mm": [
+                7.20662996172905,
+                -19.686847925186157,
+                -5.945324897766113
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 41899,
+                "previous_end_ms": 41849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 18.573439803233878,
+              "hold_error_xyz_mm": [
+                -1.682749018073082,
+                -17.670772969722748,
+                -5.466699600219727
+              ],
+              "packet_id": "zgz_global:0:41899",
+              "prediction_error_mm": 17.980282118687462,
+              "signed_error_xyz_mm": [
+                -0.32581016421318054,
+                -17.303787171840668,
+                -4.874765872955322
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 4349,
+                "previous_end_ms": 4299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.575510096003052,
+              "hold_error_xyz_mm": [
+                -7.360532879829407,
+                -0.875033438205719,
+                4.312336444854736
+              ],
+              "packet_id": "zgz_global:0:4349",
+              "prediction_error_mm": 4.739959321642422,
+              "signed_error_xyz_mm": [
+                -1.387469470500946,
+                -1.0157302021980286,
+                4.417061805725098
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 44799,
+                "previous_end_ms": 44749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.743227406510638,
+              "hold_error_xyz_mm": [
+                7.133588194847107,
+                -3.6888346076011658,
+                -3.4566521644592285
+              ],
+              "packet_id": "zgz_global:0:44799",
+              "prediction_error_mm": 14.733966556650886,
+              "signed_error_xyz_mm": [
+                14.1468346118927,
+                -3.9460361003875732,
+                -1.1771321296691895
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 47649,
+                "previous_end_ms": 47599,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.136718452558023,
+              "hold_error_xyz_mm": [
+                -7.460486143827438,
+                1.9919006153941154,
+                2.5650858879089355
+              ],
+              "packet_id": "zgz_global:0:47649",
+              "prediction_error_mm": 10.2125945457748,
+              "signed_error_xyz_mm": [
+                -4.388883709907532,
+                5.818452686071396,
+                7.15404748916626
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 50549,
+                "previous_end_ms": 50499,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 11.843331313190102,
+              "hold_error_xyz_mm": [
+                -7.677093148231506,
+                8.647546172142029,
+                2.5586485862731934
+              ],
+              "packet_id": "zgz_global:0:50549",
+              "prediction_error_mm": 3.9420816044983633,
+              "signed_error_xyz_mm": [
+                -1.4050379395484924,
+                2.5447607040405273,
+                2.6627182960510254
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 53449,
+                "previous_end_ms": 53399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 9.825315689766017,
+              "hold_error_xyz_mm": [
+                1.7976388335227966,
+                -8.807342499494553,
+                -3.9668679237365723
+              ],
+              "packet_id": "zgz_global:0:53449",
+              "prediction_error_mm": 12.77081070344971,
+              "signed_error_xyz_mm": [
+                10.533079504966736,
+                -2.44855135679245,
+                6.793558597564697
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 56349,
+                "previous_end_ms": 56299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.0666766271145904,
+              "hold_error_xyz_mm": [
+                -0.7521491497755051,
+                -0.7352158427238464,
+                0.17756223678588867
+              ],
+              "packet_id": "zgz_global:0:56349",
+              "prediction_error_mm": 7.16656420235074,
+              "signed_error_xyz_mm": [
+                2.4009207263588905,
+                -2.383895218372345,
+                6.317615509033203
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 59199,
+                "previous_end_ms": 59149,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.526531682604662,
+              "hold_error_xyz_mm": [
+                -3.3346014097332954,
+                1.05353444814682,
+                4.279375076293945
+              ],
+              "packet_id": "zgz_global:0:59199",
+              "prediction_error_mm": 10.518180823242002,
+              "signed_error_xyz_mm": [
+                -6.542922928929329,
+                -3.596968948841095,
+                7.408380508422852
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 62099,
+                "previous_end_ms": 62049,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.693649351127977,
+              "hold_error_xyz_mm": [
+                -2.8339624404907227,
+                2.139642834663391,
+                1.016676425933838
+              ],
+              "packet_id": "zgz_global:0:62099",
+              "prediction_error_mm": 0.8475038225833724,
+              "signed_error_xyz_mm": [
+                -0.6486177444458008,
+                -0.24402141571044922,
+                -0.48786401748657227
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 64999,
+                "previous_end_ms": 64949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.5510565185640492,
+              "hold_error_xyz_mm": [
+                -1.506175845861435,
+                0.26657432317733765,
+                -0.25719404220581055
+              ],
+              "packet_id": "zgz_global:0:64999",
+              "prediction_error_mm": 4.609517347623114,
+              "signed_error_xyz_mm": [
+                1.1412538588047028,
+                -4.367448389530182,
+                -0.9330511093139648
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 67899,
+                "previous_end_ms": 67849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.29972539682987,
+              "hold_error_xyz_mm": [
+                -5.438424646854401,
+                4.49642539024353,
+                1.868605613708496
+              ],
+              "packet_id": "zgz_global:0:67899",
+              "prediction_error_mm": 10.540953909376519,
+              "signed_error_xyz_mm": [
+                -6.233185529708862,
+                -7.7956244349479675,
+                -3.389298915863037
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 7249,
+                "previous_end_ms": 7199,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.776376683651782,
+              "hold_error_xyz_mm": [
+                -0.7665753364562988,
+                -0.3670603036880493,
+                1.5598535537719727
+              ],
+              "packet_id": "zgz_global:0:7249",
+              "prediction_error_mm": 14.821195762128191,
+              "signed_error_xyz_mm": [
+                12.881532311439514,
+                1.068606972694397,
+                7.252037525177002
+              ]
+            }
+          ],
+          "prediction_error_mm": {
+            "mean": 9.986065187358411,
+            "median": 10.466930951106836,
+            "n": 24
+          },
+          "signed_error_xyz_mm": {
+            "mean": [
+              2.7933745101715126,
+              -2.6807394654800496,
+              1.0672186811765034
+            ],
+            "median": [
+              2.796074841171503,
+              -2.4162232875823975,
+              -0.28640031814575195
+            ],
+            "n": 24
+          },
+          "z_fraction_of_total_squared_error": 0.17180132377325572
+        },
+        "translation_perturbation": {
+          "large": {
+            "amplitude_mm": 50,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 122.57706386256729,
+              "median": 109.55927008463213,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 1892.3926160710066,
+              "median": 1993.4709828521688,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": 8.029976198768104,
+              "median": 5.596775259268121,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 123,
+            "response_squared_mm2": {
+              "mean": 1728.2695230597808,
+              "median": 1803.8184699016927,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 41.54602914865857,
+              "median": 6.330401522224027,
+              "n": 144
+            }
+          },
+          "small": {
+            "amplitude_mm": 5,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 122.57706386256729,
+              "median": 109.55927008463213,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 141.2423853635481,
+              "median": 106.23087177020693,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": -2.3407836032979663,
+              "median": -2.4336738837217298,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 46,
+            "response_squared_mm2": {
+              "mean": 18.202295661215835,
+              "median": 18.336020616183113,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 0.4630258397649768,
+              "median": 0.004923784338584092,
+              "n": 144
+            }
+          }
+        },
+        "wrong_events": {
+          "mirror": {
+            "n_real_strictly_better": 0,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 0.0,
+              "median": 0.0,
+              "n": 240
+            }
+          },
+          "swap": {
+            "n_real_strictly_better": 0,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 0.0,
+              "median": 0.0,
+              "n": 240
+            }
+          }
+        }
+      },
+      "zgz_local": {
+        "clean": {
+          "hold_error_mm": {
+            "mean": 3.0440307865041967,
+            "median": 3.1970226301924884,
+            "n": 24
+          },
+          "hold_signed_error_xyz_mm": {
+            "mean": [
+              0.4727204019824664,
+              -0.8228733107292404,
+              0.010815759499867758
+            ],
+            "median": [
+              -0.07144734263420105,
+              -0.5621277377940714,
+              0.1461505889892578
+            ],
+            "n": 24
+          },
+          "improvement_over_hold_mm": {
+            "mean": -54.920507950760545,
+            "median": -55.26596971413279,
+            "n": 24
+          },
+          "n_strictly_better_than_hold": 0,
+          "packets": [
+            {
+              "clock": {
+                "end_ms": 11299,
+                "previous_end_ms": 11249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.901312313749734,
+              "hold_error_xyz_mm": [
+                -3.5124942660331726,
+                1.6018194146454334,
+                0.5628466606140137
+              ],
+              "packet_id": "zgz_local:0:11299",
+              "prediction_error_mm": 58.90847284096424,
+              "signed_error_xyz_mm": [
+                -1.355282962322235,
+                12.232770677655935,
+                -57.60842561721802
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 1299,
+                "previous_end_ms": 1249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3948122828714498,
+              "hold_error_xyz_mm": [
+                -0.10944157838821411,
+                0.41303224861621857,
+                1.3277530670166016
+              ],
+              "packet_id": "zgz_local:0:1299",
+              "prediction_error_mm": 43.196716821359445,
+              "signed_error_xyz_mm": [
+                -1.3000518083572388,
+                12.190235778689384,
+                -41.420578956604004
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 3799,
+                "previous_end_ms": 3749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.396019972542903,
+              "hold_error_xyz_mm": [
+                2.271093428134918,
+                -0.5742767825722694,
+                -0.503242015838623
+              ],
+              "packet_id": "zgz_local:0:3799",
+              "prediction_error_mm": 69.78594447362178,
+              "signed_error_xyz_mm": [
+                -0.46025216579437256,
+                12.014209292829037,
+                -68.74245405197144
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 6299,
+                "previous_end_ms": 6249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.9610399222153383,
+              "hold_error_xyz_mm": [
+                -0.08255243301391602,
+                -1.718892715871334,
+                -2.409636974334717
+              ],
+              "packet_id": "zgz_local:0:6299",
+              "prediction_error_mm": 80.18932689195583,
+              "signed_error_xyz_mm": [
+                12.784041464328766,
+                9.078784845769405,
+                -78.64141464233398
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 8799,
+                "previous_end_ms": 8749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.6040531697398794,
+              "hold_error_xyz_mm": [
+                1.4600232243537903,
+                0.5262093618512154,
+                0.4054903984069824
+              ],
+              "packet_id": "zgz_local:0:8799",
+              "prediction_error_mm": 58.49686279960647,
+              "signed_error_xyz_mm": [
+                3.1633228063583374,
+                13.632014393806458,
+                -56.79827928543091
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 14592,
+                "previous_end_ms": 14542,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.04156312456108,
+              "hold_error_xyz_mm": [
+                3.5004839301109314,
+                -1.0884925723075867,
+                1.7017722129821777
+              ],
+              "packet_id": "zgz_local:13:14592",
+              "prediction_error_mm": 59.40430217473855,
+              "signed_error_xyz_mm": [
+                6.874695420265198,
+                22.78420887887478,
+                -54.42875623703003
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 19026,
+                "previous_end_ms": 18976,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.785235479512232,
+              "hold_error_xyz_mm": [
+                3.7493854761123657,
+                -0.21095317788422108,
+                0.4749894142150879
+              ],
+              "packet_id": "zgz_local:47:19026",
+              "prediction_error_mm": 58.954435857600345,
+              "signed_error_xyz_mm": [
+                10.362528264522552,
+                20.46905132010579,
+                -54.30710315704346
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 21897,
+                "previous_end_ms": 21848,
+                "query_start_offset_ms": 0,
+                "state_interval_ms": 49
+              },
+              "hold_error_mm": 3.7530567468153717,
+              "hold_error_xyz_mm": [
+                2.882041037082672,
+                -1.593778608366847,
+                1.79976224899292
+              ],
+              "packet_id": "zgz_local:54:21897",
+              "prediction_error_mm": 56.42263955928074,
+              "signed_error_xyz_mm": [
+                21.403327584266663,
+                11.505752336233854,
+                -50.92179775238037
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 25536,
+                "previous_end_ms": 25486,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.115908155239081,
+              "hold_error_xyz_mm": [
+                0.8198767900466919,
+                -0.3371771890670061,
+                0.6777644157409668
+              ],
+              "packet_id": "zgz_local:74:25536",
+              "prediction_error_mm": 57.927649944703006,
+              "signed_error_xyz_mm": [
+                15.30482992529869,
+                15.052902977913618,
+                -53.803205490112305
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 28086,
+                "previous_end_ms": 28036,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.597312714693755,
+              "hold_error_xyz_mm": [
+                -1.6565993428230286,
+                -3.1895595602691174,
+                0.15181303024291992
+              ],
+              "packet_id": "zgz_local:75:28086",
+              "prediction_error_mm": 77.29292799976064,
+              "signed_error_xyz_mm": [
+                30.456606298685074,
+                -0.8118245750665665,
+                -71.03472948074341
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 30791,
+                "previous_end_ms": 30741,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.4511332924313445,
+              "hold_error_xyz_mm": [
+                -2.1438375115394592,
+                -4.988095257431269,
+                -0.4875659942626953
+              ],
+              "packet_id": "zgz_local:79:30791",
+              "prediction_error_mm": 78.82881497844473,
+              "signed_error_xyz_mm": [
+                30.95075860619545,
+                -4.206378012895584,
+                -72.37637042999268
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 33374,
+                "previous_end_ms": 33324,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.6400241631173555,
+              "hold_error_xyz_mm": [
+                -0.6499961018562317,
+                -4.592089913785458,
+                -0.14156103134155273
+              ],
+              "packet_id": "zgz_local:80:33374",
+              "prediction_error_mm": 60.610760078042304,
+              "signed_error_xyz_mm": [
+                31.504206359386444,
+                24.658498587086797,
+                -45.531392097473145
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 35924,
+                "previous_end_ms": 35874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.45935120398627455,
+              "hold_error_xyz_mm": [
+                0.39630383253097534,
+                0.13245479203760624,
+                -0.1907944679260254
+              ],
+              "packet_id": "zgz_local:80:35924",
+              "prediction_error_mm": 41.75269512119161,
+              "signed_error_xyz_mm": [
+                15.380233526229858,
+                19.55431792885065,
+                -33.5315465927124
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 38424,
+                "previous_end_ms": 38374,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.4189678244984172,
+              "hold_error_xyz_mm": [
+                -0.326644629240036,
+                -0.23583369329571724,
+                -0.11497735977172852
+              ],
+              "packet_id": "zgz_local:80:38424",
+              "prediction_error_mm": 43.53824537657892,
+              "signed_error_xyz_mm": [
+                -0.44025108218193054,
+                15.226331073790789,
+                -40.786564350128174
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 40924,
+                "previous_end_ms": 40874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.049179548812672,
+              "hold_error_xyz_mm": [
+                -0.060342252254486084,
+                -1.8295148620381951,
+                0.9210705757141113
+              ],
+              "packet_id": "zgz_local:80:40924",
+              "prediction_error_mm": 36.78840146690575,
+              "signed_error_xyz_mm": [
+                10.245967656373978,
+                14.124694163911045,
+                -32.386720180511475
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 43424,
+                "previous_end_ms": 43374,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.070349069630675,
+              "hold_error_xyz_mm": [
+                0.9138509631156921,
+                -0.5499786930158734,
+                0.08970499038696289
+              ],
+              "packet_id": "zgz_local:80:43424",
+              "prediction_error_mm": 43.7892963695421,
+              "signed_error_xyz_mm": [
+                14.227762818336487,
+                12.998638092540205,
+                -39.32058811187744
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 45924,
+                "previous_end_ms": 45874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.7210608419774723,
+              "hold_error_xyz_mm": [
+                -0.29759109020233154,
+                0.523245194926858,
+                0.39696693420410156
+              ],
+              "packet_id": "zgz_local:80:45924",
+              "prediction_error_mm": 56.23702441245347,
+              "signed_error_xyz_mm": [
+                -3.093719482421875,
+                21.61286771297455,
+                -51.82582139968872
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 48532,
+                "previous_end_ms": 48482,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 6.114360309355983,
+              "hold_error_xyz_mm": [
+                -0.30366331338882446,
+                -5.7779778726398945,
+                -1.9769072532653809
+              ],
+              "packet_id": "zgz_local:82:48532",
+              "prediction_error_mm": 92.54555982823565,
+              "signed_error_xyz_mm": [
+                35.639964044094086,
+                -8.014207240194082,
+                -85.03085374832153
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 51168,
+                "previous_end_ms": 51118,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.211498148903338,
+              "hold_error_xyz_mm": [
+                6.087549030780792,
+                -3.665229771286249,
+                -4.115402698516846
+              ],
+              "packet_id": "zgz_local:84:51168",
+              "prediction_error_mm": 44.03857101366629,
+              "signed_error_xyz_mm": [
+                9.467899799346924,
+                16.226510982960463,
+                -39.83032703399658
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 53668,
+                "previous_end_ms": 53618,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.4739972984781597,
+              "hold_error_xyz_mm": [
+                -0.41860342025756836,
+                3.257209435105324,
+                1.1331439018249512
+              ],
+              "packet_id": "zgz_local:84:53668",
+              "prediction_error_mm": 56.40696056686187,
+              "signed_error_xyz_mm": [
+                30.352715402841568,
+                25.30896756798029,
+                -40.24815559387207
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 56303,
+                "previous_end_ms": 56253,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.2408227602536788,
+              "hold_error_xyz_mm": [
+                1.3625696301460266,
+                -0.6869425997138023,
+                1.6409754753112793
+              ],
+              "packet_id": "zgz_local:86:56303",
+              "prediction_error_mm": 34.18391579080527,
+              "signed_error_xyz_mm": [
+                1.103132963180542,
+                11.35504525154829,
+                -32.22399950027466
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 58803,
+                "previous_end_ms": 58753,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.4330053381696386,
+              "hold_error_xyz_mm": [
+                -3.216419368982315,
+                1.182072563096881,
+                -0.20706653594970703
+              ],
+              "packet_id": "zgz_local:86:58803",
+              "prediction_error_mm": 64.85856014388747,
+              "signed_error_xyz_mm": [
+                19.63319256901741,
+                27.358146151527762,
+                -55.43196201324463
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 61505,
+                "previous_end_ms": 61455,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.867292101155375,
+              "hold_error_xyz_mm": [
+                1.7984434962272644,
+                4.406835418194532,
+                -1.0178089141845703
+              ],
+              "packet_id": "zgz_local:89:61505",
+              "prediction_error_mm": 73.04449981047581,
+              "signed_error_xyz_mm": [
+                37.647951394319534,
+                7.241556653752923,
+                -62.17467784881592
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 64005,
+                "previous_end_ms": 63955,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3553830933895101,
+              "hold_error_xyz_mm": [
+                -1.1181458830833435,
+                -0.7530446164309978,
+                0.1404881477355957
+              ],
+              "packet_id": "zgz_local:89:64005",
+              "prediction_error_mm": 43.94634537367155,
+              "signed_error_xyz_mm": [
+                9.801149368286133,
+                17.44010578840971,
+                -39.128780364990234
+              ]
+            }
+          ],
+          "prediction_error_mm": {
+            "mean": 57.96453873726474,
+            "median": 58.21225637215474,
+            "n": 24
+          },
+          "signed_error_xyz_mm": {
+            "mean": [
+              14.152280365427336,
+              13.709716692877313,
+              -52.39727099736532
+            ],
+            "median": [
+              11.57328486442566,
+              13.878354278858751,
+              -52.81451344490051
+            ],
+            "n": 24
+          },
+          "z_fraction_of_total_squared_error": 0.8261975417722343
+        },
+        "translation_perturbation": {
+          "large": {
+            "amplitude_mm": 50,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 3577.6688818278963,
+              "median": 3388.7477927560167,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 4527.613712930706,
+              "median": 4362.258840139704,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": -15.716822481222955,
+              "median": -15.845075436566457,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 17,
+            "response_squared_mm2": {
+              "mean": 631.9133552404559,
+              "median": 568.8902681266995,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 318.03147586235445,
+              "median": 310.9000585635188,
+              "n": 144
+            }
+          },
+          "small": {
+            "amplitude_mm": 5,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 3577.6688818278963,
+              "median": 3388.7477927560167,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 3588.3796544837323,
+              "median": 3394.526087305577,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": -52.22804764014077,
+              "median": -52.34239029171792,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 0,
+            "response_squared_mm2": {
+              "mean": 6.980177962618793,
+              "median": 6.455407716655621,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 3.730594693216927,
+              "median": 5.959894641032307,
+              "n": 144
+            }
+          }
+        },
+        "wrong_events": {
+          "mirror": {
+            "n_real_strictly_better": 0,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 0.0,
+              "median": 0.0,
+              "n": 240
+            }
+          },
+          "swap": {
+            "n_real_strictly_better": 0,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 0.0,
+              "median": 0.0,
+              "n": 240
+            }
+          }
+        }
+      }
+    },
+    "xdl_q0_s3407": {
+      "zgz_global": {
+        "clean": {
+          "hold_error_mm": {
+            "mean": 6.65169222436425,
+            "median": 6.371814446967667,
+            "n": 24
+          },
+          "hold_signed_error_xyz_mm": {
+            "mean": [
+              -1.4598094470178087,
+              -0.3212277079001069,
+              0.3962963819503784
+            ],
+            "median": [
+              -1.3112295418977737,
+              0.3252516034990549,
+              0.5907714366912842
+            ],
+            "n": 24
+          },
+          "improvement_over_hold_mm": {
+            "mean": -1.8253203886050227,
+            "median": -0.46366012794897415,
+            "n": 24
+          },
+          "n_strictly_better_than_hold": 10,
+          "packets": [
+            {
+              "clock": {
+                "end_ms": 10149,
+                "previous_end_ms": 10099,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 11.920104960076985,
+              "hold_error_xyz_mm": [
+                -1.1162832379341125,
+                11.618822813034058,
+                2.4178028106689453
+              ],
+              "packet_id": "zgz_global:0:10149",
+              "prediction_error_mm": 6.922030029736283,
+              "signed_error_xyz_mm": [
+                5.570836365222931,
+                2.8900355100631714,
+                2.9202699661254883
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 12999,
+                "previous_end_ms": 12949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.866742687887347,
+              "hold_error_xyz_mm": [
+                -0.4642680287361145,
+                2.773076295852661,
+                0.5592107772827148
+              ],
+              "packet_id": "zgz_global:0:12999",
+              "prediction_error_mm": 12.963942868646273,
+              "signed_error_xyz_mm": [
+                7.990546524524689,
+                1.6639530658721924,
+                10.072052478790283
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 1449,
+                "previous_end_ms": 1399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.344272984652106,
+              "hold_error_xyz_mm": [
+                -5.552597343921661,
+                -0.07814541459083557,
+                4.806339740753174
+              ],
+              "packet_id": "zgz_global:0:1449",
+              "prediction_error_mm": 4.284130705912077,
+              "signed_error_xyz_mm": [
+                2.0071305334568024,
+                3.3358298242092133,
+                1.7881393432617188
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 15899,
+                "previous_end_ms": 15849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.100186741996676,
+              "hold_error_xyz_mm": [
+                4.4847168028354645,
+                1.7201155424118042,
+                1.714766025543213
+              ],
+              "packet_id": "zgz_global:0:15899",
+              "prediction_error_mm": 4.709815250170534,
+              "signed_error_xyz_mm": [
+                1.05951726436615,
+                2.565520815551281,
+                3.8049817085266113
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 18799,
+                "previous_end_ms": 18749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 10.510797827648863,
+              "hold_error_xyz_mm": [
+                -9.707652032375336,
+                0.2525448799133301,
+                4.021763801574707
+              ],
+              "packet_id": "zgz_global:0:18799",
+              "prediction_error_mm": 7.154663542832744,
+              "signed_error_xyz_mm": [
+                3.506883978843689,
+                -1.209646463394165,
+                6.117820739746094
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 21699,
+                "previous_end_ms": 21649,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.217097211330671,
+              "hold_error_xyz_mm": [
+                6.859190762042999,
+                1.3865474611520767,
+                -1.7650723457336426
+              ],
+              "packet_id": "zgz_global:0:21699",
+              "prediction_error_mm": 7.520907262163806,
+              "signed_error_xyz_mm": [
+                -1.8382146954536438,
+                -1.2848880141973495,
+                7.1787238121032715
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 24549,
+                "previous_end_ms": 24499,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.6254814163372906,
+              "hold_error_xyz_mm": [
+                -0.4692748188972473,
+                0.379219651222229,
+                0.16492605209350586
+              ],
+              "packet_id": "zgz_global:0:24549",
+              "prediction_error_mm": 12.791957404562677,
+              "signed_error_xyz_mm": [
+                2.953067421913147,
+                -0.47388672828674316,
+                12.437403202056885
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 27449,
+                "previous_end_ms": 27399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.759457605268689,
+              "hold_error_xyz_mm": [
+                3.512432798743248,
+                0.9723934344947338,
+                -0.9223818778991699
+              ],
+              "packet_id": "zgz_global:0:27449",
+              "prediction_error_mm": 2.97571886655228,
+              "signed_error_xyz_mm": [
+                0.5166009068489075,
+                0.6511886604130268,
+                2.8572678565979004
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 30349,
+                "previous_end_ms": 30299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.958539227097348,
+              "hold_error_xyz_mm": [
+                -1.9303485751152039,
+                -0.12943148612976074,
+                0.30475854873657227
+              ],
+              "packet_id": "zgz_global:0:30349",
+              "prediction_error_mm": 11.171537097061742,
+              "signed_error_xyz_mm": [
+                1.0856017470359802,
+                4.906386137008667,
+                9.977579116821289
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 33249,
+                "previous_end_ms": 33199,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.679146069264337,
+              "hold_error_xyz_mm": [
+                -3.655247390270233,
+                0.2712835557758808,
+                0.31888484954833984
+              ],
+              "packet_id": "zgz_global:0:33249",
+              "prediction_error_mm": 10.416251855311366,
+              "signed_error_xyz_mm": [
+                -1.187644898891449,
+                2.7559353038668633,
+                9.97459888458252
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 36099,
+                "previous_end_ms": 36049,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3652210707607142,
+              "hold_error_xyz_mm": [
+                -0.8476488292217255,
+                0.8706450462341309,
+                0.6223320960998535
+              ],
+              "packet_id": "zgz_global:0:36099",
+              "prediction_error_mm": 7.702622187532753,
+              "signed_error_xyz_mm": [
+                2.9230117797851562,
+                -0.2688467502593994,
+                7.121384143829346
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 38999,
+                "previous_end_ms": 38949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 16.6820065612663,
+              "hold_error_xyz_mm": [
+                3.7330761551856995,
+                -14.197900891304016,
+                -7.922947406768799
+              ],
+              "packet_id": "zgz_global:0:38999",
+              "prediction_error_mm": 11.501548875928881,
+              "signed_error_xyz_mm": [
+                2.5799795985221863,
+                -3.9065778255462646,
+                10.505616664886475
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 41899,
+                "previous_end_ms": 41849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 18.573439803233878,
+              "hold_error_xyz_mm": [
+                -1.682749018073082,
+                -17.670772969722748,
+                -5.466699600219727
+              ],
+              "packet_id": "zgz_global:0:41899",
+              "prediction_error_mm": 8.47594699171954,
+              "signed_error_xyz_mm": [
+                -3.9344169199466705,
+                -1.8044635653495789,
+                7.287383079528809
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 4349,
+                "previous_end_ms": 4299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.575510096003052,
+              "hold_error_xyz_mm": [
+                -7.360532879829407,
+                -0.875033438205719,
+                4.312336444854736
+              ],
+              "packet_id": "zgz_global:0:4349",
+              "prediction_error_mm": 7.3836977127063435,
+              "signed_error_xyz_mm": [
+                4.679881036281586,
+                1.6162358224391937,
+                5.477726459503174
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 44799,
+                "previous_end_ms": 44749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.743227406510638,
+              "hold_error_xyz_mm": [
+                7.133588194847107,
+                -3.6888346076011658,
+                -3.4566521644592285
+              ],
+              "packet_id": "zgz_global:0:44799",
+              "prediction_error_mm": 8.654371866155017,
+              "signed_error_xyz_mm": [
+                4.030019044876099,
+                0.7067173719406128,
+                7.6261162757873535
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 47649,
+                "previous_end_ms": 47599,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.136718452558023,
+              "hold_error_xyz_mm": [
+                -7.460486143827438,
+                1.9919006153941154,
+                2.5650858879089355
+              ],
+              "packet_id": "zgz_global:0:47649",
+              "prediction_error_mm": 11.675814586921632,
+              "signed_error_xyz_mm": [
+                -0.9808093309402466,
+                -0.7774541154503822,
+                11.608541011810303
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 50549,
+                "previous_end_ms": 50499,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 11.843331313190102,
+              "hold_error_xyz_mm": [
+                -7.677093148231506,
+                8.647546172142029,
+                2.5586485862731934
+              ],
+              "packet_id": "zgz_global:0:50549",
+              "prediction_error_mm": 8.243864253050877,
+              "signed_error_xyz_mm": [
+                5.753550678491592,
+                2.4059563875198364,
+                5.391597747802734
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 53449,
+                "previous_end_ms": 53399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 9.825315689766017,
+              "hold_error_xyz_mm": [
+                1.7976388335227966,
+                -8.807342499494553,
+                -3.9668679237365723
+              ],
+              "packet_id": "zgz_global:0:53449",
+              "prediction_error_mm": 9.988408947588775,
+              "signed_error_xyz_mm": [
+                -1.3673380017280579,
+                1.117996871471405,
+                9.831011295318604
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 56349,
+                "previous_end_ms": 56299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.0666766271145904,
+              "hold_error_xyz_mm": [
+                -0.7521491497755051,
+                -0.7352158427238464,
+                0.17756223678588867
+              ],
+              "packet_id": "zgz_global:0:56349",
+              "prediction_error_mm": 6.754591861461532,
+              "signed_error_xyz_mm": [
+                2.136391121894121,
+                2.9677972197532654,
+                5.679130554199219
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 59199,
+                "previous_end_ms": 59149,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.526531682604662,
+              "hold_error_xyz_mm": [
+                -3.3346014097332954,
+                1.05353444814682,
+                4.279375076293945
+              ],
+              "packet_id": "zgz_global:0:59199",
+              "prediction_error_mm": 11.020436639090967,
+              "signed_error_xyz_mm": [
+                4.8361048102378845,
+                3.178991377353668,
+                9.378492832183838
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 62099,
+                "previous_end_ms": 62049,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.693649351127977,
+              "hold_error_xyz_mm": [
+                -2.8339624404907227,
+                2.139642834663391,
+                1.016676425933838
+              ],
+              "packet_id": "zgz_global:0:62099",
+              "prediction_error_mm": 5.072091224141954,
+              "signed_error_xyz_mm": [
+                4.327457398176193,
+                1.7028003931045532,
+                2.0247697830200195
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 64999,
+                "previous_end_ms": 64949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.5510565185640492,
+              "hold_error_xyz_mm": [
+                -1.506175845861435,
+                0.26657432317733765,
+                -0.25719404220581055
+              ],
+              "packet_id": "zgz_global:0:64999",
+              "prediction_error_mm": 2.174566723628863,
+              "signed_error_xyz_mm": [
+                -1.8012858927249908,
+                -1.0902658104896545,
+                0.5435347557067871
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 67899,
+                "previous_end_ms": 67849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.29972539682987,
+              "hold_error_xyz_mm": [
+                -5.438424646854401,
+                4.49642539024353,
+                1.868605613708496
+              ],
+              "packet_id": "zgz_global:0:67899",
+              "prediction_error_mm": 9.705620087637328,
+              "signed_error_xyz_mm": [
+                6.208211183547974,
+                -2.8974339365959167,
+                -6.874740123748779
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 7249,
+                "previous_end_ms": 7199,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.776376683651782,
+              "hold_error_xyz_mm": [
+                -0.7665753364562988,
+                -0.3670603036880493,
+                1.5598535537719727
+              ],
+              "packet_id": "zgz_global:0:7249",
+              "prediction_error_mm": 14.183765870748278,
+              "signed_error_xyz_mm": [
+                -1.9876360893249512,
+                -0.38157403469085693,
+                14.038622379302979
+              ]
+            }
+          ],
+          "prediction_error_mm": {
+            "mean": 8.477012612969272,
+            "median": 8.35990562238521,
+            "n": 24
+          },
+          "signed_error_xyz_mm": {
+            "mean": [
+              2.0444768985422948,
+              0.76542947984611,
+              6.532000998655955
+            ],
+            "median": [
+              2.3581853602081537,
+              0.9123571217060089,
+              7.150053977966309
+            ],
+            "n": 24
+          },
+          "z_fraction_of_total_squared_error": 0.770594973503158
+        },
+        "translation_perturbation": {
+          "large": {
+            "amplitude_mm": 50,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 81.66229507750826,
+              "median": 69.90148761458481,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 1040.1034440191797,
+              "median": 861.5498064096782,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": 21.185135431795214,
+              "median": 21.18944238927978,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 135,
+            "response_squared_mm2": {
+              "mean": 750.497938422663,
+              "median": 642.4199442661496,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 207.94321051900837,
+              "median": 204.1454182467317,
+              "n": 144
+            }
+          },
+          "small": {
+            "amplitude_mm": 5,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 81.66229507750826,
+              "median": 69.90148761458481,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 117.42336830036169,
+              "median": 86.23224036141686,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": -1.3394302323455576,
+              "median": -0.9533997786937256,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 62,
+            "response_squared_mm2": {
+              "mean": 15.95787697668252,
+              "median": 11.36839110586936,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 19.803196246170906,
+              "median": 9.633959361599054,
+              "n": 144
+            }
+          }
+        },
+        "wrong_events": {
+          "mirror": {
+            "n_real_strictly_better": 226,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 61.58717022119838,
+              "median": 48.87710674220402,
+              "n": 240
+            }
+          },
+          "swap": {
+            "n_real_strictly_better": 124,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": -0.10289124626417377,
+              "median": 0.10090402225178957,
+              "n": 240
+            }
+          }
+        }
+      },
+      "zgz_local": {
+        "clean": {
+          "hold_error_mm": {
+            "mean": 3.0440307865041967,
+            "median": 3.1970226301924884,
+            "n": 24
+          },
+          "hold_signed_error_xyz_mm": {
+            "mean": [
+              0.4727204019824664,
+              -0.8228733107292404,
+              0.010815759499867758
+            ],
+            "median": [
+              -0.07144734263420105,
+              -0.5621277377940714,
+              0.1461505889892578
+            ],
+            "n": 24
+          },
+          "improvement_over_hold_mm": {
+            "mean": -50.70825570862504,
+            "median": -50.33908590965451,
+            "n": 24
+          },
+          "n_strictly_better_than_hold": 0,
+          "packets": [
+            {
+              "clock": {
+                "end_ms": 11299,
+                "previous_end_ms": 11249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.901312313749734,
+              "hold_error_xyz_mm": [
+                -3.5124942660331726,
+                1.6018194146454334,
+                0.5628466606140137
+              ],
+              "packet_id": "zgz_local:0:11299",
+              "prediction_error_mm": 58.712047747874216,
+              "signed_error_xyz_mm": [
+                -1.1799857020378113,
+                15.302110463380814,
+                -56.67060613632202
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 1299,
+                "previous_end_ms": 1249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3948122828714498,
+              "hold_error_xyz_mm": [
+                -0.10944157838821411,
+                0.41303224861621857,
+                1.3277530670166016
+              ],
+              "packet_id": "zgz_local:0:1299",
+              "prediction_error_mm": 93.66948528850641,
+              "signed_error_xyz_mm": [
+                4.694335162639618,
+                19.98821459710598,
+                -91.39150381088257
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 3799,
+                "previous_end_ms": 3749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.396019972542903,
+              "hold_error_xyz_mm": [
+                2.271093428134918,
+                -0.5742767825722694,
+                -0.503242015838623
+              ],
+              "packet_id": "zgz_local:0:3799",
+              "prediction_error_mm": 56.971490611400355,
+              "signed_error_xyz_mm": [
+                6.028629839420319,
+                19.102620892226696,
+                -53.3338189125061
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 6299,
+                "previous_end_ms": 6249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.9610399222153383,
+              "hold_error_xyz_mm": [
+                -0.08255243301391602,
+                -1.718892715871334,
+                -2.409636974334717
+              ],
+              "packet_id": "zgz_local:0:6299",
+              "prediction_error_mm": 59.216743248370214,
+              "signed_error_xyz_mm": [
+                7.076840847730637,
+                8.815404027700424,
+                -58.12770128250122
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 8799,
+                "previous_end_ms": 8749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.6040531697398794,
+              "hold_error_xyz_mm": [
+                1.4600232243537903,
+                0.5262093618512154,
+                0.4054903984069824
+              ],
+              "packet_id": "zgz_local:0:8799",
+              "prediction_error_mm": 75.621524763555,
+              "signed_error_xyz_mm": [
+                1.762494444847107,
+                36.654332652688026,
+                -66.12086296081543
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 14592,
+                "previous_end_ms": 14542,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.04156312456108,
+              "hold_error_xyz_mm": [
+                3.5004839301109314,
+                -1.0884925723075867,
+                1.7017722129821777
+              ],
+              "packet_id": "zgz_local:13:14592",
+              "prediction_error_mm": 48.62895000163816,
+              "signed_error_xyz_mm": [
+                0.004023313522338867,
+                8.697872050106525,
+                -47.844767570495605
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 19026,
+                "previous_end_ms": 18976,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.785235479512232,
+              "hold_error_xyz_mm": [
+                3.7493854761123657,
+                -0.21095317788422108,
+                0.4749894142150879
+              ],
+              "packet_id": "zgz_local:47:19026",
+              "prediction_error_mm": 51.38803181507977,
+              "signed_error_xyz_mm": [
+                -1.7612650990486145,
+                27.70232642069459,
+                -43.245911598205566
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 21897,
+                "previous_end_ms": 21848,
+                "query_start_offset_ms": 0,
+                "state_interval_ms": 49
+              },
+              "hold_error_mm": 3.7530567468153717,
+              "hold_error_xyz_mm": [
+                2.882041037082672,
+                -1.593778608366847,
+                1.79976224899292
+              ],
+              "packet_id": "zgz_local:54:21897",
+              "prediction_error_mm": 31.75430398790081,
+              "signed_error_xyz_mm": [
+                8.04583728313446,
+                5.164470057934523,
+                -30.28082847595215
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 25536,
+                "previous_end_ms": 25486,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.115908155239081,
+              "hold_error_xyz_mm": [
+                0.8198767900466919,
+                -0.3371771890670061,
+                0.6777644157409668
+              ],
+              "packet_id": "zgz_local:74:25536",
+              "prediction_error_mm": 43.0132296660067,
+              "signed_error_xyz_mm": [
+                1.9415989518165588,
+                12.582604307681322,
+                -41.08583927154541
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 28086,
+                "previous_end_ms": 28036,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.597312714693755,
+              "hold_error_xyz_mm": [
+                -1.6565993428230286,
+                -3.1895595602691174,
+                0.15181303024291992
+              ],
+              "packet_id": "zgz_local:75:28086",
+              "prediction_error_mm": 61.049670649727716,
+              "signed_error_xyz_mm": [
+                9.953010827302933,
+                8.039544802159071,
+                -59.69393253326416
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 30791,
+                "previous_end_ms": 30741,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.4511332924313445,
+              "hold_error_xyz_mm": [
+                -2.1438375115394592,
+                -4.988095257431269,
+                -0.4875659942626953
+              ],
+              "packet_id": "zgz_local:79:30791",
+              "prediction_error_mm": 58.89251752312505,
+              "signed_error_xyz_mm": [
+                8.763536810874939,
+                12.406026013195515,
+                -56.900084018707275
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 33374,
+                "previous_end_ms": 33324,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.6400241631173555,
+              "hold_error_xyz_mm": [
+                -0.6499961018562317,
+                -4.592089913785458,
+                -0.14156103134155273
+              ],
+              "packet_id": "zgz_local:80:33374",
+              "prediction_error_mm": 41.28324018003452,
+              "signed_error_xyz_mm": [
+                3.488045185804367,
+                9.59213194437325,
+                -40.001630783081055
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 35924,
+                "previous_end_ms": 35874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.45935120398627455,
+              "hold_error_xyz_mm": [
+                0.39630383253097534,
+                0.13245479203760624,
+                -0.1907944679260254
+              ],
+              "packet_id": "zgz_local:80:35924",
+              "prediction_error_mm": 34.97248865525422,
+              "signed_error_xyz_mm": [
+                -0.7733330130577087,
+                11.250349693000317,
+                -33.10447931289673
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 38424,
+                "previous_end_ms": 38374,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.4189678244984172,
+              "hold_error_xyz_mm": [
+                -0.326644629240036,
+                -0.23583369329571724,
+                -0.11497735977172852
+              ],
+              "packet_id": "zgz_local:80:38424",
+              "prediction_error_mm": 44.09917290646532,
+              "signed_error_xyz_mm": [
+                -3.3183470368385315,
+                4.323653411120176,
+                -43.76107454299927
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 40924,
+                "previous_end_ms": 40874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.049179548812672,
+              "hold_error_xyz_mm": [
+                -0.060342252254486084,
+                -1.8295148620381951,
+                0.9210705757141113
+              ],
+              "packet_id": "zgz_local:80:40924",
+              "prediction_error_mm": 63.86244403614385,
+              "signed_error_xyz_mm": [
+                -9.217943996191025,
+                -9.150597383268178,
+                -62.52765655517578
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 43424,
+                "previous_end_ms": 43374,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.070349069630675,
+              "hold_error_xyz_mm": [
+                0.9138509631156921,
+                -0.5499786930158734,
+                0.08970499038696289
+              ],
+              "packet_id": "zgz_local:80:43424",
+              "prediction_error_mm": 58.14865149671327,
+              "signed_error_xyz_mm": [
+                -2.9007792472839355,
+                16.87363476958126,
+                -55.57096004486084
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 45924,
+                "previous_end_ms": 45874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.7210608419774723,
+              "hold_error_xyz_mm": [
+                -0.29759109020233154,
+                0.523245194926858,
+                0.39696693420410156
+              ],
+              "packet_id": "zgz_local:80:45924",
+              "prediction_error_mm": 49.002174606773856,
+              "signed_error_xyz_mm": [
+                0.8163563907146454,
+                26.16874687373638,
+                -41.42153263092041
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 48532,
+                "previous_end_ms": 48482,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 6.114360309355983,
+              "hold_error_xyz_mm": [
+                -0.30366331338882446,
+                -5.7779778726398945,
+                -1.9769072532653809
+              ],
+              "packet_id": "zgz_local:82:48532",
+              "prediction_error_mm": 86.4186923690728,
+              "signed_error_xyz_mm": [
+                3.1848736107349396,
+                12.563554104417562,
+                -85.4412317276001
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 51168,
+                "previous_end_ms": 51118,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.211498148903338,
+              "hold_error_xyz_mm": [
+                6.087549030780792,
+                -3.665229771286249,
+                -4.115402698516846
+              ],
+              "packet_id": "zgz_local:84:51168",
+              "prediction_error_mm": 39.771421895195196,
+              "signed_error_xyz_mm": [
+                3.675393760204315,
+                11.849941220134497,
+                -37.78672218322754
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 53668,
+                "previous_end_ms": 53618,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.4739972984781597,
+              "hold_error_xyz_mm": [
+                -0.41860342025756836,
+                3.257209435105324,
+                1.1331439018249512
+              ],
+              "packet_id": "zgz_local:84:53668",
+              "prediction_error_mm": 36.27242044995248,
+              "signed_error_xyz_mm": [
+                9.734712541103363,
+                10.375555604696274,
+                -33.365726470947266
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 56303,
+                "previous_end_ms": 56253,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.2408227602536788,
+              "hold_error_xyz_mm": [
+                1.3625696301460266,
+                -0.6869425997138023,
+                1.6409754753112793
+              ],
+              "packet_id": "zgz_local:86:56303",
+              "prediction_error_mm": 48.10967732018857,
+              "signed_error_xyz_mm": [
+                6.777390837669373,
+                26.28806373104453,
+                -39.71832990646362
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 58803,
+                "previous_end_ms": 58753,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.4330053381696386,
+              "hold_error_xyz_mm": [
+                -3.216419368982315,
+                1.182072563096881,
+                -0.20706653594970703
+              ],
+              "packet_id": "zgz_local:86:58803",
+              "prediction_error_mm": 37.038430396433405,
+              "signed_error_xyz_mm": [
+                -3.4456364810466766,
+                4.433786263689399,
+                -36.610305309295654
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 61505,
+                "previous_end_ms": 61455,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.867292101155375,
+              "hold_error_xyz_mm": [
+                1.7984434962272644,
+                4.406835418194532,
+                -1.0178089141845703
+              ],
+              "packet_id": "zgz_local:89:61505",
+              "prediction_error_mm": 58.40562511978769,
+              "signed_error_xyz_mm": [
+                8.15584510564804,
+                14.130149502307177,
+                -56.080639362335205
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 64005,
+                "previous_end_ms": 63955,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3553830933895101,
+              "hold_error_xyz_mm": [
+                -1.1181458830833435,
+                -0.7530446164309978,
+                0.1404881477355957
+              ],
+              "packet_id": "zgz_local:89:64005",
+              "prediction_error_mm": 53.752441147902154,
+              "signed_error_xyz_mm": [
+                3.882087767124176,
+                11.82458782568574,
+                -52.291810512542725
+              ]
+            }
+          ],
+          "prediction_error_mm": {
+            "mean": 53.75228649512923,
+            "median": 52.57023648149096,
+            "n": 24
+          },
+          "signed_error_xyz_mm": {
+            "mean": [
+              2.724488421032826,
+              13.540795160224661,
+              -50.93241482973099
+            ],
+            "median": [
+              3.3364593982696533,
+              12.127983616665006,
+              -50.068289041519165
+            ],
+            "n": 24
+          },
+          "z_fraction_of_total_squared_error": 0.9044701158391739
+        },
+        "translation_perturbation": {
+          "large": {
+            "amplitude_mm": 50,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 3118.209017098371,
+              "median": 2765.0273715931676,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 6108.450422233233,
+              "median": 6104.637853044295,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": -25.792712950994705,
+              "median": -28.788646716282994,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 16,
+            "response_squared_mm2": {
+              "mean": 911.3168153632529,
+              "median": 804.601043836803,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 2078.924589771609,
+              "median": 2334.9492664767577,
+              "n": 144
+            }
+          },
+          "small": {
+            "amplitude_mm": 5,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 3118.209017098371,
+              "median": 2765.0273715931676,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 3348.6018367497677,
+              "median": 3051.160162612199,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": -50.04904147690252,
+              "median": -49.1561686832687,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 0,
+            "response_squared_mm2": {
+              "mean": 51.75807262831503,
+              "median": 21.44901461703652,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 178.63474702308167,
+              "median": 177.23553492776873,
+              "n": 144
+            }
+          }
+        },
+        "wrong_events": {
+          "mirror": {
+            "n_real_strictly_better": 165,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 9.79777240274705,
+              "median": 7.130353026591166,
+              "n": 240
+            }
+          },
+          "swap": {
+            "n_real_strictly_better": 111,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": -0.3321118257646037,
+              "median": -0.20869207596224681,
+              "n": 240
+            }
+          }
+        }
+      }
+    },
+    "xdl_q1_s3407": {
+      "zgz_global": {
+        "clean": {
+          "hold_error_mm": {
+            "mean": 6.65169222436425,
+            "median": 6.371814446967667,
+            "n": 24
+          },
+          "hold_signed_error_xyz_mm": {
+            "mean": [
+              -1.4598094470178087,
+              -0.3212277079001069,
+              0.3962963819503784
+            ],
+            "median": [
+              -1.3112295418977737,
+              0.3252516034990549,
+              0.5907714366912842
+            ],
+            "n": 24
+          },
+          "improvement_over_hold_mm": {
+            "mean": -4.219276503765395,
+            "median": -3.753412366118402,
+            "n": 24
+          },
+          "n_strictly_better_than_hold": 9,
+          "packets": [
+            {
+              "clock": {
+                "end_ms": 10149,
+                "previous_end_ms": 10099,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 11.920104960076985,
+              "hold_error_xyz_mm": [
+                -1.1162832379341125,
+                11.618822813034058,
+                2.4178028106689453
+              ],
+              "packet_id": "zgz_global:0:10149",
+              "prediction_error_mm": 8.516992062010901,
+              "signed_error_xyz_mm": [
+                0.5229562520980835,
+                2.627551555633545,
+                8.084654808044434
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 12999,
+                "previous_end_ms": 12949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.866742687887347,
+              "hold_error_xyz_mm": [
+                -0.4642680287361145,
+                2.773076295852661,
+                0.5592107772827148
+              ],
+              "packet_id": "zgz_global:0:12999",
+              "prediction_error_mm": 11.174804261974732,
+              "signed_error_xyz_mm": [
+                3.311276435852051,
+                5.010709166526794,
+                9.423613548278809
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 1449,
+                "previous_end_ms": 1399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.344272984652106,
+              "hold_error_xyz_mm": [
+                -5.552597343921661,
+                -0.07814541459083557,
+                4.806339740753174
+              ],
+              "packet_id": "zgz_global:0:1449",
+              "prediction_error_mm": 10.833460402626988,
+              "signed_error_xyz_mm": [
+                4.694091156125069,
+                6.190069019794464,
+                7.550656795501709
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 15899,
+                "previous_end_ms": 15849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.100186741996676,
+              "hold_error_xyz_mm": [
+                4.4847168028354645,
+                1.7201155424118042,
+                1.714766025543213
+              ],
+              "packet_id": "zgz_global:0:15899",
+              "prediction_error_mm": 7.271564889886845,
+              "signed_error_xyz_mm": [
+                2.765543758869171,
+                4.009058699011803,
+                5.399525165557861
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 18799,
+                "previous_end_ms": 18749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 10.510797827648863,
+              "hold_error_xyz_mm": [
+                -9.707652032375336,
+                0.2525448799133301,
+                4.021763801574707
+              ],
+              "packet_id": "zgz_global:0:18799",
+              "prediction_error_mm": 7.632134681946717,
+              "signed_error_xyz_mm": [
+                1.298367977142334,
+                -1.1437088251113892,
+                7.433414459228516
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 21699,
+                "previous_end_ms": 21649,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.217097211330671,
+              "hold_error_xyz_mm": [
+                6.859190762042999,
+                1.3865474611520767,
+                -1.7650723457336426
+              ],
+              "packet_id": "zgz_global:0:21699",
+              "prediction_error_mm": 6.011527833277364,
+              "signed_error_xyz_mm": [
+                0.03185868263244629,
+                1.783757470548153,
+                5.740702152252197
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 24549,
+                "previous_end_ms": 24499,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.6254814163372906,
+              "hold_error_xyz_mm": [
+                -0.4692748188972473,
+                0.379219651222229,
+                0.16492605209350586
+              ],
+              "packet_id": "zgz_global:0:24549",
+              "prediction_error_mm": 13.975232308475602,
+              "signed_error_xyz_mm": [
+                -3.4887120127677917,
+                -2.5466233491897583,
+                13.291001319885254
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 27449,
+                "previous_end_ms": 27399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.759457605268689,
+              "hold_error_xyz_mm": [
+                3.512432798743248,
+                0.9723934344947338,
+                -0.9223818778991699
+              ],
+              "packet_id": "zgz_global:0:27449",
+              "prediction_error_mm": 2.6599488793893515,
+              "signed_error_xyz_mm": [
+                1.2404993176460266,
+                1.6682036221027374,
+                -1.659393310546875
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 30349,
+                "previous_end_ms": 30299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.958539227097348,
+              "hold_error_xyz_mm": [
+                -1.9303485751152039,
+                -0.12943148612976074,
+                0.30475854873657227
+              ],
+              "packet_id": "zgz_global:0:30349",
+              "prediction_error_mm": 12.810905243429467,
+              "signed_error_xyz_mm": [
+                -1.2044087052345276,
+                2.6543736457824707,
+                12.474894523620605
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 33249,
+                "previous_end_ms": 33199,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.679146069264337,
+              "hold_error_xyz_mm": [
+                -3.655247390270233,
+                0.2712835557758808,
+                0.31888484954833984
+              ],
+              "packet_id": "zgz_global:0:33249",
+              "prediction_error_mm": 20.81781680898293,
+              "signed_error_xyz_mm": [
+                3.423526883125305,
+                2.098563127219677,
+                20.42686939239502
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 36099,
+                "previous_end_ms": 36049,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3652210707607142,
+              "hold_error_xyz_mm": [
+                -0.8476488292217255,
+                0.8706450462341309,
+                0.6223320960998535
+              ],
+              "packet_id": "zgz_global:0:36099",
+              "prediction_error_mm": 10.223024537821717,
+              "signed_error_xyz_mm": [
+                -0.6035119295120239,
+                0.8668303489685059,
+                10.168313980102539
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 38999,
+                "previous_end_ms": 38949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 16.6820065612663,
+              "hold_error_xyz_mm": [
+                3.7330761551856995,
+                -14.197900891304016,
+                -7.922947406768799
+              ],
+              "packet_id": "zgz_global:0:38999",
+              "prediction_error_mm": 7.873866529917932,
+              "signed_error_xyz_mm": [
+                1.1761337518692017,
+                -1.448795199394226,
+                7.649540901184082
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 41899,
+                "previous_end_ms": 41849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 18.573439803233878,
+              "hold_error_xyz_mm": [
+                -1.682749018073082,
+                -17.670772969722748,
+                -5.466699600219727
+              ],
+              "packet_id": "zgz_global:0:41899",
+              "prediction_error_mm": 18.172723128705382,
+              "signed_error_xyz_mm": [
+                2.1449141204357147,
+                3.672979772090912,
+                17.667949199676514
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 4349,
+                "previous_end_ms": 4299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.575510096003052,
+              "hold_error_xyz_mm": [
+                -7.360532879829407,
+                -0.875033438205719,
+                4.312336444854736
+              ],
+              "packet_id": "zgz_global:0:4349",
+              "prediction_error_mm": 8.754823821216194,
+              "signed_error_xyz_mm": [
+                1.3797879219055176,
+                5.029022693634033,
+                7.032215595245361
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 44799,
+                "previous_end_ms": 44749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.743227406510638,
+              "hold_error_xyz_mm": [
+                7.133588194847107,
+                -3.6888346076011658,
+                -3.4566521644592285
+              ],
+              "packet_id": "zgz_global:0:44799",
+              "prediction_error_mm": 6.985051335501647,
+              "signed_error_xyz_mm": [
+                3.364458680152893,
+                -4.088103771209717,
+                4.556179046630859
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 47649,
+                "previous_end_ms": 47599,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.136718452558023,
+              "hold_error_xyz_mm": [
+                -7.460486143827438,
+                1.9919006153941154,
+                2.5650858879089355
+              ],
+              "packet_id": "zgz_global:0:47649",
+              "prediction_error_mm": 18.707991127634088,
+              "signed_error_xyz_mm": [
+                3.7904642522335052,
+                4.50481753796339,
+                17.75747537612915
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 50549,
+                "previous_end_ms": 50499,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 11.843331313190102,
+              "hold_error_xyz_mm": [
+                -7.677093148231506,
+                8.647546172142029,
+                2.5586485862731934
+              ],
+              "packet_id": "zgz_global:0:50549",
+              "prediction_error_mm": 7.1392903400884435,
+              "signed_error_xyz_mm": [
+                4.547439515590668,
+                -3.075137734413147,
+                4.564404487609863
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 53449,
+                "previous_end_ms": 53399,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 9.825315689766017,
+              "hold_error_xyz_mm": [
+                1.7976388335227966,
+                -8.807342499494553,
+                -3.9668679237365723
+              ],
+              "packet_id": "zgz_global:0:53449",
+              "prediction_error_mm": 15.130042531590034,
+              "signed_error_xyz_mm": [
+                2.741508185863495,
+                2.2271238267421722,
+                14.711976051330566
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 56349,
+                "previous_end_ms": 56299,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.0666766271145904,
+              "hold_error_xyz_mm": [
+                -0.7521491497755051,
+                -0.7352158427238464,
+                0.17756223678588867
+              ],
+              "packet_id": "zgz_global:0:56349",
+              "prediction_error_mm": 11.19152305514863,
+              "signed_error_xyz_mm": [
+                2.9279636219143867,
+                2.376869320869446,
+                10.53696870803833
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 59199,
+                "previous_end_ms": 59149,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.526531682604662,
+              "hold_error_xyz_mm": [
+                -3.3346014097332954,
+                1.05353444814682,
+                4.279375076293945
+              ],
+              "packet_id": "zgz_global:0:59199",
+              "prediction_error_mm": 19.55943628068096,
+              "signed_error_xyz_mm": [
+                9.151402860879898,
+                4.335030913352966,
+                16.73412322998047
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 62099,
+                "previous_end_ms": 62049,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.693649351127977,
+              "hold_error_xyz_mm": [
+                -2.8339624404907227,
+                2.139642834663391,
+                1.016676425933838
+              ],
+              "packet_id": "zgz_global:0:62099",
+              "prediction_error_mm": 7.711286665389898,
+              "signed_error_xyz_mm": [
+                0.16566365957260132,
+                -1.179628074169159,
+                7.618725299835205
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 64999,
+                "previous_end_ms": 64949,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.5510565185640492,
+              "hold_error_xyz_mm": [
+                -1.506175845861435,
+                0.26657432317733765,
+                -0.25719404220581055
+              ],
+              "packet_id": "zgz_global:0:64999",
+              "prediction_error_mm": 6.825625892883577,
+              "signed_error_xyz_mm": [
+                -1.5009120106697083,
+                -5.9418752789497375,
+                3.005087375640869
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 67899,
+                "previous_end_ms": 67849,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 7.29972539682987,
+              "hold_error_xyz_mm": [
+                -5.438424646854401,
+                4.49642539024353,
+                1.868605613708496
+              ],
+              "packet_id": "zgz_global:0:67899",
+              "prediction_error_mm": 4.906647027484155,
+              "signed_error_xyz_mm": [
+                2.279229462146759,
+                -3.3354535698890686,
+                -2.7847886085510254
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 7249,
+                "previous_end_ms": 7199,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.776376683651782,
+              "hold_error_xyz_mm": [
+                -0.7665753364562988,
+                -0.3670603036880493,
+                1.5598535537719727
+              ],
+              "packet_id": "zgz_global:0:7249",
+              "prediction_error_mm": 16.01752982904791,
+              "signed_error_xyz_mm": [
+                -5.0990283489227295,
+                -4.998587071895599,
+                14.337897300720215
+              ]
+            }
+          ],
+          "prediction_error_mm": {
+            "mean": 10.870968728129645,
+            "median": 9.488924179518955,
+            "n": 24
+          },
+          "signed_error_xyz_mm": {
+            "mean": [
+              1.6275213953728478,
+              0.8873769935841361,
+              9.238416949907938
+            ],
+            "median": [
+              1.7623510211706161,
+              1.941160298883915,
+              7.867097854614258
+            ],
+            "n": 24
+          },
+          "z_fraction_of_total_squared_error": 0.8359009288351805
+        },
+        "translation_perturbation": {
+          "large": {
+            "amplitude_mm": 50,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 142.02115580325147,
+              "median": 90.57858542071972,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 719.7674750637992,
+              "median": 549.7387114091548,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": 26.026826508448707,
+              "median": 25.71464073467907,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 141,
+            "response_squared_mm2": {
+              "mean": 482.313274125592,
+              "median": 392.3693528179728,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 95.43304513495565,
+              "median": 109.92620722762024,
+              "n": 144
+            }
+          },
+          "small": {
+            "amplitude_mm": 5,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 142.02115580325147,
+              "median": 90.57858542071972,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 160.86941792902599,
+              "median": 109.38525930292985,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": -2.94476931495798,
+              "median": -1.9359195931486828,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 57,
+            "response_squared_mm2": {
+              "mean": 18.31997728516549,
+              "median": 12.624613957972278,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 0.5282848406089747,
+              "median": -7.441201112956108,
+              "n": 144
+            }
+          }
+        },
+        "wrong_events": {
+          "mirror": {
+            "n_real_strictly_better": 225,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 64.16844894946692,
+              "median": 50.63407793333103,
+              "n": 240
+            }
+          },
+          "swap": {
+            "n_real_strictly_better": 107,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 0.07340065270288694,
+              "median": -0.1973771350140298,
+              "n": 240
+            }
+          }
+        }
+      },
+      "zgz_local": {
+        "clean": {
+          "hold_error_mm": {
+            "mean": 3.0440307865041967,
+            "median": 3.1970226301924884,
+            "n": 24
+          },
+          "hold_signed_error_xyz_mm": {
+            "mean": [
+              0.4727204019824664,
+              -0.8228733107292404,
+              0.010815759499867758
+            ],
+            "median": [
+              -0.07144734263420105,
+              -0.5621277377940714,
+              0.1461505889892578
+            ],
+            "n": 24
+          },
+          "improvement_over_hold_mm": {
+            "mean": -62.74243680319564,
+            "median": -61.484114554676765,
+            "n": 24
+          },
+          "n_strictly_better_than_hold": 0,
+          "packets": [
+            {
+              "clock": {
+                "end_ms": 11299,
+                "previous_end_ms": 11249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.901312313749734,
+              "hold_error_xyz_mm": [
+                -3.5124942660331726,
+                1.6018194146454334,
+                0.5628466606140137
+              ],
+              "packet_id": "zgz_local:0:11299",
+              "prediction_error_mm": 66.1526428822196,
+              "signed_error_xyz_mm": [
+                0.09272247552871704,
+                4.372538765892386,
+                -66.00791215896606
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 1299,
+                "previous_end_ms": 1249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3948122828714498,
+              "hold_error_xyz_mm": [
+                -0.10944157838821411,
+                0.41303224861621857,
+                1.3277530670166016
+              ],
+              "packet_id": "zgz_local:0:1299",
+              "prediction_error_mm": 113.49101594153726,
+              "signed_error_xyz_mm": [
+                19.061479717493057,
+                -1.697842963039875,
+                -111.86593770980835
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 3799,
+                "previous_end_ms": 3749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.396019972542903,
+              "hold_error_xyz_mm": [
+                2.271093428134918,
+                -0.5742767825722694,
+                -0.503242015838623
+              ],
+              "packet_id": "zgz_local:0:3799",
+              "prediction_error_mm": 57.832327648668546,
+              "signed_error_xyz_mm": [
+                3.107994794845581,
+                2.585207112133503,
+                -57.69085884094238
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 6299,
+                "previous_end_ms": 6249,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.9610399222153383,
+              "hold_error_xyz_mm": [
+                -0.08255243301391602,
+                -1.718892715871334,
+                -2.409636974334717
+              ],
+              "packet_id": "zgz_local:0:6299",
+              "prediction_error_mm": 76.38209179591182,
+              "signed_error_xyz_mm": [
+                3.512658178806305,
+                0.01886952668428421,
+                -76.30127668380737
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 8799,
+                "previous_end_ms": 8749,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.6040531697398794,
+              "hold_error_xyz_mm": [
+                1.4600232243537903,
+                0.5262093618512154,
+                0.4054903984069824
+              ],
+              "packet_id": "zgz_local:0:8799",
+              "prediction_error_mm": 72.64495617076653,
+              "signed_error_xyz_mm": [
+                4.30365651845932,
+                23.043562658131123,
+                -68.75872611999512
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 14592,
+                "previous_end_ms": 14542,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.04156312456108,
+              "hold_error_xyz_mm": [
+                3.5004839301109314,
+                -1.0884925723075867,
+                1.7017722129821777
+              ],
+              "packet_id": "zgz_local:13:14592",
+              "prediction_error_mm": 67.83720879846007,
+              "signed_error_xyz_mm": [
+                -1.8060430884361267,
+                2.447236329317093,
+                -67.76899099349976
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 19026,
+                "previous_end_ms": 18976,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.785235479512232,
+              "hold_error_xyz_mm": [
+                3.7493854761123657,
+                -0.21095317788422108,
+                0.4749894142150879
+              ],
+              "packet_id": "zgz_local:47:19026",
+              "prediction_error_mm": 62.367350482626115,
+              "signed_error_xyz_mm": [
+                -5.609452724456787,
+                18.709684256464243,
+                -59.22979116439819
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 21897,
+                "previous_end_ms": 21848,
+                "query_start_offset_ms": 0,
+                "state_interval_ms": 49
+              },
+              "hold_error_mm": 3.7530567468153717,
+              "hold_error_xyz_mm": [
+                2.882041037082672,
+                -1.593778608366847,
+                1.79976224899292
+              ],
+              "packet_id": "zgz_local:54:21897",
+              "prediction_error_mm": 50.19539057139989,
+              "signed_error_xyz_mm": [
+                6.19758665561676,
+                -4.7616977244615555,
+                -49.58319664001465
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 25536,
+                "previous_end_ms": 25486,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.115908155239081,
+              "hold_error_xyz_mm": [
+                0.8198767900466919,
+                -0.3371771890670061,
+                0.6777644157409668
+              ],
+              "packet_id": "zgz_local:74:25536",
+              "prediction_error_mm": 51.188943817647505,
+              "signed_error_xyz_mm": [
+                3.1228959560394287,
+                -1.8470226787030697,
+                -51.06019973754883
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 28086,
+                "previous_end_ms": 28036,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.597312714693755,
+              "hold_error_xyz_mm": [
+                -1.6565993428230286,
+                -3.1895595602691174,
+                0.15181303024291992
+              ],
+              "packet_id": "zgz_local:75:28086",
+              "prediction_error_mm": 75.70527523668562,
+              "signed_error_xyz_mm": [
+                12.041497975587845,
+                -4.249283112585545,
+                -74.62060451507568
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 30791,
+                "previous_end_ms": 30741,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 5.4511332924313445,
+              "hold_error_xyz_mm": [
+                -2.1438375115394592,
+                -4.988095257431269,
+                -0.4875659942626953
+              ],
+              "packet_id": "zgz_local:79:30791",
+              "prediction_error_mm": 69.03677912655385,
+              "signed_error_xyz_mm": [
+                10.296199470758438,
+                9.395777247846127,
+                -67.61497259140015
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 33374,
+                "previous_end_ms": 33324,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.6400241631173555,
+              "hold_error_xyz_mm": [
+                -0.6499961018562317,
+                -4.592089913785458,
+                -0.14156103134155273
+              ],
+              "packet_id": "zgz_local:80:33374",
+              "prediction_error_mm": 43.33862066339286,
+              "signed_error_xyz_mm": [
+                4.721611738204956,
+                -2.64386716298759,
+                -42.999446392059326
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 35924,
+                "previous_end_ms": 35874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.45935120398627455,
+              "hold_error_xyz_mm": [
+                0.39630383253097534,
+                0.13245479203760624,
+                -0.1907944679260254
+              ],
+              "packet_id": "zgz_local:80:35924",
+              "prediction_error_mm": 59.92803603752778,
+              "signed_error_xyz_mm": [
+                -1.3508126139640808,
+                1.404306385666132,
+                -59.89634990692139
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 38424,
+                "previous_end_ms": 38374,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.4189678244984172,
+              "hold_error_xyz_mm": [
+                -0.326644629240036,
+                -0.23583369329571724,
+                -0.11497735977172852
+              ],
+              "packet_id": "zgz_local:80:38424",
+              "prediction_error_mm": 66.37348971058151,
+              "signed_error_xyz_mm": [
+                -3.874577581882477,
+                -3.5719131119549274,
+                -66.16395711898804
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 40924,
+                "previous_end_ms": 40874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.049179548812672,
+              "hold_error_xyz_mm": [
+                -0.060342252254486084,
+                -1.8295148620381951,
+                0.9210705757141113
+              ],
+              "packet_id": "zgz_local:80:40924",
+              "prediction_error_mm": 78.42355214108832,
+              "signed_error_xyz_mm": [
+                -14.639031141996384,
+                -16.256311093457043,
+                -75.3105878829956
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 43424,
+                "previous_end_ms": 43374,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.070349069630675,
+              "hold_error_xyz_mm": [
+                0.9138509631156921,
+                -0.5499786930158734,
+                0.08970499038696289
+              ],
+              "packet_id": "zgz_local:80:43424",
+              "prediction_error_mm": 70.55833410203547,
+              "signed_error_xyz_mm": [
+                -6.533235311508179,
+                7.4343838496133685,
+                -69.86075639724731
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 45924,
+                "previous_end_ms": 45874,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 0.7210608419774723,
+              "hold_error_xyz_mm": [
+                -0.29759109020233154,
+                0.523245194926858,
+                0.39696693420410156
+              ],
+              "packet_id": "zgz_local:80:45924",
+              "prediction_error_mm": 58.8228598543518,
+              "signed_error_xyz_mm": [
+                -6.9525763392448425,
+                11.717911809682846,
+                -57.22308158874512
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 48532,
+                "previous_end_ms": 48482,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 6.114360309355983,
+              "hold_error_xyz_mm": [
+                -0.30366331338882446,
+                -5.7779778726398945,
+                -1.9769072532653809
+              ],
+              "packet_id": "zgz_local:82:48532",
+              "prediction_error_mm": 79.24679195407194,
+              "signed_error_xyz_mm": [
+                17.15269312262535,
+                -4.553525242954493,
+                -77.23408937454224
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 51168,
+                "previous_end_ms": 51118,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 8.211498148903338,
+              "hold_error_xyz_mm": [
+                6.087549030780792,
+                -3.665229771286249,
+                -4.115402698516846
+              ],
+              "packet_id": "zgz_local:84:51168",
+              "prediction_error_mm": 68.92839668978701,
+              "signed_error_xyz_mm": [
+                1.195065677165985,
+                15.657307114452124,
+                -67.1159029006958
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 53668,
+                "previous_end_ms": 53618,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.4739972984781597,
+              "hold_error_xyz_mm": [
+                -0.41860342025756836,
+                3.257209435105324,
+                1.1331439018249512
+              ],
+              "packet_id": "zgz_local:84:53668",
+              "prediction_error_mm": 49.91667134860931,
+              "signed_error_xyz_mm": [
+                8.103739470243454,
+                6.464859703555703,
+                -48.8283634185791
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 56303,
+                "previous_end_ms": 56253,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 2.2408227602536788,
+              "hold_error_xyz_mm": [
+                1.3625696301460266,
+                -0.6869425997138023,
+                1.6409754753112793
+              ],
+              "packet_id": "zgz_local:86:56303",
+              "prediction_error_mm": 51.53724476759056,
+              "signed_error_xyz_mm": [
+                3.911614418029785,
+                16.25914080068469,
+                -48.74861240386963
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 58803,
+                "previous_end_ms": 58753,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 3.4330053381696386,
+              "hold_error_xyz_mm": [
+                -3.216419368982315,
+                1.182072563096881,
+                -0.20706653594970703
+              ],
+              "packet_id": "zgz_local:86:58803",
+              "prediction_error_mm": 46.842590518630416,
+              "signed_error_xyz_mm": [
+                -5.736690014600754,
+                1.1520395055413246,
+                -46.47570848464966
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 61505,
+                "previous_end_ms": 61455,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 4.867292101155375,
+              "hold_error_xyz_mm": [
+                1.7984434962272644,
+                4.406835418194532,
+                -1.0178089141845703
+              ],
+              "packet_id": "zgz_local:89:61505",
+              "prediction_error_mm": 60.61499730649704,
+              "signed_error_xyz_mm": [
+                9.34438407421112,
+                -0.9969742968678474,
+                -59.88210439682007
+              ]
+            },
+            {
+              "clock": {
+                "end_ms": 64005,
+                "previous_end_ms": 63955,
+                "query_start_offset_ms": 1,
+                "state_interval_ms": 50
+              },
+              "hold_error_mm": 1.3553830933895101,
+              "hold_error_xyz_mm": [
+                -1.1181458830833435,
+                -0.7530446164309978,
+                0.1404881477355957
+              ],
+              "packet_id": "zgz_local:89:64005",
+              "prediction_error_mm": 81.50965458615536,
+              "signed_error_xyz_mm": [
+                0.11412426829338074,
+                1.1097043752670288,
+                -81.5020203590393
+              ]
+            }
+          ],
+          "prediction_error_mm": {
+            "mean": 65.78646758969984,
+            "median": 66.26306629640055,
+            "n": 24
+          },
+          "signed_error_xyz_mm": {
+            "mean": [
+              2.490729403992494,
+              3.3830871689133346,
+              -64.65597699085872
+            ],
+            "median": [
+              3.115445375442505,
+              1.2781729456037283,
+              -66.08593463897705
+            ],
+            "n": 24
+          },
+          "z_fraction_of_total_squared_error": 0.9662246454941669
+        },
+        "translation_perturbation": {
+          "large": {
+            "amplitude_mm": 50,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 4541.515616045849,
+              "median": 4390.806148331574,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 7567.964530320204,
+              "median": 7425.095480062322,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": -35.18406147751432,
+              "median": -36.28536734541751,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 7,
+            "response_squared_mm2": {
+              "mean": 770.075292252739,
+              "median": 605.1718018348101,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 2256.3736220216174,
+              "median": 2737.5112914433803,
+              "n": 144
+            }
+          },
+          "small": {
+            "amplitude_mm": 5,
+            "axes": [
+              0,
+              1,
+              2
+            ],
+            "bias_squared_mm2": {
+              "mean": 4541.515616045849,
+              "median": 4390.806148331574,
+              "n": 144
+            },
+            "error_squared_mm2": {
+              "mean": 4779.252427458659,
+              "median": 4398.376388188617,
+              "n": 144
+            },
+            "identity_max_abs_component_residual_mm": 0.0,
+            "improvement_over_hold_mm": {
+              "mean": -61.6568079203422,
+              "median": -59.72666166045915,
+              "n": 144
+            },
+            "n": 144,
+            "n_strictly_better_than_hold": 0,
+            "response_squared_mm2": {
+              "mean": 47.1616521244509,
+              "median": 22.575917284787128,
+              "n": 144
+            },
+            "signs": [
+              -1,
+              1
+            ],
+            "twice_bias_response_inner_product_mm2": {
+              "mean": 190.5751592883603,
+              "median": 108.61872620367683,
+              "n": 144
+            }
+          }
+        },
+        "wrong_events": {
+          "mirror": {
+            "n_real_strictly_better": 151,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": 9.209916927681006,
+              "median": 8.515518564002733,
+              "n": 240
+            }
+          },
+          "swap": {
+            "n_real_strictly_better": 118,
+            "scope": "Existing 240 matched controls per sequence/mode, including multiple state blocks; not natural-rollout interventions.",
+            "wrong_error_minus_real_error_mm": {
+              "mean": -0.8214246962188613,
+              "median": -0.044686093492889156,
+              "n": 240
+            }
+          }
+        }
+      }
+    }
+  },
+  "run_command_from_repository_root": "python docs/assets/s37_diagnosis_20261014/recompute_clean_bias.py",
+  "script": {
+    "bytes": 11554,
+    "path": "docs/assets/s37_diagnosis_20261014/recompute_clean_bias.py",
+    "role": "recalculation implementation",
+    "sha256": "9a27a37b24511f110e2c7fd086b214c4bb9b290d779ee821df9b1d070fa7c35b"
+  },
+  "selection": "All zgz clean rows (24 per sequence/run), all pure translation probes (144 per sequence/run/scale), all existing swap/mirror controls (240 per sequence/run/mode). Matched on sequence/packet_id/spec.id, with clocks and states asserted.",
+  "software": {
+    "numpy": "2.4.3",
+    "torch": "2.6.0+cu124"
+  },
+  "study": "S37 diagnosis: CPU recalculation of existing XDL bank outputs"
+}

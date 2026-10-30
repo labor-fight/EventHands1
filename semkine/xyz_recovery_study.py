@@ -32,7 +32,7 @@ def select_packet_rows(batch,rows):
 
 
 class RecoveryXYZModel(MNISTModel):
-    MODEL_KEYS=MNISTModel.MODEL_KEYS|frozenset({'XDL_STUDY','XDL_QUERY','XDL_SELF','XDL_OBSERVATION_NULL','XDL_BURN_MODE'})
+    MODEL_KEYS=MNISTModel.MODEL_KEYS|frozenset({'XDL_STUDY','XDL_QUERY','XDL_SELF','XDL_OBSERVATION_NULL','XDL_BURN_MODE','XDL_STATE_T'})
     TRACK_KEYS=MNISTModel.TRACK_KEYS|frozenset({'XDL_SELF_P','XDL_WARMUP_START','XDL_RAMP_END'})
 
     def __init__(self,cfg=None,num_classes=None):
@@ -44,6 +44,8 @@ class RecoveryXYZModel(MNISTModel):
         self.xdl_self=bool(mc.get('XDL_SELF',False))
         self.xdl_null=bool(mc.get('XDL_OBSERVATION_NULL',False))
         self.xdl_burn_mode=mc.get('XDL_BURN_MODE','selected')
+        # XDG opt-in: False drops the absolute translation t/.1 from state99 (state96 = AA48, UV32, valid16).
+        self.xdl_state_t=bool(mc.get('XDL_STATE_T',True))
         if self.xdl_burn_mode not in ('selected','full'):
             raise ValueError('XDL_BURN_MODE must be selected or full')
         if self.xdl_query not in ('fixed','mano'):
@@ -58,7 +60,7 @@ class RecoveryXYZModel(MNISTModel):
         if self.xyz.N_SLOTS*self.xyz.slot_proj.out_channels//self.xyz.N_SLOTS!=544:
             raise ValueError('XDL requires the 544D compressed legacy observation interface')
         self.observation_bank=ObservationBank(self.render_h,self.render_w,self.xyz_max_nodes)
-        self.xyz.fc1=nn.Linear(544+64+99,self.xyz.fc1.out_features)
+        self.xyz.fc1=nn.Linear(544+64+(99 if self.xdl_state_t else 96),self.xyz.fc1.out_features)
         self.xyz.fc1.register_forward_pre_hook(self._recovery_readout)
         self._recovery_inputs=None
         self.xdl_burn_rows=0; self.xdl_self_rows=0
@@ -118,6 +120,8 @@ class RecoveryXYZModel(MNISTModel):
             # Common state99 = normalized translation, original48AA, UV32, valid16.
             state=torch.cat([prev[:,:3].float()/.1,prev[:,3:].float(),
                              (uv/uv.new_tensor([self.render_w,self.render_h])).flatten(1),valid.float()],-1)
+            if not self.xdl_state_t:
+                state=state[:,3:]
         observation=self.observation_bank.encode(events,ptr,batch.delta_t_s)
         if not torch.equal(src,observation['src']) or not torch.equal(mask,observation['mask']):
             raise RuntimeError('bank support differs from legacy XYZ support')
@@ -147,6 +151,11 @@ class RecoveryXYZModel(MNISTModel):
     def _predict_batch(self,batch):
         if not isinstance(batch,dict) or 'main' not in batch:
             return super()._predict_batch(batch)
+        main,_=self._burn_main(batch)
+        return super()._predict_batch(main)
+
+    def _burn_main(self,batch):
+        """The main packet with self rows' prev replaced by the three-packet no-grad burn; also the self row indices."""
         main=batch['main']
         step=int(self.global_step)
         rows=batch['global_row'].detach().cpu().tolist()
@@ -182,4 +191,4 @@ class RecoveryXYZModel(MNISTModel):
             changed.index_copy_(0,chosen,chosen_previous.to(changed))
             main=dataclasses.replace(main,prev_state=changed)
             self.xdl_self_rows+=len(take); self.xdl_burn_rows+=3*burn_rows
-        return super()._predict_batch(main)
+        return main,take

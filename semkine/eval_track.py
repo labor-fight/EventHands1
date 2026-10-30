@@ -91,6 +91,33 @@ def _window_events(events, offsets, tsub, end: int, window: int):
     return out
 
 
+def attach_xag_sources(batch, cfg, seq, offsets, end, window, device):
+    """Opt-in GT source metadata for the *same raw rows* as `_window_events`.
+
+    Event time comes from integer offset bins, never from rounded float time.
+    Normal evaluation packets remain unchanged when the data key is absent.
+    """
+    source_root = cfg.get("DATA", {}).get("XAG_SOURCE_ROOT")
+    if not source_root:
+        if str(cfg.get("MODEL", {}).get("XAG_ASSOC", "base")) != "base":
+            raise ValueError("XAG oracle evaluation requires DATA.XAG_SOURCE_ROOT")
+        return batch
+    from semkine.xag_sources import load_sources
+    start = int(end) - int(window) + 1
+    row_ids = np.arange(int(offsets[start]), int(offsets[int(end) + 1]), dtype=np.int64)
+    event_ms = np.repeat(np.arange(start, int(end) + 1, dtype=np.int64),
+                         np.diff(offsets[start:int(end) + 2]).astype(np.int64))
+    if len(row_ids) != int(batch.events.shape[0]):
+        raise ValueError("XAG source rows disagree with evaluation events")
+    if str(cfg.get("MODEL", {}).get("XAG_ASSOC", "base")) == "full_oracle":
+        source = load_sources(source_root, seq, row_ids, event_ms, require_depth=True)
+    else:
+        source = load_sources(source_root, seq, row_ids, event_ms)
+    for name, value in source.items():
+        setattr(batch, name, torch.from_numpy(np.asarray(value)).to(device))
+    return batch
+
+
 def make_eval_packet(ev5, prev, betas, camera_K, window_ms: int, device) -> EventPacketBatch:
     n = ev5.shape[0]
     return EventPacketBatch(
@@ -156,6 +183,7 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
     #: XYZ-ASSOC oracle arm (MODEL.XYZ_ASSOC_PREV=target): the model casts the association on the window-end
     #: ground-truth mesh, so each step hands it pos51[end]. Not deployable; any other model skips this.
     oracle_assoc = getattr(model, "xyz_assoc_prev", "self") == "target"
+    oracle_features = str(cfg.get("MODEL", {}).get("XAG_GNN", "legacy")) in ("oracle_dense", "oracle_observed")
     betas = torch.tensor(aux["betas"], dtype=torch.float32, device=device).view(1, -1)
     camera_K = torch.tensor(aux["camera_K"], dtype=torch.float32, device=device).view(1, 3, 3)
     if hasattr(model, "set_hand_context"):
@@ -187,10 +215,13 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
                  .unsqueeze(0).to(device)) if need_lnes else None
             if use_raw:
                 ev5 = _window_events(events, offsets, tsub, int(end), win)
-                if oracle_assoc:
+                if oracle_assoc or oracle_features:
                     model.xyz_target_override = torch.from_numpy(pos51[end].copy()).view(1, -1).to(device)
-                pred = model.forward_packet(make_eval_packet(ev5, prev_t, betas, camera_K,
-                                                             win, device))
+                packet = make_eval_packet(ev5, prev_t, betas, camera_K, win, device)
+                if oracle_features:
+                    packet.target = torch.from_numpy(pos51[end].copy()).view(1, -1).to(device)
+                packet = attach_xag_sources(packet, cfg, seq, offsets, int(end), win, device)
+                pred = model.forward_packet(packet)
             else:
                 pred = model(x, prev_t)
             if delta_trust != 1.0:
@@ -216,7 +247,7 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
             elapsed.append(int(end - a))
             run_ids.append(run_id)
 
-    if oracle_assoc:
+    if oracle_assoc or oracle_features:
         model.xyz_target_override = None
     if not preds:
         return None

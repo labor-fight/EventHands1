@@ -1258,8 +1258,17 @@ class MNISTModel(BaseModel):
             "XYZ_SLOT_DIM", "XYZ_READOUT_HIDDEN",
             # XYZ-ASSOC (docs/EXPERIMENT_RECORDS.md#xyz-assoc-20261009)
             "XYZ_ASSOC_MODE", "XYZ_CONTOUR_GAP", "XYZ_ASSOC_PREV",
+            "XAG_ASSOC", "XAG_GNN",
             # XB ABCD residual evidence study; defaults leave the XYZ/S39 paths unchanged.
             "XYZ_RESIDUAL_MODE", "XYZ_RESIDUAL_SEED",
+            # XVM C1+sign (docs/EXPERIMENT_RECORDS.md#xvm-prereg-20261021): signed contour record features, opt-in
+            "XYZ_SIGN",
+            # AURA (docs/EXPERIMENT_RECORDS.md#aura-prereg-20261024): one association variant, opt-in
+            "XYZ_AURA",
+            # AGG778 (docs/EXPERIMENT_RECORDS.md#agg778-prereg-20261024): one aggregation variant, opt-in
+            "XYZ_AGG",
+            # MRF (docs/EXPERIMENT_RECORDS.md#mrf-prereg-20261024): one receptive-field (MeshGNN) variant, opt-in
+            "XYZ_RF",
             "RENDER_CHANNELS", "RENDER_H", "RENDER_W", "RENDER_SCALE",
             "RENDER_CHUNK", "RENDER_DEPTH_TOL", "INIT_FROM",
             "ACTIVE_HEAD", "ACTIVE_FEAT_DIM", "ACTIVE_HIDDEN",
@@ -1481,6 +1490,9 @@ class MNISTModel(BaseModel):
         # edges, 16 LBS slots + the residual slot, one common readout that also reads prev[3:51] and
         # writes the only 51D delta (`semkine.xyz_mesh`). No EventGNN, no prev_mlp, no per-joint heads.
         self.xyz_mesh = self.encoder_name == "xyz_mesh"
+        from semkine.xag import validate_config as validate_xag_config
+        self.xag_assoc_mode, self.xag_gnn_mode = validate_xag_config(model_cfg, xyz_mesh=self.xyz_mesh)
+        self.xag_enabled = "XAG_ASSOC" in model_cfg or "XAG_GNN" in model_cfg
         if self.xyz_mesh and (self.prev_render or self.routed or self.mesh_query):
             raise ValueError("ENCODER=xyz_mesh is the only conditioning path of its arm")
         if self.xyz_mesh and (self.prevpos_embed or bool(model_cfg.get("ACTIVE_HEAD", False))):
@@ -1490,6 +1502,14 @@ class MNISTModel(BaseModel):
             raise ValueError("MODEL.XYZ_ASSOC_MODE / XYZ_CONTOUR_GAP / XYZ_ASSOC_PREV belong to ENCODER=xyz_mesh")
         if not self.xyz_mesh and any(k in model_cfg for k in ("XYZ_RESIDUAL_MODE", "XYZ_RESIDUAL_SEED")):
             raise ValueError("MODEL.XYZ_RESIDUAL_MODE / XYZ_RESIDUAL_SEED belong to ENCODER=xyz_mesh")
+        if not self.xyz_mesh and "XYZ_AURA" in model_cfg:
+            raise ValueError("MODEL.XYZ_AURA belongs to ENCODER=xyz_mesh")
+        if not self.xyz_mesh and "XYZ_SIGN" in model_cfg:
+            raise ValueError("MODEL.XYZ_SIGN belongs to ENCODER=xyz_mesh")
+        if not self.xyz_mesh and "XYZ_AGG" in model_cfg:
+            raise ValueError("MODEL.XYZ_AGG belongs to ENCODER=xyz_mesh")
+        if not self.xyz_mesh and "XYZ_RF" in model_cfg:
+            raise ValueError("MODEL.XYZ_RF belongs to ENCODER=xyz_mesh")
         # DT round (docs/DT_RENDER_TRACK_PREREG.md section 2). Four keys of the dense tracker. Every default builds the
         # same modules from the same random draws and runs the same forward ops as the earlier rounds, so the recorded
         # closed-loop numbers stay reproducible bit for bit; every impossible combination raises instead of being
@@ -1703,7 +1723,40 @@ class MNISTModel(BaseModel):
             #: oracle arm only: the `(B, 51)` window-end ground truth the evaluation hands to the model
             #: (`semkine.eval_track.track_sequence`); training and validation batches carry `batch.target`
             self.xyz_target_override = None
-            self.xyz = XYZMeshNet(
+            # AGG778: absent / legacy builds the plain XYZMeshNet (bit for bit); a variant builds its subclass
+            self.xyz_agg = str(model_cfg.get("XYZ_AGG", "legacy"))
+            xyz_cls, agg_kw = XYZMeshNet, {}
+            if self.xyz_agg != "legacy":
+                from semkine.agg778 import AGG_MODES, AggXYZMeshNet
+                if self.xyz_agg not in AGG_MODES:
+                    raise ValueError(f"MODEL.XYZ_AGG must be one of {AGG_MODES}, got {self.xyz_agg!r}")
+                if self.xyz_assoc_prev != "self" or self.xag_gnn_mode != "legacy":
+                    raise ValueError("MODEL.XYZ_AGG is defined on the C1 recipe (ASSOC_PREV self, legacy GNN)")
+                xyz_cls, agg_kw = AggXYZMeshNet, {"agg": self.xyz_agg}
+            # MRF: absent / legacy builds the plain XYZMeshNet (bit for bit); a variant builds its subclass
+            self.xyz_rf = str(model_cfg.get("XYZ_RF", "legacy"))
+            if self.xyz_rf != "legacy":
+                from semkine.mrf import RF_MODES, MRFXYZMeshNet
+                if self.xyz_rf not in RF_MODES:
+                    raise ValueError(f"MODEL.XYZ_RF must be one of {RF_MODES}, got {self.xyz_rf!r}")
+                if self.xyz_agg != "legacy" or self.xyz_assoc_prev != "self" or self.xag_gnn_mode != "legacy":
+                    raise ValueError("MODEL.XYZ_RF is defined on the C1 recipe (ASSOC_PREV self, legacy GNN / AGG)")
+                xyz_cls, agg_kw = MRFXYZMeshNet, {"rf": self.xyz_rf}
+            # AURA: absent / legacy leaves the C1 association and class (bit for bit); `shell` builds its subclass,
+            # every other variant replaces the association in `_xyz_mesh_forward`
+            self.xyz_aura = str(model_cfg.get("XYZ_AURA", "legacy"))
+            if self.xyz_aura != "legacy":
+                from semkine.aura import AURA_MODES, AuraXYZMeshNet
+                if self.xyz_aura not in AURA_MODES:
+                    raise ValueError(f"MODEL.XYZ_AURA must be one of {AURA_MODES}, got {self.xyz_aura!r}")
+                if (self.xyz_agg != "legacy" or getattr(self, "xyz_rf", "legacy") != "legacy"
+                        or self.xyz_assoc_prev != "self" or self.xyz_assoc_mode != "hit_first"
+                        or self.xag_gnn_mode != "legacy" or self.xag_assoc_mode != "base"):
+                    raise ValueError("MODEL.XYZ_AURA is defined on the C1 recipe (hit_first / self association, "
+                                     "no XYZ_AGG / XYZ_RF / XAG)")
+                if self.xyz_aura == "shell":
+                    xyz_cls, agg_kw = AuraXYZMeshNet, {}
+            self.xyz = xyz_cls(
                 self.mano.weights, self.mano.f,
                 hidden=int(model_cfg.get("ENCODER_HIDDEN", 128)),
                 n_layers=int(model_cfg.get("ENCODER_LAYERS", 3)),
@@ -1713,7 +1766,9 @@ class MNISTModel(BaseModel):
                 geom=bool(model_cfg.get("XYZ_GEOM", True)),
                 contour=self.xyz_assoc_mode == "contour",
                 residual_mode=str(model_cfg.get("XYZ_RESIDUAL_MODE", "legacy")),
-                residual_seed=int(model_cfg.get("XYZ_RESIDUAL_SEED", 19073)))
+                residual_seed=int(model_cfg.get("XYZ_RESIDUAL_SEED", 19073)),
+                xag_gnn=self.xag_gnn_mode,
+                sign=bool(model_cfg.get("XYZ_SIGN", False)), **agg_kw)
             self.conv1 = None
             self.rn = None
         elif self.encoder_name:
@@ -2545,6 +2600,17 @@ class MNISTModel(BaseModel):
         B = int(ptr.numel() - 1)
         if events.shape[0] == 0:
             self.route_stats = {}
+            if self.xag_enabled:
+                # An empty rank must still participate in DDP reduction. Keep
+                # every trainable parameter connected with an exact zero term.
+                self.xyz.xag_last_capture = {}
+                self.xyz_last = {"xag_empty": True}
+                zero = prev.new_zeros(())
+                if self.training:
+                    for parameter in self.parameters():
+                        if parameter.requires_grad and parameter.numel():
+                            zero = zero + parameter.reshape(-1)[0] * 0.0
+                return prev.new_zeros(B, 51) + zero
             return prev.new_zeros(B, 51)
         prev_geo = prev if self.route_prev_override is None else \
             self.route_prev_override.to(prev.device, prev.dtype)
@@ -2561,31 +2627,59 @@ class MNISTModel(BaseModel):
                              torch.ones_like(px)], dim=-1)
             f_px = (fx * fy).sqrt()
             verts_assoc, geo_kw, assoc_kw = verts, {}, {}
+            verts_gt = None
+            if self.xyz_assoc_prev == "target" or self.xyz.xag_oracle:
+                tgt = self.xyz_target_override if self.xyz_target_override is not None else batch.target
+                if (tgt is None or tgt.shape != prev_geo.shape or not bool(torch.isfinite(tgt).all())
+                        or not bool((tgt.abs().sum(-1) > 0).all())):
+                    raise RuntimeError("XYZ/XCL oracle needs finite window-end ground truth (B,51): set "
+                                       "model.xyz_target_override or pass batch.target; all-zero targets are invalid")
+                verts_gt, _ = self._fk(tgt.to(prev_geo.device).float(), betas_f)
             if self.xyz_assoc_prev == "target":
                 # oracle: the assignment (vid / A / q / valid / hit) comes from the window-end ground-truth
                 # mesh; dXYZ, z_prior and the edge geometry stay on prev's own mesh (`verts_geo`)
-                tgt = self.xyz_target_override if self.xyz_target_override is not None else batch.target
-                if tgt is None or not bool((tgt.abs().sum(-1) > 0).all()):
-                    raise RuntimeError("MODEL.XYZ_ASSOC_PREV=target needs the window-end ground truth: set "
-                                       "model.xyz_target_override (track_sequence does) or pass a batch with a "
-                                       "real target; an all-zero target would silently build the mesh at the origin")
-                verts_assoc, _ = self._fk(tgt.to(prev_geo.device).float(), betas_f)
+                verts_assoc = verts_gt
                 geo_kw = {"verts_geo": verts}
+            if self.xyz.xag_oracle:
+                geo_kw["verts_gt"] = verts_gt
             if self.xyz_assoc_mode == "contour":
                 assoc_kw = {"mode": "contour", "normals": vertex_normals(verts_assoc, self.mano.f),
                             "gap": self.xyz_contour_gap}
             assoc = associate_rays(d, mask, verts_assoc, self.mano.f, self.xyz.vert_faces,
                                    band=self.xyz_band_px / f_px, front_tol=self.xyz_front_px / f_px,
                                    z_tol=self.xyz_z_tol, k=self.xyz_k, **assoc_kw)
+            xag_aux = {}
+            if self.xag_assoc_mode != "base":
+                from semkine.xag import route_association, sample_sources
+                source = sample_sources(batch, src, mask, require_depth=self.xag_assoc_mode == "full_oracle")
+                depth_kw = {"source_depth": source["xag_depth"]} if self.xag_assoc_mode == "full_oracle" else {}
+                assoc, xag_aux = route_association(
+                    self.xag_assoc_mode, assoc, d, mask, verts, self.mano.f, self.xyz.vert_faces,
+                    self.xyz.lbs_w, self.xyz_band_px / f_px, self.xyz_front_px / f_px,
+                    self.xyz_z_tol, source_part=source["xag_part"], source_face=source["xag_face"],
+                    source_bary=source["xag_bary"], source_valid=source["xag_valid"], k=self.xyz_k, **depth_kw)
+                xag_aux.update(source)
+        # AURA (docs/EXPERIMENT_RECORDS.md#aura-prereg-20261024): an association variant replaces C1's, no_grad
+        if getattr(self, "xyz_aura", "legacy") not in ("legacy", "shell"):
+            from semkine.aura import apply_aura
+            with torch.no_grad():
+                assoc = apply_aura(self.xyz_aura, assoc, d, mask, verts_assoc, self.mano.f, self.xyz.vert_faces,
+                                   (fx, fy, cx, cy), batch, self.xyz.lbs_hard, k=self.xyz_k)
+        # AGG778 fan-out binning reads the association band (ray units); every other path passes nothing new
+        agg_kw = {"band": self.xyz_band_px / f_px} if getattr(self, "xyz_agg", "legacy") == "fanout" else {}
         delta, stats, aux = self.xyz(tok, d, mask, verts, assoc, prev[:, 3:51],
-                                     ablate=self.ablate_evidence, **geo_kw)
+                                     ablate=self.ablate_evidence, capture=getattr(self, "xyz_keep_aux", False), **geo_kw,
+                                     **agg_kw)
         self.route_stats = stats
         if getattr(self, "xyz_keep_aux", False):
             #: probe-only: the association and the pooled slots of the last packet batch
             self.xyz_last = {"assoc": assoc, "d": d, "mask": mask, "verts": verts, "tok": tok,
-                             "delta": delta.detach(), **{k: v.detach() for k, v in aux.items()}}
-            if geo_kw:
+                             "src": src, "delta": delta.detach(), **{k: v.detach() for k, v in aux.items()},
+                             **xag_aux}
+            if "verts_geo" in geo_kw:
                 self.xyz_last["verts_assoc"] = verts_assoc
+            if self.xyz.xag_oracle:
+                self.xyz_last["verts_gt"] = verts_gt
         # region agent log
         if self.training and self._agent_should_log():
             from semkine.xyz_mesh import agent_log

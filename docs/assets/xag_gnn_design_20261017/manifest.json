@@ -1,0 +1,24 @@
+{
+  "created_at_utc": "2026-10-17T03:10:03.154981+00:00",
+  "purpose": "Implemented XAG F+ architecture explanation: horizontal original/new comparison and one-block detail",
+  "sources": {
+    "semkine/xag.py": "306b905d64b35e5cd0eef70fe825eff4b1e3359a164bf60ee8807736712088a8",
+    "semkine/xyz_mesh.py": "869412d7bdc9acb7d58821e2a314dab17906889272e986fae407ea5c65224ee1",
+    "configs/xag/xag_a0f1_s3407.yaml": "b1deb91147f974853a038dbeea59f1944fa6efcfddbd96ebfe245bed6beb7fff"
+  },
+  "artifacts": {
+    "generate.py": "f82588b9a7d6f4fc11369a6c4918f97ba2c6fa2b5beba4eb21d36598c1dcc7b9",
+    "global_residual_detail_horizontal.png": "b6bd88c53a3d5d656ad185c26c9816a0d9223a8470ec2b6e9c7f6de097e4f7b1",
+    "global_residual_detail_horizontal.svg": "caf7ac41b693f10700a9077d8bfb196c94d2fe8a87a840b15fc5b39ef910f741",
+    "overview_horizontal.png": "a4c6b82adc1d5c7fcac468c23a1184356b76bca9a515733f4aa13cb587d263c8",
+    "overview_horizontal.svg": "78278c281b52eebe2e16813be454550395853ffd9ebbb1ef0e1ab0e85c9a1d53"
+  },
+  "generation_command": "/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python docs/assets/xag_gnn_design_20261017/generate.py",
+  "visual_review": "Both PNGs inspected; H0/H3 and LN1/LN2 use ASCII indices to avoid missing CJK-font subscript glyphs; added blocks orange and labeled 新增.",
+  "architecture_checks": [
+    "Local1-Global1-Local2-Global2-Local3-Global3",
+    "Q/K input adds LBS identity; V input excludes identity",
+    "Two Pre-LN residual paths and support masking",
+    "Original residual event branch and prev48 remain in common readout"
+  ]
+}

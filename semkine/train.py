@@ -120,16 +120,31 @@ class XYZPairStreamCallback(U1aPairStreamCallback):
         if len(self.rows) >= 3:
             return
         packets = batch if isinstance(batch, (tuple, list)) else (batch,)
+        xag = any(k.startswith("XAG_") for k in pl_module.cfg.get("MODEL", {}))
         h = hashlib.sha256()
         for packet in packets:
             for name in ("sequence_id", "t_start_us", "t_end_us", "target", "prev_state", "events",
                          "ptr", "delta_t_s", "betas", "camera_K", "is_sequence_start", "is_sequence_end"):
                 h.update(getattr(packet, name).detach().cpu().contiguous().numpy().tobytes())
+            if xag:
+                for name in ("xag_source_index", "xag_source_ms", "xag_part", "xag_face", "xag_bary", "xag_valid"):
+                    value = getattr(packet, name)
+                    if value is None:
+                        raise RuntimeError(f"XAG paired stream lacks {name}")
+                    h.update(name.encode())
+                    h.update(value.detach().cpu().contiguous().numpy().tobytes())
         self.rows.append({"step": int(trainer.global_step), "sha256": h.hexdigest(),
                           "samples": packets[-1].batch_size,
                           "events": sum(int(packet.events.shape[0]) for packet in packets)})
-        (self.output_dir / f"pair_stream_rank{trainer.global_rank}.json").write_text(
-            json.dumps(self.rows, indent=2))
+        path = self.output_dir / f"pair_stream_rank{trainer.global_rank}.json"
+        if xag:
+            if pl_module.cfg.get("XCL", {}).get("ENABLED", False):
+                from tools.xcl.common import save as write
+            else:
+                from tools.xag.train_audit import write
+            write(path, self.rows)
+        else:
+            path.write_text(json.dumps(self.rows, indent=2))
 
 
 #: MODEL keys only the student has, matched as `k == d.rstrip("_") or k.startswith(d)`. The frozen distillation
@@ -310,7 +325,8 @@ def main() -> None:
     # Lightning's distributed sampler uses SEED; this generator also pins worker seeds.
     u1a = str(cfg["MODEL"].get("U1A_MODE", "off")).lower() != "off"
     xyz_study = str(cfg["MODEL"].get("XYZ_RESIDUAL_MODE", "legacy")) in ("A", "B", "C", "D")
-    paired_stream = u1a or xyz_study
+    xag_study = "XAG_ASSOC" in cfg["MODEL"] or "XAG_GNN" in cfg["MODEL"]
+    paired_stream = u1a or xyz_study or xag_study
     data_generator = torch.Generator().manual_seed(int(cfg["SEED"])) if paired_stream else None
     train_loader = DataLoader(
         train_ds, batch_size=bsz, shuffle=True, num_workers=nw,
@@ -350,8 +366,15 @@ def main() -> None:
     callbacks = [ckpt_cb, ThroughputCallback()]
     if u1a:
         callbacks.append(U1aPairStreamCallback(out_dir))
-    if xyz_study:
+    if xyz_study or xag_study:
         callbacks.append(XYZPairStreamCallback(out_dir))
+    if xag_study:
+        if cfg.get("XCL", {}).get("ENABLED", False):
+            from tools.xcl.audit import XCLIdentityAudit
+            callbacks.append(XCLIdentityAudit(out_dir))
+        else:
+            from tools.xag.train_audit import XAGTrainAudit
+            callbacks.append(XAGTrainAudit(out_dir))
     if logger:
         callbacks.insert(1, LearningRateMonitor(logging_interval="step"))
 
@@ -386,7 +409,8 @@ def main() -> None:
         "save_every_n_steps": every, "lr": tcfg["LR"],
         "fast_pipe": fast_active, "fast_pipe_requested": fast_requested,
         "distill_ckpt": distill_ckpt, "distill_weight": float(cfg["MODEL"].get("DISTILL_WEIGHT", 0.0)),
-        "selection_policy": ("fixed last only (XYZ ABCD)" if xyz_study else
+        "selection_policy": ("fixed step6000 only (XAG)" if xag_study else
+                             "fixed last only (XYZ ABCD)" if xyz_study else
                              "explicit last only (U1a)" if u1a else
                              "fixed step grid; select by recursive RA on val_core"),
         "data_generator_seed": int(cfg["SEED"]) if paired_stream else None,

@@ -50,6 +50,8 @@ from .xyz_residual import RESIDUAL_MODES, XYZResidualBranch
 
 #: relation-encoder input: token7 + dXYZ (3) + z_prior (1) + valid (1) + hit (1)
 REL_IN = 7 + 3 + 1 + 1 + 1
+#: XVM C1+sign record features: signed contour distance (cm), image normal (2), polarity * sign
+SIGN_IN = 4
 #: vertices per event record set (3 for a surface hit, <= 4 for a near-silhouette event)
 R_MAX = 4
 #: metres per unit of the event-to-vertex offset; surface offsets are ~2-5 mm, near ones ~1-3 cm
@@ -381,7 +383,8 @@ class XYZMeshNet(nn.Module):
     def __init__(self, lbs_weights: torch.Tensor, faces: torch.Tensor, hidden: int = 128,
                  n_layers: int = 3, rel_hidden: int = 64, slot_dim: int = 32,
                  readout_hidden: int = 256, edge_dim: int = 32, geom: bool = True, contour: bool = False,
-                 residual_mode: str = "legacy", residual_seed: int = 19073):
+                 residual_mode: str = "legacy", residual_seed: int = 19073, xag_gnn: str = "legacy",
+                 sign: bool = False):
         super().__init__()
         if residual_mode not in RESIDUAL_MODES:
             raise ValueError(f"residual_mode must be one of {RESIDUAL_MODES}, got {residual_mode!r}")
@@ -418,6 +421,63 @@ class XYZMeshNet(nn.Module):
         self.register_buffer("vert_faces", vertex_face_table(faces, V), persistent=False)
         self.register_buffer("lbs_w", lbs_weights.detach().float().clone(), persistent=False)
         self.register_buffer("lbs_hard", lbs_weights.detach().argmax(1), persistent=False)
+        # No added parameters or random draws on the historical path. New modules
+        # are built last and in an isolated RNG scope, including the stream *after*
+        # construction, so paired data/augmentation draws remain identical.
+        from .xag import GNN_MODES, ORACLE_GNN_MODES
+        if xag_gnn not in GNN_MODES:
+            raise ValueError(f"xag_gnn must be one of {GNN_MODES}")
+        if xag_gnn != "legacy" and (self.hidden != 128 or len(self.layers) != 3):
+            raise ValueError("XAG/XCL controls require 128 channels and three local rounds")
+        self.xag_gnn = xag_gnn
+        self.xag_oracle = xag_gnn in ORACLE_GNN_MODES
+        if self.xag_oracle and (self.residual_mode != "legacy" or self.contour or not self.geom):
+            raise ValueError("XCL oracle features require C1 geometry, hit_first and legacy residual")
+        if xag_gnn == "global_residual":
+            from .xag import GlobalResidual
+            with torch.random.fork_rng(devices=[]):
+                self.xag_global = nn.ModuleList([GlobalResidual() for _ in self.layers])
+        elif self.xag_oracle:
+            with torch.random.fork_rng(devices=[]):
+                self.xag_oracle_projection = nn.Linear(3, self.hidden)
+            # H3 replaces every upstream learned vertex feature. Keep those
+            # shared initial tensors (and the ordinary residual-slot numbers),
+            # but learn only the projection and downstream slots/head. Freezing
+            # also makes the bypass compatible with find_unused_parameters=False.
+            for module in (self.rel, self.vin, self.edge, self.layers):
+                module.requires_grad_(False)
+        self.xag_capture_enabled = False
+        self.xag_h3_transform = None
+        self.xag_last_capture = {}
+        # XVM C1+sign (docs/EXPERIMENT_RECORDS.md#xvm-prereg-20261021): four signed contour features per matched
+        # record enter the relation encoder's first layer through a separate zero-initialised, bias-free map, built
+        # last and inside an isolated RNG scope, so the C1 parameters, their initial values and every later random
+        # draw are unchanged and the initial function is C1's exactly.
+        self.sign = bool(sign)
+        if self.sign:
+            if self.contour or self.xag_gnn != "legacy" or self.residual_mode != "legacy" or not self.geom:
+                raise ValueError("XYZ_SIGN is defined on the C1 recipe only (hit_first, legacy GNN/residual, geom)")
+            with torch.random.fork_rng(devices=[]):
+                self.sign_in = nn.Linear(SIGN_IN, rel_hidden, bias=False)
+            nn.init.zeros_(self.sign_in.weight)
+            self.register_buffer("faces_t", faces.detach().long().clone(), persistent=False)
+
+    def xag_readout_from_h3(self, h3, capture):
+        """Differentiable fixed LBS/slot/head replay for the H3 reachability probe.
+
+        Only h3 is variable. Capture contains the original support, residual slot
+        and prev48; no GT or reconstructed state enters this function.
+        """
+        if self.residual_mode != "legacy":
+            raise ValueError("XAG H3 replay requires the legacy residual interface")
+        if h3.shape != capture["H3"].shape:
+            raise ValueError("XAG H3 replay cannot change vertex count or channel width")
+        e = lbs_slot_pool(h3, capture["S"], capture["O"], self.lbs_w, self.lbs_hard)
+        slots = torch.cat([e.float(), capture["bslot"].unsqueeze(1).float()], 1)
+        dtype = self.slot_proj.weight.dtype
+        zs = torch.relu(self.slot_proj(slots.reshape(h3.shape[0], -1, 1).to(dtype))).view(h3.shape[0], -1)
+        h = torch.relu(self.fc1(torch.cat([zs, capture["prev48"].to(zs.dtype)], -1)))
+        return self.fc2(h)
 
     @torch.no_grad()
     def edge_geometry(self, verts: torch.Tensor) -> torch.Tensor:
@@ -429,7 +489,24 @@ class XYZMeshNet(nn.Module):
         g = torch.cat([dv, dv.norm(dim=-1, keepdim=True)], dim=-1) / L_EDGE
         return g * self.ring_mask.view(1, V, K, 1)
 
-    def forward(self, tok, d, mask, verts, assoc, prev48, ablate: bool = False, verts_geo=None):
+    @torch.no_grad()
+    def sign_features(self, verts, rb, vrec, drec, pol):
+        """(R, 4) per matched record: the event's signed offset from its vertex along the vertex normal's image
+        direction, in metres at the vertex depth / L_REL; that unit direction (2); polarity * sign of the offset."""
+        V = verts.float()
+        n = vertex_normals(V, self.faces_t)[rb, vrec]                                   # (R, 3)
+        Vj = V[rb, vrec]
+        Z = Vj[:, 2].clamp_min(1e-6)
+        ex = n[:, 0] / Z - n[:, 2] * Vj[:, 0] / Z ** 2
+        ey = n[:, 1] / Z - n[:, 2] * Vj[:, 1] / Z ** 2
+        e = torch.stack([ex, ey], -1)
+        e1 = e / e.norm(dim=-1, keepdim=True).clamp_min(1e-12)
+        off = (drec[:, :2].float() - Vj[:, :2] / Z.unsqueeze(-1)) * Z.unsqueeze(-1)       # metres at depth Z
+        sig = (e1 * off).sum(-1) / L_REL
+        return torch.cat([sig.unsqueeze(-1), e1, (pol.float() * torch.sign(sig)).unsqueeze(-1)], -1)
+
+    def forward(self, tok, d, mask, verts, assoc, prev48, ablate: bool = False, verts_geo=None,
+                capture: bool = False, h3_transform=None, verts_gt=None):
         """`verts_geo` (the oracle arm): when the association `assoc` was cast on another mesh, the
         geometry the relation encoder and the mesh edges see comes from `verts_geo` alone: per record
         `zj = V_geo[vid] . d / d . d`, per event `z_prior = sum_r w_r zj_r / sum_r w_r`, `X = z_prior d`,
@@ -473,7 +550,11 @@ class XYZMeshNet(nn.Module):
                 raise ValueError("XYZMeshNet(contour=True) needs associate_rays(mode='contour') records")
             cols.append(assoc["ctr"][rb, rn, rr].float().unsqueeze(-1))
         feat = torch.cat(cols, dim=-1)
-        phi = self.rel(feat.to(wdt))                                                    # (R, C)
+        if self.sign:
+            phi = self.rel[2](self.rel[1](self.rel[0](feat.to(wdt)) +
+                                          self.sign_in(self.sign_features(verts, rb, vrec, drec, tok[rb, rn, 2]).to(wdt))))
+        else:
+            phi = self.rel(feat.to(wdt))                                                # (R, C)
         key = rb * V + vrec
         mass = torch.zeros(B * V, device=dev, dtype=acc).index_add(0, key, wrec.to(acc))
         num = torch.zeros(B * V, C, device=dev, dtype=acc).index_add(
@@ -486,14 +567,39 @@ class XYZMeshNet(nn.Module):
         x = torch.cat([mean, peak, torch.log1p(mass.to(torch.float32)).unsqueeze(-1)], -1)
         O = has.view(B, V).to(torch.float32)
         H = self.vin(x.view(B, V, 2 * C + 1).to(wdt))
+        keep_capture = capture or self.xag_capture_enabled
+        H0 = H if keep_capture else None
         # ---- MeshGNN on the fixed 1-ring
         g = self.edge_geometry(verts if verts_geo is None else verts_geo)
         if not self.geom:
             g = torch.zeros_like(g)
         gemb = torch.relu(self.edge(g.to(wdt)))
         S = O
-        for layer in self.layers:
+        for index, layer in enumerate(self.layers):
             H, S = layer(H, S, gemb, self.ring_idx, self.ring_mask)
+            if self.xag_gnn == "global_residual":
+                H = self.xag_global[index](H, S, self.lbs_w)
+        if self.xag_oracle:
+            if verts_gt is None:
+                raise RuntimeError("XCL oracle GNN requires verts_gt from the window-end ground truth")
+            if verts_gt.shape != verts.shape or verts_gt.device != verts.device or not torch.isfinite(verts_gt).all():
+                raise ValueError("XCL verts_gt must be finite with prev-mesh shape/device")
+            # O is direct positive event quality q*A before propagation; neither
+            # the three-round support S nor a target visibility mask defines it.
+            S = torch.ones_like(O) if self.xag_gnn == "oracle_dense" else O
+            offset = (verts_gt.detach().float() - verts.float()) / L_REL
+            H = self.xag_oracle_projection(offset.to(self.xag_oracle_projection.weight.dtype))
+            H = H * S.unsqueeze(-1).to(H.dtype)
+            if ablate:
+                H = torch.zeros_like(H) + H * 0.0
+                S = torch.zeros_like(S)
+        transform = h3_transform if h3_transform is not None else self.xag_h3_transform
+        if transform is not None:
+            replacement = transform(H, S.detach().clone(), O.detach().clone())
+            if replacement.shape != H.shape or replacement.device != H.device or replacement.dtype != H.dtype:
+                raise ValueError("XAG H3 transform must preserve shape, device and dtype")
+            H = replacement
+        H3 = H if keep_capture else None
         e = lbs_slot_pool(H, S, O, self.lbs_w, self.lbs_hard)                            # (B, 16, 2C+2)
         # ---- residual (unmatched / weakly matched) summary with the same phi
         eb, en = (r > 0).nonzero(as_tuple=True)
@@ -530,6 +636,12 @@ class XYZMeshNet(nn.Module):
             "xyz_verts_prop": S.sum(1).mean(),
         }
         aux = {"slots": slots, "O": O, "S": S, "w": w, "r": r}
+        if keep_capture:
+            # Clones protect the runtime tensors from accidental edits by probes.
+            self.xag_last_capture = {key: value.detach().clone() for key, value in {
+                "H0": H0, "H3": H3, "O": O, "S": S, "slots": slots,
+                "zs": zs, "bslot": bslot, "prev48": prev48}.items()}
+            aux.update({key: value for key, value in self.xag_last_capture.items() if key not in aux})
         if self.residual_mode != "legacy":
             aux.update(residual_aux)
             for key, value in residual_aux.items():
