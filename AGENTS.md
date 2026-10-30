@@ -36,12 +36,25 @@
 - **范围：** 在 S45-TR T1d 上只改面路由要替换的事件的（面，重心）：σ16（换成模板测地 8–24 mm 的随机面，即 P2 noise16）、π（包内循环打乱，即 P2 shuffled），各 fresh 6000 步 + `t1dreplay` 50 步复现；区分"T1d 的收益来自对应信息（A）"与"标签伪影（B1 精确 / B2 GT 占据泄露）"，决定做不做可部署的对应预测器 T0′。两臂用标签、不可部署。只用物理 GPU 2–7（训练一对卡，评测 / 读数每卡至多两个进程，主行 GPU 4 串行）+ CPU；GPU 0–1 不用。S39 / S43 / C1 / S45 不变。
 - **预注册与冻结：** `docs/EXPERIMENT_RECORDS.md#s45ct-prereg-20261030`；协议 `outputs/s45ct/20261030/protocol.json`（`tools/s45ct/run.py freeze`）；驱动 `tools/s45ct/run.py run`（状态 `status.json`），失败保留、不重试；`touch outputs/s45ct/20261030/STOP` 停止。第 0 步验收（T1d 复现、扰动审计、代理复现、评测复现、区分能力）不过不开正式训练。代码只在 `semkine/s45ct_route.py`、`tools/s45ct/`、`tests/test_s45ct.py`、`configs/s45ct_20261030/`；冻结后不再改。
 - **结果汇总：** 仓库根目录 `Results.md`（TRAIN.md 全部训练的结果）。
+- **2026-10-30 结果（`#s45ct-results-20261030`）：判 B2。**
+  - 样本内收益保留比例 R：σ16 0.99、π 0.88；两臂从均值手型出发都收敛；zgz local 三个晚期点都优于 S45。
+  - T1d 的收益主要来自标签给出的 GT 占据（每包事件落在哪些 GT 面上），逐事件配对只占约 0.1–0.3，且主要用在单步精度上。
+  - 按预注册：停 T0′，不再把 T1d 当作对应信息的上界。
+  - 下一步零训练探针"事件能否预测 GT 占据"：须新预注册，待用户决定。
+  - S45-RF P2 的冻结代理在 π 上严重低估训练后的保留（I 0.074 对 R 0.88），不能当作训练后耐受度的预测。
+  - σ16 / π 主行时延在 pxm 训练同时进行时测得，不作解读。
 
 ## S45-PX · 前态顶点位置进记录（用户 2026-10-30 指令"反正现在卡也空着，你再给我训一个版本，S45，但是单个event从7维到13维的时候也把上一个状态的MANO的x，y，z也当作已知信息放在维度里，你看看怎么设计。"）
 
 - **范围：** 在 S45 上只改一处：每条（事件, 顶点）记录 13 → 16 维，多出关联顶点在前态网格上的位置。pxc 用相机 XYZ（字面版本；顶点相机坐标本可由像素 + zn + dXYZ 算出，只是改成线性可得）；pxm 相对前态腕点（MANO 系去平移，记录原本没有的"顶点在手上的哪里"）。经零初值、无偏置的 3 → 64 映射接到 φ 第一层（XVM sign 接口），初始函数与 S45 逐位相同。各 fresh 6000 步、S45 严格合同、单 seed 3407 描述性、可部署。只用物理 GPU 2–7（S45-CT 运行期间只用 6–7、一次一个训练、可用内存 ≥ 160 GiB 才开训、不测主行），CPU 全量；GPU 0–1 不用。S39 / S43 / C1 / S45 不变。
 - **预注册与冻结：** `docs/EXPERIMENT_RECORDS.md#s45px-prereg-20261030`；协议 `outputs/s45px/20261030/protocol.json`（`tools/s45px/run.py freeze`）；驱动 `tools/s45px/run.py run`（状态 `status.json`），失败保留、不重试；`touch outputs/s45px/20261030/STOP` 停止。预检须逐位复现 S45 第 1 步、第 2 步离开 S45，不过不开正式训练。判读：zgz XCL 单 seed 规则 + 样本内三个晚期点 ≥ 2.5 mm 且 ≥ 7 / 9 录制，判读表 A_MANO / A_CAMERA / B_SAMPLE_ONLY / E_ZGZ_ONLY / C_NULL / REVERSE 及下一步预先写定（`tools/s45px/decide.py`）。代码只在 `semkine/s45px.py`、`tools/s45px/`、`tests/test_s45px.py`、`configs/s45px_20261030/`；冻结后不再改。
 - **工程修订 1（`#s45px-amend1-20261030`，写于读数之前）：** S45 的 `xyz.fc2` 初值为零，第 1 步上游梯度全为零，所以臂到第 3 步才离开 S45；验收判据改为"第 1、2 步逐位等于 S45、第 3 步离开"（`accept_r1.py`，回执 `receipts_r1/`），正式训练入口 `train_r1.py`，续跑驱动 `run_r2.py`（状态 `status_r2.json`），冻结清单 `manifests/amend1.json`；原 FAIL 回执保留，两个预检训练沿用。
+- **2026-10-30 结果（`#s45px-results-20261030`）：判 C_NULL。**
+  - 两臂都在噪声内。pxc 的 zgz 与 S45 持平，样本内 +0.9–2.1 mm。
+  - pxm 6000 步 zgz local −3.7、样本内 −4.6 mm，但 5500 步 zgz local 反而差 4.7 mm，样本内 5000 步差 1.0 mm。
+  - 机制读数没有出现 H_PX 预期的三项同时下降。
+  - 按预注册：缺顶点位置不是瓶颈（与 S45-DEEP 一致），停止这条线。
+  - 主行时延 14.15 / 14.28 ms 为单独测量。
 
 ## S45-RF · 回复力从哪里来（用户 2026-10-30 指令"先做 P1，再做 P2"）
 
