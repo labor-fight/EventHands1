@@ -90,13 +90,14 @@ def test_sample_index_matches_legacy_runs(root, components):
 
 # ------------------------------------------------------------------ raw contract
 def test_raw_packed_reproduces_lnes(root, components):
-    """Raw events must carry everything LNES has; identical after re-splatting."""
-    ds = _make(root, components, input_mode="both")
+    """Raw events must carry everything LNES has; identical after re-splatting (the two faces of one sample)."""
+    ds = _make(root, components, input_mode="raw_packed")
+    legacy = _make(root, components, input_mode="legacy_lnes")
     for i in np.linspace(0, len(ds) - 1, 25).astype(int):
         pkt = ds[int(i)]
         rebuilt = EV.lnes_from_packet(pkt.events, pkt.delta_t_s, pkt.meta["window_ms"],
                                      ds.height, ds.width)
-        assert np.array_equal(rebuilt, pkt.lnes), f"LNES mismatch at {i}"
+        assert np.array_equal(rebuilt, legacy[int(i)][0].numpy()), f"LNES mismatch at {i}"
 
 
 def test_raw_packed_timestamps_are_microsecond_and_ordered(root, components):
@@ -131,7 +132,7 @@ def test_raw_packed_keeps_every_event(root, components):
 
 
 def test_collate_is_ragged_and_valid(root, components):
-    ds = _make(root, components, input_mode="both")
+    ds = _make(root, components, input_mode="raw_packed")
     items = [ds[int(i)] for i in np.linspace(0, len(ds) - 1, 8).astype(int)]
     batch = EV.collate_packets(items)
     batch.validate()

@@ -1,0 +1,147 @@
+{
+  "round": 11,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-r9-prereg-20261031",
+  "routers": {},
+  "arms": {
+    "xgt_sr1a": {
+      "pair_trunk": "pfagtdz",
+      "router": "sr1a",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T* of round 7) with the annealed sr1 at test"
+    },
+    "xgt_srpa": {
+      "pair_trunk": "pfagtdz",
+      "router": "srpkda",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T* of round 7) with the annealed srpkd at test"
+    },
+    "xgt_srdwa": {
+      "pair_trunk": "pfagtdz",
+      "router": "srdwkda",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T* of round 7) with the annealed srdwkd at test"
+    },
+    "xgt_srph": {
+      "pair_trunk": "pfagtdz",
+      "router": "srpkdh",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T* of round 7) with srpkd with part-first decoding at test"
+    },
+    "xgt_srpah": {
+      "pair_trunk": "pfagtdz",
+      "router": "srpkdah",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T* of round 7) with the annealed srpkd with part-first decoding at test"
+    },
+    "xgt_srdwh": {
+      "pair_trunk": "pfagtdz",
+      "router": "srdwkdh",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T* of round 7) with srdwkd with part-first decoding at test"
+    },
+    "xgt_srdwah": {
+      "pair_trunk": "pfagtdz",
+      "router": "srdwkdah",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T* of round 7) with the annealed srdwkd with part-first decoding at test"
+    },
+    "xt0_sr1a": {
+      "pair_trunk": "pfat0pdz",
+      "router": "sr1a",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with the annealed sr1 at test"
+    },
+    "xt0_srpa": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srpkda",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with the annealed srpkd at test"
+    },
+    "xt0_srdwa": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srdwkda",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with the annealed srdwkd at test"
+    },
+    "xt0_srph": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srpkdh",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with srpkd with part-first decoding at test"
+    },
+    "xt0_srpah": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srpkdah",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with the annealed srpkd with part-first decoding at test"
+    },
+    "xt0_srdwh": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srdwkdh",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with srdwkd with part-first decoding at test"
+    },
+    "xt0_srdwah": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srdwkdah",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with the annealed srdwkd with part-first decoding at test"
+    }
+  }
+}

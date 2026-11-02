@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 import numpy as np  # noqa: E402
 
+from tools.frozen import accepts  # noqa: E402
 from tools.s45loc import common as C  # noqa: E402
 
 #: files whose bytes define a reading; run.py refuses to start when any of them changed
@@ -56,7 +57,7 @@ def main(argv=None):
     C.require(args.smoke == C.SMOKE, "--smoke iff S45LOC_OUT overrides the reading directory")
     from config import load_config
     C.require(C.sha(C.CHECKPOINT) == C.CHECKPOINT_SHA256, "S45 checkpoint changed")
-    C.require(C.sha(C.CONFIG) == C.CONFIG_SHA256, "S45 config changed")
+    C.require(accepts(C.CONFIG, C.CONFIG_SHA256), "S45 config changed")
     cfg = load_config(str(C.CONFIG))
     rec = recording_constants(cfg)
     z_ref = float(np.median([rec[s]["p0z_median"] for s in C.TRAIN_LOCAL]))

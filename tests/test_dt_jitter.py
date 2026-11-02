@@ -789,26 +789,6 @@ def _flat(d, prefix=""):
     return out
 
 
-def test_contrast_descriptions_match_the_configs():
-    """The 'what differs' text of the first two contrasts is what the YAML files say (nothing else differs)."""
-    from config import load_config
-    names = ("rt_cnn", "rt_cnndelta", "rt_cnntrack")
-    cfg = {n: _flat(load_config(str(REPO / "configs" / "rt" / f"{n}.yaml"))) for n in names}
-    ignore = {"TRAIN.OUTPUT_DIR", "TRAIN.RUN_NAME", "EVAL.OUTPUT_DIR", "_config_path"}
-
-    def diff(a, b):
-        return {k for k in set(cfg[a]) | set(cfg[b]) if cfg[a].get(k) != cfg[b].get(k)} - ignore
-
-    d1, d2 = diff("rt_cnn", "rt_cnndelta"), diff("rt_cnndelta", "rt_cnntrack")
-    assert d1 == {"MODEL.PREDICT_DELTA", "MODEL.PREVPOS_EMBED", "MODEL.ZERO_EVENT_GATE"}
-    assert d2 == {"MODEL.PREV_RENDER", "MODEL.RENDER_H", "MODEL.RENDER_W", "MODEL.RENDER_SCALE", "MODEL.RENDER_CHUNK"}
-    assert [cfg[n][k] for n in ("rt_cnn", "rt_cnndelta") for k in sorted(d1)] == [False] * 3 + [True] * 3
-    assert cfg["rt_cnndelta"]["MODEL.PREV_RENDER"] is False and cfg["rt_cnntrack"]["MODEL.PREV_RENDER"] is True
-    text = {(a, b): w for a, b, w in JO.CONTRASTS}
-    assert all(k.split(".")[1] in text[("rt_cnn", "rt_cnndelta")] for k in d1)
-    assert "PREV_RENDER" in text[("rt_cnndelta", "rt_cnntrack")] and "RENDER_H/W/SCALE/CHUNK" in text[("rt_cnndelta", "rt_cnntrack")]
-
-
 HIST_CFG = Path("/data1/lyq/code/mesh/EventHands/configs/eventhands_track_render51_dr_so3fk.yaml")
 
 

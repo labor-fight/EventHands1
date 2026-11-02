@@ -1,5 +1,72 @@
 # Agent conventions for EventHands1
 
+## 代码清理（用户 2026-11-01"这批代码有点乱，你清理删除一下，屎山代码你也清理一下"）
+
+- **第一步已做（2026-11-01 07:33–07:55 UTC）：删除已结案研究的代码，最终 1,067 个文件（约 21.3 万行），61 个顶层目录整个消失。**
+  - 判定方法：静态引用图，包括导入（含函数内导入、相对导入、importlib 字符串）和代码字符串、.sh、.json、.yaml 里的文件路径；不计 docstring 与注释。
+  - 删的是从下列活代码根都走不到的文件：`model/`；核心 semkine（train / dataset / eval_track / xyz_mesh）；S45 线（`tools/s45*`、`semkine/s45*`、`configs/s45*`）；C1 / C1SF；`tools/make_s36_row.py` 等出表工具；`deploy/`；共用驱动在跑队列里的全部路径。
+  - 具体包括：工具、配置、测试；35 个 semkine 模块（xkf*、sba*、rgq、slr、mv2_rootself 等）；`.experiments/`；三个 S43 C++ 源文件。
+  - 另删了两个清理前就坏掉的测试：`tests/test_xag_diagnostics.py`、`tests/test_xa_assoc.py`。它们导入 10-19 已删的 `tools.xag` / `configs/xa`。
+  - 删除后重跑保留的测试，又发现静态图看不到的依赖：在 `sys.path` 插入后用裸名导入（`tools/dt`、`tools/tracking`），以及分段拼出的配置路径（`ROOT / "configs" / "dt" / …`）。
+    - 已从归档逐字节恢复 160 个文件：S39 的推理栈（`tools/tracking/evalx.py`、`tools/dt/filter_eval.py` 及其辅助）；`configs/dt`、`dt2`、`rt`、`semkine`、`semkine_recipes`；`tools/rt/make_configs.py`、`tools/config_utils.py`、`tools/select_checkpoint.py`；`tools/xcl/sources/step1_source_labels.py`。
+    - 另删了只测已结案 XVM 的 `tests/test_xvm_ladder.py`。
+  - 验收：保留的 76 个测试文件删除前后逐项相同：前 1155 过 / 65 跳过 / 10 失败，后 1173 过 / 65 跳过 / 10 失败，没有任何用例改变结果。
+    - 那 10 个失败清理前就在：test_xag_model ×5、test_dt_model2 ×2、test_dt_model4 ×1、test_dt_render ×1、test_xcl_depth ×1。
+    - 多出的 18 个通过是对比脚本按类名归档的口径差，两次都在、都通过。
+- **保留：**
+  - 所有活代码字节不变：S45-TR / RT / AT / SM 的冻结清单仍可校验，第 12–14 轮照常跑。
+  - 参考基线配置：S39 的 `configs/dt` / `dt2` / `rt`、S43 `configs/s43/s43n_sp.yaml`、`configs/eventhands_*.yaml`。
+  - 数据 / MANO / 视频 / 配置工具，`evcreader/`、`transfer_check/`、`docs/`。
+  - `outputs/` 与根目录 `logs/`：账本引用其中的日志作证据。
+- **恢复：**
+  - 归档在 `outputs/deleted_20261101/code_cleanup/`：`inventory.json` 记逐文件 SHA256，`files/` 是副本，另有 `deletion_receipt.json`。
+  - 被跟踪的文件也可以 `git checkout 6fe3ca7 -- <路径>` 恢复。`.experiments/` 里 17 个 git 忽略的日志 / `.pt` 只有归档副本。
+- **下文各节里已删的路径**（如 `tools/kstar/`、`tools/aura/`、`tools/xkf*/`、`configs/dt/` 的其它配置）是历史引用。C1 复现、XCL、XAG-paired、C1SF 的冻结协议在清理前就已与当前树不符（107 / 2 / 107 / 5 个文件），要复现须检出各自的提交。
+- **第二步已做（2026-11-01 10:56–12:10 UTC，`#code-cleanup-step2-20261101`；用户选择"批次跑完后做"与"不提交"）：活代码去屎山。**
+  - 备份：`outputs/deleted_20261101/live_code_backup_20261101T105636Z/`（806 个文件，逐文件 SHA，已复核）。不做 git 提交。
+  - 核心：删去约 40 组已结案研究的可选功能与调试 agent log，13 个 semkine 模块、18 个测试、145 个配置随之删除；`model/model.py` 3050 → 985 行。S45 线运行时打补丁要用的接口与属性全部保留。
+  - 守卫：`tests/test_core_fingerprint.py`（九个必须保留的配置在 CPU 上的逐位指纹）、`tests/conftest.py`。以后改核心代码先跑它。
+  - 冻结哈希：已结案 S45 线研究的协议不改；核心文件的新 SHA 记在 `tools/frozen_amendments.json`，各研究的校验经 `tools.frozen.accepts`。**以后再改这些核心文件，须在该 JSON 里追加旧 → 新 SHA 并附逐位等价证据**，否则那些研究的工具会拒绝运行。
+  - `tools/s45sm/`：65 个版本脚本合并为 20 个模块，入口 `python tools/s45sm/cli.py <动词>`（旧脚本 → 动词对照见 `tools/s45sm/legacy.py`）。旧脚本归档 `outputs/s45sm/20261031/legacy_code/`，代码身份 `manifests/p1_core.json`。研究汇总用 `cli.py decide --as-of-round 14`（r15 / r16 是工程验收轮，不是研究轮）。
+  - 验收全部通过：
+    - CPU 指纹逐位相同；全部测试 812 过、0 失败；31 个已发布读数由新工具重算一致。
+    - GPU：S45 50 步预检、pfat0pdz 50 步预检（经新 `train`）与原记录逐位相同；S45 与 xt0_srdwa 的主行重评精度数组完全相同。
+  - 验收中发现并修正新 `train` 入口把动词留在 argv 里的错误（`#s45sm-tools-cutover-amend1`）。
+
+## T1A-UB · S45-T1a 框架的上限估计与预算内逼近（用户 2026-11-02 目标）
+
+- **目标：** 保持 S45-T1a 的框架（事件输入—事件与 MANO 交互—网格特征处理—状态增量更新），估计其可达上限，并在参数、时延、FLOPs 三项各自不超过 T1a 的前提下优化内部设计。
+  - 区分"标签辅助诊断上界"与"相同部署输入及预算下的经验可达上限"。
+  - 允许模块重排、替换、合并与预算重分配；不另起大型架构，不加部署输入，部署时不用真值。
+- **授权（AskUserQuestion）：**
+  - "GPU 2–7，自动推进"：每轮预注册、冻结、预检后自动开训、评测、读数，出结果后分析并登记下一轮，不逐轮等确认；GPU 0–1 不用。
+  - "XAG 伪标签可以，只用在训练"：可作监督或蒸馏；测试时用标签路由的结果只算诊断上界。
+- **预算（T1a `s45tr_t1a_s3407` 第 6000 步）：** 参数 494,323（含测试路由器）；MACs 732,061,888（thop + 函数式乘积 + 路由器）；时延 ≤ 同块重测的 T1a（发布值 15.59 ms）。训练时读的路由不部署、不计入。
+- **预注册与冻结：** `docs/EXPERIMENT_RECORDS.md#t1aub-r1-prereg-20261102`；每轮 `tools/t1aub/registry_r<k>.json` + `outputs/t1aub/20261102/manifests/r<k>.json`，写于该轮任何读数之前；评测 / 判读工具在第一个读数前另冻结。已冻结文件不再改，新行为放新文件。
+- **代码边界：** `semkine/t1aub.py`（opt-in 子类：读出宽度重建、标签位置特征 oracle、EdgeConv 重参数化）、`tools/t1aub/`（common / train / accept / evaluate / decide）、`tests/test_t1aub.py`、`configs/t1aub_20261102/`；路由沿用 S45-SM 的路由器与 PFA（`semkine/s45sm*.py`，不改）。
+- **驱动：** 共用 `tools/s45rt/chain_r2.py`，键前缀 `ub:`；声明内存：读 XAG 源的训练 260、其余训练 130、评测 15 GiB。训练加 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`。失败保留、不重试；STOP 会连带其它研究，先问用户。
+- **第 1 轮：**
+  - 上限阶梯：gt（标签路由 + PFA）、gtf（标签位置作特征）、t0p（T0P 路由 + PFA）、dz；
+  - 预算可行性：t0ps16、t0pnoeg、t0pnoeg20；
+  - 零训练单元：候选 A = t0ps16_srdwa（491,534 参数），候选 B = t0pnoeg20_srdwa（491,290 参数）。
+  - 前提：t1areplay 须逐位复现 T1a 的 50 步预检，否则不开正式训练（17:16 UTC 通过）。
+  - 补充 R1P（`#t1aub-r1p-prereg-20261102`）：零训练信息保留探针（事件编码级、槽级 f4），`tools/t1aub/probe.py`。
+- **第 2 轮（`#t1aub-r2-prereg-20261102`，零训练）：** 前态在路由器前两名部位内仲裁关联（`semkine/t1aub_arb.py`；point σ = 2 px / ray 门控 / 部位优先参照），六个单元；第 2 轮起的单元由 `tools/t1aub/r2.py`、`evaluate2.py`、`registry2_r<k>.json` 解析，冻结 `manifests/rnd2.json`。
+- **第 3 轮（`#t1aub-r3-prereg-20261102`）：** T1a 在 s45samp 采样流上的配对复现 t1arep，并写定最终配对比较规则。
+- **第 4 轮（`#t1aub-r4-prereg-20261102`）：** 候选 B 主干上的训练侧机制 b4cos / b4n2 / b4dz / b4match，每臂只改一处；N2 经 `tools/t1aub/train2.py` + `train2_r4.json`。除 b4cos 外，正式训练排在 gt 正式训练之后。
+- **第 5 轮（最终轮，工具已写、未登记）：** `tools/t1aub/final.py` 按写定规则生成：X = 候选 B 主干 + `summary_r4_amend1.json` 的采纳机制，两条采样流（legacy 主干 / `x5rep`），部署单元 x5l / x5d + srdwkda；诊断单元 x5g（主干 + 测试时标签路由，`tools/t1aub/r5.py`、`evaluate5.py`）；候选 A 在预算内且有非 N2 采纳机制时另训 a5。判读 `decide_final.py`（第 3 轮配对规则 + 最佳可部署 + 差距分解）。预注册模板在会话 scratchpad，等 `ub:r4:decide:amend1` 后填入账本、`final.py register`、`final.py jobs --block b5`、`chain_r2.py add`。
+- **第 6 轮（`#t1aub-r6-prereg-20261102`，05:31 UTC 登记）：** gtf 为 FEATURE_SUFFICES（ρ_feat 0.83–0.84，C 0.56），按第 1 轮写定的下一步训 rf6 = 候选 B 主干 + srdwkda 预测的表面位置作输入特征 + S45 自身射线关联（`tools/t1aub/r6.py`、`train6.py`、`evaluate6.py`、`breakdown6.py`、`decide6.py`、`round6.py`）。对 b4match 判 FEAT_BETTER / NULL / WORSE / MIXED，不改第 5 轮的最终配置判读。b6 块与判读作业由 `final.py jobs` 随第 5 轮一并生成（经 evaluate7 / breakdown7，依赖 `ub:r5:decide`）；不要用冻结的 `round6.py block`（它写的是 evaluate6）。
+- **工程修订 1（`#t1aub-amend1-rows-20261102`，07:4x UTC）：** 07:28 b1 第一个带路由器的行（t0p）在尾延迟一步失败，连带 b1 / b2 / b4 各行与第 1、2、4 轮判读被跳过。原因是 S45-SM 的路由器缓存 `_net` 用原地的 `nn.Module.to`，`make_main_row` 在 CPU 上数 MACs 时把 CUDA 条目指向的那个路由器搬走了。修复 `tools/t1aub/devfix.py`（按设备各一份拷贝，数值不变）+ `evaluate7.py` / `breakdown7.py`；b1 第一次的三行归档到 `outputs/t1aub/20261102/rows_attempt1/b1/`，整块以原名重测；重登记的键 `:row2:` / `:bd2:` / 判读 `:r2`（`jobs/amend1_rows.json`）。轨迹与读出不受影响。以后冻结主行工具前，先用带路由器的网络把整条主行跑通一次。
+- **2026-11-02 11:21 UTC 用户指令"现在停吧"（`#t1aub-stop-20261102`）：** 用驱动自己的 STOP 停止，11:22 记 STOPPED_PRESERVED；驱动里无其它研究的作业。第 5 轮未登记，rf6 未训练，第 1、2、4、6 轮写定判读未计算；b1 重测完成到 gtf 行（dz 行被终止）。不再登记新轮、不追加作业；续做须用户下令，并换新驱动（chain_r2 是 fresh-only）且先写工程修订。描述性小结见账本该节。
+- **已有设计分析（ylf，不读 zgz）：** `outputs/t1aub/20261102/analysis/design_ylf/`。前态正确时它分部位强于事件；换成闭环状态后，任何前态仲裁都比路由器单独差。
+- **备用代码（未登记）：** `semkine/t1aub_router.py`（dwt / dwr / dweg 路由器变体）与 `tools/t1aub/router.py`（srdwkd 配方训练）。
+- **加新轮注意：**
+  - `registry_r<k>.json` 必须与其清单在同一进程里写入，否则 `verify_protocol` 会让所有作业失败；第 5、6 轮的登记先写本轮的文件清单 `r<k>x.json`（round k），再写登记，最后写轮清单，任何时刻都不会出现"已登记未冻结"；
+  - 冻结清单把 `tools/frozen_amendments.json` 也冻住，所以本研究的文件不能走旧 → 新 SHA 修订，新行为一律放新文件；
+  - 260 GiB 的标签训练会被 130 GiB 的作业饿住；
+  - 已就绪的 exclusive 作业会挡住新的 pair / gpu 作业，且只在没有任何 GPU 作业时开始，所以行块要依赖上一块的末尾，并尽量依赖本轮自己的全部读数（否则会等别的训练跑完）；
+  - `chain_r2.py add` 要求依赖键已存在；依赖尚未登记轮次的作业要等那一轮登记时再追加。
+
 ## S45 · XYZ-C1 + SO(3)+平移+FK损失（用户2026-10-29固定的后续研究基底）
 
 - **用户明确采用：** `C1SF so3（seed3407）` 固定命名为 **S45**，本课题后续修改以它为基底与对照。不是DZ/ZR组合，不改变原XYZ-C1的关联、φ、778聚合、MeshGNN或51D加性更新。原C1／S39／S43工件保留。
@@ -43,6 +110,10 @@
   - 下一步零训练探针"事件能否预测 GT 占据"：须新预注册，待用户决定。
   - S45-RF P2 的冻结代理在 π 上严重低估训练后的保留（I 0.074 对 R 0.88），不能当作训练后耐受度的预测。
   - σ16 / π 主行时延在 pxm 训练同时进行时测得，不作解读。
+- **2026-10-30 结论分级（`#s45-grading-20261030`，事后描述，判读不改）：**
+  - π 确实拆掉了逐事件配对（换面中位 119 mm，88 % 跨部位），B2 站得住；"配对占 0.1–0.3"只作描述。
+  - 单 seed 噪声底：zgz local ≈ 5 mm、global ≈ 8 mm；样本内 ≈ 2–3 mm（近乎空改动的 pxc 三个检查点都稳定好约 1–2 mm）。低于噪声底的差只作描述。
+  - 三类分级（可下结论 / 只作描述 / 不作结论）见 `Results.md` 的"结论分级"一节。
 
 ## S45-PX · 前态顶点位置进记录（用户 2026-10-30 指令"反正现在卡也空着，你再给我训一个版本，S45，但是单个event从7维到13维的时候也把上一个状态的MANO的x，y，z也当作已知信息放在维度里，你看看怎么设计。"）
 
@@ -56,7 +127,186 @@
   - 按预注册：缺顶点位置不是瓶颈（与 S45-DEEP 一致），停止这条线。
   - 主行时延 14.15 / 14.28 ms 为单独测量。
 
-## S45-RF · 回复力从哪里来（用户 2026-10-30 指令"先做 P1，再做 P2"）
+## S45-RT · 可部署路由（用户 2026-10-31 指令"你把方案1和方案二整理一下，整理到train里。先部署着"）
+
+- **范围：** `TRAIN.md` 第 8 节。路由器只看事件、不看前态，是 S45 方法自己的模块。用户强调 S45 方法新，不用 S39 等外部姿态网络。
+  - 方案一 = 重开 S45-TR 的 T1b（冻结 T0 路由，τ 0.5），S45-TR 的文件与工具原样，产物在 S45-TR 目录。
+  - 方案二 = 新路由器 T0P（CNN 看整包事件图，按约 12 mm 半径、不跨部位的 279 个表面块分类，置信度筛选），加 T1p（S45 + 冻结 T0P 路由）。
+  - 单 seed 3407，描述性。只用物理 GPU 2–7 + CPU；GPU 0–1 不用。S39 / S43 / C1 / S45 与已有判读不变。
+- **预注册与冻结：**
+  - 预注册 `docs/EXPERIMENT_RECORDS.md#s45rt-prereg-20261031`（含对 S45-TR"T0 不过门不训 T1b"的偏离登记）。
+  - 协议 `outputs/s45rt/20261031/protocol.json`（`tools/s45rt/chain.py freeze`，2026-10-30 16:16 UTC）。
+  - 方案二代码与配置冻结于 `outputs/s45rt/20261031/manifests/plan2.json`（`tools/s45rt/freeze_plan2.py`，16:24 UTC，块表 SHA `a36382d8…`）。冻结后不再改。
+- **代码边界：** `semkine/s45rt_router.py`、`tools/s45rt/`、`tests/test_s45rt.py`（5 项 CPU 测试通过）、`configs/s45rt_20261031/`；不改任何冻结文件。
+- **门与判读：**
+  - T0P 门：ylf 上跨部位比例比 T0 低 ≥ 0.05，且覆盖率 ≥ 0.5；不过门不训 T1p。
+  - 两臂对 S45 的判读：R（三个晚期点）、C、zgz XCL 规则 → DEPLOYABLE / IN_SAMPLE / WEAK / NULL，由 `tools/s45rt/decide.py` 写 `summary.json`。
+- **驱动：** `tools/s45rt/chain.py run`（后台，状态 `outputs/s45rt/20261031/status.json`，日志 `logs/`）。
+  - 作业只用 `chain.py add` 追加；失败保留、不重试；`touch outputs/s45rt/20261031/STOP` 停止。
+  - 训练作业开训前要求主机可用内存 ≥ 280 GiB，且离上一个训练开训 ≥ 20 min。
+  - 主行在 `barrier:all` 之后于 GPU 4 串行测。
+  - S45-TR 的旧驱动（pid 95963）空转，不再往里加作业。
+- **2026-10-31 00:51 停止**（`#s45rt-stop-20261031`）：
+  - 用户的"先部署着"本意是先准备、不是开训。以后只在用户明确说"开始训练 / 开训"时才启动驱动。
+  - 我对驱动发 SIGSTOP 想暂停派发新作业。会话后台任务因此结束，系统发 SIGTERM，驱动连带终止了 T1b 正式训练（约 500 步，现场保留）。T0P / T1p 未开始。
+  - 重跑须用户下令，并先写工程修订。长驱动一律用 `setsid nohup` 与会话脱离启动，暂停 / 停止只用驱动自己的机制，不用 SIGSTOP。
+- **第五批计划：** `TRAIN.md` 第 9 节，S45 误差归因 F1–F5 与条件追加项。只是计划，未预注册、未部署。
+- **2026-10-31 01:00 工程修订 1 与重启**（`#s45rt-amend1-20261031`；用户："现在GPU2-7全部开始训练，全范围部署"）：
+  - 被终止的 T1b 现场归档到 `outputs/s45tr/20261030/formal_failed/s45tr_t1b_s3407_r1_20261031/`。
+  - 新驱动 `tools/s45rt/chain_r2.py`（`queue_r2.json` / `status_r2.json` / `logs_r2/`）用 `setsid nohup` 启动。
+  - 按声明的主机内存准入：读 XAG 源的训练 260、其余训练 130、评测 15 GiB；合计 ≤ 440 GiB。
+  - `tools/s45rt/barrier_r2.py` 只等显式列出的作业，S45-RT 的判读不被同队列的 S45-AT 推迟。
+  - 主行在两个研究的全部读数之后测。冻结于 `manifests/amend1.json`。
+- **2026-10-31 结果（`#s45rt-results-20261031`，`Results.md` 第 9 节）：T0P 门 FAIL → T1p 未训练；T1b 判 WEAK。**
+  - T0P 只有覆盖率不过：0.400 < 0.5。被路由的事件跨部位 0.080（T0 0.432），模板误差中位 5.4 mm（T0 14.9）；不筛选时跨部位 0.203、面测地中位 9.4 mm，好于 σ16 锚点（描述）。
+  - T1b：R 0.23 / 0.19 / 0.18（样本内好 2.8–3.6 mm），C 1.33 不收敛（S45 1.39），zgz 无支持；6000 步 local 25.41 / global 11.29。
+  - 冻结代理 P2 给 T0 的 0.195 与训练后 R 一致（π 上则低估）。
+  - 写定的下一步没有覆盖"T1b WEAK + T1p 未训练"；`TRAIN.md` 9.4 的"先做长窗路由器"前提与门数值不符。待用户决定，未追加作业；改阈值或训 T1p 都是偏离，须另行登记。
+  - T1b 主行（10:16，GPU 4，无其它 GPU 作业）：local 25.41 / global 11.29 / RA 17.86，时延 20.58 ms；与 S45 只换数据顺序的 s45samp（27.00 / 12.11 / 19.03）同在噪声带内。
+
+## S45-AT · S45 误差归因（用户 2026-10-31 指令"现在GPU2-7全部开始训练，全范围部署"，范围 `TRAIN.md` 第 9 节）
+
+- **范围：** 五个 fresh 6000 步训练，各自相对基线只改一处，S45 严格合同，seed 3407，单 seed 描述性：
+  - `dz` = S45 + 深度增强；
+  - `t1ddz` = T1d + 深度增强；
+  - `t1dnoylf` = T1d 训练去掉 ylf；
+  - `s45samp` = S45 只换采样流（严格合同硬性要求 seed 3407，所以不换 seed）；
+  - `w200` = 200 ms 证据窗口，前态在窗口末端前 50 ms，评测仍用 50 ms 网格、窗口在段首裁短。
+  - 只用物理 GPU 2–7 + CPU；GPU 0–1 不用。S39 / S43 / C1 / S45 不变。
+- **预注册与冻结：** `docs/EXPERIMENT_RECORDS.md#s45at-prereg-20261031`；协议 `outputs/s45at/20261031/protocol.json`（`tools/s45at/freeze.py`，01:09）；队列清单的出处记录在 `outputs/s45at/20261031/manifests/jobs.json`。
+- **代码边界：** `tools/s45at/`（`train.py` 的 ylf 过滤与 dedicated 采样都是 opt-in；`common.py install_window_patch` 只在 w200 的评测进程里生效）、`tests/test_s45at.py`（7 项通过）、`configs/s45at_20261031/`。不改冻结文件。
+- **判读：** `tools/s45at/decide.py` 计算 depth_s45 / depth_t1d / interaction / window / heldout 五个效应，噪声取 |S45 − s45samp|。门槛为 max(5 / 8 / 2.5 mm, 噪声)，分类 detected / suggestive / not detected，结果写 `summary.json`。
+- **驱动：** 共用 S45-RT 的 `chain_r2.py`。XAG 两臂等 `formal:t0p` 结束，其余三臂等 T1p 预检验收结束，让 S45-RT 先行。失败保留、不重试。
+- **2026-10-31 06:35 工程修订 1**（`#s45at-amend1-20261031`，写于任何 w200 读数与判读之前）：
+  - w200 正式训练第 213 步显存不足：物理 GPU 7 已分配 23.99 GiB、已保留未分配 16.04 GiB，与 S45-TR N2 / N4 同为分配器碎片；200 ms 窗口每批事件约为 S45 的 1.7 倍。
+  - 失败现场在 `outputs/s45at/20261031/formal_failed/s45at_w200_s3407_attempt1/`。
+  - 处理：加 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`，`formal:at:w200:r2` fresh 重跑；验收、评测、读数、判读、主行以 `:r2` 重登记，命令不变。
+  - 原 `final:s45at` 会因缺 w200 报告预期失败；r2 的评测排在 `barrier:s45at` 与已登记主行之后。判读只由 `final:s45at:r2` 算一次（已被修订 2 取代）。
+  - 冻结清单 `outputs/s45at/20261031/manifests/amend1.json`。
+  - 核验（`#s45at-amend1-check-20261031`，描述）：r2 07:41 在 GPU 4–5 开训，前 212 步两个 rank 的输入、事件包与损失指纹与第一次逐位相同，即这个设置与换卡都不改数值。
+- **2026-10-31 07:55 工程修订 2**（`#s45at-amend2-20261031`，写于任何 s45samp 读数与判读之前，按修订 1 的预先登记）：
+  - s45samp 正式训练第 3701 步显存不足（物理 GPU 6：已分配 23.45 GiB、已保留未分配 15.71 GiB），同一种分配器碎片；每批事件数与 dz 同量级。
+  - 失败现场（3700 步记录、第 500–3500 步检查点）在 `outputs/s45at/20261031/formal_failed/s45at_s45samp_s3407_attempt1/`，不评、不读。
+  - 处理同修订 1：`formal:at:s45samp:r2` 加 expandable_segments fresh 重跑，依赖作业以 `:r2` 重登记，命令不变。
+  - 判读改由 `final:s45at:r3` 算一次：s45samp r2 的 e3 评测等 `final:s45at:r2` 结束后才跑，所以 `final:s45at` 与 `final:s45at:r2` 都按预期因缺输入失败、不写任何东西。
+  - 冻结清单 `outputs/s45at/20261031/manifests/amend2.json`。
+  - 核验（`#s45at-amend2-check-20261031`，描述）：r2 08:10 在 GPU 2–3 开训，前 3700 步两个 rank 与第一次逐位相同，第 500–3500 步检查点逐字节相同。原 `final:s45at` 08:42 按预期因缺 s45samp 报告失败，未写出任何东西。
+- **2026-10-31 结果（`#s45at-results-20261031`，`Results.md` 第 10 节；`final:s45at:r3` 10:49 算一次）：第二层是一般的新受试者迁移。**
+  - 噪声（S45 − s45samp）：zgz local 3.48 / global 2.74 / 样本内 2.24 mm，门槛保持 5 / 8 / 2.5 mm。
+  - heldout 检出：ylf 留出罚分 4.2–4.9 mm（T1d 下 ylf_local 7.2–7.8 → 11.7–12.1 mm）；去掉 ylf 不影响 zgz。
+  - depth_t1d（+4.3 / +1.6 / +2.1 mm）与 depth_s45 都未检出；dz 只改善单步（E3 好 2.9 mm），与 C1 上同型。interaction 只在样本内 suggestive。
+  - window 变差（zgz local −2.3 / −13.2 / −5.9 mm，suggestive），w200 训练不稳。
+  - 从均值手型出发：t1ddz / t1dnoylf 收敛（C 0.50 / 0.51），dz / s45samp / w200 不收敛（C 1.48 / 1.14 / 1.15）。
+  - 主行：t1ddz 12.82 / 6.58 / RA 9.48（不可部署，S45 系最好）；s45samp 27.00 / 12.11 / 19.03，S45 已发布的行落在偏好的一侧。
+  - 写定解读不规定新训练。训练受试者固定 9 人，可动的只有受试者层面的增强。下一步待用户决定；未追加作业，共用驱动空转。
+
+## S45-SM · 只看事件的表面路由器替换"对着前态的关联"（用户 2026-10-31 目标"S45的大框架不变……在延迟和参数略微上升的情况下，误差能降低至接近12.82 / 6.58 / RA 9.48……框架具有普适性……至少一个 Nature 级创新点"）
+
+- **授权：** 用户确认"GPU 2–7 开训"：预注册、冻结、预检通过后自动串联训练与评测；每轮结果出来后继续分析并追加下一轮，不逐轮等确认。成本上限"参数 ≤ +30 %，时延 ≤ +2 ms"：总参数（含路由器）≤ 0.6 M，主行时延比同期重测的 S45（`s45ref`）多 ≤ 2 ms。只用物理 GPU 2–7 + CPU；GPU 0–1 不用。S39 / S43 / C1 / S45 与已有判读不变。
+- **2026-11-01 06:45 UTC 用户指令"这批训练完，先停止goal。"**（`#s45sm-stop-20261101`，写于第 12–14 轮任何读数之前）：已排队的第 12–14 轮（含第 14 轮还没开训的 pfat0pdz_rep_cos）照常跑完，评测、读数、判读照常。之后不再登记新轮、不追加作业，上面"每轮结果出来后追加下一轮"的授权到此为止；各轮写定的后续只记为待用户决定。共用驱动之后空转，不 touch STOP。
+- **2026-11-01 代码清理后（`#code-cleanup-step2-20261101`）：** 本节以下提到的 `tools/s45sm/*.py` 旧脚本（train3、accept4、decide3、kind_run2、read_run 等）已归档到 `outputs/s45sm/20261031/legacy_code/`。现在一律用 `python tools/s45sm/cli.py <动词>`，对照见 `tools/s45sm/legacy.py`；新轮的登记、冻结与作业分别用 `cli.py freeze round`、`cli.py jobs standard`。
+- **内容：** S45 大框架不变，只把面分配的来源换成只看当前事件包的路由器（不读前态、K、betas）。路由器：t0p（S45-RT T0P 冻结，1.6 M，超预算，只作桥接）、sr1（SRNet，137,028 参数，16 部位 + 模板坐标）。机制：face_route（T1d 原样）与 pfa（跳过射线求交，所有手上事件放到路由面，深度取路由点在前态网格上的深度）。第 1 轮四臂 t0pdz / pfat0pdz / srdz / pfasrdz，都 = S45-AT dz + 路由器。
+- **预注册与冻结：** `docs/EXPERIMENT_RECORDS.md#s45sm-prereg-20261031`；`outputs/s45sm/20261031/manifests/r1.json`（`tools/s45sm/freeze.py`）。每轮新登记 `tools/s45sm/registry_r<k>.json` + 新预注册小节 + `manifests/r<k>.json`，写于该轮任何读数之前；已冻结文件不再改，新行为放新文件。
+- **代码边界：** `semkine/s45sm.py`（opt-in：`install` 改 `semkine.xag.sample_sources`，pfa 另改 `route_association` 与 `semkine.xyz_mesh.associate_rays`，`uninstall` 还原）、`tools/s45sm/`、`tests/test_s45sm.py`、`configs/s45sm_20261031/`；不改冻结文件。验收要求各臂的样本索引、初值与每步训练包与 S45-AT dz 逐位相同。
+- **驱动：** 共用 `tools/s45rt/chain_r2.py`（`add` 追加，键前缀 `sm:`；声明内存：读 XAG 源的路由器训练 260、各臂 130、评测 15 GiB）。训练作业加 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`。失败保留、不重试；`touch outputs/s45rt/20261031/STOP` 停止整个共用驱动（会连带其它研究，先问用户）。
+- **判读：** `tools/s45sm/decide.py --round <k>`：AT_TARGET / NEAR_TARGET / MECHANISM / WEAK / NULL；Params 列须加上路由器参数（主行工具只数模型内参数），FLOPs 加路由器 MACs。
+- **2026-10-31 第 1 轮结果（`#s45sm-r1-results-20261031`）：** PFA 在两种路由器下都好于 face_route。
+  - pfat0pdz（超预算）14.40 / 7.91 / 10.93，NEAR_TARGET，C 0.67。
+  - 预算内 pfasrdz 15.88 / 9.54 / 12.48，WEAK，C 0.814，global 差 2.96；原实现时延 +5.3 ms。
+- **第 2 轮（`#s45sm-r2-results-20261031`）：** 增强版 SR 路由器无改善，沿用 sr1。0.6 M 内路由器不能再加宽。
+- **第 3 轮（`#s45sm-r3-prereg-20261031`，12:18 UTC 起）：** 在 pfasrdz 上做零参数改动：
+  - spfasrdz：软 PFA，`semkine/s45sm_soft.py`；
+  - pfasrbank：pfasrdz 自身闭环状态库，`tools/s45sm/bank.py`；
+  - spfasrbank：两者合并。
+  - 第 3 轮起的入口：`train2.py`、`accept2.py`、`evaluate2.py`、`readouts2.py`、`evaluate_fast.py --block`、`decide2.py`。
+  - 主行用快速实现，时延与同一独占块里重测的 S45（`s45ref_<块>`）比。
+  - 冻结：`manifests/r3.json`、`r3amend0.json`。
+- **第 3 轮结果（`#s45sm-r3-results-20261031`，15:12 UTC）：三臂都是 WEAK，效应都在噪声内。**
+  - pfasrbank 16.30 / 8.54 / 12.15：差距都在噪声底内，只因 C 0.84 不进 NEAR_TARGET。
+  - 软 PFA 方向一致变差；状态库只让第一步变好，不动点不变。剩下的差距看路由质量。
+  - 部署时延（快速实现，块 r3a / r3b）：PFA 臂与 S45 持平（13.96–14.50 对 13.99–14.21 ms），只剩参数预算约束。
+- **第 4 轮（`#s45sm-r4-prereg-20261031`；结果 `#s45sm-r4-results-20261031`）：** srkd = sr1 同结构，用冻结 T0P 蒸馏（`router_train3.py`）。16:59 UTC `select_r4.py` 判未入选（ylf_local 跨部位 28.98 % 对 29.37 %，块级占据 0.450 对 0.467），沿用 sr1。
+- **第 5 轮（`#s45sm-r5-prereg-20261031`，冻结 `manifests/r5.json`）：**
+  - pfagtdz = t1ddz 的标签面路由 + PFA，不可部署的上界（`semkine/s45sm_oracle.py`，`tools/s45sm/*oracle*.py`）。
+  - pfakdbank = pfasrbank 换 srkd，只在 srkd 入选时追加作业；srkd 未入选，不训练（`jobs/r5b.json` 只追加 pfagtdz 主行与判读）。
+  - 判读 `decide3.py --round 5`。块 r5 与判读作业在选择之后追加（作业文件 `jobs/r5a.json`，后续 `r5b.json`）。
+  - 登记里 `"oracles"` 键只由 `tools/s45sm/oracle.py` 读；`"conditional": "select_r4"` 的臂未入选时不得训练。
+  - 结果（`#s45sm-r5-results-20261031`，20:46 UTC）：pfagtdz 8.77 / 5.00 / 6.75，越过目标，C 0.49，上界 AT。pfasrdz 离目标的差距全在路由（local 路由 +7.11、关联 −4.05）。写定 line = ROUTER，repeat 无。
+- **第 6 轮（`#s45sm-r6-prereg-20261031`，冻结 `manifests/r6.json`，写于 srkd 与第 5 轮任何读数之前）：只训路由器 srpkd。**
+  - srpkd = T0P 的块分类网络缩到 137,787 参数，加 T0P 蒸馏（`semkine/s45sm_srp.py`、`tools/s45sm/router_train4.py`）。
+  - 依据 D1：T0P 的优势在部位内定位（块占据），跨部位只差 2–3 个百分点。
+  - 冻结入口经 `tools/s45sm/srp_run.py`（环境变量 `S45SM_ENTRY`）注册路由器类型 srp 后运行。
+  - 选择 `select_r6.py`：ylf_local 块占据 ≥ 参照 + 0.02，且跨部位 ≤ 参照 + 0.5 个百分点；参照为第 5 轮所用路由器。
+  - 臂在第 5 轮判读后按 line 登记为第 7 轮。
+  - 结果（20:47 UTC）：srpkd 未入选。ylf_local 占据 0.510 对 0.467 过门，跨部位 30.4 % 对 29.4 % 超出 +0.5 个百分点；路由器仍为 sr1。srpkd 的上下文探针也不用上下文。
+- **R6C 路由器上下文探针（`#s45sm-r6c-prereg-20261031`，冻结 `manifests/r6c.json`；结果 `#s45sm-r6c-results-20261031`）：** 零训练。所有路由器都在 30–300 ms 包上训练，探针让同一组权重在推理时看最近 100–300 ms 的事件（`semkine/s45sm_ctx.py`、`tools/s45sm/router_ctx.py`、`select_r6c.py`）。
+  - sr1 / t0p 都未选出窗口：local 几乎不变，global 变差。不登记推理时上下文变体；srpkd 的探针在其 D1 后照常读。
+  - 推理变体的评测包装 `tools/s45sm/ctx_run.py`（测试 `tests/test_s45sm_ctxrun.py`）已写好但未冻结，只在某路由器选出窗口时随那一轮冻结。
+- **第 8 轮（`#s45sm-r8-prereg-20261031`，冻结 `manifests/r8.json`，写于 srpkd、srdwkd 与第 5 轮任何读数之前）：只训路由器 srdwkd。**
+  - srdwkd = T0P 的块分类网络，主干 3 × 3 卷积换成逐通道 + 1 × 1，宽度 32 / 64 / 96 / 128、FPN 40、头 72，137,291 参数；配方与蒸馏同 srpkd（`semkine/s45sm_dw.py`、`tools/s45sm/router_train5.py`）。
+  - 需要 dw 的冻结入口经 `tools/s45sm/kind_run.py` 运行（先注册 srp，再注册 dw，两者可同时在场）。
+  - 选择 `select_r8.py`：参照为第 6 轮之后的路由器，门槛同第 6 轮。臂在其选择后按当时写定的 line 登记（第 9 轮）。
+  - 排在 srpkd 正式训练之后（一次只有一个读 XAG 源的训练）。
+- **第 7 轮（`#s45sm-r7-prereg-20261031`，冻结 `manifests/r7.json`，写于任何交换读数之前）：主干 × 测试路由器交换，零训练。**
+  - 依据：训练时读的路由不进部署参数；pfasrdz / pfat0pdz / pfagtdz 三个主干（训练时用 sr1 / T0P / 标签路由）结构相同，配置只差路由段。
+  - 七个单元登记为第 7 轮的臂（登记键 `"trunk"`）：预算内 xsr_srp、xt0_sr1、xt0_srp、xgt_sr1、xgt_srp；超预算（描述）xsr_t0p、xgt_t0p。
+  - 包装 `tools/s45sm/swap_run.py`（`S45SM_ENTRY` = evaluate2 / readouts2 / evaluate_fast）：注册 srp、dw，把单元解析到主干第 5000 / 5500 / 6000 步的检查点（按正式回执核对 SHA）与单元自己的冻结配置；回执 `swap_receipts/`。
+  - 判读 `decide3.py --round 7`（经 kind_run），之后 `tools/s45sm/swap_table.py` 读一次。写定的主干选择 T*：预算内 C ≤ 0.8 中主行 RA 最低者的主干。T* 由特权路由训练时，以后的路由器改动先与 T* 零训练配对；否则照旧训练臂。
+  - 偏离登记：第 5 轮写定的 ROUTER 候选 1（长窗上下文，训练形式）与 2（九人路由器）顺延。
+- **第 10 轮（`#s45sm-r10-prereg-20261031`，冻结 `manifests/r10.json`，写于这些路由器的任何读数与第 7 轮判读之前）：路由器退火与部位优先解码。**
+  - 退火 sr1a、srpkda、srdwkda（`tools/s45sm/router_train7.py`）：基础路由器配方原样，从其最终权重继续 2000 步，学习率 100 步升到 1e-3 后线性降到 0；结构与参数不变。串行占读 XAG 源的训练位。
+  - 部位优先解码 srpkdh、srpkdah、srdwkdh、srdwkdah、t0ph（`semkine/s45sm_hier.py`，零参数）：按块概率之和选部位，再在部位内取最大块。`tools/s45sm/decode_variant.py` 放指向基础权重的符号链接与完成记录；需要这些类型的冻结入口经 `tools/s45sm/kind_run2.py` 运行。
+  - 读数：D1（经 kind_run2）与 `tools/s45sm/d1_table.py`。网络层面在第 7 轮的表出来后登记为第 11 轮：T* 由特权路由训练时，七个预算内路由器各与 T* 零训练配对；否则只按写定规则训一个臂。
+  - `tools/s45sm/swap_run2.py`（第 9 轮起的交换包装：任意有正式回执的主干，另注册部位优先类型）随第 9 / 11 轮冻结。
+- **第 7 轮结果（`#s45sm-r7-results-20261031`，23:08 UTC）：预算内没有 NEAR / AT。**
+  - 最好的是 xt0_srp（pfat0pdz 的主干 + srpkd）15.86 / 8.50 / RA 11.92：差距都在噪声底内，但 C 0.803 比门槛高 0.003，记 WEAK。
+  - 暴露偏差：标签路由训练的主干配 sr1，local 比 sr1 路由训练的主干差 5.09 mm，E3 local 14.71 对 6.98。T0P 路由训练的主干没有这个问题。
+  - 同一主干下 srpkd ≥ sr1，第 6 轮的 D1 代理门比网络层面严。
+  - 写定 T* = pfagtdz 的主干（预算内 C ≤ 0.8 的只有两个标签主干单元），line = ROUTER，repeat 无。
+  - 第 8 轮：srdwkd 未入选（跨部位 31.1 % 对 29.4 %），zgz_local 与 srpkd 几乎相同。
+- **第 9、11 轮（`#s45sm-r9-prereg-20261031`，冻结 `manifests/r9.json`、`r11.json`，写于这些路由器的任何网络层面读数之前）：零训练配对。**
+  - srdwkd（第 9 轮）与第 10 轮的七个预算内路由器（第 11 轮），各与 T* 配对（写定），并与 pfat0pdz 的主干 T2 配对（扩展，偏离登记：预算内 RA 最低的 xt0_srp 的主干）。十六个单元都在预算内。
+  - 登记键 `"pair_trunk"`、`"pairing"`（tstar / t2）。冻结的 `tests/test_s45sm_r7.py` 只允许第 7 轮带 `"trunk"`。
+  - 入口 `tools/s45sm/swap_run2.py`；描述表 `tools/s45sm/swap_table2.py`；测试 `tests/test_s45sm_r11.py`（5 项）。
+  - 块 r11 在全部读数之后；`decide3.py --round 11`（经 kind_run2）一并判读第 9、11 轮（第 9 轮不单独判读），再 `swap_table2.py`。
+  - 以后的路由器轮次照旧与 T* 和 T2 零训练配对。
+- **第 12 轮（`#s45sm-r12-prereg-20261031`，冻结 `manifests/r12.json`，写于这些路由器的任何读数与第 9、11 轮网络层面读数之前）：九人训练的块路由器（ROUTER 候选 2）。**
+  - srpkd9 = srpkd 的配方原样，训练受试者九人（`router_train4.py`，heldout = null）；srpkd9a 退火（`router_train7.py`）；srpkd9h、srpkd9ah 部位优先解码。四个都是 137,787 参数。
+  - 八个单元（xgt_ / xt0_ × srp9、srp9a、srp9h、srp9ah），经 `swap_run2.py`；块 r12 依赖 `sm:r11:decide`；`decide3.py --round 12`（经 kind_run2），再 `tools/s45sm/swap_table3.py`。测试 `tests/test_s45sm_r12.py`（3 项）。
+  - srpkd9 排在 srdwkda 退火之后（一次只有一个读 XAG 源的训练）。
+  - 结果（`#s45sm-r12-results-20261101`，07:34 UTC）：九人效应都在噪声内（zgz_local 占据 +0.012–0.017）；T2 四个单元 NEAR_TARGET（RA 11.78–11.94），没超过 xt0_srdwa；写定 repeat = xt0_srdwa（即第 13 轮），line = ROUTER 按停止指令不登记。块 r12 的时延与代码清理的 CPU 测试重叠，只作描述。
+- **第 9–11 轮结果（`#s45sm-r11-results-20261101`，2026-11-01 03:58 UTC）：预算内首次出现 NEAR_TARGET，但不稳。**
+  - 五个 T2 单元（pfat0pdz 的主干 + srdwkda / srdwkdah / srpkda / srpkdah / srpkdh）为 NEAR_TARGET；最好的 xt0_srdwa 15.47 / 8.49 / RA 11.73，C 0.793，596,350 参数，时延比同块 S45 少 0.18 ms。
+  - 这些单元主行彼此在噪声内（RA 11.52–11.92）；xt0_srdw / xt0_srdwh 因 C 0.815 / 0.808 记 WEAK。NEAR 与否只看 C 落在 0.8 的哪一侧。
+  - 退火、部位优先、可分离卷积在网络层面都在噪声内；T2 比 T* 好 2.3–4.7 mm local（暴露偏差重现）。
+  - 写定 line = ROUTER，repeat = xt0_srdwa。
+- **第 13 轮（`#s45sm-r13-prereg-20261101`，冻结 `manifests/r13.json`）：写定的重复。**
+  - pfat0pdz_replay：经 `tools/s45sm/train3.py` 把 pfat0pdz 的 50 步预检逐位复现（`replay3.py` 比较日志、梯度、全部状态快照），证明新入口不改数值；不过则不训重复。
+  - pfat0pdz_rep：pfat0pdz 的配方只换采样流（S45-AT s45samp 的流），fresh 6000 步，`accept3.py` 验收；xt0rep_srdwa = 它的主干 + srdwkda（零训练）。
+  - 判读 `tools/s45sm/repeat_read.py`（不跑 decide3 --round 13）：xt0rep_srdwa 在预算内且 NEAR / AT → REPRODUCED，否则 NOT_REPRODUCED；两行都进主表。块 r13 在 `sm:r12:decide` 之后。
+  - 以后 decide3 的 repeat 落在 xt0_srdwa / pfat0pdz_rep / xt0rep_srdwa 上记"已重复"；落在其它 T2 单元上只需把 pfat0pdz_rep 的主干与该路由器零训练配对。
+  - 登记键：`"replay_of"` + `"phases"`（只预检的工程复现）、`"sampler": "dedicated"` + `"repeat_of"`（重复臂）；第 13 轮起的训练入口 `train3.py` / `accept3.py` / `make_configs3.py`。
+  - 结果（`#s45sm-r13-results-20261101`，10:00 UTC）：NOT_REPRODUCED。xt0rep_srdwa 15.21 / 9.83 / RA 12.33（C 0.788），差异都在噪声内，但 global 越出 NEAR 门槛，记 MECHANISM；预算内 NEAR 记为边界结果，不再重复。pfat0pdz_rep 仍为 NEAR（超预算）。
+  - 工程修订 1（`#s45sm-r13-amend1-20261101`）：`repeat_read.py` / `cosine_read.py` 必须经 `tools/s45sm/read_run.py` 运行（先注册路由器种类），第一次读数作业因此失败、未写出任何东西；第 14 轮主行块与读数以 `:r2` 重登记。
+- **第 14 轮（`#s45sm-r14-prereg-20261101`，冻结 `manifests/r14.json`；扩展，偏离 line 规则登记）：T2 主干的学习率余弦衰减。**
+  - pfat0pdz_cos / pfat0pdz_rep_cos = pfat0pdz / pfat0pdz_rep 只加 `TRAIN.LR_SCHEDULE: cosine`（登记键 `"lr_schedule"`、`"schedule_of"`）。前 500 步因子与恒定计划相同，验收（`accept4.py`，`common4.verify_run4`）要求预检与基础臂逐位相同、正式训练前 500 步逐位相同。入口 `train4.py`（train3 原样，配方核对换成 `expected_raw4`）。
+  - 单元 xt0cos_srdwa / xt0repcos_srdwa（+ srdwkda）；`cosine_read.py`：ADOPT / REJECT / MIXED。单元配置不带 `TRAIN.LR_SCHEDULE`（训练专用键，评测不读）。
+  - 结果（`#s45sm-r14-results-20261101`，10:43 UTC）：ADOPT。xt0cos_srdwa 14.15 / 8.67 / RA 11.22（C 0.761，预算内 RA 最低）、xt0repcos_srdwa 15.43 / 8.60 / 11.78（C 0.738），都是 NEAR_TARGET；没有 AT（超预算 pfat0pdz_cos 只差 global 0.08 mm）。写定：以后训练主干用余弦计划。这批（第 12–14 轮）全部完成，按停止指令不再登记。
+
+## S45-GRADE · 结论分级与样本内晚期检查点补读（用户 2026-10-30 指令"给 N2、N4、T1a 补第 5000、5500 步的训练录制读数：只评测已有权重"）
+
+- **范围：** 不训练，只读 N2 / N4 / T1a 已有权重的 `tl_e1`（9 条训练 local 录制上的自身闭环）。新读第 5000、5500 步，按写定规则把 `#s45-grading-20261030` 里这三臂的 B 类样本内增益升为 A、留在 B 或降为 C。只用物理 GPU 2–7（每卡一个进程）+ CPU；GPU 0–1 不用。S39 / S43 / C1 / S45 与已有判读不变。
+- **预注册与冻结：**
+  - 预注册 `docs/EXPERIMENT_RECORDS.md#s45grade-prereg-20261030`，写于读数之前，披露了已知的第 6000 步值；T1a 按规则最多为 weak。
+  - 协议 `outputs/s45grade/20261030/insample/protocol.json`（`tools/s45grade/insample.py freeze`）。
+  - 代码只在 `tools/s45grade/`；S45-TR 读数代码原样调用，只换加载器。
+- **驱动与验收：**
+  - 驱动 `tools/s45grade/insample.py chain`（状态 `status.json`）。失败保留、不重试。
+  - 先用同一加载器重读三臂第 6000 步，须与 S45-TR 已发布数组逐位相等，才开新读数。
+- **2026-10-30 结果（`#s45grade-results-20261030`）：** 验收逐位 PASS，14:31 UTC 完成。
+  - N4 → A：训练录制三个检查点都好 3.1–5.4 mm、8–9 / 9。但它的状态库就来自这些训练序列，属分布内拟合；zgz 仍在噪声内。
+  - N2、T1a → B：三个检查点方向一致，但幅度在门槛附近。
+（用户 2026-10-30 指令"先做 P1，再做 P2"）
 
 - **范围：** 会话分析 S45-TR 后提出的两项零训练冻结探针。P1：N4 在 S45 闭环状态上的手指纠错是不是事件驱动的（换成晚 250 ms / 1 s 的事件包做线性拉力分解，T1d 作阳性对照）；P2：冻结 T0 的路由按部位聚合后有没有无偏、有信息的新息（另写预注册，写于 P2 读数之前）。零训练，只读 S45-TR 冻结权重；只用物理 GPU 2–7（每卡至多两个进程）+ CPU；GPU 0–1 不用。S39 / S43 / C1 / S45 不变。
 - **预注册与冻结：** P1 `docs/EXPERIMENT_RECORDS.md#s45rf-prereg-20261030`（含冻结前功效压测 `outputs/s45rf/20261030/p1/power.json`），协议 `outputs/s45rf/20261030/p1/protocol.json`（`tools/s45rf/p1.py freeze`）；驱动 `p1.py chain`，失败保留、不重试。代码只在 `tools/s45rf/`、`tests/test_s45rf.py`，以只读方式导入 S45-TR / XCL 的冻结模块；冻结后不再改 `tools/s45rf/p1.py`。

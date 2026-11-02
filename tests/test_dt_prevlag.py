@@ -24,7 +24,7 @@ needs_data = pytest.mark.skipif(not CFG.exists() or not Path("/data1/lyq/code/me
                                 reason="dt_dz_l3 config / data not found")
 
 
-def cfg_plain(lag, window=200, triplet=False):
+def cfg_plain(lag, window=200):
     cfg = load_config(CFG)
     cfg["AUG"]["DOMRAND"]["ENABLED"] = False
     cfg["AUG"]["SPEED_AUG"] = False
@@ -33,8 +33,6 @@ def cfg_plain(lag, window=200, triplet=False):
         cfg["TRACK"][k] = 0.0
     if lag is not None:
         cfg["DATA"]["PREV_LAG_MS"] = lag
-    if triplet:
-        cfg["DATA"]["TRIPLET"] = True
     return cfg
 
 
@@ -84,10 +82,3 @@ def test_bad_values_raise(bad):
     comps = np.load(load_config(CFG)["MANO"]["NPZ"])["hands_components"].astype(np.float32)
     with pytest.raises(ValueError):
         build_dataset(cfg_plain(bad), "train", comps, train=True)
-
-
-@needs_data
-def test_not_with_triplet():
-    comps = np.load(load_config(CFG)["MANO"]["NPZ"])["hands_components"].astype(np.float32)
-    with pytest.raises(ValueError):
-        build_dataset(cfg_plain(50, triplet=True), "train", comps, train=True)

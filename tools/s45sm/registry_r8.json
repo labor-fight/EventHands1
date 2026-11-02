@@ -1,0 +1,10 @@
+{
+  "round": 8,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-r8-prereg-20261031",
+  "routers": {
+    "srdwkd": {"kind": "dw", "heldout": "ylf", "steps": 6000, "dz": true, "params": 137291,
+               "kd": {"teacher": "t0p", "T": 2.0, "lambda_patch": 1.0, "lambda_coord": 0.5, "lambda_onhand": 0.5},
+               "note": "T0P's patch router with depthwise-separable trunk blocks at widths 32/64/96/128, FPN 40, head 72 (semkine/s45sm_dw.py) with srpkd's recipe: T0P's labels and loss + distillation from the frozen T0P (279-patch KL at T 2, coord, on-hand); tools/s45sm/router_train5.py"}
+  },
+  "arms": {}
+}

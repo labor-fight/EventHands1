@@ -15,6 +15,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
+from tools.frozen import accepts  # noqa: E402
 from tools.s45tr.common import now, read, require, save, sha  # noqa: E402,F401
 
 OUT = ROOT / "outputs/s45ct/20261030"
@@ -85,14 +86,14 @@ def verify_protocol():
     p = read(PROTOCOL)
     require(p["study"] == "S45CT_20261030" and p["status"] == "FROZEN", "S45-CT protocol identity")
     for name, digest in p["file_sha256"].items():
-        require(sha(ROOT / name) == digest, "frozen S45-CT file changed: " + name)
+        require(accepts(ROOT / name, digest), "frozen S45-CT file changed: " + name)
     return p
 
 
 def config_frozen(config):
     rel = str(Path(config).resolve().relative_to(ROOT))
     files = frozen_files()
-    require(rel in files and files[rel] == sha(config), "Config not frozen: " + rel)
+    require(rel in files and accepts(config, files[rel]), "Config not frozen: " + rel)
 
 
 def journal(directory, rank, steps=None):

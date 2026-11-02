@@ -1,0 +1,21 @@
+{
+  "round": 7,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-r7-prereg-20261031",
+  "routers": {},
+  "arms": {
+    "xsr_srp": {"trunk": "pfasrdz", "router": "srpkd", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                "note": "swap cell, no training: pfasrdz's trunk (trained with sr1 routes) with the srpkd router at test"},
+    "xt0_sr1": {"trunk": "pfat0pdz", "router": "sr1", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                "note": "swap cell, no training: pfat0pdz's trunk (trained with T0P routes) with the sr1 router at test"},
+    "xt0_srp": {"trunk": "pfat0pdz", "router": "srpkd", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                "note": "swap cell, no training: pfat0pdz's trunk (trained with T0P routes) with the srpkd router at test"},
+    "xgt_sr1": {"trunk": "pfagtdz", "router": "sr1", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                "note": "swap cell, no training: pfagtdz's trunk (trained with label routes) with the sr1 router at test"},
+    "xgt_srp": {"trunk": "pfagtdz", "router": "srpkd", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                "note": "swap cell, no training: pfagtdz's trunk (trained with label routes) with the srpkd router at test"},
+    "xsr_t0p": {"trunk": "pfasrdz", "router": "t0p", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                "note": "swap cell, no training, over budget (descriptive): pfasrdz's trunk with the T0P router at test"},
+    "xgt_t0p": {"trunk": "pfagtdz", "router": "t0p", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                "note": "swap cell, no training, over budget (descriptive): pfagtdz's trunk with the T0P router at test"}
+  }
+}

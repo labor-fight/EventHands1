@@ -1,0 +1,20 @@
+{
+ "round": 6,
+ "prereg": "docs/EXPERIMENT_RECORDS.md#t1aub-r6-prereg-20261102",
+ "arms": {
+  "rf6": {
+   "eg": false,
+   "readout": {
+    "slot_dim": 20,
+    "hidden": 256
+   },
+   "gtfeat": true,
+   "route": {
+    "router": "srdwkda",
+    "assoc": "face_route",
+    "onhand_tau": 0.5
+   },
+   "note": "candidate B's trunk + srdwkda's predicted surface location as an input feature; S45's own ray association"
+  }
+ }
+}

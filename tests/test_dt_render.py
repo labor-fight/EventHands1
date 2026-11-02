@@ -812,19 +812,15 @@ def test_graph_forward_bitwise_gpu(gpu_model):
     _reset(m)
 
 
-#: every forward option of the DT rounds the graph / replica must cover (ROOT_HEAD adds the second root readout)
-ARM_KEYS = [{}, {"CAM_PLANES": True}, {"ROOT_COMPOSE": "so3"}, {"PREV_MLP_TRANSL": False}, {"RENDER_FP32": True},
-            {"CAM_PLANES": True, "ROOT_COMPOSE": "so3", "PREV_MLP_TRANSL": False},
-            {"ROOT_HEAD": "spatial"}, {"ROOT_HEAD": "anchor"},
-            {"ROOT_HEAD": "anchor", "CAM_PLANES": True, "ROOT_COMPOSE": "so3", "PREV_MLP_TRANSL": False},
-            {"CNN_BACKBONE": "resnet18_l3"},
-            {"CNN_BACKBONE": "resnet18_l3", "ROOT_HEAD": "spatial", "CAM_PLANES": True}]
+#: the forward options the graph / replica must cover (the CAM_PLANES / ROOT_COMPOSE / PREV_MLP_TRANSL / RENDER_FP32 /
+#: ROOT_HEAD options of the closed DT / DT2 arms were removed from the model)
+ARM_KEYS = [{}, {"CNN_BACKBONE": "resnet18_l3"}]
 
 
 def _arm_model(dt_keys, dev):
-    """A model of the arm `dt_keys` (or skip if this tree has no such key) whose zero-initialised tensors -- the planes'
-    conv slice, the root readout, biases -- are filled with small noise, so that every option changes the output and a
-    replica that dropped one could not match bitwise."""
+    """A model of the arm `dt_keys` (or skip if this tree has no such key) whose zero-initialised tensors -- biases, the
+    prev_mlp output layer -- are filled with small noise, so that every option changes the output and a replica that
+    dropped one could not match bitwise."""
     cfg = load_config(CONFIG)
     for k in dt_keys:
         if k not in MNISTModel.MODEL_KEYS:

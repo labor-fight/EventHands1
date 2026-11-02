@@ -1,4 +1,4 @@
-"""XAG scientific controls: routing conservation, graph isolation and replay."""
+"""XAG scientific controls: routing conservation, capture / replay and the source-label isolation of the base model."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "model"))
 
-from semkine.xag import GlobalResidual, face_parts, route_association, sample_sources, validate_config
+from semkine.xag import face_parts, route_association, sample_sources, validate_config
 from semkine.xyz_mesh import XYZMeshNet, associate_rays, stride_sample, vertex_face_table
 
 
@@ -132,10 +132,10 @@ def test_source_gather_uses_exact_stride_and_invalidates_padding_and_hot_events(
         sample_sources(batch, src, mask)
 
 
-def net(mode="legacy"):
+def net():
     args, _ = scene()
     torch.manual_seed(3407)
-    return XYZMeshNet(args[6], args[4], xag_gnn=mode)
+    return XYZMeshNet(args[6], args[4])
 
 
 def inputs():
@@ -152,20 +152,6 @@ def activate_head(m):
         m.fc2.weight.copy_(torch.randn(m.fc2.weight.shape, generator=g) * .02)
         m.fc2.bias.copy_(torch.randn(m.fc2.bias.shape, generator=g) * .01)
     return m
-
-
-def test_shared_initialization_and_postconstruction_rng_are_identical():
-    baseline = net()
-    rb = torch.rand(100)
-    enhanced = net("global_residual")
-    re = torch.rand(100)
-    assert torch.equal(rb, re)
-    old = baseline.state_dict()
-    new = enhanced.state_dict()
-    assert all(torch.equal(v, new[k]) for k, v in old.items())
-    assert all(k.startswith("xag_global.") for k in new.keys() - old.keys())
-    baseline.load_state_dict(old, strict=True)
-    assert not any("xag_global" in key for key in old)
 
 
 def test_capture_and_identity_hook_preserve_output_bitwise_and_replay():
@@ -188,58 +174,25 @@ def test_capture_and_identity_hook_preserve_output_bitwise_and_replay():
         m(*x, h3_transform=lambda H, S, O: H[:, :1])
 
 
-def test_global_mask_empty_rows_and_gradients():
-    torch.manual_seed(3)
-    block = GlobalResidual()
-    H = torch.randn(3, 6, 128, requires_grad=True)
-    S = torch.tensor([[1., 1., 0., 0., 0., 0.], [0., 0., 0., 0., 0., 0.], [1., 0., 1., 0., 1., 0.]])
-    lbs = scene()[0][6]
-    out = block(H, S, lbs)
-    assert torch.isfinite(out).all()
-    assert torch.equal(out[S == 0], torch.zeros_like(out[S == 0]))
-    altered = H.detach().clone()
-    altered[S == 0] = 1000
-    torch.testing.assert_close(block(altered, S, lbs), out.detach(), rtol=0, atol=0)
-    out.square().sum().backward()
-    assert all(p.grad is not None and torch.isfinite(p.grad).all() for p in block.parameters())
-    assert block.identity.weight.grad.abs().sum() > 0
-    assert torch.equal(H.grad[S == 0], torch.zeros_like(H.grad[S == 0]))
-    block.zero_grad(set_to_none=True)
-    empty = block(H.detach(), torch.zeros_like(S), lbs)
-    empty.sum().backward()
-    assert torch.equal(empty, torch.zeros_like(empty))
-    assert all(p.grad is not None and p.grad.count_nonzero() == 0 for p in block.parameters())
-
-
-def test_enhanced_network_retains_support_and_residual_and_has_training_gradients():
-    old = activate_head(net()).train()
-    new = activate_head(net("global_residual")).train()
-    old(*inputs(), capture=True)
-    value, _, aux = new(*inputs(), capture=True)
-    for key in ("O", "S", "H0", "bslot", "prev48"):
-        assert torch.equal(aux[key], old.xag_last_capture[key])
-    assert not torch.equal(aux["H3"], old.xag_last_capture["H3"])
-    value.square().sum().backward()
-    assert all(p.grad is not None and torch.isfinite(p.grad).all() for p in new.parameters())
-    assert sum(p.grad.abs().sum() for p in new.xag_global.parameters()) > 0
-
-
 @pytest.mark.parametrize("cfg,xyz", [({"XAG_ASSOC": "oracle"}, True), ({"XAG_GNN": "wide"}, True),
                                      ({"XAG_ASSOC": "base"}, False),
-                                     ({"XAG_ASSOC": "face_route", "XYZ_ASSOC_MODE": "contour"}, True),
-                                     ({"XAG_GNN": "global_residual", "ENCODER_LAYERS": 2}, True),
-                                     ({"XAG_GNN": "global_residual", "XYZ_GEOM": False}, True)])
+                                     # the removed XCL oracle / global-residual modes are not accepted any more
+                                     ({"XAG_ASSOC": "full_oracle"}, True),
+                                     ({"XAG_GNN": "oracle_dense"}, True),
+                                     ({"XAG_GNN": "global_residual"}, True),
+                                     ({"XAG_ASSOC": "face_route", "ENCODER_LAYERS": 2}, True),
+                                     ({"XAG_ASSOC": "face_route", "XYZ_GEOM": False}, True)])
 def test_incompatible_config_is_rejected(cfg, xyz):
     with pytest.raises(ValueError):
         validate_config(cfg, xyz_mesh=xyz)
 
 
-def model(mode="legacy", assoc="base"):
+def model(assoc="base"):
     from config import load_config
     from model import MNISTModel
-    cfg = load_config(str(ROOT / "configs/xa/xa_c1_s3407.yaml"))
+    cfg = load_config(str(ROOT / "configs/c1sf_20261029/r2/c1sf_so3_s3407.yaml"))     # the S45 identity (an XYZ-C1 model)
     cfg["MANO"]["NPZ"] = str(ROOT / "assets/mano_right.npz")
-    cfg["MODEL"].update(XAG_GNN=mode, XAG_ASSOC=assoc)
+    cfg["MODEL"].update(XAG_GNN="legacy", XAG_ASSOC=assoc)
     torch.manual_seed(3407)
     return MNISTModel(cfg=cfg)
 
@@ -253,9 +206,9 @@ def empty_batch():
                             betas=torch.zeros(1, 10), camera_K=torch.eye(3)[None])
 
 
-@pytest.mark.parametrize("assoc,gnn", [("base", "legacy"), ("base", "global_residual"), ("part_route", "legacy")])
-def test_model_all_empty_training_connects_every_parameter(assoc, gnn):
-    m = model(gnn, assoc).train()
+@pytest.mark.parametrize("assoc", ["base", "part_route"])
+def test_model_all_empty_training_connects_every_parameter(assoc):
+    m = model(assoc).train()
     batch = empty_batch()
     output = m.forward_packet(batch)
     assert torch.equal(output, batch.prev_state)
@@ -264,9 +217,8 @@ def test_model_all_empty_training_connects_every_parameter(assoc, gnn):
                for p in m.parameters() if p.requires_grad)
 
 
-@pytest.mark.parametrize("gnn", ["legacy", "global_residual"])
-def test_base_model_cannot_read_any_oracle_source_field(gnn):
-    m = model(gnn, "base").eval()
+def test_base_model_cannot_read_any_oracle_source_field():
+    m = model("base").eval()
     activate_head(m.xyz)
     batch = empty_batch()
     batch.events = torch.tensor([[0., 120., 90., .001, 1.], [0., 121., 90., .002, 0.],

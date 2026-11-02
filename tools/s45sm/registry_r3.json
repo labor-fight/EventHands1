@@ -1,0 +1,15 @@
+{
+  "round": 3,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-r3-prereg-20261031",
+  "routers": {},
+  "arms": {
+    "pfasrbank": {"router": "sr1", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                  "bank": {"from": "pfasrdz", "p": 0.5},
+                  "note": "pfasrdz + own-loop priors: half of the training priors are pfasrdz's own W50 closed-loop state just before the window (S45-TR N4's sampler)"},
+    "spfasrdz": {"router": "sr1", "assoc": "spfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                 "note": "pfasrdz with soft PFA: q = p(on-hand) * p(top part) of the router instead of 1 (semkine/s45sm_soft.py)"},
+    "spfasrbank": {"router": "sr1", "assoc": "spfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                   "bank": {"from": "pfasrdz", "p": 0.5},
+                   "note": "both changes: soft PFA + pfasrdz's own-loop priors"}
+  }
+}

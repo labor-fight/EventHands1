@@ -9,36 +9,24 @@ a delta added to the previous state. This module is the registry of drop-in repl
 
     resnet18              torchvision.models.resnet18(num_classes=out_dim) itself: same state_dict keys, same values
                           under the same torch seed, same RNG consumption (the default; every recorded run)
-    resnet18_w0.75/0.5/0.25   ResNet-18 with the stem and all four stage widths scaled (BasicBlock, 7x7 stride-2
-                          stem, max-pool, [2, 2, 2, 2] blocks and BatchNorm unchanged; widths rounded to 8)
     resnet18_l3           layer4 replaced by Identity, the fc reads the 256-d pooled layer3 map
-    resnet18_l3w128       DT2 arm 1: as resnet18_l3 but layer3 is 128 wide instead of 256 (stem / layer1 / layer2 stay
-                          64 / 64 / 128; `ScaledResNet(stage_widths=(64, 128, 128), layers=(2, 2, 2, 0))`), the fc reads
-                          the 128-d pooled layer3 map: 1.30 M parameters, 0.98 G MACs against 2.80 M / 1.24 G
-    resnet18_l3w128s48    DT2 deviation 4: resnet18_l3w128 with the stem / layer1 / layer2 at 48 / 48 / 96 channels
-                          (`stage_widths=(48, 96, 128)`): fewer MACs on the 90x120 and 45x60 maps, same depth
-    resnet18_l3w128b1     DT2 deviation 4: resnet18_l3w128 with one BasicBlock per stage (`layers=(1, 1, 1, 0)`):
-                          half the trunk's convolutions (eager batch-1 latency is kernel-launch bound)
-    resnet10              torchvision ResNet(BasicBlock, [1, 1, 1, 1]), full width
-    regnet_x_400mf, mobilenet_v3_small, shufflenet_v2_x0_5
-                          torchvision classifiers built with num_classes=out_dim and nothing else changed
-    mobilenet_v3_small_nodrop   extra (not in the requested list): the same net with the classifier dropout set to
-                          0, because a regression head should not run Dropout(0.2) in train mode
+                          (`ScaledResNet(out, layers=(2, 2, 2, 0))`; the S39 trunk)
+    sparse_resnet18_l3    (`SPARSE_BACKBONES`) the same trunk as a sparse function of the active sites (the S43 trunk)
 
-Nothing in the repository imports this module yet: the new behaviour is opt-in and "resnet18" builds exactly what the
-code base builds today (same call, same RNG draws). The parameter / MAC survey, CPU latency and trainability probes
-that produced outputs/dt/reports/backbones.{json,md} live next to the results (backbones_survey.py).
+`ScaledResNet` keeps its width / stage options (the removed width / depth variants were built from them).
+
+"resnet18" builds exactly what the code base always built (same call, same RNG draws); the default of
+`MODEL.CNN_BACKBONE`.
 """
 from __future__ import annotations
 
 from typing import Callable, Dict, Optional, Sequence
 
-import torch
 from torch import nn
 import torchvision
 from torchvision.models.resnet import BasicBlock, ResNet
 
-__all__ = ["BACKBONES", "STAGE_WIDTHS", "ScaledResNet", "build_backbone", "count_params", "resnet_forward_taps"]
+__all__ = ["BACKBONES", "SPARSE_BACKBONES", "STAGE_WIDTHS", "ScaledResNet", "build_backbone", "count_params"]
 
 #: stage widths of torchvision's ResNet-18 / ResNet-10; the 7x7 stem has the width of layer1
 STAGE_WIDTHS = (64, 128, 256, 512)
@@ -106,64 +94,21 @@ class ScaledResNet(ResNet):
                 nn.init.constant_(m.bias, 0)
 
 
-def resnet_forward_taps(rn: nn.Module, x, taps: Sequence[str] = ("layer2", "layer3")):
-    """`rn(x)` of a torchvision-style ResNet (`ScaledResNet`, `resnet18`, `resnet10`) that also returns the feature maps
-    after the stages named in `taps`: `(logits, {name: map})`.
-
-    The operations are those of `torchvision.models.ResNet._forward_impl` in the same order (conv1, bn1, relu, maxpool,
-    layer1 .. layer4, avgpool, flatten, fc), so `logits` equals `rn(x)` bit for bit (tests/test_dt_model3.py); a stage
-    that is `nn.Identity()` (the "l3" trunk's layer4) is a no-op exactly as in `rn(x)`. Used by the DT2 root readout heads
-    (`MODEL.ROOT_HEAD`), which read the layer2 / layer3 maps next to the global-average-pool readout.
-    """
-    bad = [t for t in taps if t not in ("layer1", "layer2", "layer3", "layer4")]
-    if bad:
-        raise ValueError(f"taps must be names of ResNet stages, got {bad}")
-    x = rn.conv1(x)
-    x = rn.bn1(x)
-    x = rn.relu(x)
-    x = rn.maxpool(x)
-    got = {}
-    for name in ("layer1", "layer2", "layer3", "layer4"):
-        x = getattr(rn, name)(x)
-        if name in taps:
-            got[name] = x
-    x = rn.avgpool(x)
-    x = torch.flatten(x, 1)
-    return rn.fc(x), got
-
-
 def _resnet18(out_dim: int) -> nn.Module:
     # The line every recorded run depends on: exactly what model.py builds today (same call, same RNG draws).
     return torchvision.models.resnet18(num_classes=out_dim)
 
 
-#: name -> builder(out_dim); insertion order is the order of the survey tables
+#: name -> builder(out_dim)
 BACKBONES: Dict[str, Callable[[int], nn.Module]] = {
     "resnet18": _resnet18,
-    "resnet18_w0.75": lambda out_dim: ScaledResNet(out_dim, width=0.75),
-    "resnet18_w0.5": lambda out_dim: ScaledResNet(out_dim, width=0.5),
-    "resnet18_w0.25": lambda out_dim: ScaledResNet(out_dim, width=0.25),
     "resnet18_l3": lambda out_dim: ScaledResNet(out_dim, layers=(2, 2, 2, 0)),
-    "resnet10": lambda out_dim: ResNet(BasicBlock, [1, 1, 1, 1], num_classes=out_dim),
-    "regnet_x_400mf": lambda out_dim: torchvision.models.regnet_x_400mf(num_classes=out_dim),
-    "mobilenet_v3_small": lambda out_dim: torchvision.models.mobilenet_v3_small(num_classes=out_dim),
-    "shufflenet_v2_x0_5": lambda out_dim: torchvision.models.shufflenet_v2_x0_5(num_classes=out_dim),
-    "mobilenet_v3_small_nodrop": lambda out_dim: torchvision.models.mobilenet_v3_small(num_classes=out_dim,
-                                                                                       dropout=0.0),
-    "resnet18_l3w128": lambda out_dim: ScaledResNet(out_dim, layers=(2, 2, 2, 0), stage_widths=(64, 128, 128)),
-    "resnet18_l3w128s48": lambda out_dim: ScaledResNet(out_dim, layers=(2, 2, 2, 0), stage_widths=(48, 96, 128)),
-    "resnet18_l3w128b1": lambda out_dim: ScaledResNet(out_dim, layers=(1, 1, 1, 0), stage_widths=(64, 128, 128)),
-    # S42 (trk6): layer3 192 wide, between l3 (256) and l3w128
-    "resnet18_l3w192": lambda out_dim: ScaledResNet(out_dim, layers=(2, 2, 2, 0), stage_widths=(64, 128, 192)),
 }
 
 #: S43: the l3 trunk as a sparse function of the active sites (`sparse_trunk.SparseResNet`, called `rn(x, mask)`); kept
 #: out of BACKBONES, whose entries are dense (B, 3, H, W) -> (B, out_dim) trunks with measured parameter / MAC ranges
 SPARSE_BACKBONES: Dict[str, Callable[[int], nn.Module]] = {
     "sparse_resnet18_l3": lambda out_dim: _sparse(out_dim),
-    "sparse_resnet18_l3_nocoord": lambda out_dim: _sparse(out_dim, coord=False),
-    "sparse_resnet18_l3w192": lambda out_dim: _sparse(out_dim, widths=(64, 128, 192)),
-    "sparse_resnet18_l3_d1": lambda out_dim: _sparse(out_dim, dilate=1),
 }
 
 

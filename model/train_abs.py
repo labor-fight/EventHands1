@@ -13,7 +13,6 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.strategies import DDPStrategy
 from torch.utils.data import ConcatDataset, DataLoader
 
 # Allow `python model/train_abs.py` from repo root or model/

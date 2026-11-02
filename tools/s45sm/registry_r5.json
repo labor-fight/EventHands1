@@ -1,0 +1,14 @@
+{
+  "round": 5,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-r5-prereg-20261031",
+  "routers": {},
+  "arms": {
+    "pfakdbank": {"router": "srkd", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "fast": true,
+                  "bank": {"from": "pfasrdz", "p": 0.5}, "conditional": "select_r4",
+                  "note": "the round-5 start point pfasrbank with its router sr1 replaced by srkd (same architecture and parameters); trained only if the round-4 rule selects srkd (tools/s45sm/select_r4.py)"}
+  },
+  "oracles": {
+    "pfagtdz": {"base": "t1ddz", "assoc": "pfa",
+                "note": "S45-AT t1ddz (label XAG face routes + dz) with its association replaced by PFA (semkine/s45sm_oracle.py); upper bound, not deployable"}
+  }
+}

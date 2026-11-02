@@ -147,25 +147,9 @@ class SemKineDataset(Dataset):
 
     A sample is a window of `window` milliseconds ending at `end_idx`, entirely inside one
     `valid_run`, exactly as the legacy loader defines it.
-
-    Optional triplet sample (`triplet=True`, i.e. `DATA.TRIPLET`; training and `legacy_lnes` only),
-    for a second-difference (acceleration) loss on three consecutive predictions. `__getitem__`
-    then returns `{"w0": t0, "w1": t1, "w2": t2, "valid": bool tensor}`, each `t_k` the usual
-    legacy 5-tuple `(lnes, prev, target, betas, camera_K)`. The three windows have the same length
-    `w` (the plain window's) and follow each other: window k holds the events of ms
-    `[e_k - w + 1, e_k]`, `prev_k = GT(e_k - w + 1)` (+ its own teacher-forcing noise) and
-    `target_k = GT(e_k)`, with `e_2 = end`, `e_1 = end - w`, `e_0 = end - 2w`, so the targets are
-    exactly `w` ms apart (unlike `_leading_packet`, whose target is the *next* window's first ms).
-    `w2` is the plain sample bit for bit: every extra draw comes after all the draws the plain path
-    makes. The domrand realisation, the polarity flip and the per-pixel swap mask are shared by
-    the three windows (one camera, one sensor); the event keep mask, the hot pixels and the prev
-    noise are drawn independently per window, with the shared realisation's rates. `valid` needs
-    a coin `rng.random() < triplet_frac` (the first draw after the plain sample) and `3 * w` ms of
-    history in the run; when it is False `w0` and `w1` alias `w2` and nothing more is computed,
-    so an invalid sample costs what a plain one does.
     """
 
-    INPUT_MODES = ("legacy_lnes", "raw_packed", "both")
+    INPUT_MODES = ("legacy_lnes", "raw_packed")
 
     def __init__(
         self,
@@ -191,16 +175,9 @@ class SemKineDataset(Dataset):
         render_scale: float = 0.375,
         event_channels: Sequence[str] = ("last",),
         seed: int = 0,
-        unroll_pair: bool = False,
-        triplet: bool = False,
-        triplet_frac: float = 1.0 / 3.0,
         fast_pipe: Optional[bool] = None,
         prev_lag_ms: Optional[int] = None,
-        clip_k: int = 0,
-        clip_window: int = 200,
-        clip_frac: float = 0.5,
         xag_source_root: Optional[str] = None,
-        xag_require_depth: bool = False,
     ):
         if input_mode not in self.INPUT_MODES:
             raise ValueError(f"INPUT_MODE must be one of {self.INPUT_MODES}, got {input_mode!r}")
@@ -210,11 +187,8 @@ class SemKineDataset(Dataset):
         self.mano_npz = str(mano_npz)
         self.input_mode = input_mode
         self.xag_source_root = str(xag_source_root) if xag_source_root else None
-        self.xag_require_depth = bool(xag_require_depth)
-        if self.xag_require_depth and not self.xag_source_root:
-            raise ValueError("full_oracle requires DATA.XAG_SOURCE_ROOT and its depth sidecar")
         if self.xag_source_root and input_mode == "legacy_lnes":
-            raise ValueError("DATA.XAG_SOURCE_ROOT requires raw_packed or both input")
+            raise ValueError("DATA.XAG_SOURCE_ROOT requires raw_packed input")
         self.window_min, self.window_max = int(window_min), int(window_max)
         self.width, self.height = int(width), int(height)
         self.fixed_window = fixed_window
@@ -234,42 +208,12 @@ class SemKineDataset(Dataset):
         self.prev_noise_mix = tuple(v / s for v in mix)
         self.render_scale = float(render_scale)
         self.seed = int(seed)
-        # S22. Return `(leading, main)` instead of one packet, so training can condition a window
-        # on the model's own prediction for the window before it. Training only: randomising or
-        # re-conditioning the evaluation input would make the metric a moving target.
-        self.unroll_pair = bool(unroll_pair) and self.train
-        # Triplet training sample (class docstring). Training only, like the evaluation input has
-        # to stay a plain window; and only on the dense face, since the raw faces return packets.
-        self.triplet = bool(triplet) and self.train
-        self.triplet_frac = 1.0 / 3.0
-        if self.triplet:
-            if self.input_mode != "legacy_lnes":
-                raise ValueError(f"DATA.TRIPLET needs INPUT_MODE legacy_lnes, got {input_mode!r}")
-            try:
-                frac = float(triplet_frac)
-            except (TypeError, ValueError):
-                frac = float("nan")
-            if not 0.0 < frac <= 1.0:
-                raise ValueError(f"DATA.TRIPLET_FRAC must be a float in (0, 1], got {triplet_frac!r}")
-            self.triplet_frac = frac
+        # Constants of the retired sample variants (S22 unroll pair, DT triplet, S42 clip): the frozen S45-TR prior
+        # sampler (`semkine/s45tr_prior.py`) and the training script read them to confirm the plain sample.
+        self.unroll_pair = False
+        self.triplet = False
+        self.clip_k = 0
         self.event_channels = tuple(event_channels)
-        # S42 candidate B (docs/EXPERIMENT_RECORDS.md#s42-prereg), DATA.CLIP_K / CLIP_WINDOW / CLIP_FRAC: with probability
-        # CLIP_FRAC (a coin drawn after every draw of the plain sample, so the plain sample is unchanged) a training sample
-        # also carries a clip of the deployed loop -- CLIP_K consecutive 50 ms steps ending at the sample's own end, each
-        # step's evidence the CLIP_WINDOW ms before it clipped to the run start (the evaluation's W200 clip-run-start
-        # window), under the main window's domain randomisation -- plus the ground truth of every step, the protocol
-        # initial state GT(first end - 50) + the small prev noise, and each step's 50 ms event count (raw x keep). The
-        # model rolls the clip out on its own filtered states (`MNISTModel._maybe_self`). 0 (the default): off.
-        self.clip_k = int(clip_k or 0) if self.train else 0
-        self.clip_window = int(clip_window)
-        self.clip_frac = float(clip_frac)
-        if self.clip_k:
-            if self.clip_k < 2 or self.input_mode != "legacy_lnes" or self.triplet or self.unroll_pair:
-                raise ValueError("DATA.CLIP_K >= 2 needs INPUT_MODE legacy_lnes and no TRIPLET / UNROLL_PAIR")
-            if not (1 <= self.clip_window <= 255 and 0.0 < self.clip_frac <= 1.0):
-                raise ValueError("DATA.CLIP_WINDOW must lie in [1, 255] ms (uint8 LNES codes) and CLIP_FRAC in (0, 1]")
-            if tuple(event_channels) != ("last",):
-                raise ValueError("DATA.CLIP_K stores plain LNES codes; it needs DATA.EVENT_CHANNELS unset / ['last']")
         # DT2 deviation 7, DATA.PREV_LAG_MS: the conditioning state is the ground truth `lag` ms before the window's end
         # (`pos51[end - lag + 1]`, clipped to the run start) instead of the window's first ms, so the age of `prev` no
         # longer equals the evidence window. None (the default) is the recorded behaviour, bit for bit. Plain windows only.
@@ -277,8 +221,6 @@ class SemKineDataset(Dataset):
         if prev_lag_ms is not None:
             if isinstance(prev_lag_ms, bool) or not isinstance(prev_lag_ms, int) or prev_lag_ms < 1:
                 raise ValueError(f"DATA.PREV_LAG_MS must be a positive integer (ms) or absent, got {prev_lag_ms!r}")
-            if self.triplet or self.unroll_pair:
-                raise ValueError("DATA.PREV_LAG_MS is defined for plain windows only, not with DATA.TRIPLET or TRACK.UNROLL_PAIR")
             self.prev_lag_ms = int(prev_lag_ms)
 
         # Fast data pipe (see `_fast_item`): requested by the argument, or by SEMKINE_FAST_PIPE when the
@@ -318,7 +260,7 @@ class SemKineDataset(Dataset):
         self.index = np.asarray(index, dtype=np.int64).reshape(-1, 4)
         self.pinv_C6 = np.linalg.pinv(self.components[:6]).astype(np.float32)
 
-        if self.input_mode in ("raw_packed", "both"):
+        if self.input_mode == "raw_packed":
             missing = [m["seq"] for m in self.seq_meta if not m["has_subms"]]
             if missing:
                 raise FileNotFoundError(
@@ -434,9 +376,7 @@ class SemKineDataset(Dataset):
     def _domrand_events(self, xs, ys, ps, us, window, dr, camera_K, rng, source_rows=None):
         """Geometric map, dropout and hot pixels, in the draw order the S1 arms were trained with.
 
-        Factored out so the S22 leading window can be transformed by the *same* virtual camera as
-        the main window: a pair whose two halves saw different cameras would train the model to
-        estimate a state in one frame and apply it in another.
+        Kept as one method so that every window of a sample is transformed by the same code.
         """
         if len(xs):
             keep = DR.transform_events(xs, ys, dr, camera_K, self.render_scale,
@@ -544,19 +484,8 @@ class SemKineDataset(Dataset):
         )
         if self.input_mode == "legacy_lnes":
             # Legacy 5-tuple so the existing training loop and model take this dataset as-is.
-            main = self._legacy_tuple(packet)
-            if self.clip_k:
-                win = lambda e, w: self._triplet_window(si, h, e, w, run_a, dr, flip, swap_mask, rng)   # noqa: E731
-                return self._clip_sample(idx, h, end, dr, rng, main, win)
-            if not self.triplet:
-                return main
-            return self._triplet_sample(idx, si, h, end, window, dr, flip, swap_mask, rng, main)
-        if not self.unroll_pair:
-            return packet
-        # Drawn after the main window is complete, so every draw the non-pair path makes keeps its
-        # position in the stream and `unroll_pair=False` stays bitwise identical to S1.
-        lead = self._leading_packet(idx, si, h, start, window, dr, flip, swap_mask, rng)
-        return lead, packet
+            return self._legacy_tuple(packet)
+        return packet
 
     @staticmethod
     def _legacy_tuple(packet: EventPacket):
@@ -569,180 +498,13 @@ class SemKineDataset(Dataset):
             torch.from_numpy(packet.camera_K),
         )
 
-    #: step of the deployed loop (ms), the evaluation's
-    CLIP_STEP = 50
-
-    def _fast_clip_codes(self, h, ends, ws, dr, pol, rng):
-        """The uint8 LNES codes `(K, H, W, 2)` of the clip windows `[e_k - w_k + 1, e_k]` from ONE pass over the union of
-        their events (the fast path's pixel map, polarity table and keep rule, `_fast_render`), plus hot pixels at the
-        configured rate over the union. Overlapping windows share their events, their keep draws and their hot pixels
-        (a per-window build would redraw them). Code = ms of the slot's latest event relative to the window start (0 = no
-        event, as LNES), so `code / w` is the LNES value `events.splat_event_image` writes, bit for bit without
-        augmentation (tools/trk6/test_self.py)."""
-        H, W = self.height, self.width
-        hw = H * W
-        u0 = min(e - w + 1 for e, w in zip(ends, ws))
-        u1 = max(ends)
-        L = u1 - u0 + 1
-        off = h.offsets
-        a0, a1 = int(off[u0]), int(off[u1 + 1])
-        n = a1 - a0
-        nslot = hw * 2 + 4
-        last = np.full(nslot, -1, np.int32)
-        slot = ms = cum = None
-        if n > 0:
-            if h.tsub is not None:
-                ts = h.tsub[a0:a1]
-                if int(ts.max()) >= _TSUB_BOUND or (ts.dtype.kind != "u" and int(ts.min()) < 0):
-                    raise _FastFallback
-            ev = np.ascontiguousarray(h.events[a0:a1])
-            if ev.dtype != np.uint8 or ev.ndim != 2 or ev.shape[1] != 3:
-                raise _FastFallback
-            scr = self._fast_scratch()
-            key = np.ndarray((n,), dtype="<u2", buffer=ev, strides=(3,)).astype(np.intp)     # y * 256 + x
-            occ = scr.occ
-            occ[key] = True
-            src = occ.nonzero()[0]
-            occ.fill(False)
-            sx, sy = src & 255, src >> 8
-            if int(sx.max()) >= W or int(sy.max()) >= H:
-                raise _FastFallback
-            npx = DR.map_pixel_grid(sx, sy, dr, h.camera_K, self.render_scale, W, H)
-            scr.table[src] = (npx + 1) * 2 + pol[npx]
-            slot = scr.table[key]
-            np.bitwise_xor(slot, np.minimum(ev[:, 2], 1), out=slot)
-            if dr.keep < 1.0:
-                slot *= rng.random(n) < dr.keep
-            counts = np.diff(off[u0:u1 + 2])
-            ms = np.repeat(np.arange(L, dtype=np.int32), counts)
-            cum = np.cumsum(counts)
-        hot_slot = hot_ms = None
-        hlast = np.full(nslot, -1, np.int32)
-        if self.domrand.enabled and self.domrand.hot_pixel_rate > 0:
-            n_hot = int(rng.poisson(self.domrand.hot_pixel_rate * hw * 2 * L))
-            hot = DR.sample_hot_pixels(n_hot, L, W, H, rng)
-            if hot is not None:
-                order = np.argsort(hot[:, 0], kind="stable")
-                hm, hx, hy, hp = (hot[order, i] for i in range(4))
-                hpix = hy * W + hx
-                hot_slot = (hpix + 1) * 2 + (np.minimum(hp, 1) ^ pol[hpix])
-                hot_ms = hm.astype(np.int32)
-        codes = np.zeros((len(ends), H, W, 2), np.uint8)
-        i_prev = j_prev = 0
-        for k, (e, w) in enumerate(zip(ends, ws)):
-            upto = e - u0
-            if slot is not None:
-                i_k = int(cum[upto])
-                last[slot[i_prev:i_k]] = ms[i_prev:i_k]            # time-ordered: the last write is the latest
-                i_prev = i_k
-            if hot_slot is not None:
-                j_k = int(np.searchsorted(hot_ms, upto, side="right"))
-                hlast[hot_slot[j_prev:j_k]] = hot_ms[j_prev:j_k]
-                j_prev = j_k
-            m = np.maximum(last, hlast)[2:2 + hw * 2]
-            s_rel = e - w + 1 - u0
-            codes[k] = np.where(m >= s_rel, m - s_rel, 0).astype(np.uint8).reshape(H, W, 2)
-        return codes
-
-    def _clip_sample(self, idx, h, end, dr, rng, main, window_fn, pol=None):
-        """S42 candidate B: `{"main", "valid"[, "clip_codes", "clip_w", "clip_tgt", "clip_init", "clip_n50"]}`.
-
-        `main` is the plain sample bit for bit; the coin is the first draw after it. The clip's steps end at
-        `end - 50 (K - 1 - k)`, k = 0 .. K-1 (the last one is the plain sample's end); `window_fn(e, w)` builds the
-        legacy tuple of the window `[e - w + 1, e]` under the main sample's domain randomisation (its own keep mask and
-        hot pixels). LNES values are `ms / w` with integer ms (`events.splat_event_image`), so a window is stored as its
-        uint8 codes `round(lnes * w)` and `w`; `MNISTModel._maybe_self` decodes `codes / w`. Valid when the protocol
-        initial state GT(e_0 - 50) lies inside the run."""
-        run_a = int(self.index[idx][2])
-        K, step = self.clip_k, self.CLIP_STEP
-        coin = float(rng.random()) < self.clip_frac
-        if not (coin and end - step * K >= run_a):
-            return {"main": main, "valid": False}
-        ends = [int(end) - step * (K - 1 - k) for k in range(K)]
-        ws = [min(self.clip_window, e - run_a + 1) for e in ends]
-        keep = float(dr.keep) if self.domrand.enabled else 1.0
-        n50 = [float(h.offsets[e + 1] - h.offsets[e - step + 1]) * keep for e in ends]
-        if window_fn is None:                    # fast path: one pass over the union of the K windows
-            codes = list(torch.from_numpy(self._fast_clip_codes(h, ends, ws, dr, pol, rng)))
-            labels = np.stack([self._to_target(h.pos51[ends[0] - step])] + [self._to_target(h.pos51[e]) for e in ends])
-            if self.domrand.enabled:
-                labels, _ = DR.transform_labels(labels, dr, h.camera_K.copy(), h.j0, self.render_scale)
-            init = labels[0]
-            tgts = [torch.from_numpy(np.asarray(t, np.float32)) for t in labels[1:]]
-        else:                                    # legacy path: window by window
-            codes, tgts = [], []
-            for e, w in zip(ends, ws):
-                tup = window_fn(e, w)
-                codes.append(torch.round(tup[0] * w).to(torch.uint8))
-                tgts.append(tup[2])
-            init = self._to_target(h.pos51[ends[0] - step])
-            if self.domrand.enabled:
-                stacked, _ = DR.transform_labels(np.stack([init, init]), dr, h.camera_K.copy(), h.j0, self.render_scale)
-                init = stacked[0]
-        t, r, q = self.prev_noise
-        scale = np.concatenate([np.full(3, t), np.full(3, r), np.full(len(init) - 6, q)]).astype(np.float32)
-        init = (np.asarray(init, np.float32) + rng.standard_normal(len(init)).astype(np.float32) * scale)
-        return {"main": main, "valid": True, "clip_codes": torch.stack(codes), "clip_w": torch.tensor(ws, dtype=torch.float32),
-                "clip_tgt": torch.stack(tgts), "clip_init": torch.from_numpy(init.astype(np.float32)),
-                "clip_n50": torch.tensor(n50, dtype=torch.float64)}
-
-    def _triplet_sample(self, idx, si, h, end, window, dr, flip, swap_mask, rng, main):
-        """`{"w0", "w1", "w2", "valid"}` of the triplet training sample; `main` is window 2.
-
-        The coin is the first draw after the plain sample's last one, so `main` is the plain
-        sample bit for bit. `valid` also needs `3 * window` ms of history in the run, so that the
-        earliest window, ms `[end - 3w + 1, end - 2w]`, stays inside it. When it is False the three
-        windows alias one array set and nothing more is computed.
-        """
-        run_a = int(self.index[idx][2])
-        coin = float(rng.random()) < self.triplet_frac
-        if not (coin and end - run_a + 1 >= 3 * window):
-            return {"w0": main, "w1": main, "w2": main, "valid": torch.tensor(False)}
-        # Backwards from the main window, so a further window would append its draws.
-        w1 = self._triplet_window(si, h, end - window, window, run_a, dr, flip, swap_mask, rng)
-        w0 = self._triplet_window(si, h, end - 2 * window, window, run_a, dr, flip, swap_mask, rng)
-        return {"w0": w0, "w1": w1, "w2": main, "valid": torch.tensor(True)}
-
-    def _triplet_window(self, si, h, e, window, run_a, dr, flip, swap_mask, rng):
-        """One earlier window of a triplet, as a legacy 5-tuple.
-
-        Events of ms `[e - window + 1, e]`, `prev = GT(e - window + 1)` plus its own teacher-forcing
-        noise, `target = GT(e)`. The domrand realisation `dr` (hence the camera, labels included),
-        `flip` and `swap_mask` are the main window's; the keep mask, the hot pixels and the noise
-        are drawn here, from `rng`, independently of the other windows.
-        """
-        start = e - window + 1
-        xs, ys, ps, us = self._raw_events(h, e, window)
-        target = self._to_target(h.pos51[e])
-        prev = self._to_target(h.pos51[start])
-        camera_K = h.camera_K.copy()
-        if self.domrand.enabled:
-            xs, ys, ps, us = self._domrand_events(xs, ys, ps, us, window, dr, camera_K, rng)
-            stacked, camera_K = DR.transform_labels(
-                np.stack([prev, target]), dr, camera_K, h.j0, self.render_scale
-            )
-            prev, target = stacked[0], stacked[1]
-        noise = self._sample_prev_noise(rng)
-        if noise is not None:
-            prev = prev + noise
-        p_eff = self._polarity(xs, ys, ps, flip, swap_mask)
-        packet = self._pack(
-            si, h, xs, ys, p_eff, us, window,
-            t_start_us=int(start) * 1000, t_end_us=(int(e) + 1) * 1000,
-            target=target, prev=prev, camera_K=camera_K,
-            is_start=bool(start == run_a), is_end=False,
-            meta={"window_ms": window, "end_idx": e, "seq": h.seq,
-                  "category": h.category, "domrand": dr, "triplet": True},
-        )
-        return self._legacy_tuple(packet)
-
     def _pack(self, si, h, xs, ys, p_eff, us, window, *, t_start_us, t_end_us,
               target, prev, camera_K, is_start, is_end, meta, source_rows=None) -> EventPacket:
         out: Dict[str, object] = {}
-        if self.input_mode in ("legacy_lnes", "both"):
+        if self.input_mode == "legacy_lnes":
             out["lnes"] = self._splat_lnes(xs, ys, p_eff, us // 1000, window,
                                            self.height, self.width)
-        if self.input_mode in ("raw_packed", "both"):
+        if self.input_mode == "raw_packed":
             ev = np.empty((len(xs), 4), dtype=np.float32)
             if len(xs):
                 ev[:, 0] = xs
@@ -756,15 +518,7 @@ class SemKineDataset(Dataset):
                 raise RuntimeError("XAG packet construction lost original event rows")
             from semkine.xag_sources import load_sources
             # Compute from the exact integer microseconds before packing float event time.
-            args = (self.xag_source_root, h.seq, source_rows, int(t_start_us) // 1000 + us // 1000)
-            # Preserve the exact legacy call and its six-field output unless A3 is requested.
-            if self.xag_require_depth:
-                dr = meta.get("domrand")
-                if dr is not None and getattr(dr, "scale_mode", "focal") != "focal":
-                    raise ValueError("full_oracle source depth requires the C1 focal augmentation")
-                xag = load_sources(*args, require_depth=True)
-            else:
-                xag = load_sources(*args)
+            xag = load_sources(self.xag_source_root, h.seq, source_rows, int(t_start_us) // 1000 + us // 1000)
         return EventPacket(
             events=out.get("events", np.zeros((0, 4), np.float32)),
             sequence_id=si,
@@ -781,61 +535,6 @@ class SemKineDataset(Dataset):
             **xag,
         )
 
-    def _leading_packet(self, idx, si, h, main_start, window, dr, flip, swap_mask,
-                        rng) -> EventPacket:
-        """The window immediately before the main one, for the S22 unroll pair.
-
-        It ends exactly where the main window starts and its target is the main window's
-        *un-noised* conditioning state, so a prediction on it estimates what the main window is
-        conditioned on -- which is what turns a pair into one step of the deployed recursion.
-
-        At a run boundary there is nothing before the main window. The pair then degenerates to a
-        zero-length interval at that same instant, where the zero-event gate returns the
-        conditioning state unchanged and the sample falls back to plain teacher forcing.
-        """
-        run_a = int(self.index[idx][2])
-        end_l = int(main_start) - 1
-        w = min(int(window), end_l - run_a + 1)
-        camera_K = h.camera_K.copy()
-        if w < 1:
-            start_l = int(main_start)
-            xs = ys = ps = us = np.zeros(0, np.int64)
-        else:
-            start_l = end_l - w + 1
-            xs, ys, ps, us = self._raw_events(h, end_l, w)
-        source_rows = (np.arange(int(h.offsets[start_l]), int(h.offsets[end_l + 1]), dtype=np.int64)
-                       if w >= 1 else np.zeros(0, np.int64)) if self.xag_source_root else None
-        target = self._to_target(h.pos51[int(main_start)])
-        prev = self._to_target(h.pos51[start_l])
-
-        if self.domrand.enabled:
-            if w >= 1:
-                if source_rows is None:
-                    xs, ys, ps, us = self._domrand_events(xs, ys, ps, us, w, dr, camera_K, rng)
-                else:
-                    xs, ys, ps, us, source_rows = self._domrand_events(
-                        xs, ys, ps, us, w, dr, camera_K, rng, source_rows=source_rows)
-            stacked, camera_K = DR.transform_labels(
-                np.stack([prev, target]), dr, camera_K, h.j0, self.render_scale
-            )
-            prev, target = stacked[0], stacked[1]
-        if self.train:
-            noise = self._sample_prev_noise(rng)
-            if noise is not None:
-                prev = prev + noise
-        p_eff = self._polarity(xs, ys, ps, flip, swap_mask)
-
-        return self._pack(
-            si, h, xs, ys, p_eff, us, max(w, 1),
-            t_start_us=start_l * 1000, t_end_us=int(main_start) * 1000,
-            target=target, prev=prev, camera_K=camera_K,
-            is_start=bool(start_l == run_a), is_end=False,
-            meta={"window_ms": max(w, 0), "end_idx": end_l, "seq": h.seq,
-                  "category": h.category, "domrand": dr, "leading": True},
-            source_rows=source_rows,
-        )
-
-
     # ------------------------------------------------------------------ fast pipe
     # `__getitem__` of the dense training sample, re-implemented to cost about a third of the legacy
     # path while returning *the same bits*. It is opt-in (`fast_pipe`, see `__init__`), and the legacy
@@ -846,9 +545,8 @@ class SemKineDataset(Dataset):
     # 1. Random stream. A sample's augmentation is a pure function of `(seed, idx)` and the draws
     #    are made in the legacy order with the legacy calls: window, `sample_params`, keep mask
     #    (`rng.random(n)`, `n` = all events of the window), hot pixels and their (unused) sub-ms
-    #    jitter, `transform_labels` (no draws), prev noise, polarity flip, per-pixel swap mask and,
-    #    for triplets, the coin and the per-window draws of the two earlier windows. Only the
-    #    arithmetic on the drawn values is reorganised, never the draws.
+    #    jitter, `transform_labels` (no draws), prev noise, polarity flip and per-pixel swap mask.
+    #    Only the arithmetic on the drawn values is reorganised, never the draws.
     # 2. LNES value. `splat_event_image` writes one float32 per (pixel, polarity) slot, later events
     #    overwriting earlier ones, from a stream that is non-decreasing in ms (storage order is ms
     #    order; hot-pixel injection re-sorts by `us`, and `us // 1000` is the ms bin because the
@@ -1021,24 +719,6 @@ class SemKineDataset(Dataset):
             torch.from_numpy(np.asarray(camera_K, np.float32)),
         )
 
-    def _fast_window(self, h: SequenceHandles, start: int, end: int, window: int,
-                     dr: DR.DomRandSample, pol: np.ndarray, rng: np.random.Generator):
-        """A window of a triplet: events + draws, labels, prev noise (`_triplet_window` without its packet)."""
-        events = self._fast_events(h, start, end, window, dr, rng)
-        target = self._to_target(h.pos51[end])
-        prev = self._to_target(h.pos51[start])
-        camera_K = h.camera_K.copy()
-        if self.domrand.enabled:
-            stacked, camera_K = DR.transform_labels(
-                self._pair(prev, target), dr, camera_K, h.j0, self.render_scale
-            )
-            prev, target = stacked[0], stacked[1]
-        noise = self._sample_prev_noise(rng)
-        if noise is not None:
-            prev = prev + noise
-        return self._fast_tuple(self._fast_render(events, window, dr, h.camera_K, pol),
-                                prev, target, h, camera_K)
-
     def _fast_item(self, idx: int):
         """`__getitem__` of the legacy_lnes training sample on the fast path; raises `_FastFallback` to decline."""
         rng = np.random.default_rng((self.seed * 1_000_003 + idx) & 0x7FFFFFFF)
@@ -1063,22 +743,8 @@ class SemKineDataset(Dataset):
         if self.pixel_polarity_swap:
             swap = rng.integers(0, 2, size=(self.height, self.width)).astype(bool)
         pol = self._fast_polarity(flip, swap)
-        main = self._fast_tuple(self._fast_render(events, window, dr, h.camera_K, pol),
+        return self._fast_tuple(self._fast_render(events, window, dr, h.camera_K, pol),
                                 prev, target, h, camera_K)
-        if self.clip_k:
-            return self._clip_sample(idx, h, end, dr, rng, main, None, pol=pol)
-        if not self.triplet:
-            return main
-        # `_triplet_sample`: the coin is the first draw after the plain sample's last one; the two
-        # earlier windows then draw their own keep masks / hot pixels / prev noise, backwards.
-        run_a = int(self.index[idx][2])
-        coin = float(rng.random()) < self.triplet_frac
-        if not (coin and end - run_a + 1 >= 3 * window):
-            return {"w0": main, "w1": main, "w2": main, "valid": torch.tensor(False)}
-        e1, e0 = end - window, end - 2 * window
-        w1 = self._fast_window(h, e1 - window + 1, e1, window, dr, pol, rng)
-        w0 = self._fast_window(h, e0 - window + 1, e0, window, dr, pol, rng)
-        return {"w0": w0, "w1": w1, "w2": main, "valid": torch.tensor(True)}
 
 
 # -------------------------------------------------------------------- builders
@@ -1134,10 +800,6 @@ def build_dataset(cfg: dict, split: str, components: np.ndarray,
     aug = cfg.get("AUG", {}) or {}
     ev = cfg.get("EVAL", {}) or {}
     data = cfg["DATA"]
-    triplet = data.get("TRIPLET", False)
-    if isinstance(triplet, str):
-        # `TRIPLET: "false"` is a truthy string; a YAML quoting slip must not switch it on.
-        raise ValueError(f"DATA.TRIPLET must be a bool, got {triplet!r}")
     fast = data.get("FAST_PIPE", False)
     if isinstance(fast, str):
         raise ValueError(f"DATA.FAST_PIPE must be a bool, got {fast!r}")
@@ -1169,19 +831,10 @@ def build_dataset(cfg: dict, split: str, components: np.ndarray,
                         float(track.get("PREV_NOISE_P_CORR", 0.2))),
         render_scale=float(cfg.get("MODEL", {}).get("RENDER_SCALE", 0.375)),
         seed=int(cfg.get("SEED", 0)),
-        unroll_pair=bool(track.get("UNROLL_PAIR", False)) and bool(train),
         event_channels=EV.event_channels(cfg),
-        # Training split only (val / test stay plain windows); raises if the input is not LNES.
-        triplet=bool(triplet) and bool(train),
-        triplet_frac=data.get("TRIPLET_FRAC", 1.0 / 3.0),
         # DATA.FAST_PIPE: true enables the fast path; absent / false leaves it to SEMKINE_FAST_PIPE.
         fast_pipe=True if fast else None,
         # DATA.PREV_LAG_MS (DT2 deviation 7): absent = the window's first ms, as recorded.
         prev_lag_ms=data.get("PREV_LAG_MS"),
-        # DATA.CLIP_* (S42 candidate B): absent = no clip, as recorded
-        clip_k=int(data.get("CLIP_K", 0) or 0) if train else 0,
-        clip_window=int(data.get("CLIP_WINDOW", 200)),
-        clip_frac=float(data.get("CLIP_FRAC", 0.5)),
         xag_source_root=data.get("XAG_SOURCE_ROOT"),
-        xag_require_depth=str(cfg.get("MODEL", {}).get("XAG_ASSOC", "base")) == "full_oracle",
     )

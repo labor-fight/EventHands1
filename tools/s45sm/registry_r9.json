@@ -1,0 +1,27 @@
+{
+  "round": 9,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-r9-prereg-20261031",
+  "routers": {},
+  "arms": {
+    "xgt_srdw": {
+      "pair_trunk": "pfagtdz",
+      "router": "srdwkd",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T* of round 7) with the depthwise patch router srdwkd (round 8, not selected by the D1 proxy) at test"
+    },
+    "xt0_srdw": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srdwkd",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with the depthwise patch router srdwkd (round 8, not selected by the D1 proxy) at test"
+    }
+  }
+}

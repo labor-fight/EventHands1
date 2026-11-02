@@ -1,0 +1,18 @@
+{
+ "round": 2,
+ "prereg": "docs/EXPERIMENT_RECORDS.md#t1aub-r2-prereg-20261102",
+ "cells": {
+  "b_pf": {"trunk": "t0pnoeg20", "router": "srdwkda", "arb": {"mode": "point", "sigma_px": null},
+           "note": "candidate B's trunk + srdwkda decoded part-first (the router alone): the reference of the arbitration cells"},
+  "b_pt2": {"trunk": "t0pnoeg20", "router": "srdwkda", "arb": {"mode": "point", "sigma_px": 2.0},
+            "note": "candidate B's trunk + srdwkda with the state arbitrating its top-2 parts by reprojection (sigma 2 px)"},
+  "b_ray": {"trunk": "t0pnoeg20", "router": "srdwkda", "arb": {"mode": "ray", "sigma_px": null},
+            "note": "candidate B's trunk + srdwkda with the state's ray-association part gated by the router's top-2"},
+  "a_pf": {"trunk": "t0ps16", "router": "srdwkda", "arb": {"mode": "point", "sigma_px": null},
+           "note": "candidate A's trunk + srdwkda decoded part-first"},
+  "a_pt2": {"trunk": "t0ps16", "router": "srdwkda", "arb": {"mode": "point", "sigma_px": 2.0},
+            "note": "candidate A's trunk + point arbitration (sigma 2 px)"},
+  "a_ray": {"trunk": "t0ps16", "router": "srdwkda", "arb": {"mode": "ray", "sigma_px": null},
+            "note": "candidate A's trunk + ray-gated arbitration"}
+ }
+}

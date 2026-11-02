@@ -13,6 +13,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from tools.frozen import accepts
+
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "outputs/s45tr/20261030"
 CONFIGS = ROOT / "configs/s45tr_20261030"
@@ -183,14 +185,14 @@ def verify_protocol():
     p = read(PROTOCOL)
     require(p["study"] == "S45TR_20261030" and p["seed"] == 3407, "Wrong S45-TR identity")
     for name, digest in frozen_files().items():
-        require(sha(name) == digest, "Frozen S45-TR file changed: " + name)
+        require(accepts(name, digest), "Frozen S45-TR file changed: " + name)
     return p
 
 
 def config_frozen(config):
     rel = str(Path(config).resolve().relative_to(ROOT))
     files = frozen_files()
-    require(rel in files and files[rel] == sha(config), "Config not frozen: " + rel)
+    require(rel in files and accepts(config, files[rel]), "Config not frozen: " + rel)
 
 
 def _init_matches(arm, initial, base):

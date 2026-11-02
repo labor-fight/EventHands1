@@ -126,16 +126,13 @@ def packet(n, with_sources=True):
                        camera_K=np.eye(3, dtype=np.float32), **fields)
 
 
-def test_source_collation_device_move_empty_packet_and_xkf_field():
+def test_source_collation_device_move_and_empty_packet():
     items = [packet(3), packet(0), packet(2)]
-    for item in items:
-        item.lnes_window_ms = 200
     batch = collate_packets(items).to("cpu")
     batch.validate()
     assert batch.counts.tolist() == [3, 0, 2]
     assert batch.xag_bary.shape == (5, 3)
     assert batch.xag_source_index.tolist() == [-1] * 5
-    assert batch.lnes_window_ms.tolist() == [200] * 3
     assert all(getattr(collate_packets([packet(1, False)]), key) is None for key in SOURCE_FIELDS)
     with pytest.raises(ValueError, match="missing or partial"):
         collate_packets([packet(1), packet(1, False)])
@@ -162,8 +159,7 @@ def test_domrand_source_tracking_preserves_events_and_rng(n, hot, keep):
     assert np.array_equal(out[3][real], original[3][rows[real]])
 
 
-@pytest.mark.parametrize("unroll", [False, True])
-def test_real_training_samples_sources_on_off_are_bitwise_equal(monkeypatch, unroll):
+def test_real_training_samples_sources_on_off_are_bitwise_equal(monkeypatch):
     root, mano = ROOT / "data" / "hand_data51", ROOT / "assets" / "mano_right.npz"
     if not mano.exists() or not (root / "val" / "zgz_local_events.npy").exists():
         pytest.skip("requires repository MANO and sequence fixture")
@@ -182,14 +178,12 @@ def test_real_training_samples_sources_on_off_are_bitwise_equal(monkeypatch, unr
     common = dict(root=root, sequences=[("zgz_local", "val")], components=np.load(mano)["hands_components"],
                   mano_npz=str(mano), input_mode="raw_packed", train=True, seed=3407, speed_aug=True,
                   polarity_flip=True, pixel_polarity_swap=True, prev_noise=(.005, .05, .05), prev_noise_mode="mixed",
-                  domrand=DR.DomRandConfig(enabled=True), unroll_pair=unroll)
+                  domrand=DR.DomRandConfig(enabled=True))
     baseline, oracle = SemKineDataset(**common), SemKineDataset(**common, xag_source_root="unused")
     for idx in [0, 13, 143, len(baseline) // 2, len(baseline) - 1]:
         ref, got = baseline[idx], oracle[idx]
-        pairs = [(ref, got)] if not unroll else list(zip(ref, got))
-        for a, b in pairs:
-            for name in ("events", "prev_state", "target", "betas", "camera_K"):
-                assert np.array_equal(getattr(a, name), getattr(b, name)), (idx, name)
-            assert (a.t_start_us, a.t_end_us) == (b.t_start_us, b.t_end_us)
-            assert len(b.xag_source_index) == b.n_events
-            collate_packets([b]).validate()
+        for name in ("events", "prev_state", "target", "betas", "camera_K"):
+            assert np.array_equal(getattr(ref, name), getattr(got, name)), (idx, name)
+        assert (ref.t_start_us, ref.t_end_us) == (got.t_start_us, got.t_end_us)
+        assert len(got.xag_source_index) == got.n_events
+        collate_packets([got]).validate()

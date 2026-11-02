@@ -22,7 +22,8 @@ import time
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 from tools.s45ct import run as R1  # noqa: E402
-from tools.s45ct.common import OUT, PHYSICAL_GPUS, now, output_dir, read, require, run_name, save, sha, verify_protocol  # noqa: E402
+from tools.frozen import accepts  # noqa: E402
+from tools.s45ct.common import OUT, PHYSICAL_GPUS, now, output_dir, read, require, run_name, save, verify_protocol  # noqa: E402
 
 MAX_PAIRS = 1
 RERUN = {"formal:sigma16": "sigma16", "formal:shuffle": "shuffle"}
@@ -40,7 +41,7 @@ def alive(pid):
 
 def prepare():
     verify_protocol()
-    require(read(MANIFEST)["file_sha256"]["tools/s45ct/run_r3.py"] == sha(__file__), "amendment-2 driver changed")
+    require(accepts(__file__, read(MANIFEST)["file_sha256"]["tools/s45ct/run_r3.py"]), "amendment-2 driver changed")
     prev = read(PREVIOUS)
     require(prev["status"] in ("COMPLETE", "COMPLETE_WITH_PRESERVED_FAILURES") and not alive(prev["pid"]),
             "the amendment-1 driver must have ended")

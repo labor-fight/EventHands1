@@ -1,0 +1,13 @@
+{
+  "round": 2,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-r2-prereg-20261031",
+  "routers": {
+    "sr2a": {"kind": "sr", "heldout": "ylf", "steps": 6000, "dz": true,
+             "aug": {"rot_deg": 30, "scale": [0.85, 1.18], "keep": [0.4, 1.0]},
+             "note": "sr1 + router-only augmentation (rotation +-30 deg, scale 0.85-1.18 about the packet centroid, keep 40-100 % of events)"},
+    "sr2b": {"kind": "sr", "heldout": "ylf", "steps": 6000, "dz": true,
+             "aug": {"rot_deg": 60, "scale": [0.75, 1.33], "keep": [0.3, 1.0]},
+             "note": "sr1 + stronger router-only augmentation (rotation +-60 deg, scale 0.75-1.33, keep 30-100 %)"}
+  },
+  "arms": {}
+}

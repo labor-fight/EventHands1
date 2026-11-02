@@ -1,8 +1,10 @@
-"""Contracts of model/backbones.py (task `backbones`, lighter CNN trunks for the dense tracker): the default trunk is
-torchvision's resnet18 bit for bit (state_dict keys, shapes, seeded values and RNG consumption); every registered
-trunk maps (B, 3, 180, 240) to (B, 51) with a finite gradient on every parameter; parameter and MAC counts stay inside
-the ranges measured in outputs/dt/reports/backbones.md; the width / depth variants keep the ResNet-18 structure; a
-state_dict round trip, batch-1 BatchNorm behaviour and a one-batch overfit work for every trunk; unknown names raise.
+"""Contracts of model/backbones.py (the CNN trunks of the dense tracker): the default trunk is torchvision's resnet18
+bit for bit (state_dict keys, shapes, seeded values and RNG consumption); the two registered trunks (resnet18, resnet18_l3)
+map (B, 3, 180, 240) to (B, 51) with a finite gradient on every parameter; parameter and MAC counts stay inside the
+ranges measured in outputs/dt/reports/backbones.md; `ScaledResNet` (the class behind resnet18_l3) keeps the ResNet-18
+structure for its width / depth / stage-width options; a state_dict round trip, batch-1 BatchNorm behaviour and a
+one-batch overfit work for every trunk; unknown names raise. (The width / depth variants, resnet10, regnet and
+mobilenet entries of the registry were removed with the closed DT / DT2 arms.)
 
     CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=2 python -m pytest tests/test_dt_backbone.py -q
 """
@@ -24,8 +26,7 @@ sys.path[:0] = [str(REPO), str(REPO / "model")]
 import backbones as BB                                                       # noqa: E402
 from backbones import BACKBONES, ScaledResNet, build_backbone, count_params  # noqa: E402
 
-REQUIRED = ("resnet18", "resnet18_w0.75", "resnet18_w0.5", "resnet18_w0.25", "resnet18_l3", "resnet10",
-            "regnet_x_400mf", "mobilenet_v3_small", "shufflenet_v2_x0_5")
+REQUIRED = ("resnet18", "resnet18_l3")
 OUT_DIM = 51
 HW = (180, 240)
 
@@ -33,23 +34,7 @@ HW = (180, 240)
 #: (outputs/dt/reports/backbones.json): trunk parameters, Conv2d + Linear multiply-accumulates, thop MACs
 MEASURED = {
     "resnet18": (11_202_675, 1_641_662_976, 1_650_397_184),
-    "resnet18_w0.75": (6_309_987, 942_491_520, 949_042_176),
-    "resnet18_w0.5": (2_811_987, 435_823_872, 440_190_976),
-    "resnet18_w0.25": (708_675, 121_660_032, 123_843_584),
     "resnet18_l3": (2_795_891, 1_238_996_736, 1_247_260_672),
-    "resnet10": (4_931_955, 800_279_040, 806_359_040),
-    "regnet_x_400mf": (5_115_427, 388_774_320, 400_260_160),
-    "mobilenet_v3_small": (1_570_131, 51_233_824, 56_591_096),
-    "shufflenet_v2_x0_5": (394_067, 36_298_032, 39_956_976),
-    "mobilenet_v3_small_nodrop": (1_570_131, 51_233_824, 56_591_096),
-    # DT2 (package E, arm dt_dz_l3w128): layer3 at 128 channels (layer3 holds 607,488 of them, 2,099,712 at 256 wide);
-    # measured on the server with the same torch / torchvision / thop as the rows above
-    "resnet18_l3w128": (1_297_139, 970_620_288, 978_400_256),
-    # DT2 deviation 4 (arms dt_dz_l3w128s48 / dt_dz_l3w128b1), measured the same way on the server
-    "resnet18_l3w128s48": (959_459, 605_394_048, 611_350_016),
-    "resnet18_l3w128b1": (632_307, 514_981_248, 520_487_936),
-    # S42 (trk6): layer3 at 192 channels, measured the same way on the server
-    "resnet18_l3w192": (1_935_923, 1_084_901_952, 1_092_923_904),
 }
 TOL = 0.01                                              # relative band around every measured count except resnet18
 
@@ -82,7 +67,7 @@ def _conv_fc_macs(model: nn.Module, chw=(3, *HW)) -> int:
 
 # ------------------------------------------------------------------ registry and the default trunk
 def test_registry_has_the_required_names_in_order():
-    assert tuple(BACKBONES)[:len(REQUIRED)] == REQUIRED
+    assert tuple(BACKBONES) == REQUIRED
     assert set(MEASURED) == set(BACKBONES)                # every registered name has a measured range below
 
 
@@ -112,8 +97,6 @@ def test_scaled_resnet_at_full_width_is_resnet18_bit_for_bit():
     ref10 = torchvision.models.resnet.ResNet(torchvision.models.resnet.BasicBlock, [1, 1, 1, 1], num_classes=OUT_DIM)
     torch.manual_seed(7)
     _assert_same_state(ref10, ScaledResNet(OUT_DIM, layers=(1, 1, 1, 1)))
-    torch.manual_seed(7)
-    _assert_same_state(ref10, build_backbone("resnet10", OUT_DIM))
 
 
 @pytest.mark.parametrize("bad", ["resnet50", "", "ResNet18", "resnet18 ", None, 18])
@@ -141,9 +124,9 @@ def test_importing_the_module_does_not_touch_the_rng_and_needs_no_timm():
 
 
 # ------------------------------------------------------------------ structure of the new trunks
-@pytest.mark.parametrize("name,w", [("resnet18_w0.75", 0.75), ("resnet18_w0.5", 0.5), ("resnet18_w0.25", 0.25)])
-def test_width_variants_keep_the_resnet18_structure(name, w):
-    m, ref = build_backbone(name, OUT_DIM), torchvision.models.resnet18(num_classes=OUT_DIM)
+@pytest.mark.parametrize("w", [0.75, 0.5, 0.25])
+def test_width_variants_keep_the_resnet18_structure(w):
+    m, ref = ScaledResNet(OUT_DIM, width=w), torchvision.models.resnet18(num_classes=OUT_DIM)
     assert m.conv1.kernel_size == (7, 7) and m.conv1.stride == (2, 2) and m.conv1.padding == (3, 3)
     assert isinstance(m.maxpool, nn.MaxPool2d) and m.maxpool.kernel_size == 3 and m.maxpool.stride == 2
     assert isinstance(m, torchvision.models.resnet.ResNet)                  # a ResNet subclass, forward unchanged
@@ -174,10 +157,10 @@ def test_l3_drops_layer4_and_reads_256_features():
 
 
 def test_l3w128_halves_layer3_and_keeps_stem_layer1_layer2_and_layer4_identity():
-    """DT2 arm 1: the l3 trunk with a 128-wide layer3. Everything before layer3 has the l3 trunk's tensor shapes; layer3 and
-    the fc are narrower."""
+    """`stage_widths=(64, 128, 128)` on the l3 trunk (the removed DT2 arm 1): everything before layer3 has the l3 trunk's
+    tensor shapes; layer3 and the fc are narrower."""
     ref = build_backbone("resnet18_l3", OUT_DIM)
-    m = build_backbone("resnet18_l3w128", OUT_DIM)
+    m = ScaledResNet(OUT_DIM, layers=(2, 2, 2, 0), stage_widths=(64, 128, 128))
     assert isinstance(m, ScaledResNet) and m.stage_widths[:3] == (64, 128, 128) and m.stage_blocks == (2, 2, 2, 0)
     assert isinstance(m.layer4, nn.Identity) and m.fc.in_features == 128 and m.fc.out_features == OUT_DIM
     assert list(m.state_dict()) == list(ref.state_dict())                       # same module tree, only widths differ
@@ -224,7 +207,7 @@ def test_stage_widths_none_changes_nothing_and_bad_values_raise():
 
 
 def test_resnet10_has_one_block_per_stage():
-    m = build_backbone("resnet10", OUT_DIM)
+    m = ScaledResNet(OUT_DIM, layers=(1, 1, 1, 1))
     assert [len(getattr(m, f"layer{i}")) for i in (1, 2, 3, 4)] == [1, 1, 1, 1]
     assert m.fc.in_features == 512
 
@@ -233,13 +216,6 @@ def test_scaled_resnet_rejects_bad_layer_specs():
     for layers in [(2, 2, 2), (0, 2, 2, 2), (2, 0, 2, 2), (0, 0, 0, 0), (2, 2, 2, -1)]:
         with pytest.raises(ValueError):
             ScaledResNet(OUT_DIM, layers=layers)
-
-
-def test_mobilenet_nodrop_differs_only_in_the_dropout_rate():
-    a, b = build_backbone("mobilenet_v3_small", OUT_DIM), build_backbone("mobilenet_v3_small_nodrop", OUT_DIM)
-    assert [x.p for x in a.modules() if isinstance(x, nn.Dropout)] == [0.2]
-    assert [x.p for x in b.modules() if isinstance(x, nn.Dropout)] == [0.0]
-    assert list(a.state_dict()) == list(b.state_dict())
 
 
 # ------------------------------------------------------------------ every trunk: shape, gradients, counts
@@ -269,13 +245,9 @@ def test_parameter_counts_are_in_the_measured_ranges(name):
 
 def test_parameter_counts_order_and_ratios():
     p = {n: count_params(build_backbone(n, OUT_DIM)) for n in REQUIRED}
-    assert p["resnet18_w0.25"] < p["resnet18_w0.5"] < p["resnet18_w0.75"] < p["resnet18"]
-    assert p["shufflenet_v2_x0_5"] < p["resnet18_w0.25"] < p["mobilenet_v3_small"] < p["resnet18_w0.5"]
     assert 0.24 < p["resnet18_l3"] / p["resnet18"] < 0.26          # layer4 holds 74.9 % of the parameters
-    assert 0.24 < p["resnet18_w0.5"] / p["resnet18"] < 0.26
-    assert 0.43 < p["resnet10"] / p["resnet18"] < 0.45
-    w128 = count_params(build_backbone("resnet18_l3w128", OUT_DIM))
-    assert 0.45 < w128 / p["resnet18_l3"] < 0.48 and w128 < p["resnet18_w0.5"] / 2          # 1.30 M of the l3 trunk's 2.80 M
+    w128 = count_params(ScaledResNet(OUT_DIM, layers=(2, 2, 2, 0), stage_widths=(64, 128, 128)))
+    assert 0.45 < w128 / p["resnet18_l3"] < 0.48                    # 1.30 M of the l3 trunk's 2.80 M
 
 
 @pytest.mark.parametrize("name", list(BACKBONES))

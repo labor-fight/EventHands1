@@ -31,7 +31,7 @@ def main() -> None:
     if root is None:
         sys.path.insert(0, str(REPO / "model"))
         from config import load_config
-        root = Path(load_config(REPO / "configs/semkine/s1_track_domrand.yaml")["DATA"]["ROOT"])
+        root = Path(load_config(REPO / "configs/dt/dt_dz_l3.yaml")["DATA"]["ROOT"])
 
     manifest = root / "splits_semkine.json"
     if not manifest.is_file():

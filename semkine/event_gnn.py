@@ -39,7 +39,6 @@ or a loss is attributable to the graph and not to the loop around it.
 """
 from __future__ import annotations
 
-import math
 from typing import Optional, Tuple
 
 import torch

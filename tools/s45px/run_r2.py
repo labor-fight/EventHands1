@@ -19,8 +19,9 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
+from tools.frozen import accepts  # noqa: E402
 from tools.s45px import run as R1  # noqa: E402
-from tools.s45px.common import OUT, PHYSICAL_GPUS, now, read, require, save, sha, verify_protocol  # noqa: E402
+from tools.s45px.common import OUT, PHYSICAL_GPUS, now, read, require, save, verify_protocol  # noqa: E402
 
 STATUS, LOGS, MANIFEST = OUT / "status_r2.json", OUT / "logs_r2", OUT / "manifests" / "amend1.json"
 RENAME = {f"accept:preflight:{a}": f"accept_r1:preflight:{a}" for a in R1.ORDER}
@@ -52,7 +53,7 @@ def jobs():
 
 def prepare():
     verify_protocol()
-    require(read(MANIFEST)["file_sha256"]["tools/s45px/run_r2.py"] == sha(__file__), "amendment-1 driver changed")
+    require(accepts(__file__, read(MANIFEST)["file_sha256"]["tools/s45px/run_r2.py"]), "amendment-1 driver changed")
     first = read(R1.STATUS)
     require(first["status"] in ("COMPLETE", "COMPLETE_WITH_PRESERVED_FAILURES") and not alive(first["pid"]),
             "the first driver must have ended")

@@ -1,0 +1,131 @@
+{
+  "round": 12,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-r12-prereg-20261031",
+  "routers": {
+    "srpkd9": {
+      "kind": "srp",
+      "heldout": null,
+      "steps": 6000,
+      "dz": true,
+      "params": 137787,
+      "kd": {
+        "teacher": "t0p",
+        "T": 2.0,
+        "lambda_patch": 1.0,
+        "lambda_coord": 0.5,
+        "lambda_onhand": 0.5
+      },
+      "note": "srpkd's recipe unchanged (semkine/s45sm_srp.py, T0P labels and loss + distillation from the frozen T0P) on all nine training subjects instead of eight (ylf no longer held out); tools/s45sm/router_train4.py"
+    },
+    "srpkd9a": {
+      "kind": "srp",
+      "anneal_of": "srpkd9",
+      "anneal_steps": 2000,
+      "heldout": null,
+      "dz": true,
+      "params": 137787,
+      "kd": {
+        "teacher": "t0p",
+        "T": 2.0,
+        "lambda_patch": 1.0,
+        "lambda_coord": 0.5,
+        "lambda_onhand": 0.5
+      },
+      "note": "srpkd9 annealed as in round 10 (tools/s45sm/router_train7.py): +2000 steps, LR warmup 100 then linear decay to 0"
+    },
+    "srpkd9h": {
+      "kind": "srph",
+      "decode_of": "srpkd9",
+      "params": 137787,
+      "note": "srpkd9 with part-first decoding (semkine/s45sm_hier.py); no weights of its own"
+    },
+    "srpkd9ah": {
+      "kind": "srph",
+      "decode_of": "srpkd9a",
+      "params": 137787,
+      "note": "srpkd9a with part-first decoding (semkine/s45sm_hier.py); no weights of its own"
+    }
+  },
+  "arms": {
+    "xgt_srp9": {
+      "pair_trunk": "pfagtdz",
+      "router": "srpkd9",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T*) with the nine-subject router srpkd9 at test"
+    },
+    "xgt_srp9a": {
+      "pair_trunk": "pfagtdz",
+      "router": "srpkd9a",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T*) with the nine-subject router srpkd9a at test"
+    },
+    "xgt_srp9h": {
+      "pair_trunk": "pfagtdz",
+      "router": "srpkd9h",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T*) with the nine-subject router srpkd9h at test"
+    },
+    "xgt_srp9ah": {
+      "pair_trunk": "pfagtdz",
+      "router": "srpkd9ah",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "tstar",
+      "note": "pairing cell, no training: pfagtdz's trunk (trained with label routes; T*) with the nine-subject router srpkd9ah at test"
+    },
+    "xt0_srp9": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srpkd9",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with the nine-subject router srpkd9 at test"
+    },
+    "xt0_srp9a": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srpkd9a",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with the nine-subject router srpkd9a at test"
+    },
+    "xt0_srp9h": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srpkd9h",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with the nine-subject router srpkd9h at test"
+    },
+    "xt0_srp9ah": {
+      "pair_trunk": "pfat0pdz",
+      "router": "srpkd9ah",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "fast": true,
+      "pairing": "t2",
+      "note": "pairing cell, no training: pfat0pdz's trunk (trained with T0P routes; extension trunk T2) with the nine-subject router srpkd9ah at test"
+    }
+  }
+}

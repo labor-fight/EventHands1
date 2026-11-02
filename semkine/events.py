@@ -24,7 +24,7 @@ tie-break and is stable across runs and workers because it is a property of the 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, Optional, Sequence
 
 import numpy as np
 import torch
@@ -130,7 +130,6 @@ class EventPacket:
     betas: np.ndarray                  # (10,)
     camera_K: np.ndarray               # (3, 3)
     lnes: Optional[np.ndarray] = None  # (H, W, 2) when the legacy face is also requested
-    lnes_window_ms: Optional[int] = None  # XKF: span of a long-window `lnes` (int16 ms codes), else None
     meta: Dict = field(default_factory=dict)
     # XAG diagnostic-only pseudo-sources; absent preserves the original packet.
     xag_source_index: Optional[np.ndarray] = None
@@ -139,7 +138,6 @@ class EventPacket:
     xag_face: Optional[np.ndarray] = None
     xag_bary: Optional[np.ndarray] = None
     xag_valid: Optional[np.ndarray] = None
-    xag_depth: Optional[np.ndarray] = None  # XCL A3 only: source-ms foreground z, metres
 
     @property
     def n_events(self) -> int:
@@ -167,14 +165,12 @@ class EventPacketBatch:
     betas: torch.Tensor           # (B, 10)
     camera_K: torch.Tensor        # (B, 3, 3)
     lnes: Optional[torch.Tensor] = None   # (B, H, W, 2)
-    lnes_window_ms: Optional[torch.Tensor] = None   # (B,) XKF long-window span in ms, else None
     xag_source_index: Optional[torch.Tensor] = None  # (N_total,) original immutable event row; hot=-1
     xag_source_ms: Optional[torch.Tensor] = None     # (N_total,) exact original absolute millisecond
     xag_part: Optional[torch.Tensor] = None          # (N_total,) int64, 16-joint geometric pseudo-label
     xag_face: Optional[torch.Tensor] = None          # (N_total,) int64, foreground source face
     xag_bary: Optional[torch.Tensor] = None          # (N_total, 3) float32, source-pixel barycentrics
     xag_valid: Optional[torch.Tensor] = None         # (N_total,) bool; unknown/hot false
-    xag_depth: Optional[torch.Tensor] = None         # (N_total,) float32; unknown/hot NaN
 
     @property
     def batch_size(self) -> int:
@@ -214,13 +210,6 @@ class EventPacketBatch:
                 assert value.shape == ((n, 3) if name == "xag_bary" else (n,)), name
                 expected = torch.float32 if name == "xag_bary" else torch.bool if name == "xag_valid" else torch.int64
                 assert value.dtype == expected, (name, value.dtype)
-        if self.xag_depth is not None:
-            assert all(present), "XCL depth requires the six XAG source fields"
-            assert self.xag_depth.shape == (self.events.shape[0],)
-            assert self.xag_depth.dtype == torch.float32
-            assert bool((torch.isfinite(self.xag_depth[self.xag_valid]) &
-                         (self.xag_depth[self.xag_valid] > 0)).all())
-            assert bool(torch.isnan(self.xag_depth[~self.xag_valid]).all())
         if self.events.numel():
             bi = self.events[:, EV_BATCH]
             # batch_index must agree with ptr, else scatter-based pooling silently mixes samples
@@ -254,9 +243,6 @@ def collate_packets(items: Sequence[EventPacket]) -> EventPacketBatch:
     lnes = None
     if items[0].lnes is not None:
         lnes = torch.from_numpy(np.stack([it.lnes for it in items]))
-    lnes_window_ms = None
-    if getattr(items[0], "lnes_window_ms", None) is not None:
-        lnes_window_ms = torch.tensor([it.lnes_window_ms for it in items], dtype=torch.int64)
 
     xag = {}
     xag_names = ("xag_source_index", "xag_source_ms", "xag_part", "xag_face", "xag_bary", "xag_valid")
@@ -269,13 +255,6 @@ def collate_packets(items: Sequence[EventPacket]) -> EventPacketBatch:
             if any(len(v) != it.n_events for v, it in zip(values, items)):
                 raise ValueError(f"{name} does not follow its packet's event rows")
             xag[name] = torch.from_numpy(np.concatenate(values, axis=0))
-    depth_present = [it.xag_depth is not None for it in items]
-    if any(depth_present):
-        if not all(depth_present) or not all(present):
-            raise ValueError("cannot collate missing or partial XCL source depth")
-        if any(it.xag_depth.shape != (it.n_events,) for it in items):
-            raise ValueError("xag_depth does not follow its packet's event rows")
-        xag["xag_depth"] = torch.from_numpy(np.concatenate([it.xag_depth for it in items]))
 
     return EventPacketBatch(
         events=torch.from_numpy(ev),
@@ -291,7 +270,6 @@ def collate_packets(items: Sequence[EventPacket]) -> EventPacketBatch:
         betas=torch.from_numpy(np.stack([it.betas for it in items])),
         camera_K=torch.from_numpy(np.stack([it.camera_K for it in items])),
         lnes=lnes,
-        lnes_window_ms=lnes_window_ms,
         **xag,
     )
 

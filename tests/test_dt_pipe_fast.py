@@ -10,8 +10,7 @@ on the CPU in about a minute:
   (b) the sample itself, for every branch: domrand on / off, `depth` and `focal` scale, geometric
       identity, no hot pixels, hot pixels dense enough to collide, no dropout, dropout of everything,
       fixed and speed-augmented windows, flip / swap / neither, event channels `last` and
-      `last,first`, and the triplet sample (the draws of the two earlier windows follow the plain
-      sample's, so a stream that drifted anywhere shows up there);
+      `last,first`;
   (c) edge windows: a window without events, the first samples of a run;
   (d) the guards: a sub-ms stamp >= 1000 or an event outside the frame makes the fast path decline and
       the legacy path answer, with the same bits;
@@ -115,11 +114,6 @@ def _ds(base="dt_dz_l3.yaml", **over):
 
 
 def _flat(x):
-    if isinstance(x, dict):
-        out = []
-        for k in ("w0", "w1", "w2"):
-            out += list(x[k])
-        return out + [x["valid"]]
     return list(x)
 
 
@@ -149,13 +143,13 @@ def _pick(ds, n, seed):
 #: (id, base config, overrides). `__` is the path separator of `_cfg`.
 VARIANTS = [
     ("dz_l3", "dt_dz_l3.yaml", {}),
-    ("focal", "dt_base.yaml", {}),
-    ("hot_2e-5", "dt_dz_l3_nfh.yaml", {}),
-    ("keep_0.10", "dt_dz_l3_nfk.yaml", {}),
-    ("w50_fixed", "dt_dz_l3_w50.yaml", {}),
-    ("w100", "dt_dz_l3_w100.yaml", {}),
-    ("last_first", "dt_dz_l3_lf.yaml", {}),
-    ("no_swap", "dt_dz_l3_nosw.yaml", {}),
+    ("focal", "dt_dz_l3.yaml", {"AUG__DOMRAND__SCALE_MODE": "focal"}),
+    ("hot_2e-5", "dt_dz_l3.yaml", {"AUG__DOMRAND__HOT_PIXEL_RATE": 2.0e-5}),
+    ("keep_0.10", "dt_dz_l3.yaml", {"AUG__DOMRAND__KEEP_MIN": 0.1, "AUG__DOMRAND__HOT_PIXEL_RATE": 2.0e-5}),
+    ("w50_fixed", "dt_dz_l3.yaml", {"DATA__WINDOW_MIN": 50, "DATA__WINDOW_MAX": 50, "AUG__SPEED_AUG": False}),
+    ("w100", "dt_dz_l3.yaml", {"DATA__WINDOW_MAX": 100}),
+    ("last_first", "dt_dz_l3.yaml", {"DATA__EVENT_CHANNELS": ["last", "first"]}),
+    ("no_swap", "dt_dz_l3.yaml", {"AUG__PIXEL_POLARITY_SWAP": False}),
     ("domrand_off", "dt_dz_l3.yaml", {"AUG__DOMRAND__ENABLED": False}),
     ("hot_0", "dt_dz_l3.yaml", {"AUG__DOMRAND__HOT_PIXEL_RATE": 0.0}),
     ("hot_dense_collide", "dt_dz_l3.yaml", {"AUG__DOMRAND__HOT_PIXEL_RATE": 3.0e-3}),
@@ -166,13 +160,10 @@ VARIANTS = [
     ("big_geometry_oob", "dt_dz_l3.yaml", {"AUG__DOMRAND__ROLL_DEG": 90.0, "AUG__DOMRAND__SCALE_MIN": 0.4,
                                            "AUG__DOMRAND__SCALE_MAX": 2.5, "AUG__DOMRAND__SHIFT_PX": 60.0}),
     ("no_flip_no_speed", "dt_dz_l3.yaml", {"AUG__POLARITY_FLIP": False, "AUG__SPEED_AUG": False}),
-    ("lf_domrand_off", "dt_dz_l3_lf.yaml", {"AUG__DOMRAND__ENABLED": False}),
-    ("lf_no_swap_hot_dense", "dt_dz_l3_lf.yaml", {"AUG__PIXEL_POLARITY_SWAP": False,
-                                                  "AUG__DOMRAND__HOT_PIXEL_RATE": 3.0e-3}),
-    ("triplet", "dt_acc.yaml", {}),
-    ("triplet_lf", "dt_acc.yaml", {"DATA__EVENT_CHANNELS": ["last", "first"]}),
-    ("triplet_off_no_swap", "dt_acc.yaml", {"AUG__PIXEL_POLARITY_SWAP": False, "AUG__DOMRAND__ENABLED": False}),
-    ("triplet_frac_1", "dt_acc.yaml", {"DATA__TRIPLET_FRAC": 1.0}),
+    ("lf_domrand_off", "dt_dz_l3.yaml", {"DATA__EVENT_CHANNELS": ["last", "first"], "AUG__DOMRAND__ENABLED": False}),
+    ("lf_no_swap_hot_dense", "dt_dz_l3.yaml", {"DATA__EVENT_CHANNELS": ["last", "first"],
+                                               "AUG__PIXEL_POLARITY_SWAP": False,
+                                               "AUG__DOMRAND__HOT_PIXEL_RATE": 3.0e-3}),
 ]
 
 
@@ -228,7 +219,7 @@ def test_fast_sample_is_bitwise_the_legacy_sample(name, base, over):
     ds = _ds(base, **over)
     ds.set_fast_pipe(True)
     assert ds.fast_pipe_active, ds.fast_pipe_reason
-    n = 80 if name in ("dz_l3", "last_first", "triplet", "triplet_lf") else 36
+    n = 80 if name in ("dz_l3", "last_first") else 36
     for i in _pick(ds, n, seed=zlib.crc32(name.encode()) % 1000):
         a = _legacy(ds, i)
         ds.set_fast_pipe(True)
@@ -236,22 +227,6 @@ def test_fast_sample_is_bitwise_the_legacy_sample(name, base, over):
         _assert_same(a, b, f"{name} idx {i}")
         _assert_same(a, ds[i], f"{name} idx {i} through __getitem__")
     ds.set_fast_pipe(False)
-
-
-def test_triplet_valid_and_aliased_samples_are_both_seen():
-    ds = _ds("dt_acc.yaml")
-    ds.set_fast_pipe(True)
-    valid = []
-    for i in _pick(ds, 90, seed=5):
-        a = _legacy(ds, i)
-        ds.set_fast_pipe(True)
-        b = ds._fast_item(i)
-        _assert_same(a, b, f"idx {i}")
-        valid.append(bool(b["valid"]))
-        if not valid[-1]:
-            assert b["w0"] is b["w1"] is b["w2"], "an invalid triplet aliases one window"
-    ds.set_fast_pipe(False)
-    assert any(valid) and not all(valid), "the sample must contain valid and invalid triplets"
 
 
 # ------------------------------------------------------------------------------------- (c) edge windows
@@ -315,7 +290,7 @@ def test_submillisecond_stamp_at_or_above_1000_declines_to_the_legacy_path():
 
 
 def test_event_outside_the_frame_declines_to_the_legacy_path():
-    ds = _ds("dt_dz_l3_nosw.yaml")
+    ds = _ds("dt_dz_l3.yaml", AUG__PIXEL_POLARITY_SWAP=False)
     si = _small_sequence(ds)
     h = ds._handle(si)
     ev = np.array(h.events)
@@ -360,9 +335,9 @@ def test_map_pixel_grid_is_transform_events():
 
 
 # ------------------------------------------------------------------------------------- (f) DataLoader
-@pytest.mark.parametrize("base", ["dt_dz_l3.yaml", "dt_dz_l3_lf.yaml", "dt_acc.yaml"])
-def test_dataloader_batches_are_the_same_bytes(base):
-    ds = _ds(base)
+@pytest.mark.parametrize("over", [{}, {"DATA__EVENT_CHANNELS": ["last", "first"]}], ids=["dz_l3", "last_first"])
+def test_dataloader_batches_are_the_same_bytes(over):
+    ds = _ds("dt_dz_l3.yaml", **over)
 
     def digest(fast):
         ds.set_fast_pipe(fast)

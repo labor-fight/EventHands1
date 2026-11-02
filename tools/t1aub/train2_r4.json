@@ -1,0 +1,9 @@
+{
+ "round": 4,
+ "arms": {
+  "b4n2": {
+   "n2": 1.0,
+   "note": "S45-TR N2 fixed-point term, lambda 1"
+  }
+ }
+}

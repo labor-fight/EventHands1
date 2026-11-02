@@ -18,6 +18,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+from tools.frozen import accepts  # noqa: E402
 from tools.s45px import common as C  # noqa: E402
 
 MANIFEST = C.OUT / "manifests" / "amend1.json"
@@ -46,7 +47,7 @@ def main():
     p.add_argument("--phase", required=True, choices=("preflight", "formal"))
     a = p.parse_args()
     C.verify_protocol()
-    C.require(C.read(MANIFEST)["file_sha256"]["tools/s45px/accept_r1.py"] == C.sha(__file__), "amendment-1 file changed")
+    C.require(accepts(__file__, C.read(MANIFEST)["file_sha256"]["tools/s45px/accept_r1.py"]), "amendment-1 file changed")
     base = C.verify_run(a.arm, a.phase)
     ranks = steps_check(a.arm, a.phase)
     ok = all(all(r["s45_steps_equal"].values()) and r["departs_at_step3"] for r in ranks)

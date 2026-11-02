@@ -119,53 +119,6 @@ def test_sparse_rejects_incompatible():
         MNISTModel(cfg)
 
 
-def test_transl_head_is_decoupled():
-    """MODEL.TRANSL_HEAD: the translation comes from the head; the trunk gets no gradient from it."""
-    cfg = _cfg("sparse_resnet18_l3")
-    cfg["MODEL"]["TRANSL_HEAD"] = True
-    torch.manual_seed(0)
-    model = MNISTModel(cfg)
-    model.train()
-    lnes = _sparse_image(np.random.default_rng(3), c=2)[None].repeat(2, 1, 1, 1)
-    prev = torch.zeros(2, 51)
-    prev[:, 2] = 0.55
-    betas = torch.zeros(2, 10)
-    K = torch.tensor([[200.0, 0, 120.0], [0, 200.0, 90.0], [0, 0, 1.0]]).expand(2, 3, 3).contiguous()
-    out = model(lnes, prev, betas=betas, camera_K=K)
-    assert torch.equal(out[:, :3], prev[:, :3])                      # zero-initialised head: prev translation
-    out[:, :3].square().sum().backward(retain_graph=True)
-    assert all(p.grad is None or float(p.grad.abs().max()) == 0 for p in model.rn.parameters())
-    assert model.transl_head[2].weight.grad is not None and float(model.transl_head[2].weight.grad.abs().max()) > 0
-
-
-def test_sparse_noise_keeps_coarse_active_sets():
-    """MODEL.SPARSE_NOISE adds events only inside active level-2 cells (levels 2..4 unchanged) and only in training."""
-    from sparse_trunk import cell_mask
-    cfg = _cfg("sparse_resnet18_l3")
-    cfg["MODEL"]["SPARSE_NOISE"] = 0.3
-    torch.manual_seed(0)
-    model = MNISTModel(cfg)
-    x = _sparse_image(np.random.default_rng(4)).permute(2, 0, 1)[None]
-    model.train()
-    y = model._sparse_noise(x)
-    m, my = input_mask(x), input_mask(y)
-    assert int(my.sum()) > int(m.sum())                                       # noise was added
-    c, cy = m, my
-    for lvl in range(1, 5):
-        c, cy = cell_mask(c), cell_mask(cy)
-        if lvl >= 2:
-            assert torch.equal(c, cy), lvl
-    assert torch.equal(y[:, 2:], x[:, 2:])                                     # render channels untouched
-    model.eval()
-    lnes = _sparse_image(np.random.default_rng(5), c=2)[None]
-    prev = torch.zeros(1, 51)
-    prev[:, 2] = 0.55
-    K = torch.tensor([[[200.0, 0, 120.0], [0, 200.0, 90.0], [0, 0, 1.0]]])
-    with torch.no_grad():
-        assert torch.equal(model(lnes, prev, betas=torch.zeros(1, 10), camera_K=K),
-                           model(lnes, prev, betas=torch.zeros(1, 10), camera_K=K))   # eval: no noise, deterministic
-
-
 def test_static_trunk_equals_masked_dense_and_executor():
     """sparse_graph.StaticSparseTrunk (static shapes, bucketed) is the same function as the masked dense trunk."""
     from sparse_graph import StaticSparseTrunk

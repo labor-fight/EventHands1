@@ -27,6 +27,7 @@ from config import load_config  # noqa: E402
 from semkine import s45tr_t0 as T0  # noqa: E402
 from semkine.dataset import build_dataset  # noqa: E402
 from semkine.events import collate_packets  # noqa: E402
+from tools.frozen import accepts  # noqa: E402
 from tools.s45tr.common import (OUT, S45_CONFIG, S45_CONFIG_SHA256, T0_CHECKPOINT, T0_DIR, T1A_GNN,  # noqa: E402
                                 XAG_SOURCES, now, require, save, sha, verify_protocol)
 
@@ -90,7 +91,7 @@ def main():
     p.add_argument("--phase", required=True, choices=("preflight", "formal"))
     a = p.parse_args()
     verify_protocol()
-    require(sha(S45_CONFIG) == S45_CONFIG_SHA256, "S45 config changed")
+    require(accepts(S45_CONFIG, S45_CONFIG_SHA256), "S45 config changed")
     out = T0_DIR if a.phase == "formal" else OUT / "t0_preflight"
     target = T0_CHECKPOINT if a.phase == "formal" else out / "t0_final.ckpt"
     if os.environ.get("LOCAL_RANK") in (None, "0"):

@@ -14,7 +14,7 @@ The one necessary deviation: an event frontend's latency is data dependent, so i
 of a fixed random input it replays real 50 ms packets from a val sequence and reports
 the mean per step (min over 3 passes); the anchor stays min-over-rounds like the table.
 
-The head-MACs footnote assumes the S36 head layout (ACTIVE_HEAD + PREVPOS_EMBED); the
+The head-MACs footnote is defined for the xyz_mesh readout (`MODEL.ENCODER: xyz_mesh`); the
 script refuses runs configured otherwise rather than printing a silently wrong number.
 
     CUDA_VISIBLE_DEVICES=0 python tools/make_s36_row.py                      # S36
@@ -127,15 +127,6 @@ def eval_seed(run_name: str, seed: int, device, split: str = "val_core", subject
         step, ckpt = resolve_step_ckpt(run, step_policy)
         sel = {"step": step, "ckpt": str(ckpt)}
     cfg = load_config(json.loads((run / "training_metadata.json").read_text())["config_path"])
-    xag = any(k.startswith("XAG_") for k in cfg.get("MODEL", {}))
-    if xag:
-        from tools.xag.prepare import OUT as XAG_OUT, verify
-        from tools.xag.run import check_checkpoint
-        verify()
-        registered = [r for r in json.loads((XAG_OUT/"protocol.json").read_text())["runs"] if r["name"] == run.name]
-        if len(registered) != 1 or step_policy != 6000 or sel["step"] != 6000:
-            raise RuntimeError("XAG evaluation requires a registered fixed-step6000 run")
-        check_checkpoint(registered[0], record=False)
     root = Path(cfg["DATA"]["ROOT"])
     mani = splits_manifest(cfg)
     seqs = sequences_for_split(root, split, mani)
@@ -155,13 +146,6 @@ def eval_seed(run_name: str, seed: int, device, split: str = "val_core", subject
            "local": {k: wmean([r for r in res if LOCAL(r["seq"])], k) for k in METRICS},
            "global": {k: wmean([r for r in res if not LOCAL(r["seq"])], k) for k in METRICS},
            "per_seq": {r["seq"]: {k: r[k] for k in METRICS} for r in res}}
-    if xag:
-        from tools.xag.prepare import sha
-        agg["xag_binding"] = {
-            "checkpoint_sha256": sha(sel["ckpt"]),
-            "config_sha256": sha(cfg["_config_path"]),
-            "training_binding": json.loads((run/"xag_binding.json").read_text()),
-        }
     if step_policy == "selection" and split == "val_core" and not subject:
         drift = abs(agg["overall"]["mpjpe_ra_mm"] - sel["mpjpe_ra_mm"])
         print(f"  s{seed}: step={sel['step']} RA={agg['overall']['mpjpe_ra_mm']:.4f} "
@@ -212,9 +196,7 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
     betas = torch.tensor(aux["betas"], dtype=torch.float32, device=device).view(1, -1)
     K = torch.tensor(aux["camera_K"], dtype=torch.float32, device=device).view(1, 3, 3)
     model.set_hand_context(betas, K)
-    packets, counts, gts = [], [], []
-    #: XYZ-ASSOC oracle arm: its association needs the window-end ground truth for every packet
-    oracle = getattr(model, "xyz_assoc_prev", "self") == "target"
+    packets, counts = [], []
     for a, b in np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2):
         prev = torch.from_numpy(pos51[a].copy()).view(1, -1).to(device)
         for end in np.arange(a + STEP_MS - 1, b, STEP_MS, dtype=np.int64):
@@ -222,23 +204,17 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
             packet = ET.make_eval_packet(ev5, prev, betas, K, STEP_MS, device)
             packets.append(ET.attach_xag_sources(packet, cfg, seq, offsets, int(end), STEP_MS, device))
             counts.append(len(ev5))
-            if oracle:
-                gts.append(torch.from_numpy(pos51[end].copy()).view(1, -1).to(device))
             if len(packets) >= max_packets:
                 break
         if len(packets) >= max_packets:
             break
-    for i, b_ in enumerate(packets[:100]):
-        if oracle:
-            model.xyz_target_override = gts[i]
+    for b_ in packets[:100]:
         model.forward_packet(b_)
     torch.cuda.synchronize()
     means = []
     for _ in range(passes):
         t0 = time.perf_counter()
-        for i, b_ in enumerate(packets):
-            if oracle:
-                model.xyz_target_override = gts[i]
+        for b_ in packets:
             model.forward_packet(b_)
         torch.cuda.synchronize()
         means.append((time.perf_counter() - t0) / len(packets) * 1e3)
@@ -248,7 +224,6 @@ def latency_s36(cfg, ckpt, seqs, root, device, max_packets=600, passes=3):
 
 
 def macs_s36(cfg):
-    from thop import profile
     mc = cfg.get("MODEL", {})
     if str(mc.get("ENCODER", "")).lower() == "xyz_mesh":
         # S37-XYZ: no S36 heads. "heads" = the common readout (grouped slot projection + two layers);
@@ -263,51 +238,8 @@ def macs_s36(cfg):
         n_head = sum(p.numel() for n, p in m.named_parameters()
                      if n.startswith(("xyz.slot_proj.", "xyz.fc1.", "xyz.fc2.")))
         return total - heads, heads, n_params, n_params - n_head
-    assert bool(mc.get("ACTIVE_HEAD")) and bool(mc.get("PREVPOS_EMBED")), \
-        "head-MACs formula below is for the S36 head layout only"
-    m = MNISTModel(cfg).eval()
-    enc = copy.deepcopy(m.event_encoder)
-    hid = int(mc.get("ACTIVE_HIDDEN", 64))
-    if str(mc.get("ENCODER", "")).lower() in ("fk_graph", "mesh_graph"):
-        # S37 FK graph / mesh graph: the encoder consumes per-node observations, not events; its
-        # cost does not depend on the event count at all (the assignment scatter, the visibility
-        # test and the LBS pool are not standard layers).
-        hidden = int(mc.get("ENCODER_HIDDEN", 128))
-        obs = torch.zeros(1, enc.n_nodes, enc.obs_embed.in_features)
-        macs, _ = profile(enc, inputs=(obs,), verbose=False)
-        if str(mc.get("ENCODER", "")).lower() == "mesh_graph":
-            # fingers read [mean, max, coverage] of their joint; root reads all sixteen + background
-            ev_dim = 2 * hidden + 1
-            heads = (16 * ev_dim + hidden) * 6 + 15 * ((ev_dim + 3) * hid + hid * 3) + 2 * 51 * 64
-        else:
-            heads = (17 * hidden) * 6 + 15 * ((hidden + 3) * hid + hid * 3) + 2 * 51 * 64
-        n_params = sum(p.numel() for p in m.parameters())
-        n_enc = sum(p.numel() for p in enc.parameters())
-        return macs, heads, n_params, n_enc
-    n_ev = 4096                               # > max_nodes, so the padded width is saturated
-    ev = torch.zeros(n_ev, 5)
-    ev[:, 1] = torch.rand(n_ev) * 240
-    ev[:, 2] = torch.rand(n_ev) * 180
-    ev[:, 3] = torch.linspace(0, 0.05, n_ev)
-    ev[:, 4] = (torch.rand(n_ev) > 0.5).float()
-    ptr = torch.tensor([0, n_ev])
-    dt = torch.tensor([0.05])
-    extra = torch.zeros(n_ev, enc.in_dim - 7)
-    macs, _ = profile(enc, inputs=(ev, ptr, dt, extra), verbose=False)
-    feat = int(mc.get("ENCODER_FEAT", 512))
-    if bool(mc.get("ROUTED_READOUT", False)):
-        # S37 routed readout: fingers read their joint's evidence, the root reads all sixteen
-        ev_dim = 2 * int(mc.get("ENCODER_HIDDEN", 128)) + 1
-        if str(mc.get("ROOT_FUSION", "concat")).lower() == "per_joint":
-            root = 16 * ((feat + ev_dim) * hid + hid * 6)       # sixteen [f; e_j] MLPs, summed
-        else:
-            root = (feat + 16 * ev_dim) * 6
-        heads = root + 15 * ((ev_dim + 3) * hid + hid * 3) + 2 * 51 * 64
-    else:
-        heads = feat * 6 + 15 * ((feat + 3) * hid + hid * 3) + 2 * 51 * 64
-    n_params = sum(p.numel() for p in m.parameters())
-    n_enc = sum(p.numel() for p in enc.parameters())
-    return macs, heads, n_params, n_enc
+    raise ValueError("macs_s36 counts the xyz_mesh readout only (MODEL.ENCODER: xyz_mesh); the S36 event-encoder "
+                     "head layouts were removed")
 
 
 def macs_forward_packet(cfg):
@@ -354,26 +286,8 @@ def macs_forward_packet(cfg):
         batch.xag_face = torch.zeros(n_ev, dtype=torch.long)
         batch.xag_bary = torch.full((n_ev, 3), 1. / 3.)
         batch.xag_valid = torch.ones(n_ev, dtype=torch.bool)
-    from semkine.routed_readout import PerJointRootFusion
-
-    def _count_root_fusion(mod, x, y):
-        # sixteen [f; e_j] -> hidden -> 6 MLPs; thop does not see inside the batched matmuls
-        mod.total_ops += torch.DoubleTensor([x[0].shape[0] * mod.n_joints
-                                             * (mod.in_dim * mod.hidden + mod.hidden * mod.out_dim)])
-
-    def _count_attention(mod, x, y):
-        # MHA uses functional projections/SDPA, which thop cannot see. Include
-        # Q/K/V/output projections plus QK and attention-value matrix products.
-        q, k, v = x[:3]
-        b, nq, c = q.shape if mod.batch_first else (q.shape[1], q.shape[0], q.shape[2])
-        nk = k.shape[1] if mod.batch_first else k.shape[0]
-        nv = v.shape[1] if mod.batch_first else v.shape[0]
-        mod.total_ops += torch.DoubleTensor([b * (2*nq*c*c + (nk+nv)*c*c + 2*nq*nk*c)])
-
     try:
-        macs, _ = profile(_Wrap(m), inputs=(batch,), verbose=False,
-                          custom_ops={PerJointRootFusion: _count_root_fusion,
-                                      torch.nn.MultiheadAttention: _count_attention})
+        macs, _ = profile(_Wrap(m), inputs=(batch,), verbose=False)
         note = "forward_packet"
         if "XAG_GNN" in cfg.get("MODEL", {}):
             note += "; XAG MHA includes QK/AV and projections; synthetic source fixture for oracle; offline GT cache excluded"

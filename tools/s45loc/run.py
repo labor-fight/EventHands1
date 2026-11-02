@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 import numpy as np  # noqa: E402
 
+from tools.frozen import accepts  # noqa: E402
 from tools.s45loc import common as C  # noqa: E402
 from tools.xcl import evaluate as XE  # noqa: E402
 
@@ -39,7 +40,7 @@ def protocol():
         C.require(a.get("status") == "FROZEN", "unfrozen amendment: " + amendment.name)
         p["sources_sha256"].update(a["sources_sha256"])
     for name, digest in p["sources_sha256"].items():
-        C.require(C.sha(C.ROOT / name) == digest, f"frozen source changed: {name}")
+        C.require(accepts(C.ROOT / name, digest), f"frozen source changed: {name}")
     return p
 
 
@@ -48,7 +49,7 @@ def load_model(device):
     from config import load_config
     from model import MNISTModel
     C.require(C.sha(C.CHECKPOINT) == C.CHECKPOINT_SHA256, "S45 checkpoint changed")
-    C.require(C.sha(C.CONFIG) == C.CONFIG_SHA256, "S45 config changed")
+    C.require(accepts(C.CONFIG, C.CONFIG_SHA256), "S45 config changed")
     cfg = load_config(str(C.CONFIG))
     model = MNISTModel.load_from_checkpoint(str(C.CHECKPOINT), cfg=cfg, map_location=device, strict=True)
     return model.to(device).eval(), cfg

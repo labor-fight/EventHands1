@@ -75,15 +75,8 @@ class ThroughputCallback(pl.Callback):
         if self.t0 is None:
             self.t0 = time.time()
             self.n = 0
-        # A batch is one packet batch, an unroll `(lead, main)` pair, the legacy tuple of tensors,
-        # or (DATA.TRIPLET) the dict {"w0", "w1", "w2", "valid"}, whose window 2 is the plain sample.
-        # Lightning may hand the pair back as a list, so do not test for `tuple`.
-        head = batch
-        if isinstance(batch, dict):
-            head = batch["main"] if "main" in batch else batch["w2"]     # S42 clip batch / DT2 triplet
-        elif isinstance(batch, (tuple, list)) and hasattr(batch[-1], "batch_size"):
-            head = batch[-1]
-        n = (head.batch_size if hasattr(head, "batch_size") else head[0].shape[0])
+        # A batch is one packet batch or the legacy tuple of tensors.
+        n = (batch.batch_size if hasattr(batch, "batch_size") else batch[0].shape[0])
         self.n += n * max(trainer.world_size, 1)
         if (batch_idx + 1) % 50 == 0:
             sps = self.n / max(time.time() - self.t0, 1e-6)
@@ -114,12 +107,12 @@ class U1aPairStreamCallback(pl.Callback):
 
 
 class XYZPairStreamCallback(U1aPairStreamCallback):
-    """Audit the opt-in ABCD study's paired raw packets, including unroll pairs."""
+    """Audit the XAG studies' raw packets: the first batches' hashes (and source fields) of each rank."""
 
     def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
         if len(self.rows) >= 3:
             return
-        packets = batch if isinstance(batch, (tuple, list)) else (batch,)
+        packets = (batch,)
         xag = any(k.startswith("XAG_") for k in pl_module.cfg.get("MODEL", {}))
         h = hashlib.sha256()
         for packet in packets:
@@ -138,108 +131,10 @@ class XYZPairStreamCallback(U1aPairStreamCallback):
                           "events": sum(int(packet.events.shape[0]) for packet in packets)})
         path = self.output_dir / f"pair_stream_rank{trainer.global_rank}.json"
         if xag:
-            if pl_module.cfg.get("XCL", {}).get("ENABLED", False):
-                from tools.xcl.common import save as write
-            else:
-                from tools.xag.train_audit import write
+            from tools.xag.train_audit import write
             write(path, self.rows)
         else:
             path.write_text(json.dumps(self.rows, indent=2))
-
-
-#: MODEL keys only the student has, matched as `k == d.rstrip("_") or k.startswith(d)`. The frozen distillation
-#: teacher is the dense default-trunk arm, so none of them may reach its config: ENCODER* / ACTIVE_* describe a raw-event
-#: student, DISTILL_* the distillation itself, and CNN_BACKBONE the student's (smaller) trunk, which would build a
-#: teacher that cannot load its own checkpoint. CAM_PLANES / ROOT_COMPOSE / PREV_MLP_TRANSL stay: they define the
-#: architecture a teacher checkpoint was trained with.
-TEACHER_DROP = ("ENCODER", "DISTILL_", "ACTIVE_", "CNN_BACKBONE", "GLIMPSE")   # GLIMPSE*: S42, a cropping student
-
-
-def teacher_config(cfg):
-    """The distillation teacher's config: the student's, minus every student-only MODEL key (`TEACHER_DROP`). Dropping
-    by prefix rather than by name means adding a student key (S18 added three) cannot silently build a teacher that
-    refuses to load its own checkpoint."""
-    teacher_cfg = dict(cfg)
-    teacher_cfg["MODEL"] = {k: v for k, v in cfg.get("MODEL", {}).items()
-                            if not any(k == d.rstrip("_") or k.startswith(d) for d in TEACHER_DROP)}
-    return teacher_cfg
-
-
-def resolve_distill_ckpt(cfg):
-    """`MODEL.DISTILL_CKPT` with every `{SEED}` replaced by the run's seed (`cfg["SEED"]`, after `--seed`), so one config
-    distils each seed from the teacher trained with the same seed (`outputs/semkine/dt_dz_l3_s{SEED}/last.ckpt`). The
-    resolved path is written back into `cfg` (hence into the model's saved hyper-parameters, `config_resolved.yaml` and
-    `training_metadata.json`) and returned; a path without the placeholder is returned as it is, no key returns None.
-    A teacher file that does not exist raises here, before the dataset is built, not after minutes of start-up."""
-    model_cfg = cfg.get("MODEL", {})
-    path = model_cfg.get("DISTILL_CKPT")
-    if not path:
-        return None
-    if isinstance(path, (list, tuple)):
-        # S42 candidate C (docs/EXPERIMENT_RECORDS.md#s42-prereg): a list of checkpoints is an ensemble teacher; every
-        # entry must be a fixed file (no `{SEED}`: the ensemble is the same for every student seed)
-        if not path or not all(isinstance(q, str) and "{SEED}" not in q for q in path):
-            raise ValueError(f"MODEL.DISTILL_CKPT as a list needs fixed checkpoint paths, got {path!r}")
-        missing = [q for q in path if not Path(q).is_file()]
-        if missing:
-            raise FileNotFoundError(f"MODEL.DISTILL_CKPT ensemble members not found: {missing}")
-        return list(path)
-    if not isinstance(path, str):
-        raise ValueError(f"MODEL.DISTILL_CKPT must be a path string, got {path!r}")
-    resolved = path.replace("{SEED}", str(int(cfg.get("SEED", 0))))
-    if not Path(resolved).is_file():
-        raise FileNotFoundError(f"MODEL.DISTILL_CKPT {path!r} resolves to {resolved!r} for SEED "
-                                f"{cfg.get('SEED')}, which is not a file")
-    model_cfg["DISTILL_CKPT"] = resolved
-    return resolved
-
-
-def teacher_backbone(ckpt):
-    """The `MODEL.CNN_BACKBONE` the teacher checkpoint was trained with, read from its own saved hyper-parameters; None
-    when it has none (a default-trunk teacher, or a file that stores no hyper-parameters)."""
-    hp = torch.load(ckpt, map_location="cpu").get("hyper_parameters") or {}
-    model = hp.get("MODEL") or (hp.get("cfg") or {}).get("MODEL") or {}
-    return model.get("CNN_BACKBONE")
-
-
-class EnsembleTeacher(torch.nn.Module):
-    """S42 candidate C: frozen teachers whose outputs are combined as `tools/dt/infer_probe.py combine` does at inference
-    (the evaluated three-seed ensemble): translation (0:3) and fingers (6:51) = mean, root (3:6) = tangent-space mean of
-    the rotations about the first member's, in float64, batched. Called like one teacher."""
-
-    def __init__(self, members):
-        super().__init__()
-        self.members = torch.nn.ModuleList(members)
-        self.cnn_backbone = getattr(members[0], "cnn_backbone", None)
-
-    def forward(self, x, prevpos, betas=None, camera_K=None):
-        from semkine.anchored import _t_conj, _t_log, _t_qmul, _t_quat
-        outs = [m(x, prevpos, betas=betas, camera_K=camera_K) for m in self.members]
-        z = torch.stack(outs, dim=0).double()                                    # (M, B, 51)
-        q = _t_quat(z[..., 3:6])
-        ref = q[0]
-        rel = _t_log(_t_qmul(_t_conj(ref).unsqueeze(0).expand_as(q), q))        # (M, B, 3), rel[0] = 0
-        r = _t_log(_t_qmul(ref, _t_quat(rel.mean(dim=0))))
-        return torch.cat([z[..., :3].mean(dim=0), r, z[..., 6:].mean(dim=0)], dim=-1).to(outs[0].dtype)
-
-
-def load_distill_teacher(ckpt, cfg):
-    """The frozen teacher of `MODEL.DISTILL_CKPT`: built from `teacher_config(cfg)`, weights loaded, eval mode, no
-    gradients. The student keeps it as a submodule (so Lightning moves it) and drops it from its own checkpoints.
-
-    The student's own `CNN_BACKBONE` never reaches the teacher (`TEACHER_DROP`), but a teacher that was itself trained with
-    a non-default trunk (DT2: the `resnet18_l3` tracker `dt_dz_l3` teaching a `resnet18_l3w128` student) is built with the
-    trunk its checkpoint records; without that it would be a default resnet18 and refuse to load its own weights."""
-    if isinstance(ckpt, (list, tuple)):
-        return EnsembleTeacher([load_distill_teacher(c, cfg) for c in ckpt]).eval()
-    tcfg = teacher_config(cfg)
-    backbone = teacher_backbone(ckpt)
-    if backbone is not None:
-        tcfg["MODEL"] = dict(tcfg["MODEL"], CNN_BACKBONE=backbone)
-    teacher = MNISTModel.load_from_checkpoint(ckpt, cfg=tcfg, map_location="cpu").eval()
-    for p in teacher.parameters():
-        p.requires_grad_(False)
-    return teacher
 
 
 def main() -> None:
@@ -267,9 +162,6 @@ def main() -> None:
     if args.output_dir:
         tcfg["OUTPUT_DIR"] = args.output_dir
     pl.seed_everything(int(cfg.get("SEED", 0)), workers=True)
-    distill_ckpt = resolve_distill_ckpt(cfg)      # `{SEED}` -> this run's seed; the model and the metadata see the real path
-    if distill_ckpt:
-        print(f"distillation teacher checkpoint (MODEL.DISTILL_CKPT, SEED {cfg['SEED']}): {distill_ckpt}", flush=True)
 
     components = np.load(cfg["MANO"]["NPZ"])["hands_components"].astype(np.float32)
     dr = DR.DomRandConfig.from_cfg(cfg)
@@ -287,9 +179,6 @@ def main() -> None:
           f"val_core: {len(val_ds.sequences)} seqs / {len(val_ds)} samples "
           f"{sorted({s.split('_')[0] for s, _ in val_ds.sequences})}", flush=True)
 
-    if getattr(train_ds, "triplet", False):
-        print(f"triplet batches: frac {train_ds.triplet_frac:.4f}, "
-              f"LOSS.ACCEL_WEIGHT {float(cfg.get('LOSS', {}).get('ACCEL_WEIGHT', 0.0))}", flush=True)
     # SEMKINE_FAST_PIPE=1 / DATA.FAST_PIPE: the bit-for-bit fast sample path (semkine/dataset.py, "fast pipe")
     fast_requested = bool(getattr(train_ds, "fast_pipe", False))
     fast_active = bool(getattr(train_ds, "fast_pipe_active", False))
@@ -304,36 +193,22 @@ def main() -> None:
     persistent = bool(tcfg.get("PERSISTENT_WORKERS", True)) and nw > 0
 
     def _collate(items):
-        if isinstance(items[0], dict) and "main" in items[0]:
-            # S42 candidate B: the plain samples collate as always; the clips of the valid rows only are stacked
-            out = {"main": torch.utils.data.default_collate([it["main"] for it in items]),
-                   "valid": torch.tensor([bool(it["valid"]) for it in items])}
-            clips = [it for it in items if it["valid"]]
-            if clips:
-                for k in ("clip_codes", "clip_w", "clip_tgt", "clip_init", "clip_n50"):
-                    out[k] = torch.stack([it[k] for it in clips])
-            return out
         if isinstance(items[0], EventPacket):
             return collate_packets(items)
-        if isinstance(items[0], tuple) and isinstance(items[0][0], EventPacket):
-            # S22 unroll pair: collate each half separately, so both stay ragged batches.
-            return tuple(collate_packets(list(col)) for col in zip(*items))
         return torch.utils.data.default_collate(items)
 
     raw = train_ds.input_mode != "legacy_lnes"
-    # Keep U1a's paired stream independent of the RNG consumed by 1 vs 17 heads.
-    # Lightning's distributed sampler uses SEED; this generator also pins worker seeds.
-    u1a = str(cfg["MODEL"].get("U1A_MODE", "off")).lower() != "off"
-    xyz_study = str(cfg["MODEL"].get("XYZ_RESIDUAL_MODE", "legacy")) in ("A", "B", "C", "D")
+    # The XAG arms pair their data stream with S45's: Lightning's distributed sampler uses SEED; this generator also
+    # pins worker seeds.
     xag_study = "XAG_ASSOC" in cfg["MODEL"] or "XAG_GNN" in cfg["MODEL"]
-    paired_stream = u1a or xyz_study or xag_study
+    paired_stream = xag_study
     data_generator = torch.Generator().manual_seed(int(cfg["SEED"])) if paired_stream else None
     train_loader = DataLoader(
         train_ds, batch_size=bsz, shuffle=True, num_workers=nw,
         pin_memory=bool(tcfg.get("PIN_MEMORY", True)) and nw > 0,
         persistent_workers=persistent,
         prefetch_factor=int(tcfg.get("PREFETCH_FACTOR", 2)) if nw > 0 else None,
-        drop_last=True, collate_fn=_collate if (raw or train_ds.clip_k) else None, generator=data_generator,
+        drop_last=True, collate_fn=_collate if raw else None, generator=data_generator,
     )
     val_loader = DataLoader(
         val_ds, batch_size=min(bsz, 512), shuffle=False, num_workers=min(nw, 4),
@@ -347,12 +222,6 @@ def main() -> None:
     if warm:
         print(f"warm-started {model.init_from_abs_checkpoint(warm)} tensors from {warm}",
               flush=True)
-    teacher_ckpt = cfg["MODEL"].get("DISTILL_CKPT")
-    if teacher_ckpt:
-        model.teacher = load_distill_teacher(teacher_ckpt, cfg)
-        n_teacher = sum(p.numel() for p in model.teacher.parameters())
-        print(f"distillation teacher loaded from {teacher_ckpt}: trunk {model.teacher.cnn_backbone}, {n_teacher} "
-              f"parameters, loss weight {model.distill_weight}", flush=True)
 
     out_dir = Path(tcfg["OUTPUT_DIR"])
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -364,17 +233,10 @@ def main() -> None:
     logger = False if args.no_logger else TensorBoardLogger(
         save_dir=str(out_dir), name="logs", version=tcfg.get("RUN_NAME", "semkine"))
     callbacks = [ckpt_cb, ThroughputCallback()]
-    if u1a:
-        callbacks.append(U1aPairStreamCallback(out_dir))
-    if xyz_study or xag_study:
-        callbacks.append(XYZPairStreamCallback(out_dir))
     if xag_study:
-        if cfg.get("XCL", {}).get("ENABLED", False):
-            from tools.xcl.audit import XCLIdentityAudit
-            callbacks.append(XCLIdentityAudit(out_dir))
-        else:
-            from tools.xag.train_audit import XAGTrainAudit
-            callbacks.append(XAGTrainAudit(out_dir))
+        callbacks.append(XYZPairStreamCallback(out_dir))
+        from tools.xag.train_audit import XAGTrainAudit
+        callbacks.append(XAGTrainAudit(out_dir))
     if logger:
         callbacks.insert(1, LearningRateMonitor(logging_interval="step"))
 
@@ -408,10 +270,7 @@ def main() -> None:
         "batch_size_per_gpu": bsz, "devices": devices, "max_steps": max_steps,
         "save_every_n_steps": every, "lr": tcfg["LR"],
         "fast_pipe": fast_active, "fast_pipe_requested": fast_requested,
-        "distill_ckpt": distill_ckpt, "distill_weight": float(cfg["MODEL"].get("DISTILL_WEIGHT", 0.0)),
         "selection_policy": ("fixed step6000 only (XAG)" if xag_study else
-                             "fixed last only (XYZ ABCD)" if xyz_study else
-                             "explicit last only (U1a)" if u1a else
                              "fixed step grid; select by recursive RA on val_core"),
         "data_generator_seed": int(cfg["SEED"]) if paired_stream else None,
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),

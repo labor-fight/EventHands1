@@ -12,6 +12,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from tools.frozen import accepts
+
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "outputs/c1sf/20261029"
 #: amendment 1 (docs/EXPERIMENT_RECORDS.md#c1sf-amend1-20261029): GPU 2-7, data-loader resources, r2 configs /
@@ -135,7 +137,7 @@ def verify_protocol(value=PROTOCOL):
     require(p["study"] == "C1SF_20261029" and p["seed"] == 3407, "Wrong C1SF identity")
     require(p.get("amends_sha256") == sha(PROTOCOL_V1), "Amended protocol does not bind the frozen v1 protocol")
     for name, digest in p["file_sha256"].items():
-        require(sha(name) == digest, "Frozen C1SF file changed: " + name)
+        require(accepts(name, digest), "Frozen C1SF file changed: " + name)
     return p
 
 

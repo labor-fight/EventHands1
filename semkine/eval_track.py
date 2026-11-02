@@ -24,7 +24,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import numpy as np
 import torch
@@ -109,10 +109,7 @@ def attach_xag_sources(batch, cfg, seq, offsets, end, window, device):
                          np.diff(offsets[start:int(end) + 2]).astype(np.int64))
     if len(row_ids) != int(batch.events.shape[0]):
         raise ValueError("XAG source rows disagree with evaluation events")
-    if str(cfg.get("MODEL", {}).get("XAG_ASSOC", "base")) == "full_oracle":
-        source = load_sources(source_root, seq, row_ids, event_ms, require_depth=True)
-    else:
-        source = load_sources(source_root, seq, row_ids, event_ms)
+    source = load_sources(source_root, seq, row_ids, event_ms)
     for name, value in source.items():
         setattr(batch, name, torch.from_numpy(np.asarray(value)).to(device))
     return batch
@@ -172,7 +169,7 @@ def root_align(x: np.ndarray) -> np.ndarray:
 def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step_ms: int,
                    device, rng, noise_scale: float, delta_trust: float = 1.0,
                    bucket_manifest: Optional[dict] = None,
-                   state_hook=None, active_policy=None,
+                   state_hook=None,
                    window_ms: Optional[int] = None) -> Optional[dict]:
     """`window_ms` decouples the evidence window from the update interval; it defaults to
     `step_ms`, which is the tying LNES imposes and which every recorded number was measured under."""
@@ -180,16 +177,10 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
     tsub_path = root / legacy_dir / f"{seq}_tsub.npy"
     tsub = np.load(tsub_path, mmap_mode="r") if tsub_path.exists() else None
     use_raw = bool(getattr(model, "encoder_name", ""))
-    #: XYZ-ASSOC oracle arm (MODEL.XYZ_ASSOC_PREV=target): the model casts the association on the window-end
-    #: ground-truth mesh, so each step hands it pos51[end]. Not deployable; any other model skips this.
-    oracle_assoc = getattr(model, "xyz_assoc_prev", "self") == "target"
-    oracle_features = str(cfg.get("MODEL", {}).get("XAG_GNN", "legacy")) in ("oracle_dense", "oracle_observed")
     betas = torch.tensor(aux["betas"], dtype=torch.float32, device=device).view(1, -1)
     camera_K = torch.tensor(aux["camera_K"], dtype=torch.float32, device=device).view(1, 3, 3)
     if hasattr(model, "set_hand_context"):
         model.set_hand_context(betas, camera_K)
-    if active_policy is not None and hasattr(active_policy, "begin_sequence"):
-        active_policy.begin_sequence(betas, camera_K)
     runs = np.asarray(aux["valid_runs_ms"], dtype=np.int64).reshape(-1, 2)
     assert cfg["MODEL"]["POSE_REPR"] == "mano_full_axis_angle", "tracking eval expects 51D"
 
@@ -204,10 +195,7 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
         prev_t = torch.from_numpy(prev).view(1, -1).to(device)
         if state_hook is not None:
             state_hook("run_start", prev_t, None)
-        if active_policy is not None:
-            active_policy.reset()
-        prev_end = int(a)
-        need_lnes = (not use_raw) or active_policy is not None
+        need_lnes = not use_raw
         for end in ends:
             # Rasterising LNES for a raw-event arm costs as much as the whole forward pass and is
             # thrown away, which matters once the step-size sweep multiplies the step count by ten.
@@ -215,11 +203,7 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
                  .unsqueeze(0).to(device)) if need_lnes else None
             if use_raw:
                 ev5 = _window_events(events, offsets, tsub, int(end), win)
-                if oracle_assoc or oracle_features:
-                    model.xyz_target_override = torch.from_numpy(pos51[end].copy()).view(1, -1).to(device)
                 packet = make_eval_packet(ev5, prev_t, betas, camera_K, win, device)
-                if oracle_features:
-                    packet.target = torch.from_numpy(pos51[end].copy()).view(1, -1).to(device)
                 packet = attach_xag_sources(packet, cfg, seq, offsets, int(end), win, device)
                 pred = model.forward_packet(packet)
             else:
@@ -228,17 +212,6 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
                 # Shrink the step toward the prior. rho = 1 is the identity, so the default
                 # path is bit-identical to the legacy evaluator.
                 pred = prev_t + delta_trust * (pred - prev_t)
-            if active_policy is not None:
-                # A genuine skip: the retained coordinates keep the previous value and are fed
-                # back as such. Multiplying an update by a mask would leave the model's own
-                # `prev + delta` path intact and would not test selective updating at all.
-                a0 = int(offsets[int(end) - step_ms + 1])
-                a1 = int(offsets[int(end) + 1])
-                pred = active_policy(prev_t, pred, pos51[prev_end], pos51[int(end)],
-                                     n_events=a1 - a0,
-                                     events=events[a0:a1] if a1 > a0 else None,
-                                     lnes=x)
-            prev_end = int(end)
             if state_hook is not None:
                 pred = state_hook("step", prev_t, pred)
             prev_t = pred
@@ -247,8 +220,6 @@ def track_sequence(model, mano, cfg, root: Path, legacy_dir: str, seq: str, step
             elapsed.append(int(end - a))
             run_ids.append(run_id)
 
-    if oracle_assoc or oracle_features:
-        model.xyz_target_override = None
     if not preds:
         return None
     preds, gts = np.stack(preds), np.stack(gts)

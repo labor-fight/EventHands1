@@ -1,0 +1,15 @@
+{
+ "round": 13,
+ "routers": {},
+ "arms": {
+  "pfat0pdz_replay": {"router": "t0p", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "replay_of": "pfat0pdz",
+                      "phases": ["preflight"],
+                      "note": "engineering replay, no reading: pfat0pdz's recipe and sampling stream through tools/s45sm/train3.py, 50-step preflight only; every journal row and state snapshot must equal pfat0pdz's preflight (tools/s45sm/replay3.py) before the repeat trains"},
+  "pfat0pdz_rep": {"router": "t0p", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "sampler": "dedicated",
+                   "repeat_of": "pfat0pdz",
+                   "note": "the written repeat of round 11 (repeat = xt0_srdwa, a T2 cell): pfat0pdz's trunk training on S45-AT s45samp's sampling stream, nothing else changed; its own T0P readings are descriptive (over budget)"},
+  "xt0rep_srdwa": {"pair_trunk": "pfat0pdz_rep", "router": "srdwkda", "assoc": "pfa", "onhand_tau": 0.5, "dz": true,
+                   "fast": true, "pairing": "t2_repeat",
+                   "note": "the repeat cell, no training: the repeat trunk with xt0_srdwa's test router srdwkda"}
+ }
+}

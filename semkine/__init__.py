@@ -1,48 +1,41 @@
 """SemKine: event-driven kinematic active state estimation.
 
-Stage-by-stage modules. The stage logs that used to live in `docs/semkine/` were retired
-on 2026-09-29; the conclusions that still bind are in `docs/EXPERIMENT_RECORDS.md#ledger-dense`.
-Everything here is additive: the
-legacy EventHands modules under `model/` keep working unchanged, and every SemKine feature is
-off unless a config asks for it.
+The stage logs that used to live in `docs/semkine/` were retired on 2026-09-29; the conclusions that still bind
+are in `docs/EXPERIMENT_RECORDS.md#ledger-dense`. Everything here is additive: the legacy EventHands modules
+under `model/` keep working unchanged, and every SemKine feature is off unless a config asks for it.
 
-Module map:
+The raw-event encoder family (S2 / S16 / S36-S38 heads), the S37 routed / mesh-query / FK-graph / mesh-graph
+readouts, the XYZ-C1 association / residual / AURA / AGG778 / MRF variants and the SO(3) Lie helpers were removed on
+2026-11-01 (core cleanup); their studies are closed and recorded in `docs/EXPERIMENT_RECORDS.md`.
+
+Module map (the modules `semkine/s45*.py` and `c1sf_zrel.py` are the opt-in hooks of the S45-line studies):
 
   dataset    S1  fixed splits_semkine.json; nine training subjects, zgz evaluation
   domrand    S1  camera-consistent geometric + event-statistics randomisation
   events     S1  raw-event packet contract (ragged packing, no N_max padding)
   buckets    S5  motion-activity labelling and evaluation buckets
   metrics    S1  bucketed metrics, paired bootstrap
-  lie        S3  SO(3)/SE(3) exp/log and the 51D <-> Lie state adapter
-  encoder    S2  raw-event recurrent encoder and sparse-cell fallback
-  kssf       S6  kinematic skinning semantic field, queried at event coordinates
-  jacobian   S8  projected MANO Jacobian, Fisher information, Schur complement
-  router     S9  root-disentangled observability router
-  estimator  S10 unique-pathway per-joint head + routing mask
-  filter     S12 continuous-time Lie filter with heteroscedastic measurements
-  anchor     S13 drift-triggered absolute anchor and tangent-space fusion
-  gn         S14 active-set damped least-squares solver
-  packetizer S15 information-driven adaptive event packetization
-  frontends  S16 scan, sparse-cell, event-GNN and sparse-pyramid encoders
-  mainline   S9+S12+S13 combined estimator
+  encoder    S2  the seven-scalar event token (and its SAE / inter-event helpers)
+  event_gnn  S36 event-graph (EdgeConv) encoder used by the S45-TR T0 / T1a hooks
+  anchored   S13 anchored / filtered trackers and the deployed count-gain filter (S39 line)
+  xyz_mesh   S37 XYZ-C1: prev mesh in camera XYZ, ray association, MeshGNN, common readout (S45)
+  xag        XAG source-label routing (part / face route) of the XYZ association
+  xag_sources XAG pseudo-source cache reader
+  eval_track S1  extended recursive evaluator
+  (train     S1  training entry point, `python -m semkine.train`; not imported with the package)
 """
 
 __all__ = [
-    "domrand",
-    "events",
-    "dataset",
+    "anchored",
     "buckets",
-    "metrics",
-    "lie",
+    "dataset",
+    "domrand",
     "encoder",
-    "kssf",
-    "jacobian",
-    "router",
-    "estimator",
-    "filter",
-    "anchor",
-    "gn",
-    "packetizer",
-    "frontends",
-    "mainline",
+    "eval_track",
+    "event_gnn",
+    "events",
+    "metrics",
+    "xag",
+    "xag_sources",
+    "xyz_mesh",
 ]

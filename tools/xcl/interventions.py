@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
-NAMES = ("none", "geometry_zero", "h3_zero", "residual_zero", "route_a2", "route_a3")
+NAMES = ("none", "geometry_zero", "h3_zero", "residual_zero", "route_a2")
 
 
 @contextmanager
@@ -37,7 +37,7 @@ def apply(model, name="none"):
                 return (value, *inputs[1:])
             hooks.append(xyz.slot_proj.register_forward_pre_hook(slot_input))
         else:
-            model.xag_assoc_mode = "face_route" if name == "route_a2" else "full_oracle"
+            model.xag_assoc_mode = "face_route"
         yield
     finally:
         for hook in hooks:
@@ -54,5 +54,5 @@ def adapt_config(cfg, name):
     if name.startswith("route_"):
         root = Path(__file__).resolve().parents[2]
         cfg.setdefault("DATA", {})["XAG_SOURCE_ROOT"] = str(root / "outputs/xag/sources")
-        cfg.setdefault("MODEL", {})["XAG_ASSOC"] = "face_route" if name == "route_a2" else "full_oracle"
+        cfg.setdefault("MODEL", {})["XAG_ASSOC"] = "face_route"
     return cfg

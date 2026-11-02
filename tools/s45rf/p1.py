@@ -32,6 +32,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 import numpy as np  # noqa: E402
 
+from tools.frozen import accepts  # noqa: E402
 from tools.s45rf.common import (P1, PHYSICAL_GPUS, POSE_BASIS, S45_E1_TRACE, S45_E3_TRACE, S45TR, SEQS,  # noqa: E402
                                 ledger_section, now, pose_mean, read, require, save, sha)
 
@@ -82,7 +83,7 @@ def protocol():
     p = read(PROTOCOL)
     require(p["study"] == "S45RF_P1_20261030" and p["status"] == "FROZEN", "S45-RF P1 protocol identity")
     for name, digest in {**p["sources_sha256"], **p["inputs_sha256"]}.items():
-        require(sha(ROOT / name) == digest, "frozen S45-RF P1 file changed: " + name)
+        require(accepts(ROOT / name, digest), "frozen S45-RF P1 file changed: " + name)
     require(sha(P1 / "prereg_section.md") == p["prereg_section_sha256"]
             and (P1 / "prereg_section.md").read_text() == ledger_section(TAG), "pre-registration changed")
     return p

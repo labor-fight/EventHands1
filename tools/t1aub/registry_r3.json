@@ -1,0 +1,11 @@
+{
+ "round": 3,
+ "prereg": "docs/EXPERIMENT_RECORDS.md#t1aub-r3-prereg-20261102",
+ "arms": {
+  "t1arep": {
+   "eg": true,
+   "sampler": "dedicated",
+   "note": "T1a on S45-AT s45samp's sampling stream (dedicated generator, seed 3407): the paired replicate of the baseline"
+  }
+ }
+}

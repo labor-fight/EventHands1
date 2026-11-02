@@ -21,7 +21,8 @@ import time
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 from tools.s45ct import run as R1  # noqa: E402
-from tools.s45ct.common import OUT, PHYSICAL_GPUS, now, output_dir, read, require, run_name, save, sha, verify_protocol  # noqa: E402
+from tools.frozen import accepts  # noqa: E402
+from tools.s45ct.common import OUT, PHYSICAL_GPUS, now, output_dir, read, require, run_name, save, verify_protocol  # noqa: E402
 
 MAX_PAIRS = 2
 RERUN = {"preflight:t1dreplay": "t1dreplay", "preflight:sigma16": "sigma16"}
@@ -38,7 +39,7 @@ def alive(pid):
 
 def prepare():
     verify_protocol()
-    require(read(MANIFEST)["file_sha256"]["tools/s45ct/run_r2.py"] == sha(__file__), "amendment-1 driver changed")
+    require(accepts(__file__, read(MANIFEST)["file_sha256"]["tools/s45ct/run_r2.py"]), "amendment-1 driver changed")
     first = read(R1.STATUS)
     require(first["status"] in ("COMPLETE", "COMPLETE_WITH_PRESERVED_FAILURES") and not alive(first["pid"]),
             "the first driver must have ended")

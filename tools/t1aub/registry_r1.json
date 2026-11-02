@@ -1,0 +1,34 @@
+{
+ "round": 1,
+ "prereg": "docs/EXPERIMENT_RECORDS.md#t1aub-r1-prereg-20261102",
+ "arms": {
+  "t1areplay": {"eg": true, "replay_of": "t1a", "phases": ["preflight"],
+                "note": "engineering premise: this study's wrapper and subclass replay T1a's 50-step preflight bit for bit"},
+  "t0p": {"eg": true, "route": {"router": "t0p", "assoc": "pfa", "onhand_tau": 0.5},
+          "note": "ladder L-assoc (same deployment inputs, unconstrained router): T1a with S45-SM's state-free association -- the frozen 1.6 M T0P surface router's face routes, PFA (no ray casting); T0P at test (over budget)"},
+  "gt": {"eg": true, "route": {"router": "gt", "assoc": "pfa"},
+         "note": "ladder L-assoc oracle (label-assisted diagnostic bound): T1a with the XAG label face routes through PFA"},
+  "gtf": {"eg": true, "gtfeat": true,
+          "note": "ladder L-repr oracle (label-assisted diagnostic bound): T1a's ray association unchanged; every event's label surface location (rest-template point, cm + valid flag) appended to its node feature before phi"},
+  "dz": {"eg": true, "dz": true,
+         "note": "ladder L-obs: T1a with S45-AT dz's depth-scale augmentation (zn out of the training range was S45-LOC's single-step cause)"},
+  "t0ps16": {"eg": true, "route": {"router": "t0p", "assoc": "pfa", "onhand_tau": 0.5},
+             "readout": {"slot_dim": 16, "hidden": 256},
+             "note": "budget: t0p with the readout's slot width 32 -> 16 (354,243 parameters), the room for a 137k test router"},
+  "t0pnoeg": {"eg": false, "route": {"router": "t0p", "assoc": "pfa", "onhand_tau": 0.5},
+              "note": "budget: t0p without T1a's event graph (S45's token7 records): what the event graph adds once the association is state-free"},
+  "t0pnoeg20": {"eg": false, "route": {"router": "t0p", "assoc": "pfa", "onhand_tau": 0.5},
+                "readout": {"slot_dim": 20, "hidden": 256},
+                "note": "budget: t0pnoeg with the readout's slot width 32 -> 20 (353,999 parameters)"}
+ },
+ "cells": {
+  "t0p_srdwa": {"trunk": "t0p", "router": "srdwkda", "note": "T1a trunk trained on T0P routes, 137k router at test (over budget: 631,614)"},
+  "t0p_srpa": {"trunk": "t0p", "router": "srpkda", "note": "router dose-response on the t0p trunk (over budget)"},
+  "t0p_sr1": {"trunk": "t0p", "router": "sr1", "note": "router dose-response on the t0p trunk (over budget)"},
+  "t0ps16_srdwa": {"trunk": "t0ps16", "router": "srdwkda", "note": "in-budget candidate A: event graph kept, readout 16, srdwkda (491,534 parameters)"},
+  "t0pnoeg_srdwa": {"trunk": "t0pnoeg", "router": "srdwkda", "note": "S45 trunk on T0P routes + srdwkda (596,350, over budget; S45-SM xt0_srdwa without dz)"},
+  "t0pnoeg20_srdwa": {"trunk": "t0pnoeg20", "router": "srdwkda", "note": "in-budget candidate B: event graph dropped, readout 20, srdwkda (491,290 parameters)"},
+  "gt_srdwa": {"trunk": "gt", "router": "srdwkda", "note": "label-trained T1a trunk with a deployable router (exposure bias, descriptive)"},
+  "gt_t0p": {"trunk": "gt", "router": "t0p", "note": "label-trained T1a trunk with T0P (exposure bias, descriptive)"}
+ }
+}

@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 from tools.xyz_c1_repro import train as B  # noqa: E402  (sets the strict environment, re-execs once)
 import yaml  # noqa: E402
+from tools.frozen import accepts  # noqa: E402
 from tools.c1sf.common import (ARMS, CANONICAL, OUT, PROTOCOL, config_path, expected_raw, read,  # noqa: E402
                                require, save, sha, verify_protocol, zn_mode)
 
@@ -30,13 +31,13 @@ def validate_recipe(cfg, arm, phase):
 
 def check_binding(options, config):
     p = verify_protocol(options.protocol)
-    require(sha(config) == p["file_sha256"][str(Path(config).resolve().relative_to(ROOT))], "Config not frozen")
+    require(accepts(config, p["file_sha256"][str(Path(config).resolve().relative_to(ROOT))]), "Config not frozen")
     pre = read(OUT / "receipts" / f"preflight_{options.arm}.json")
     require(pre["status"] == "PASS" and pre["protocol_sha256"] == sha(options.protocol), "Arm preflight not accepted")
     replay = read(OUT / "receipts" / "preflight_c1replay.json")
     require(replay["status"] == "PASS" and replay["c1_code_replay_exact"] is True,
             "Current code does not replay C1 training exactly; formal pairing premise fails")
-    require(pre["wrapper_sha256"] == sha(__file__), "Training wrapper changed since preflight")
+    require(accepts(__file__, pre["wrapper_sha256"]), "Training wrapper changed since preflight")
 
 
 def fresh_claim(options, cfg):
@@ -113,7 +114,7 @@ def main():
     cfg = B.load_config(options.config)
     validate_recipe(cfg, options.arm, options.phase)
     protocol = verify_protocol(options.protocol)
-    require(sha(options.config) == protocol["file_sha256"][str(Path(options.config).resolve().relative_to(ROOT))],
+    require(accepts(options.config, protocol["file_sha256"][str(Path(options.config).resolve().relative_to(ROOT))]),
             "Config not frozen")
     if options.phase == "formal":
         check_binding(options, options.config)

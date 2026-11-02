@@ -53,7 +53,7 @@ def configure_environment():
 
 
 def set_policy():
-    # Same flags as tools/xag_paired_20261018/evaluate.py, without legacy imports.
+    # Same flags as the retired XAG-paired evaluator, without legacy imports.
     import torch
     torch.use_deterministic_algorithms(True, warn_only=False)
     torch.backends.cudnn.deterministic = True
@@ -351,7 +351,7 @@ def main(argv=None):
     p.add_argument("--protocol"); p.add_argument("--run"); p.add_argument("--mode", choices=MODES, default="e1")
     p.add_argument("--step", type=int, choices=(5000, 5500, 6000), default=6000)
     p.add_argument("--output-dir", type=Path); p.add_argument("--canonical-trace")
-    p.add_argument("--intervention", choices=("none", "geometry_zero", "h3_zero", "residual_zero", "route_a2", "route_a3"), default="none")
+    p.add_argument("--intervention", choices=("none", "geometry_zero", "h3_zero", "residual_zero", "route_a2"), default="none")
     p.add_argument("--compare", nargs=2, metavar=("FIRST_NPZ", "SECOND_NPZ"))
     args = p.parse_args(argv)
     if args.compare:

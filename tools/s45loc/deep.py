@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 import numpy as np  # noqa: E402
 
+from tools.frozen import accepts  # noqa: E402
 from tools.s45loc import common as C  # noqa: E402
 
 DEEP = C.OUT / "deep"
@@ -84,7 +85,7 @@ def protocol():
     p = C.read(PROTOCOL)
     C.require(p["status"] == ("SMOKE" if C.SMOKE else "FROZEN"), "S45-DEEP protocol status / directory mismatch")
     for name, digest in p["sources_sha256"].items():
-        C.require(C.sha(C.ROOT / name) == digest, f"frozen source changed: {name}")
+        C.require(accepts(C.ROOT / name, digest), f"frozen source changed: {name}")
     return p
 
 

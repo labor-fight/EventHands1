@@ -1,21 +1,18 @@
-"""Opt-in XAG routing and XCL oracle controls.
+"""Opt-in XAG source-label routing.
 
 The source labels are geometric proxies.  ``part_route`` searches the original
 top-k candidate set, within the original hit/near branch. ``face_route`` replaces
 only existing positive-mass routes. Neither operation recovers unmatched events.
-XCL ``full_oracle`` additionally replaces depth/quality/support and recalls known
-sources; it is a non-deployable ceiling, separate from the historical routes.
+(The XCL ``full_oracle`` ceiling and the oracle / global-residual GNN controls were removed.)
 """
 from __future__ import annotations
 
 from typing import Mapping
 
 import torch
-from torch import nn
 
-ASSOC_MODES = ("base", "part_route", "face_route", "full_oracle")
-ORACLE_GNN_MODES = ("oracle_dense", "oracle_observed")
-GNN_MODES = ("legacy", "global_residual") + ORACLE_GNN_MODES
+ASSOC_MODES = ("base", "part_route", "face_route")
+GNN_MODES = ("legacy",)
 SOURCE_FIELDS = ("xag_source_index", "xag_source_ms", "xag_part", "xag_face", "xag_bary", "xag_valid")
 
 
@@ -30,32 +27,27 @@ def validate_config(model_cfg: Mapping, *, xyz_mesh: bool) -> tuple[str, str]:
         raise ValueError(f"MODEL.XAG_ASSOC must be one of {ASSOC_MODES}, got {assoc!r}")
     if gnn not in GNN_MODES:
         raise ValueError(f"MODEL.XAG_GNN must be one of {GNN_MODES}, got {gnn!r}")
-    if gnn in ORACLE_GNN_MODES and assoc != "base":
-        raise ValueError("XCL oracle GNN controls require XAG_ASSOC=base; oracle crossings are not registered")
-    if assoc != "base" or gnn != "legacy":
-        expected = {"XYZ_ASSOC_MODE": "hit_first", "XYZ_ASSOC_PREV": "self",
-                    "XYZ_RESIDUAL_MODE": "legacy", "XYZ_GEOM": True,
-                    "ENCODER_HIDDEN": 128, "ENCODER_LAYERS": 3,
+    if assoc != "base":
+        expected = {"XYZ_GEOM": True, "ENCODER_HIDDEN": 128, "ENCODER_LAYERS": 3,
                     "XYZ_SLOT_DIM": 32, "XYZ_READOUT_HIDDEN": 256}
         bad = [k for k, v in expected.items() if model_cfg.get(k, v) != v]
         if bad:
-            raise ValueError("XAG requires the C1 hit_first/self, geometry, legacy residual and fixed "
+            raise ValueError("XAG requires the C1 geometry and fixed "
                              "128x3/32/256 interfaces; incompatible: " + ", ".join(bad))
     return assoc, gnn
 
 
 @torch.no_grad()
-def sample_sources(batch, src: torch.Tensor, mask: torch.Tensor, *,
-                   require_depth: bool = False) -> dict[str, torch.Tensor]:
+def sample_sources(batch, src: torch.Tensor, mask: torch.Tensor) -> dict[str, torch.Tensor]:
     """Gather the exact production stride indices, including augmentation provenance."""
     n = int(batch.events.shape[0])
     out = {}
-    for name in SOURCE_FIELDS + (("xag_depth",) if require_depth else ()):
+    for name in SOURCE_FIELDS:
         value = getattr(batch, name, None)
         if value is None:
             raise RuntimeError(f"XAG oracle routing requires batch.{name}; never infer sources from target")
         shape = (n, 3) if name == "xag_bary" else (n,)
-        dtype = torch.float32 if name in ("xag_bary", "xag_depth") else torch.bool if name == "xag_valid" else torch.int64
+        dtype = torch.float32 if name == "xag_bary" else torch.bool if name == "xag_valid" else torch.int64
         if value.shape != shape or value.dtype != dtype or value.device != src.device:
             raise ValueError(f"batch.{name} must be {shape} {dtype} on {src.device}")
         out[name] = value[src]
@@ -83,7 +75,7 @@ def face_parts(lbs_weights: torch.Tensor, faces: torch.Tensor) -> torch.Tensor:
 @torch.no_grad()
 def route_association(mode, assoc, d, mask, verts, faces, vert_faces, lbs_weights,
                       band, front_tol, z_tol, *, source_part, source_face,
-                      source_bary, source_valid, source_depth=None, k=16, chunk=4096):
+                      source_bary, source_valid, k=16, chunk=4096):
     """Return ``(association, audit)``; historical routes change only vid/A.
 
     Audit masks have the original padded event shape. Unknowns, source failures,
@@ -92,34 +84,6 @@ def route_association(mode, assoc, d, mask, verts, faces, vert_faces, lbs_weight
     """
     if mode not in ASSOC_MODES:
         raise ValueError(f"unknown XAG association {mode!r}")
-    if mode == "full_oracle":
-        if assoc["vid"].shape != (*mask.shape, 4) or assoc["z"].shape != mask.shape:
-            raise ValueError("full_oracle requires the four-record hit_first association")
-        if source_depth is None:
-            raise RuntimeError("full_oracle requires source_depth from batch.xag_depth; never infer depth from prev")
-        if source_depth.shape != mask.shape or source_depth.device != mask.device or source_depth.dtype != torch.float32:
-            raise ValueError("full_oracle source_depth must be float32 with the event-mask shape/device")
-        known = source_valid & (source_face >= 0) & (source_face < len(faces))
-        known = known & torch.isfinite(source_bary).all(-1) & (source_bary >= 0).all(-1) & (source_bary.sum(-1) > 0)
-        if bool((known & mask & (~torch.isfinite(source_depth) | (source_depth <= 0))).any()):
-            raise ValueError("full_oracle known sources require finite positive source_depth in metres")
-        eligible = known & mask
-        out = dict(assoc)
-        for name in ("vid", "A", "q", "z", "valid", "hit"):
-            out[name] = torch.zeros_like(assoc[name])
-        b, n = eligible.nonzero(as_tuple=True)
-        fv = faces.long()[source_face[b, n]]
-        bary = source_bary[b, n].to(out["A"].dtype)
-        bary = bary / bary.sum(-1, keepdim=True)
-        out["vid"][b, n] = torch.cat([fv, fv[:, :1]], -1)
-        out["A"][b, n] = torch.cat([bary, torch.zeros_like(bary[:, :1])], -1)
-        out["q"][b, n] = 1
-        out["z"][b, n] = source_depth[b, n].to(out["z"].dtype)
-        out["valid"][b, n] = True
-        out["hit"][b, n] = True
-        return out, {"xag_known": eligible, "xag_eligible": eligible,
-                     "xag_replaced": eligible, "xag_fallback": mask & ~eligible,
-                     "xag_recalled": eligible & ~assoc["valid"], "xag_none": mask & ~eligible}
     eligible = mask & (assoc["q"] > 0) & assoc["valid"] & source_valid
     known = source_valid & (source_part >= 0) & (source_part < lbs_weights.shape[1])
     if mode == "face_route":
@@ -205,32 +169,3 @@ def route_association(mode, assoc, d, mask, verts, faces, vert_faces, lbs_weight
             replaced[b[ok], n[ok]] = True
     return out, {"xag_known": known & mask, "xag_eligible": eligible,
                  "xag_replaced": replaced, "xag_fallback": mask & ~replaced}
-
-
-class GlobalResidual(nn.Module):
-    """Support-preserving global messages after one unchanged local mesh round."""
-
-    def __init__(self, hidden=128, heads=4, ff_hidden=256, n_parts=16):
-        super().__init__()
-        self.norm1 = nn.LayerNorm(hidden)
-        self.identity = nn.Linear(n_parts, hidden, bias=False)
-        self.attention = nn.MultiheadAttention(hidden, heads, dropout=0.0, batch_first=True)
-        self.norm2 = nn.LayerNorm(hidden)
-        self.ff = nn.Sequential(nn.Linear(hidden, ff_hidden), nn.GELU(), nn.Linear(ff_hidden, hidden))
-
-    def forward(self, H, S, lbs_weights):
-        support = S > 0
-        # MultiheadAttention would return NaN with all keys masked. The dummy key
-        # is used only for an empty row; outputs are then masked to exact zero.
-        key_mask = ~support
-        key_mask = key_mask.clone()
-        key_mask[:, 0] = key_mask[:, 0] & support.any(-1)
-        value = self.norm1(H)
-        position = self.identity(lbs_weights.to(H.dtype)).unsqueeze(0)
-        query = value + position  # LBS identity never enters the value stream.
-        update, _ = self.attention(query, query, value, key_padding_mask=key_mask, need_weights=False)
-        live = support.unsqueeze(-1).to(H.dtype)
-        H = (H + update * live) * live
-        H = (H + self.ff(self.norm2(H)) * live) * live
-        return H
-

@@ -1,0 +1,18 @@
+{
+  "round": 16,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-tools-cutover-amend1 (engineering acceptance of the 2026-11-01 code cleanup; not a research round)",
+  "routers": {},
+  "arms": {
+    "pfat0pdz_replay_v3": {
+      "router": "t0p",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true,
+      "replay_of": "pfat0pdz",
+      "phases": [
+        "preflight"
+      ],
+      "note": "engineering acceptance after amendment 1 (docs/EXPERIMENT_RECORDS.md#s45sm-tools-cutover-amend1): same as pfat0pdz_replay_v2, whose first launch failed before any step (CLI verb left in semkine/train.py's argv)"
+    }
+  }
+}

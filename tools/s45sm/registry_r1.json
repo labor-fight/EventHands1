@@ -1,0 +1,45 @@
+{
+  "round": 1,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-prereg-20261031",
+  "routers": {
+    "t0p": {
+      "kind": "t0p",
+      "checkpoint": "outputs/s45rt/20261031/t0p/t0p_final.ckpt",
+      "checkpoint_sha256": "bf0510b2af88e134cedc78598397fb8fddc30a5e2658ebe51bce72ec448fa07e",
+      "note": "S45-RT T0P, frozen; trained without ylf"
+    },
+    "sr1": {
+      "kind": "sr",
+      "heldout": "ylf",
+      "steps": 6000,
+      "dz": true,
+      "note": "lean surface router SRNet (137,028 parameters), T0P's recipe without ylf, trained with S45-AT dz's depth scale augmentation (the arms' training distribution)"
+    }
+  },
+  "arms": {
+    "t0pdz": {
+      "router": "t0p",
+      "assoc": "face_route",
+      "onhand_tau": 0.5,
+      "dz": true
+    },
+    "pfat0pdz": {
+      "router": "t0p",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true
+    },
+    "srdz": {
+      "router": "sr1",
+      "assoc": "face_route",
+      "onhand_tau": 0.5,
+      "dz": true
+    },
+    "pfasrdz": {
+      "router": "sr1",
+      "assoc": "pfa",
+      "onhand_tau": 0.5,
+      "dz": true
+    }
+  }
+}

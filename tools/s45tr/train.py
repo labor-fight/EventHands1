@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 from tools.xyz_c1_repro import train as B  # noqa: E402  (sets the strict environment, re-execs once)
 import yaml  # noqa: E402
+from tools.frozen import accepts  # noqa: E402
 from tools.s45tr.common import (ARMS, OUT, PROTOCOL, S45_CONFIG, S45_CONFIG_SHA256, config_frozen,  # noqa: E402
                                 config_path, expected_raw, hook_of, install_hooks, read, require, save, sha,
                                 verify_protocol)
@@ -30,7 +31,7 @@ XYZ_CLASS = {None: ("semkine.xyz_mesh", "XYZMeshNet"), "n2": ("semkine.xyz_mesh"
 
 
 def validate_recipe(cfg, arm, phase):
-    require(sha(S45_CONFIG) == S45_CONFIG_SHA256, "S45 config changed")
+    require(accepts(S45_CONFIG, S45_CONFIG_SHA256), "S45 config changed")
     expected = expected_raw(arm, phase, yaml.safe_load(S45_CONFIG.read_text()))
     actual = {k: v for k, v in cfg.items() if k != "_config_path"}
     require(actual == expected, "Unregistered difference from the S45 recipe + registered S45-TR change")
@@ -44,7 +45,7 @@ def check_binding(options, config):
     replay = read(OUT / "receipts" / "preflight_s45replay.json")
     require(replay["status"] == "PASS" and replay["s45_code_replay_exact"] is True,
             "Current code does not replay S45 training exactly; formal pairing premise fails")
-    require(pre["wrapper_sha256"] == sha(__file__), "Training wrapper changed since preflight")
+    require(accepts(__file__, pre["wrapper_sha256"]), "Training wrapper changed since preflight")
 
 
 def fresh_claim(options, cfg):

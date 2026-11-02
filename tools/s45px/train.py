@@ -18,12 +18,13 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 from tools.xyz_c1_repro import train as B  # noqa: E402  (sets the strict environment, re-execs once)
 import yaml  # noqa: E402
+from tools.frozen import accepts  # noqa: E402
 from tools.s45px.common import (ARMS, OUT, PROTOCOL, S45_CONFIG, S45_CONFIG_SHA256, S45TR, config_frozen,  # noqa: E402
                                 config_path, expected_raw, install_hook, read, require, save, sha, verify_protocol)
 
 
 def validate_recipe(cfg, arm, phase):
-    require(sha(S45_CONFIG) == S45_CONFIG_SHA256, "S45 config changed")
+    require(accepts(S45_CONFIG, S45_CONFIG_SHA256), "S45 config changed")
     expected = expected_raw(arm, phase, yaml.safe_load(S45_CONFIG.read_text()))
     actual = {k: v for k, v in cfg.items() if k != "_config_path"}
     require(actual == expected, "Unregistered difference from S45's recipe + the registered S45-PX change")
@@ -37,7 +38,7 @@ def check_binding(options, config):
         pre = read(OUT / "receipts" / f"preflight_{arm}.json")
         require(pre["status"] == "PASS" and pre["protocol_sha256"] == sha(PROTOCOL)
                 and pre["s45_step1_exact_and_departs_at_step2"] is True, "Preflight not accepted: " + arm)
-    require(read(OUT / "receipts" / f"preflight_{options.arm}.json")["wrapper_sha256"] == sha(__file__),
+    require(accepts(__file__, read(OUT / "receipts" / f"preflight_{options.arm}.json")["wrapper_sha256"]),
             "Training wrapper changed since preflight")
     TR.verify_protocol()
     replay = read(S45TR / "receipts" / "preflight_s45replay.json")

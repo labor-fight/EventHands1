@@ -1,0 +1,249 @@
+{
+ "_comment": "Digests superseded by the 2026-11-01 core cleanup (dead opt-in features removed from the core training / model code). tools/frozen.py `accepts(path, frozen_digest)` accepts a file whose frozen digest is listed in `old` and whose current digest equals `new` (`new: null`: the file was deleted by the cleanup). The protocols / manifests of the finished studies are not rewritten.",
+ "cleanup": "20261101",
+ "files": {
+  "model/model.py": {
+   "new": "f694d6fc7d5d767e1ebae4dd0e5e0fca6362e54c1a8c6e6d3b384125e6865517",
+   "old": [
+    "ecc24acfeb93a2fd5bd0f5185350eb88e2c348a6fba8ecf0cf9cca7a4f5923ab"
+   ]
+  },
+  "semkine/dataset.py": {
+   "new": "2f0341d8a724b08b2cd4f3662ede9a364fc8c6d00ddce849d34afdf9f397ec3c",
+   "old": [
+    "55ba38e6207126cc6cb84e848bbd45658c4b40528e526ede682b97ee17290d5f"
+   ]
+  },
+  "semkine/encoder.py": {
+   "new": "6dc9fdfa18ab07da2642df0b61ec6d3c997b4d86478d216704ba63d370cef86c",
+   "old": [
+    "08d6498cf9244e2b330c45bbcd4d3ad4088efdd3b52eb21afdcb617669f6ee64"
+   ]
+  },
+  "semkine/eval_track.py": {
+   "new": "41743b93bbf1ff9b373af52e48ff7f1cd5dc358bd1c29b933b3837a60730a918",
+   "old": [
+    "ab0b079ac939597e61b8a929961a6830ff3b9b46e5405780d71e2c98bae2dc22"
+   ]
+  },
+  "semkine/event_gnn.py": {
+   "new": "b7c869426e03744b0545a91a957acfe1ffe934856250f9735b481ca8faaa4a39",
+   "old": [
+    "5c2de7855953b7408f81153e064dc1e5422c551d187ad2acc843abd279f8b745"
+   ]
+  },
+  "semkine/events.py": {
+   "new": "eed2ca69f1a07cdeb9c3a36a19d26744da940e2c97d98b1b6a4c3ce21ea8fe2d",
+   "old": [
+    "e198cd1e227814af570c4f136ab3f0d49cf3a8d92d48cfb3d9a812f98668bf08"
+   ]
+  },
+  "semkine/train.py": {
+   "new": "3f1531641e8e11c0756d4422d79343fc25f12bf9b847a2449000d66a7902549a",
+   "old": [
+    "6b4cc4f2e2adb4345f709412f928fce0eed0f925f4d04db7474012650f9ccefe"
+   ]
+  },
+  "semkine/xag.py": {
+   "new": "deb8c9169e0dff0fe51ec82f3b6c1c4d8ac915a57cff47f8e1f78875dad489f6",
+   "old": [
+    "74f15815543db32e715c287c1f23d9efa33457c4c8533ba897a2c3560c788530"
+   ]
+  },
+  "semkine/xag_sources.py": {
+   "new": "7614e86b2cfa302585fd99631b83570abc2569afea6adb77c83a0e41e35cc79c",
+   "old": [
+    "b931366be0a9bd78bac0ac3e3ba0d189bc813a7f3e61be9467e75b536ecf75d2"
+   ]
+  },
+  "semkine/xyz_mesh.py": {
+   "new": "759640bd9dd89b9ddae1d649decdaafd1c84ac1405461fb4ce046d40c15c0782",
+   "old": [
+    "4f4e4d6104a57ba707b9a7cb2d1b5ea9eb07456130432c34ab3ca91ab5e96bff"
+   ]
+  },
+  "tools/c1sf/common.py": {
+   "new": "581d2f5936d0ff4634dcf9def1deaae041e0367e8e3fcc15216a30251f925727",
+   "old": [
+    "cf14949db9fa52af545e4982a850da1f07be7c66e474de976ae0c607c12534d5"
+   ]
+  },
+  "tools/c1sf/train.py": {
+   "new": "2165a631d6ae6a657e17e8659e40df1338760cb945f8f3fa1260e629832f7221",
+   "old": [
+    "0e18aed1b9c410a5bcc39a89592293140e2b4b2a80ab5d6b19c77e0f8b7c712c"
+   ]
+  },
+  "tools/make_s36_row.py": {
+   "new": "c66a47e7b456d210f78edb04748725dd84bdbc07173aa952dacba9520d291781",
+   "old": [
+    "803ff81d023b674a8f677ccce8c78512d8c8d376b22123a067b5faf23ee9dc04"
+   ]
+  },
+  "tools/s45at/common.py": {
+   "new": "56cbd35b8ad95114446102f206ee617204bfff0c689f684e4807b45dfa189ee6",
+   "old": [
+    "77239750573875a1f46718251f3d4cb860ac95588aae590e0f7fa68a43e1c615"
+   ]
+  },
+  "tools/s45at/train.py": {
+   "new": "8e1ef1c3c280139c7ac329278b48d8173f55575ddaca8c37ea4ff0c8cbbcfc8f",
+   "old": [
+    "8064af951f26c2fb1cb53bd0a65814f25c471f723fa29c5c0a555bebd201e5be"
+   ]
+  },
+  "tools/s45ct/common.py": {
+   "new": "47ba581f616bc2b9c32ea94590823c766dc69a7292db497e92102083b82a3e4a",
+   "old": [
+    "481fb48be5bdf9a94baf00ec270cd3be7ff875755bd7c32ef86b5123be082c72"
+   ]
+  },
+  "tools/s45ct/run_r2.py": {
+   "new": "8618283c4d4736d60d8c0829ec358548122339ccd45421f1c0efe227d87f10c3",
+   "old": [
+    "7cabe0a372ae1eac7a804e30c4631cb3dc3b8fc9bede22c9b743d71e1db5188d"
+   ]
+  },
+  "tools/s45ct/run_r3.py": {
+   "new": "4035d2ff4ac1a658dea44e30536592e5d5b8daaf78bf2a3d4d3d5566cc6bcfb1",
+   "old": [
+    "f53fd9c1ed43eeebea7cd5850fe75a986eb4dda04bf9935887f2737fb94b0a17"
+   ]
+  },
+  "tools/s45ct/train.py": {
+   "new": "e39c1da9cba7f29b5d1cddc8a4370ae7baecbc49358b936c0ff5acdf0ae41604",
+   "old": [
+    "41417f5a51f47468a2aa97709a363d818c8eb884eda4fb9cb4e4d7127c146a71"
+   ]
+  },
+  "tools/s45grade/insample.py": {
+   "new": "ef01f2aca6ba62d49af91f01701cd9443b4ee3fe3cf46e99438df6792d7d03d5",
+   "old": [
+    "b05096c121bcd830ddd1854e49dc99aa8c0a160cd07c0c4384a6abcd330d4aba"
+   ]
+  },
+  "tools/s45loc/deep.py": {
+   "new": "f958746dda3a24a922f8b8b15cb6301bb403d272172a3c4f06324cbcf3c55ab7",
+   "old": [
+    "9aa704a873f3664d5aa4e2be91559869c7a50be60e35aada2392c4beff702c84"
+   ]
+  },
+  "tools/s45loc/freeze.py": {
+   "new": "0c07a0b2326eb53005891d12de1434ea0d7797cd30e614ab2cbae483448477e6",
+   "old": [
+    "8c866c9ce525ceae0056711c10196c4e0b82ea186c256123d7391b55c87891c0"
+   ]
+  },
+  "tools/s45loc/run.py": {
+   "new": "a4afb605e2521d99a6891f72b5c32b3d04ed5fc14bee94a7b7875d4e178eac18",
+   "old": [
+    "daba795880ab60272d4b79b1aad4ba1dbb420fd228288699aba58f1a2cea9291"
+   ]
+  },
+  "tools/s45px/accept_r1.py": {
+   "new": "5686b584a4f4591aed67e17d8ab0e3d5c56e1bfeb6fd7f4585bf70d369318681",
+   "old": [
+    "1a25ca13ee506d9f2daca9dd73382551d577459978140b7eebe052e1adfa95ea"
+   ]
+  },
+  "tools/s45px/common.py": {
+   "new": "44c59f2f0cb27beeab9f325421b7fbb839e1ea11e854768e09f60987f8e14674",
+   "old": [
+    "e072cc1864b56766494d40cab7d8444b6cf709f6746891eaac7c28062b006e01"
+   ]
+  },
+  "tools/s45px/make_configs.py": {
+   "new": "4184ef49c8bdc7f352d3a8367c0ca49815c27de06bec18d8dd011b2cb0450e3c",
+   "old": [
+    "659352fec5bc67a17ab6c970047e5f661559e10bb2d3054da18b260ba219c372"
+   ]
+  },
+  "tools/s45px/run_r2.py": {
+   "new": "0eb964df13946d96f8556a7172366325af4c5df7e2c7ce2a916a9962475ca3bf",
+   "old": [
+    "bbd5280ba1e5b3bf82e4cbcc18a400243ae893a2c27fdf54b3cbb7410609d793"
+   ]
+  },
+  "tools/s45px/train.py": {
+   "new": "1b007cd110d98fddd76db7e7fcf69cc1a1484299083234955e22209c78302186",
+   "old": [
+    "e4fd61431e94b8e485ab3f97bad83136862e7f28d1010310e786d193c3af52cd"
+   ]
+  },
+  "tools/s45px/train_r1.py": {
+   "new": "7451f80ec40f298322fb91b1246ff104b539b05227fd89a41e716beccaef9ab1",
+   "old": [
+    "d28c3153591462a29251cbd990ddd8e61ce9b24198332388b51ff6ff317bc709"
+   ]
+  },
+  "tools/s45rf/p1.py": {
+   "new": "73f53bdfc8bad1de3556e45772af2b30a8503a75ee2b0ec150181f59fbb0ef52",
+   "old": [
+    "4833941da49c51e3ed3adfde6dbc410a6bb806b500d61823bef27c911c83dd32"
+   ]
+  },
+  "tools/s45rf/p2.py": {
+   "new": "67e2aaececad74e1b006b6a8a7040c948792381240d67e840e76fda30c8ddb35",
+   "old": [
+    "a727da3de12c06f170e053749bac0faeb80efa00aa57826b1a125cd539ceef0e"
+   ]
+  },
+  "tools/s45rt/common.py": {
+   "new": "0410c385b5a37565b88f2a61a0a14baf4560e612270fd3a48abd1ab39ecef09f",
+   "old": [
+    "74342f4cc28093787d8a5605ddbdba852876e132a65b0283d59dec65d2fdbd4c"
+   ]
+  },
+  "tools/s45rt/plan2.py": {
+   "new": "33d148c1f10de7ace41cc44bec971bf9b836fe9176f13f1c78e925ab97b9a6b8",
+   "old": [
+    "9971f622811f8fa40c80fcb2154a85c55e19084e207a1d17a7ee9d6b6231e411"
+   ]
+  },
+  "tools/s45rt/train.py": {
+   "new": "3e7cc8d467b8fc435b5841757bb24ecc55f75879ba6acb7c5453ee51ec7a9244",
+   "old": [
+    "98940892b6fdded8956fbb90cbc88f23630e6a7f3b23d0ca24ed53fbc5eeb3be"
+   ]
+  },
+  "tools/s45tr/common.py": {
+   "new": "613a15209bb4b3c25a02625c927ad87533536654766437495fbcac081420bdac",
+   "old": [
+    "f6047a242aa98d32ff6cfe013afd2260913f03714256c6959caa430e01cd2679"
+   ]
+  },
+  "tools/s45tr/make_configs.py": {
+   "new": "75ec15e0b4ef85c434b1633a10c3b03d7caf6dc7a130315177075c98d4e32af8",
+   "old": [
+    "095be48634881346a238f8b4cce599a0cede8cc3f56cbe6f6b89327354c61bbd"
+   ]
+  },
+  "tools/s45tr/t0_train.py": {
+   "new": "2f8347ab653ef023caa359d326501000bd2fe63cd1918b2e70b645d60b15252d",
+   "old": [
+    "37f258a6f0fe31f73e30c32905bc74540f7a9123d7da2c974949bf0d5a231e6a"
+   ]
+  },
+  "tools/s45tr/train.py": {
+   "new": "d236de6b5271660127d135833e3068a8a94e5e5939ab8fd8ee94d0b58e59d862",
+   "old": [
+    "a4f9edf80b8ca4bcce0ce41a1addb02ac1c5e8b9dd0608bb0f9bc9bce30eeef1"
+   ]
+  },
+  "tools/xcl/evaluate.py": {
+   "new": "9eeabdba878e82acb8ac8ba65951286962a6a21bf6fe03d5a57d0befc95c8c7a",
+   "old": [
+    "ba660ce2b4bf75c7122907dda45fbeaa07b1ae3a66eb7aa11c407a88cc77a35a"
+   ]
+  },
+  "tools/xcl/interventions.py": {
+   "new": "d8e56947767bc2f0269a31de025d415c066abbcaa74b6934fd4d44524a2a7856",
+   "old": [
+    "b66c3a3322fc3c345f3f2645fc5fac7523e8f5f889f4273f920f68430d00cbf6"
+   ]
+  }
+ },
+ "notes": [
+  "2026-11-01: tools/s45sm/common.py dropped from this list: its one-line patch was not applied; the original was archived by the S45-SM consolidation (outputs/s45sm/20261031/legacy_code) and is verified there against its manifests"
+ ]
+}

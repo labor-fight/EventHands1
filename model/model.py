@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import collections
-import contextlib
-import dataclasses
 import gc
 import math
 from typing import Any, Dict, Optional
@@ -12,7 +10,6 @@ from typing import Any, Dict, Optional
 import torch
 from torch import nn, optim
 import torch.nn.functional as F
-from torchvision import models
 import pytorch_lightning as pl
 
 from semkine import events as EV
@@ -23,7 +20,7 @@ from pose_repr import (
     get_slices,
     split_losses,
 )
-from backbones import build_backbone, resnet_forward_taps
+from backbones import build_backbone
 from sparse_trunk import input_mask
 
 
@@ -36,18 +33,9 @@ class BaseModel(pl.LightningModule):
       so3_trans_fk L_rot + L_trans + 2 L_FK, each term on the manifold of the
                    quantity it measures -- see :meth:`_so3_fk_loss`
 
-    DT round (docs/DT_RENDER_TRACK_PREREG.md section 2), both off by default, both added to the loss before its log10:
+    Two generic optimiser options, both off by default; with the defaults the optimiser is plain Adam and every saved
+    checkpoint carries the raw weights only:
 
-      LOSS.ACCEL_WEIGHT   w > 0: on a triplet batch (DATA.TRIPLET) w * the acceleration error of the absolute FK joints
-                          over three consecutive windows, see :meth:`_accel_loss`
-      MODEL.DISTILL_WEIGHT / DISTILL_CKPT
-                          a frozen teacher's output as a target, see :meth:`_maybe_distill`
-
-    DT2 round (docs/DT2_PREREG.md section 2), all off by default; with the defaults the loss, the optimiser and every
-    saved checkpoint are those of the earlier rounds bit for bit (tests/test_dt_model.py, test_dt_model2.py):
-
-      LOSS.ROOT_ROT_WEIGHT  w != 1: `so3_trans_fk`'s L_rot is (w d_root + sum of the 15 finger d) / (w + 15) instead of
-                          the plain mean over the 16 rotations, see :meth:`_so3_fk_loss`
       TRAIN.WEIGHT_DECAY  wd > 0: `torch.optim.AdamW` (decoupled decay) instead of Adam; the weights of Conv / Linear
                           layers decay, BatchNorm parameters and every bias do not (:meth:`_param_groups`)
       TRAIN.EMA_DECAY     d > 0: an exponential moving average of the parameters and the BatchNorm running statistics,
@@ -55,21 +43,16 @@ class BaseModel(pl.LightningModule):
                           evalx / select_checkpoint / load_from_checkpoint evaluate the EMA weights without change); the
                           raw weights go to `raw_state_dict` and a `--resume` continues from them (:meth:`_ema_checkpoint`,
                           :meth:`on_load_checkpoint`). Validation runs on the EMA weights.
-
-    DT2 round, package E (arm dt_dz_l3_roll), off by default; with the default the batch, the random draws and the step
-    are those of the earlier rounds bit for bit (tests/test_dt_model4.py pins it):
-
-      TRACK.ROLLOUT_P / TRACK.ROLLOUT_RAMP
-                          p > 0: on a triplet batch (DATA.TRIPLET) the previous state of window 2 is replaced, for a
-                          fraction p(step) of the rows that have a real w0 / w1, by the tracker's own two-step bare
-                          feed-back (w0 with its own prev -> o0, w1 with prev = o0 -> o1; no gradient, BatchNorm running
-                          statistics untouched), see :meth:`_maybe_rollout`
     """
 
-    #: TRACK.ROLLOUT_P of the model (0 = off); `MNISTModel.__init__` sets the instance values
+    #: Switches of training terms that were removed from this model (teacher distillation, self-conditioned rows,
+    #: closed-loop rollout, acceleration loss, gain regulariser). They are constants: the frozen S45-TR N2 training
+    #: step (`semkine/s45tr_n2.py`) reads them to refuse any recipe that uses another term.
+    distill_weight = 0.0
+    self_p = 0.0
     rollout_p = 0.0
-    rollout_ramp = (500, 2000)
-    _rollout_stats = None
+    accel_weight = 0.0
+    gain_reg_w = 0.0
 
     LOSS_TYPES = ("mse_51d", "so3_trans_fk")
     #: cosine decays to this fraction of the peak rather than to zero, so the last
@@ -109,44 +92,6 @@ class BaseModel(pl.LightningModule):
         self.rot_weight = float(loss_cfg.get("ROT_WEIGHT", 1.0))
         self.trans_weight = float(loss_cfg.get("TRANS_WEIGHT", 1.0))
         self.fk_weight = float(loss_cfg.get("FK_WEIGHT", 2.0))
-        # S4. `so3_trans_fk` as first written leaves absolute translation almost unconstrained:
-        # `L_FK` is root-relative by design, and `L_trans` is a SmoothL1 whose default transition
-        # at 1 m puts every realistic error (centimetres) deep in the quadratic region, where the
-        # gradient is proportional to the error and therefore negligible. Measured consequence:
-        # non-aligned MPJPE degraded 63.7 -> 83.6 mm while root-relative MPJPE improved. Two
-        # independently switchable remedies, both defaulting to the legacy behaviour so the
-        # existing arms stay bit-identical:
-        #   ABS_FK_WEIGHT  a non-root-relative FK term, in metres, which is the quantity the
-        #                  non-aligned metric actually measures
-        #   TRANS_BETA     the SmoothL1 transition; setting it near the error scale (~0.01 m)
-        #                  restores a constant gradient instead of a vanishing one
-        self.abs_fk_weight = float(loss_cfg.get("ABS_FK_WEIGHT", 0.0))
-        self.trans_beta = float(loss_cfg.get("TRANS_BETA", 1.0))
-        # S38. How `mse_51d` scores the root rotation. `mse_aa` (default, every earlier arm): the MSE of
-        # the three axis-angle numbers. `chordal`: ||R_pred - R_gt||_F^2 / 6, which equals that MSE for a
-        # small error about the rotation axis (theta^2 / 3) but has no seam: the training roots sit at a
-        # median |aa| of 132 deg and 0.7 % of them above 170 deg, where the axis-angle of one rotation
-        # jumps between two far-apart vectors.
-        self.root_loss = str(loss_cfg.get("ROOT_LOSS", "mse_aa"))
-        if self.root_loss not in ("mse_aa", "chordal"):
-            raise ValueError(f"LOSS.ROOT_LOSS must be mse_aa or chordal, got {self.root_loss!r}")
-        # DT round, arm dt_acc. Weight of the acceleration loss on triplet batches (`_accel_loss`); 0 (the default) is
-        # off and every earlier path is untouched. Whether a positive weight can work (dense tracker with MANO, triplet
-        # data) is checked by `MNISTModel.__init__`, which knows the architecture.
-        _aw = loss_cfg.get("ACCEL_WEIGHT", 0.0)
-        try:
-            self.accel_weight = float(_aw)
-        except (TypeError, ValueError):
-            raise ValueError(f"LOSS.ACCEL_WEIGHT must be a number >= 0, got {_aw!r}") from None
-        if not (math.isfinite(self.accel_weight) and self.accel_weight >= 0.0):
-            raise ValueError(f"LOSS.ACCEL_WEIGHT must be a finite number >= 0, got {_aw!r}")
-        # DT2 round, default off (see the class docstring)
-        self.root_rot_weight = self._number("LOSS.ROOT_ROT_WEIGHT", loss_cfg.get("ROOT_ROT_WEIGHT", 1.0))
-        if not self.root_rot_weight > 0.0:
-            raise ValueError(f"LOSS.ROOT_ROT_WEIGHT must be a finite number > 0, got {loss_cfg.get('ROOT_ROT_WEIGHT')!r}")
-        if self.root_rot_weight != 1.0 and self.loss_type != "so3_trans_fk":
-            raise ValueError("LOSS.ROOT_ROT_WEIGHT != 1 re-weights the root among the rotations of L_rot, which only "
-                             "LOSS.TYPE so3_trans_fk has; with mse_51d it would silently do nothing")
         train_cfg = self.cfg.get("TRAIN", {}) or {}
         self.weight_decay = self._number("TRAIN.WEIGHT_DECAY", train_cfg.get("WEIGHT_DECAY", 0.0))
         if self.weight_decay < 0.0:
@@ -216,15 +161,8 @@ class BaseModel(pl.LightningModule):
             dot = (quats(dec_p) * quats(dec_g)).sum(dim=-1)
             # Clamped so a perfect prediction cannot round to a negative loss, which
             # training_step's log10 would turn into NaN.
-            if self.root_rot_weight == 1.0:
-                loss_rot = (1.0 - dot.square().clamp(max=1.0)).mean()
-            else:
-                # LOSS.ROOT_ROT_WEIGHT w: joint 0 of `dot` (B, 16) is the root, the other 15 the fingers' rotations
-                d_rot = 1.0 - dot.square().clamp(max=1.0)
-                w = self.root_rot_weight
-                loss_rot = ((w * d_rot[:, 0] + d_rot[:, 1:].sum(dim=1)) / (w + (n_joint_aa - 1))).mean()
-            loss_trans = F.smooth_l1_loss(dec_p["transl"], dec_g["transl"],
-                                          beta=self.trans_beta)
+            loss_rot = (1.0 - dot.square().clamp(max=1.0)).mean()
+            loss_trans = F.smooth_l1_loss(dec_p["transl"], dec_g["transl"])
 
             _, joints_p = self._fk(pred, betas)
             with torch.no_grad():
@@ -234,14 +172,11 @@ class BaseModel(pl.LightningModule):
             rel_g = joints_g - joints_g[:, root : root + 1]
             joint_dist = torch.norm(rel_p - rel_g, dim=-1)
             loss_fk = joint_dist.mean()
-            abs_dist = torch.norm(joints_p - joints_g, dim=-1)
-            loss_abs_fk = abs_dist.mean()
 
             loss = (
                 self.rot_weight * loss_rot
                 + self.trans_weight * loss_trans
                 + self.fk_weight * loss_fk
-                + self.abs_fk_weight * loss_abs_fk
             )
             with torch.no_grad():
                 legacy, _ = self._mse_51d_loss(pred, y)
@@ -250,8 +185,6 @@ class BaseModel(pl.LightningModule):
             "loss_rot": loss_rot,
             "loss_trans": loss_trans,
             "loss_fk": loss_fk,
-            "loss_abs_fk": loss_abs_fk,
-            "abs_joint_error_mm": abs_dist.mean().detach() * 1000.0,
             "legacy_loss_51d": legacy,
             "rotation_error_deg": angle_deg,
             "joint_error_mm": joint_dist.mean().detach() * 1000.0,
@@ -283,12 +216,6 @@ class BaseModel(pl.LightningModule):
             }
 
         l_local, l_root, l_t = split_losses(pred, y, self.pose_repr)
-        if self.root_loss == "chordal":
-            from semkine.lie import so3_exp
-            with torch.autocast(device_type=pred.device.type, enabled=False):
-                Rp = so3_exp(pred[:, self.slices.root].float())
-                Rg = so3_exp(y[:, self.slices.root].float())
-                l_root = (Rp - Rg).square().sum(dim=(-2, -1)).mean() / 6.0
         loss = (
             self.lambda_pose * l_local
             + self.lambda_r * l_root
@@ -303,10 +230,6 @@ class BaseModel(pl.LightningModule):
         return loss, parts
 
     def _unpack_batch(self, batch):
-        if isinstance(batch, dict):
-            # DATA.TRIPLET (arm dt_acc): {"w0", "w1", "w2", "valid"}. The main sample is window 2, the plain sample bit
-            # for bit; windows 0 and 1 and the mask are read by `_accel_loss` only.
-            batch = batch["w2"]
         if hasattr(batch, "events"):
             return batch
         if len(batch) >= 5:
@@ -315,473 +238,35 @@ class BaseModel(pl.LightningModule):
             return batch[0], batch[1], batch[2], batch[3], None
         return batch[0], batch[1], batch[2], None, None
 
-    def unroll_p_now(self) -> float:
-        """`UNROLL_P` after the ramp, at the current optimiser step."""
-        if self.unroll_p <= 0.0:
-            return 0.0
-        s0, s1 = self.unroll_ramp
-        if s1 <= s0:
-            return self.unroll_p
-        frac = min(max((int(self.global_step) - s0) / float(s1 - s0), 0.0), 1.0)
-        return self.unroll_p * frac
-
-    def _maybe_unroll(self, batch):
-        """Replace a paired sample's conditioning state with the lead window's prediction.
-
-        The measured defect this addresses: inside its own recursion the network's per-step update
-        collapses to ~11% of the needed motion, while under teacher forcing with independent noise
-        it moves 0.77-0.93 of it. The conditioning distribution training samples (ground truth plus
-        independent noise) never contains self-generated, time-correlated drift, which is exposure
-        bias in its standard form (Ross & Bagnell, AISTATS'11; Bengio et al., NeurIPS'15). The pair
-        is how that distribution enters training.
-
-        The lead forward is under `no_grad` and its result is detached: this changes what the
-        network is conditioned *on*, not how gradient reaches it, so a step costs one extra forward
-        and no extra backward graph.
-
-        Two forms, measured (probe 2026-08-25 21:40, `closed_loop_sensitivity_unroll_50ms.json`):
-
-        - **replacement** (UNROLL_RESIDUAL false): conditioning becomes the lead prediction
-          itself. Because that prediction is near-clean (~1-2 mm off GT), this *narrows* the error
-          curriculum: TF improved to 10.3-10.9 (vs 12.1 without unroll) but the recursive echo
-          excess rose from x1.85-1.95 back to x2.22-2.26 and recursive RA worsened 27.8 -> 31-34.
-          The network learned "prev is trustworthy", the opposite of what the closed loop needs.
-        - **residual** (UNROLL_RESIDUAL true, E5.5c): conditioning becomes
-          `(GT + curriculum noise) + (lead prediction - lead target)` -- the curriculum keeps its
-          large-error coverage and the self-error contributes only its time-correlated structure.
-        """
-        if not (isinstance(batch, (tuple, list)) and len(batch) == 2
-                and hasattr(batch[0], "events") and hasattr(batch[1], "events")):
-            return batch
-        lead, main = batch
-        p = self.unroll_p_now()
-        if p <= 0.0:
-            return main
-        with torch.no_grad(), self._frozen_bn_stats():
-            # `no_grad` stops the gradient but not the BatchNorm buffer writes, so without the
-            # second guard the lead window updates all 20 running statistics an extra time per
-            # step. Measured on the penalty's identical second forward: checksum 5120.95 ->
-            # 5409.75 in one step, and recursive RA 16.64 -> 18.6-20.5 mm. The s22/s23 arms were
-            # trained with that leak, so their numbers confound unroll against BN contamination.
-            est = self.forward_packet(lead).detach()
-        take = torch.rand(main.prev_state.shape[0], device=main.prev_state.device) < p
-        cond = est.to(main.prev_state.dtype)
-        if self.unroll_residual:
-            cond = main.prev_state + (est - lead.target).to(main.prev_state.dtype)
-        main.prev_state = torch.where(take[:, None], cond, main.prev_state)
-        return main
-
-    def rollout_p_now(self) -> float:
-        """`TRACK.ROLLOUT_P` after the linear ramp at the current optimiser step: p(step) = ROLLOUT_P * clip((step - start)
-        / (full - start), 0, 1) with `ROLLOUT_RAMP = [start, full]` (0 up to `start`, the full probability from `full` on)."""
-        if self.rollout_p <= 0.0:
-            return 0.0
-        s0, s1 = self.rollout_ramp
-        frac = min(max((int(self.global_step) - s0) / float(s1 - s0), 0.0), 1.0)
-        return self.rollout_p * frac
-
-    def self_p_now(self) -> float:
-        """`TRACK.SELF_P` after its linear ramp `SELF_RAMP = [start, full]` at the current optimiser step."""
-        if self.self_p <= 0.0:
-            return 0.0
-        s0, s1 = self.self_ramp
-        return self.self_p * min(max((int(self.global_step) - s0) / float(s1 - s0), 0.0), 1.0)
-
-    def _self_filter(self, prev, z, n, x):
-        """The deployed count-gain filter (`semkine.anchored.AdaptiveFilter`, no velocity) on a batch, float64:
-        translation and fingers mixed linearly, the root along the geodesic, empty windows (or n <= 0) held."""
-        from semkine.anchored import _t_conj, _t_log, _t_qmul, _t_quat
-        g_root, g_rest, g_trans = self._self_gains
-        b = x.shape[0]
-        empty = (x.reshape(b, -1).abs().sum(dim=1, keepdim=True) <= 0) | (n.reshape(-1, 1) <= 0)
-        n = n.to(device=x.device, dtype=torch.float64).reshape(-1)
-        a_r, a_f, a_t = (g(n) if g.const is None else torch.full((b, 1), g.const, dtype=torch.float64, device=x.device)
-                         for g in (g_root, g_rest, g_trans))
-        p, zz = prev.detach().to(torch.float64), z.detach().to(torch.float64)
-        q_prev = _t_quat(p[:, 3:6])
-        rel = _t_log(_t_qmul(_t_conj(q_prev), _t_quat(zz[:, 3:6])))
-        r_new = _t_log(_t_qmul(q_prev, _t_quat(a_r * rel)))
-        out = torch.cat([(1.0 - a_t) * p[:, :3] + a_t * zz[:, :3], r_new, (1.0 - a_f) * p[:, 6:] + a_f * zz[:, 6:]], dim=1)
-        return torch.where(empty, p, out).to(prev.dtype)
-
-    def _maybe_self(self, batch):
-        """S42 candidate B: condition a share of a clip batch's rows on the tracker's OWN deployed closed loop.
-
-        `batch` is `{"main": legacy 5-tuple, "valid": (B,), "clip_*": clips of the valid rows}` (DATA.CLIP_K). For every
-        valid row with `rand < self_p_now()`, the clip is rolled out from its protocol initial state through steps
-        0 .. K-2 -- `z = f(LNES_k, s)`, `s = filter(s, z, n50_k)` with the deployed filter `TRACK.SELF_FILTER` -- under
-        `torch.no_grad()`, in eval mode (BatchNorm running statistics, as deployed) and float32; the row's main sample
-        then becomes the clip's last step: LNES_{K-1}, prev = the filtered state s, target = GT(e_{K-1}). The main
-        forward and the single-step loss run as always (DAgger: expert labels at the states the deployed loop visits),
-        so the number of supervised rows and of optimiser steps is the plain recipe's. Other rows keep their sample.
-        Returns the legacy 5-tuple. Anything else passes through."""
-        if not (isinstance(batch, dict) and "main" in batch):
-            return batch
-        main = batch["main"]
-        p = self.self_p_now() if self.training else 0.0
-        self._self_stats = {"p": p, "rows": 0}
-        if p <= 0.0 or "clip_codes" not in batch:
-            return main
-        x, prev, y, betas, cam = main
-        dev = x.device
-        valid_rows = batch["valid"].to(dev).bool().nonzero(as_tuple=False).reshape(-1)
-        take = torch.rand(valid_rows.numel(), device=dev) < p
-        if not bool(take.any()):
-            return main
-        rows, ci = valid_rows[take], take.nonzero(as_tuple=False).reshape(-1)
-        codes = batch["clip_codes"].to(dev)[ci]                                   # (n, K, H, W, C) uint8
-        w = batch["clip_w"].to(dev)[ci].float()                                  # (n, K)
-        K = codes.shape[1]
-        lnes = codes.float() / w.view(-1, K, 1, 1, 1)
-        n50 = batch["clip_n50"].to(dev)[ci]
-        b_r, k_r = betas[rows].float(), cam[rows].float()
-        was = self.training
-        self.eval()
-        try:
-            with torch.no_grad(), torch.autocast(device_type=dev.type, enabled=False):
-                s = batch["clip_init"].to(dev)[ci].float()
-                for k in range(K - 1):
-                    z = self(lnes[:, k], s, betas=b_r, camera_K=k_r)
-                    s = self._self_filter(s, z.float(), n50[:, k], lnes[:, k])
-        finally:
-            self.train(was)
-        x, prev, y = x.clone(), prev.clone(), y.clone()
-        x[rows] = lnes[:, K - 1].to(x.dtype)
-        prev[rows] = s.to(prev.dtype)
-        y[rows] = batch["clip_tgt"].to(dev)[ci, K - 1].to(y.dtype)
-        self._self_stats["rows"] = int(rows.numel())
-        return (x, prev, y, betas, cam)
-
-    def _maybe_rollout(self, batch):
-        """`TRACK.ROLLOUT_P` > 0: re-condition window 2 of a triplet batch on the tracker's own closed-loop estimate.
-
-        The measured gap this addresses (DT2 package E): under teacher forcing the tracker's root rotation error is 5.59
-        degrees, in its own recursion 6.96 (RA 7.49 against 10.07 mm); the previous state the network is trained on is the
-        ground truth plus independent noise, never a state that carries its own, time-correlated error. `_maybe_unroll`
-        (the S22 lead window) did the same with a raw-event pair and *replaced* the conditioning by a near-clean
-        prediction, which narrowed the error curriculum; here the replacement is the output of a two-step *bare* feed-back
-        (no filter: the closed loop of the main table feeds the output back as it is), which carries the self-error,
-        and only a fraction of the rows is replaced, so the noise curriculum of the other rows stays.
-
-        `batch` is the collated triplet `{"w0", "w1", "w2", "valid"}` (`DATA.TRIPLET`, see `_accel_loss`): three consecutive
-        equally long windows of one sequence, each a legacy tuple `(lnes, prev, target, betas, K)`. For the rows with
-        `valid` true (the others have w0 / w1 aliasing w2 and are excluded):
-
-            o0 = f(w0.lnes, prev = w0.prev)        # the state at the end of window 0 (teacher-forced start)
-            o1 = f(w1.lnes, prev = o0)             # the state at the end of window 1, 1 ms before window 2 starts
-
-        both as ONE batched forward over all valid rows (the BatchNorm batch statistics of a 64-row forward differ visibly
-        from a 256-row one; measured 0.300 against 0.155 RMS correction), under `torch.no_grad()`, with autocast off
-        (float32) and `_frozen_bn_stats` (train-mode normalisation with the batch's own statistics, the running statistics
-        untouched, so the main forward is the only writer, as without the term). Then, for every valid row with
-        `rand < p(step)`, w2's prev becomes `o1.detach().float()`; the main forward and the loss run as usual on that batch
-        (single-step supervision of w2's target), so no gradient flows through the rollout. `rand` is one uniform per row
-        of the batch. The batch dict is updated in place (`training_step`'s distillation reads window 2 from it too).
-
-        p(step) is `rollout_p_now()`: 0 until `ROLLOUT_RAMP[0]`, linear up to `ROLLOUT_P` at `ROLLOUT_RAMP[1]`. While it is 0
-        nothing is drawn and nothing is run. Only a training-mode model rolls out (validation batches are plain tuples; a
-        training-mode model fed anything but a triplet dict raises, because it would silently train without the term).
-        The step's p, the number of replaced rows and of valid rows are kept in `_rollout_stats` for `training_step`'s log.
-        """
-        if self.rollout_p <= 0.0 or not self.training:
-            return batch
-        if not (isinstance(batch, dict) and {"w0", "w1", "w2", "valid"} <= set(batch)):
-            raise ValueError("TRACK.ROLLOUT_P > 0 needs triplet batches ({'w0', 'w1', 'w2', 'valid'}, DATA.TRIPLET: true); got "
-                             f"a {type(batch).__name__} batch, which would train without the term")
-        p = self.rollout_p_now()
-        self._rollout_stats = {"p": p, "rows": 0, "valid": 0}
-        if p <= 0.0:
-            return batch
-        w0, w1, w2 = batch["w0"], batch["w1"], batch["w2"]
-        prev2 = w2[1]
-        dev = prev2.device
-        valid = batch["valid"].to(dev).bool().reshape(-1)
-        take = valid & (torch.rand(prev2.shape[0], device=dev) < p)
-        n_valid, n_take = int(valid.sum()), int(take.sum())
-        self._rollout_stats.update(rows=n_take, valid=n_valid)
-        if n_take == 0:
-            return batch
-        sel = valid.nonzero(as_tuple=False).reshape(-1)
-
-        def rows(w, i):
-            return w[i].to(dev)[sel].float()
-
-        with torch.no_grad(), self._frozen_bn_stats(), torch.autocast(device_type=dev.type, enabled=False):
-            o0 = self(rows(w0, 0), rows(w0, 1), betas=rows(w0, 3), camera_K=rows(w0, 4))
-            o1 = self(rows(w1, 0), o0.float(), betas=rows(w1, 3), camera_K=rows(w1, 4))
-        new_prev = prev2.clone()
-        sub = take[sel]
-        new_prev[sel[sub]] = o1[sub].detach().float().to(new_prev.dtype)
-        w2 = list(w2)
-        w2[1] = new_prev
-        batch["w2"] = tuple(w2) if isinstance(batch["w2"], tuple) else w2
-        return batch
-
-    def _sample_cond_delta(self, ref):
-        """A conditioning-state perturbation drawn from the curriculum's own noise distribution.
-
-        The penalty is only meaningful if it measures sensitivity over the same directions the
-        tracker actually meets, so the per-block scales come from the same `PREV_NOISE_*` entries
-        the dataset and the evaluation protocol use, and the layout matches
-        `semkine.eval_track.sample_init_noise`: translation, global rotation, then pose.
-        """
-        track = self.cfg.get("TRACK", {}) or {}
-        s = torch.empty(51, device=ref.device, dtype=ref.dtype)
-        s[0:3] = float(track.get("PREV_NOISE_T", 0.0))
-        s[3:6] = float(track.get("PREV_NOISE_R", 0.0))
-        s[6:51] = float(track.get("PREV_NOISE_POSE", 0.0))
-        return torch.randn_like(ref) * s * self.gain_reg_scale
-
-    @contextlib.contextmanager
-    def _frozen_bn_stats(self):
-        """Run a forward pass without letting it touch the BatchNorm running statistics.
-
-        The trunk has 20 BatchNorm layers, so a second train-mode forward updates every one of them
-        a second time, using a batch whose conditioning state was deliberately corrupted. Inference
-        then normalises with statistics that are part real and part perturbation. Measured: the
-        running-stat checksum moved 5120.95 -> 5409.75 across the penalty forward at step 0, and
-        recursive RA jumped from the baseline's 16.64 mm to 18.8-19.7 mm at *every* lambda, largest
-        at the smallest lambda -- the damage tracked the extra forward, not the penalty weight.
-
-        `track_running_stats = False` in train mode makes `F.batch_norm` receive `None` for both
-        buffers while still normalising with batch statistics, so the penalty sees exactly the
-        normalisation the task forward saw and the buffers are left alone. Switching the modules to
-        eval mode instead would normalise with running statistics, which changes what the penalty
-        measures.
-        """
-        bn = [m for m in self.modules() if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d))]
-        was = [m.track_running_stats for m in bn]
-        for m in bn:
-            m.track_running_stats = False
-        try:
-            yield
-        finally:
-            for m, w in zip(bn, was):
-                m.track_running_stats = w
-
-    def _ra_joints(self, params, betas):
-        """Root-aligned MANO joints, the space the probe's gain is measured in."""
-        _, j = self._fk(params, betas)
-        return j - j[:, self.FK_ROOT_JOINT : self.FK_ROOT_JOINT + 1]
-
-    def _gain_penalty(self, packed, pred):
-        """Squared retention, measured in root-aligned joint space.
-
-        The metric is not a detail, it is the whole term. The probe's `gain_rand` -- the quantity
-        that correlates +0.955 with recursive error -- is a ratio of *root-aligned joint distances
-        in millimetres* (`outputs/semkine/echo_gain_50ms.json`). Taking the same ratio in the raw
-        51-D parameter space instead is a different objective, because that norm mixes metres with
-        radians and is ~97% dominated by the 45-D pose block (sqrt(45)*0.05 rad against
-        sqrt(3)*0.005 m), while root alignment discards global translation outright. Measured: a
-        parameter-space penalty was monotone in lambda yet drove joint-space retention *above* the
-        unregularised baseline at matched step 2000 (0.457/0.439/0.335/0.221 against 0.242), i.e.
-        it optimised a direction nearly orthogonal to the one that predicts drift. Note that the
-        magnitudes agreed (0.182 against the probe's 0.236) even while the metrics did not, so
-        agreeing magnitudes are not evidence that two sensitivities are the same quantity.
-
-        Both output branches keep their graph, so a step costs one extra forward and one extra
-        backward. Detaching `f(x)` would turn this into a one-sided pull of the perturbed branch
-        toward the current unperturbed output, which is a different objective. The denominator is
-        under `no_grad` because it does not depend on the parameters.
-        """
-        if not (self.prev_render or self.routed or self.mesh_query or self.fk_graph
-                or getattr(self, "mesh_graph", False)):
-            # `self.mano` only exists on the conditioning paths, and silently falling back to a
-            # parameter-space ratio is the exact failure this docstring documents.
-            raise ValueError("TRACK.GAIN_REG_W needs MODEL.PREV_RENDER, ROUTED_READOUT or "
-                             "MESH_QUERY for the MANO forward pass")
-        if hasattr(packed, "events"):
-            prev, betas = packed.prev_state, packed.betas
-            d = self._sample_cond_delta(prev)
-            with self._frozen_bn_stats():
-                out = self.forward_packet(dataclasses.replace(packed, prev_state=prev + d))
-        else:
-            x, prev, _y, betas, camera_K = packed
-            d = self._sample_cond_delta(prev)
-            with self._frozen_bn_stats():
-                out = self(x, prev + d, betas=betas, camera_K=camera_K)
-        betas, _ = self._resolve_betas_K(prev, betas, None)
-        d_out = (self._ra_joints(out.float(), betas)
-                 - self._ra_joints(pred.float(), betas)).norm(dim=-1).mean(-1)
-        with torch.no_grad():
-            d_in = (self._ra_joints((prev + d).float(), betas)
-                    - self._ra_joints(prev.float(), betas)).norm(dim=-1).mean(-1)
-        return (d_out / d_in.clamp_min(1e-9)).pow(2).mean()
-
-    def _bn_checksum(self):
-        """Sum of every BatchNorm running statistic, as a single number."""
-        t = 0.0
-        for m in self.modules():
-            if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d)):
-                if m.running_mean is not None:
-                    t += float(m.running_mean.double().abs().sum())
-                if m.running_var is not None:
-                    t += float(m.running_var.double().abs().sum())
-        return t
-
     def _predict_batch(self, batch):
         """One forward that accepts either the legacy 5-tuple or an `EventPacketBatch`.
 
         Returns the unpacked batch as well, so a second forward can reuse the exact conditioning
-        state this one saw: `_maybe_unroll` and the dataset's noise are both random, and
-        re-unpacking would silently compare two different conditioning states.
+        state this one saw.
         """
-        packed = self._unpack_batch(self._maybe_unroll(self._maybe_rollout(self._maybe_self(batch))))
+        packed = self._unpack_batch(batch)
         if hasattr(packed, "events"):
             pred = self.forward_packet(packed)
             return pred, packed.target, packed.betas, packed
         x, prevpos, y, betas, camera_K = packed
         return self(x, prevpos, betas=betas, camera_K=camera_K), y, betas, packed
 
-    @staticmethod
-    def _legacy_window(batch):
-        """The dense tracker's legacy batch `(lnes, prev, target[, betas[, K]])` that `batch` carries: a plain tuple or
-        list of tensors, or the main window `w2` of a triplet dict. None for an `EventPacketBatch` or an unroll pair."""
-        if isinstance(batch, dict):
-            batch = batch["w2"]
-        if isinstance(batch, (tuple, list)) and len(batch) >= 3 and torch.is_tensor(batch[0]):
-            return batch
-        return None
-
-    def _distill_dense(self, pred, window, loss, parts):
-        """DT round, `MODEL.DISTILL_WEIGHT` on the dense tracker (arm dt_w05_kd). The frozen teacher reads the student's
-        own input, the same (lnes, prev state, betas, K), in eval mode under `no_grad`; the term is the training
-        objective between the student's output and the teacher's: with `so3_trans_fk` the same rotation + translation +
-        FK loss as the main term with the teacher's output where the ground truth would be, otherwise the MSE. It is
-        weighted by DISTILL_WEIGHT and added before the log10, and logged as `train_loss_distill`.
-
-        The teacher is a submodule (Lightning moves it with the student), so `model.train()` flips it to train mode too;
-        it is put back to eval here, before every use, and its BatchNorm statistics are never written."""
-        if self.teacher is None:
-            raise RuntimeError("MODEL.DISTILL_WEIGHT > 0 but no teacher is attached to the model (semkine/train.py loads "
-                               "it from MODEL.DISTILL_CKPT); skipping the term would train an undistilled arm")
-        x, prev, _, betas, camera_K = self._unpack_batch(window)
-        dev = pred.device
-        teacher = self.teacher
-        teacher.eval()
-        with torch.no_grad():
-            teacher_out = teacher(
-                x.to(dev), prev.to(dev),
-                betas=None if betas is None else betas.to(dev),
-                camera_K=None if camera_K is None else camera_K.to(dev),
-            )
-        teacher_out = teacher_out.detach()
-        if self.loss_type == "so3_trans_fk":
-            term = self._compute_loss(pred, teacher_out, betas)[0]
-        else:
-            term = F.mse_loss(pred, teacher_out)
-        parts["loss_distill"] = term
-        return loss + self.distill_weight * term, parts
-
-    def _maybe_distill(self, pred, batch, loss, parts):
-        if self.distill_weight <= 0.0:
-            return loss, parts
-        legacy = self._legacy_window(batch)
-        if legacy is not None:
-            # the dense tracker's tuple batch: this used to fall through to the silent return below
-            return self._distill_dense(pred, legacy, loss, parts)
-        if self.teacher is None:
-            return loss, parts
-        if isinstance(batch, (tuple, list)) and len(batch) == 2 and hasattr(batch[1], "events"):
-            batch = batch[1]          # a paired sample distils on its main window
-        packed = batch if hasattr(batch, "events") else None
-        if packed is None or packed.lnes is None:
-            return loss, parts
-        with torch.no_grad():
-            teacher_out = self.teacher(
-                packed.lnes.to(pred.device), packed.prev_state.to(pred.device),
-                betas=packed.betas.to(pred.device), camera_K=packed.camera_K.to(pred.device),
-            )
-        parts["loss_distill"] = F.mse_loss(pred, teacher_out)
-        return loss + self.distill_weight * parts["loss_distill"], parts
-
-    def _accel_loss(self, batch, pred):
-        """`LOSS.ACCEL_WEIGHT`: the acceleration error of a triplet batch, a scalar in metres.
-
-        `batch` is the collated triplet `{"w0", "w1", "w2", "valid"}` (`DATA.TRIPLET`): three consecutive, equally long
-        windows of one sequence, each a legacy tuple `(lnes, prev, target, betas, K)`, the targets exactly one window
-        apart, `w2` the plain sample; `pred` is the main forward's output on `w2` (all its rows, with their graph). For
-        the rows with `valid` true, `w0` and `w1` are run through the network too (teacher forcing: every window keeps
-        its own prev), which gives p0, p1 and p2 = pred[valid]. With J the model's own FK (absolute MANO joints, the
-        betas of the w2 rows for all three windows: it is one sequence) and g0, g1, g2 the targets,
-
-            L_acc = mean over valid rows, joints and axes of | (J(p2) - 2 J(p1) + J(p0)) - (J(g2) - 2 J(g1) + J(g0)) |
-
-        The extra forward leaves the BatchNorm running statistics alone (`_frozen_bn_stats`: it normalises with its own
-        batch, like any train-mode forward, but only the main forward writes them, exactly as without the term), so the
-        term cannot move what evaluation normalises with. Rows with `valid` false (their w0 and w1 alias w2) take no
-        part; with no valid row the term is a constant 0.
-        """
-        w0, w1, w2 = batch["w0"], batch["w1"], batch["w2"]
-        dev = pred.device
-        valid = batch["valid"].to(dev).bool().reshape(-1)
-        n = int(valid.sum())
-        if n == 0:
-            return torch.zeros((), device=dev, dtype=torch.float32)
-
-        def sel(w, i):
-            t = w[i]
-            return t[valid.to(t.device)].to(dev)
-
-        with self._frozen_bn_stats():
-            out01 = self(
-                torch.cat([sel(w0, 0), sel(w1, 0)]), torch.cat([sel(w0, 1), sel(w1, 1)]),
-                betas=torch.cat([sel(w0, 3), sel(w1, 3)]), camera_K=torch.cat([sel(w0, 4), sel(w1, 4)]),
-            )
-        p0, p1, p2 = out01[:n].float(), out01[n:].float(), pred[valid].float()
-        g0, g1, g2 = sel(w0, 2).float(), sel(w1, 2).float(), sel(w2, 2).float()
-        # The transform chain is precision sensitive and the trunk may run in bf16 (as in `_so3_fk_loss`).
-        with torch.autocast(device_type=dev.type, enabled=False):
-            betas, _ = self._resolve_betas_K(p2, sel(w2, 3), None)
-            b3 = betas.repeat(3, 1)
-            _, jp = self._fk(torch.cat([p0, p1, p2]), b3)
-            with torch.no_grad():
-                _, jg = self._fk(torch.cat([g0, g1, g2]), b3)
-            jp = jp.reshape(3, n, jp.shape[-2], 3)
-            jg = jg.reshape(3, n, jg.shape[-2], 3)
-            acc = (jp[2] - 2.0 * jp[1] + jp[0]) - (jg[2] - 2.0 * jg[1] + jg[0])
-            return acc.abs().mean()
-
-    def _add_accel(self, pred, batch, loss, parts):
-        """`training_step`'s half of `LOSS.ACCEL_WEIGHT` > 0: add w * L_acc to the loss (before the log10), keep the term
-        in `parts["loss_accel"]` for the log. A batch that is not a triplet dict would silently train without the term."""
-        if not isinstance(batch, dict):
-            raise ValueError("LOSS.ACCEL_WEIGHT > 0 needs triplet batches ({'w0', 'w1', 'w2', 'valid'}, DATA.TRIPLET: "
-                             f"true); got a {type(batch).__name__} batch, which would train without the term")
-        l_acc = self._accel_loss(batch, pred)
-        parts["loss_accel"] = l_acc
-        return loss + self.accel_weight * l_acc, parts
-
-    #: prefix of the frozen distillation teacher's parameters
-    TEACHER_PREFIX = "teacher."
-
     def on_save_checkpoint(self, checkpoint):
-        """Leave the frozen teacher out of the student's checkpoint.
-
-        The teacher is a submodule so that Lightning moves it to the right device, which also puts
-        its 11.2 M frozen parameters into `state_dict`. Keeping them would triple the file and,
-        worse, make every downstream loader (`select_checkpoint.py`, `eval_track.py`, the S9/S17
-        tools) fail on unexpected keys unless it happened to rebuild a teacher too.
-        """
-        sd = checkpoint.get("state_dict")
-        if sd is not None:
-            for k in [k for k in sd if k.startswith(self.TEACHER_PREFIX)]:
-                del sd[k]
+        """With TRAIN.EMA_DECAY > 0 the saved `state_dict` is the EMA model and the raw weights go to `raw_state_dict`."""
         if self.ema_decay > 0.0:
             self._ema_checkpoint(checkpoint)
 
-    # ------------------------------------------------------------------------------------ DT2: weight EMA
+    # ------------------------------------------------------------------------------------ weight EMA
     def _ema_live(self):
         """name -> the live tensor of every entry the EMA tracks: the floating-point parameters and the BatchNorm
-        running statistics (the keys they have in `state_dict`); the frozen teacher and every other buffer are left out
-        (constants and counters are copied from the raw weights when a checkpoint is written)."""
+        running statistics (the keys they have in `state_dict`); every other buffer is left out (constants and
+        counters are copied from the raw weights when a checkpoint is written)."""
         live = {}
         for n, p in self.named_parameters():
-            if not n.startswith(self.TEACHER_PREFIX) and p.is_floating_point():
+            if p.is_floating_point():
                 live[n] = p.data
         for n, b in self.named_buffers():
-            if (n.endswith(".running_mean") or n.endswith(".running_var")) and not n.startswith(self.TEACHER_PREFIX) \
-                    and b.is_floating_point():
+            if (n.endswith(".running_mean") or n.endswith(".running_var")) and b.is_floating_point():
                 live[n] = b
         return live
 
@@ -847,8 +332,8 @@ class BaseModel(pl.LightningModule):
 
     def _ema_checkpoint(self, checkpoint):
         """`on_save_checkpoint` with TRAIN.EMA_DECAY > 0: `state_dict` becomes the EMA model, the raw weights are kept in
-        `raw_state_dict`, `ema` records the decay and the number of EMA steps. (The teacher keys are already removed
-        from `checkpoint["state_dict"]`; both dicts follow its key order.)"""
+        `raw_state_dict`, `ema` records the decay and the number of EMA steps (both dicts follow the key order of
+        `checkpoint["state_dict"]`)."""
         sd = checkpoint.get("state_dict")
         if sd is None:
             return
@@ -917,60 +402,17 @@ class BaseModel(pl.LightningModule):
             checkpoint["state_dict"] = checkpoint["raw_state_dict"]
 
     def on_load_checkpoint(self, checkpoint):
-        """Accept checkpoints written before `on_save_checkpoint` existed."""
+        """`trainer.fit(ckpt_path=...)` on a checkpoint written with TRAIN.EMA_DECAY > 0 continues from its raw weights."""
         if self._is_fit_resume():
             self._ema_resume(checkpoint)
-        sd = checkpoint.get("state_dict")
-        if sd is not None:
-            for k in [k for k in sd if k.startswith(self.TEACHER_PREFIX)]:
-                del sd[k]
-            # S27 briefly carried a `gain_u` power-iteration buffer. The arm it belonged to was
-            # falsified and the buffer is gone, but the S27/S28 grids were written while it
-            # existed, and Lightning loads strictly. Dropping the key keeps those checkpoints
-            # loadable; nothing reads it.
-            sd.pop("gain_u", None)
-            if getattr(self, "teacher", None) is not None:
-                # DT round: a student resumed with its frozen teacher already attached (semkine/train.py attaches it before
-                # `fit`). The file has no teacher (`on_save_checkpoint`) but Lightning loads strictly, so the teacher gets
-                # its own tensors back; without a teacher nothing is added.
-                for k, v in self.teacher.state_dict().items():
-                    sd[self.TEACHER_PREFIX + k] = v
 
     def training_step(self, batch, batch_nb):
         pred, y, betas, packed = self._predict_batch(batch)
         loss, parts = self._compute_loss(pred, y, betas)
-        # S42: a clip batch (DATA.CLIP_K) distils on the tuple the student actually saw (self-conditioned rows included)
-        loss, parts = self._maybe_distill(pred, packed if isinstance(batch, dict) and "main" in batch else batch, loss, parts)
-        if self.self_p > 0.0 and self._self_stats is not None:
-            self.log("train_self_p", self._self_stats["p"], prog_bar=False, sync_dist=True)
-            self.log("train_self_rows", float(self._self_stats["rows"]), prog_bar=False, sync_dist=True)
-        if self.rollout_p > 0.0 and self._rollout_stats is not None:
-            # TRACK.ROLLOUT_P: this step's probability and the number of rows whose prev became the rollout's
-            self.log("train_rollout_p", self._rollout_stats["p"], prog_bar=True, sync_dist=True)
-            self.log("train_rollout_rows", float(self._rollout_stats["rows"]), prog_bar=True, sync_dist=True)
-        if self.accel_weight > 0.0:
-            loss, parts = self._add_accel(pred, batch, loss, parts)
-        if self.gain_reg_w > 0.0:
-            g2 = self._gain_penalty(packed, pred)
-            loss = loss + self.gain_reg_w * g2
-            # Log the retention itself, not its square: the pre-registered mechanism gate is that
-            # it falls monotonically with the penalty weight, and that has to be readable here
-            # rather than only in a post-hoc probe.
-            self.log("train_gain_rand", g2.detach().clamp_min(0).sqrt(), prog_bar=True,
-                     sync_dist=True)
         self.log("train_loss", loss, prog_bar=True, sync_dist=True)
-        # region agent log
-        if getattr(self, "xyz_mesh", False) and int(self.global_step) % 100 == 0:
-            self._agent_last_loss = {"loss": float(loss.detach()), "mano": float(parts["mano_loss"].detach()),
-                                     "rot": float(parts["rot_loss"].detach()), "pos": float(parts["pos_loss"].detach())}
-        # endregion
         self.log("train_mano_loss", parts["mano_loss"], sync_dist=True)
         self.log("train_pos_loss", parts["pos_loss"], sync_dist=True)
         self.log("train_rot_loss", parts["rot_loss"], sync_dist=True)
-        if "loss_distill" in parts:
-            self.log("train_loss_distill", parts["loss_distill"], prog_bar=True, sync_dist=True)
-        if "loss_accel" in parts:
-            self.log("train_loss_accel", parts["loss_accel"], sync_dist=True)
         self._log_so3_fk_parts("train", parts)
         self._log_route_stats("train")
         # Under AMP/bf16, log10 must run in fp32 to avoid illegal CUDA engines.
@@ -981,10 +423,6 @@ class BaseModel(pl.LightningModule):
     def validation_step(self, batch, batch_nb):
         pred, y, betas, packed = self._predict_batch(batch)
         loss, parts = self._compute_loss(pred, y, betas)
-        if self.gain_reg_w > 0.0:
-            self.log("val_gain_rand",
-                     self._gain_penalty(packed, pred).detach().clamp_min(0).sqrt(),
-                     sync_dist=True, on_epoch=True)
         self.log("val_loss", loss, prog_bar=True, sync_dist=True, on_epoch=True)
         self.log("val_mano_loss", parts["mano_loss"], sync_dist=True, on_epoch=True)
         self.log("val_pos_loss", parts["pos_loss"], sync_dist=True, on_epoch=True)
@@ -994,12 +432,8 @@ class BaseModel(pl.LightningModule):
         return loss
 
     def _log_route_stats(self, stage, on_epoch=False):
-        """S37 mechanism readings: share of live nodes that reached the hand (within the band)
-        and how many joints received evidence. Under the curriculum's large-noise mode the
-        first is expected to collapse; that collapse is hypothesis H1 of the pre-registration."""
-        if not (getattr(self, "routed", False) or getattr(self, "mesh_query", False)
-                or getattr(self, "fk_graph", False) or getattr(self, "mesh_graph", False)
-                or getattr(self, "xyz_mesh", False)):
+        """Mechanism readings of the xyz_mesh model: association hit rates and support sizes of the last packet batch."""
+        if not getattr(self, "xyz_mesh", False):
             return
         for key, v in self.route_stats.items():
             self.log(f"{stage}_{key}", v, sync_dist=True, on_epoch=on_epoch)
@@ -1021,51 +455,6 @@ class BaseModel(pl.LightningModule):
     #: `TRAIN.LR_SCHEDULE` values. `constant` is the historical warmup-then-flat path.
     LR_SCHEDULES = ("constant", "cosine")
 
-    # region agent log
-    def on_before_optimizer_step(self, optimizer, *args):
-        """Debug session 52fff1 (H6): per-module gradient norms every 100 optimizer steps, rank 0,
-        only when `EH_AGENT_LOG_52FFF1` names the log file (set by that session's launches only)."""
-        import os
-        path = os.environ.get("EH_AGENT_LOG_52FFF1")
-        trainer = getattr(self, "_trainer", None)
-        if not path or trainer is None or int(trainer.global_rank) != 0 or int(self.global_step) % 100:
-            return
-        import json
-        import time
-
-        def gn(params):
-            sq = [float(p.grad.detach().float().pow(2).sum()) for p in params if p.grad is not None]
-            return math.sqrt(sum(sq)) if sq else None
-
-        data = {"step": int(self.global_step)}
-        rf = getattr(self, "root_fusion_head", None)
-        if rf is not None and rf.w1.grad is not None:
-            data["root_part"] = [math.sqrt(sum(float(p.grad[j].float().pow(2).sum())
-                                               for p in (rf.w1, rf.b1, rf.w2, rf.b2)))
-                                 for j in range(rf.n_joints)]
-        if hasattr(self, "root_head"):
-            data["root_head"] = gn(self.root_head.parameters())
-        enc = getattr(self, "event_encoder", None)
-        if enc is not None and hasattr(enc, "layers"):
-            data["edgeconv"] = [gn(layer.parameters()) for layer in enc.layers]
-            data["embed"] = gn(enc.embed.parameters())
-            if getattr(enc, "readout", False):
-                data["proj"] = gn(enc.proj.parameters())
-        if hasattr(self, "joint_heads"):
-            data["joint_heads"] = gn(self.joint_heads.parameters())
-        if hasattr(self, "prev_mlp"):
-            data["prev_mlp"] = gn(self.prev_mlp.parameters())
-        m = trainer.callback_metrics
-        data["train_loss"] = float(m["train_loss"]) if "train_loss" in m else None
-        ts = int(time.time() * 1000)
-        with open(path, "a") as f:
-            f.write(json.dumps({"sessionId": "52fff1", "id": f"log_{ts}_H6", "timestamp": ts,
-                                "location": "model.py:on_before_optimizer_step",
-                                "message": "per-module grad norms (rank 0)", "data": data,
-                                "runId": os.environ.get("EH_AGENT_RUN_52FFF1", "train"),
-                                "hypothesisId": "H6"}) + "\n")
-    # endregion
-
     def _param_groups(self, wd):
         """AdamW groups for TRAIN.WEIGHT_DECAY: `weight` of every Conv / Linear layer decays by `wd`; BatchNorm
         weights and biases, every bias and any other parameter do not (weight 0). Frozen parameters stay out."""
@@ -1086,8 +475,7 @@ class BaseModel(pl.LightningModule):
     def configure_optimizers(self):
         tcfg = self.cfg.get("TRAIN", {})
         lr = float(tcfg.get("LR", 1e-3))
-        # Frozen parameters (TRAIN.TRAINABLE_PREFIXES) stay out of the optimiser; with nothing
-        # frozen this is every parameter in the same order as before.
+        # With nothing frozen this is every trainable parameter in the module's own order.
         if self.weight_decay > 0.0:
             # TRAIN.WEIGHT_DECAY (DT2): decoupled decay on the Conv / Linear weights only
             opt = optim.AdamW(self._param_groups(self.weight_decay), lr=lr, weight_decay=self.weight_decay)
@@ -1127,52 +515,6 @@ class BaseModel(pl.LightningModule):
         }
 
 
-class SpatialRootHead(nn.Module):
-    """`MODEL.ROOT_HEAD: spatial`: a root-rotation readout that keeps the spatial layout the global-average pool discards.
-
-    layer3 map (C, h, w) -> Conv3x3(C, 64) + BatchNorm + ReLU -> Conv3x3(64, 32) + ReLU -> flatten -> Linear(32 h w, 3).
-    The last layer starts at zero (weight and bias), so the head's output is exactly 0 at initialisation and the model
-    computes the baseline's function; its three outputs are ADDED to the root axis-angle columns of the trunk's 51-d
-    output (the fc's own root row stays). 183,395 parameters for the l3 trunk (256 x 12 x 15).
-    """
-
-    def __init__(self, c_in: int, h: int, w: int, mid: int = 64, c2: int = 32, out: int = 3):
-        super().__init__()
-        self.conv1 = nn.Conv2d(c_in, mid, 3, padding=1)
-        self.bn = nn.BatchNorm2d(mid)
-        self.conv2 = nn.Conv2d(mid, c2, 3, padding=1)
-        self.fc = nn.Linear(c2 * h * w, out)
-        self.in_hw = (int(h), int(w))
-        nn.init.zeros_(self.fc.weight)
-        nn.init.zeros_(self.fc.bias)
-
-    def forward(self, f):
-        if tuple(f.shape[-2:]) != self.in_hw:
-            raise ValueError(f"ROOT_HEAD spatial was built for a {self.in_hw} feature map, got {tuple(f.shape[-2:])}")
-        x = F.relu(self.bn(self.conv1(f)))
-        x = F.relu(self.conv2(x))
-        return self.fc(torch.flatten(x, 1))
-
-
-class AnchorRootHead(nn.Module):
-    """`MODEL.ROOT_HEAD: anchor`: the MLP of the anchored root readout. Its input is built by
-    `MNISTModel._anchor_features` (the layer2 features bilinearly sampled at the 21 joints of the previous state's FK,
-    plus each joint's normalised pixel position and an in-bounds flag): `n_joints x (c_in + 3)` numbers ->
-    Linear(., 256) + ReLU -> Linear(256, 3), the last layer zero-initialised exactly like `SpatialRootHead`'s.
-    """
-
-    def __init__(self, c_in: int = 128, n_joints: int = 21, hidden: int = 256, out: int = 3):
-        super().__init__()
-        self.n_joints, self.c_in = int(n_joints), int(c_in)
-        self.fc1 = nn.Linear(self.n_joints * (self.c_in + 3), hidden)
-        self.fc2 = nn.Linear(hidden, out)
-        nn.init.zeros_(self.fc2.weight)
-        nn.init.zeros_(self.fc2.bias)
-
-    def forward(self, feats):
-        return self.fc2(F.relu(self.fc1(feats.flatten(1))))
-
-
 class MNISTModel(BaseModel):
     """ResNet18 absolute-pose regressor (name kept for checkpoint compatibility).
 
@@ -1193,118 +535,44 @@ class MNISTModel(BaseModel):
     The whole hand-model path is confined to the rasterizer: the trunk stays a
     plain conv1 adapter followed by an unmodified resnet18.
 
-    DT round (docs/DT_RENDER_TRACK_PREREG.md section 2): four keys of the dense tracker, every one off by default.
-    With all four at their defaults the modules, the random draws that initialise them, the forward ops and the loss
-    are those of the earlier rounds, bit for bit (tests/test_dt_model.py pins this against the pristine copy
-    outputs/dt/ref/model_orig.py). Impossible combinations raise ValueError.
+    MODEL.CNN_BACKBONE names the dense trunk `rn`: a key of `backbones.BACKBONES` (default `resnet18`,
+    torchvision's resnet18 itself) or of `backbones.SPARSE_BACKBONES` (the S43 sparse trunk, evaluated on
+    the active sites of [LNES | render] only). Dense path only (no ENCODER). Not `BACKBONE`: that key is
+    dead and sits in many configs.
 
-      CNN_BACKBONE     the trunk `rn`: a name of `backbones.BACKBONES` (default `resnet18`, torchvision's resnet18
-                       itself). Dense path only (no ENCODER, no ACTIVE_HEAD). Not `BACKBONE`: that key is dead and
-                       sits in many configs.
-      CAM_PLANES       two more input channels, appended after the render channels: the camera-ray slopes
-                       ((c - cx) / fx, (r - cy) / fy) of every render pixel under the sample's own render intrinsics
-                       (K * RENDER_SCALE, so DomRand's K' enters). conv1 grows by two input channels whose weights
-                       start at zero: every other initial weight equals the model without planes under the same
-                       seed. Needs PREV_RENDER and the dense path.
-      ROOT_COMPOSE     `add` (default): the root rotation is prev + delta in axis-angle. `so3`: R = Exp(delta_root)
-                       R_prev, a LEFT multiplication (the camera-frame convention of evalx's perturbations, of
-                       DomRand's roll and of S38's R_ref), returned as the principal axis-angle Log(R), |.| <= pi,
-                       computed in float32 with autocast off; with ZERO_EVENT_GATE (the default of the render arms)
-                       an event-free packet returns `prevpos` bit for bit; translation and fingers stay additive.
-                       Needs PREDICT_DELTA and the dense path. Meant for a rotation loss (so3_trans_fk, or mse_51d
-                       with ROOT_LOSS chordal): an axis-angle MSE would see the seam at pi.
-      PREV_MLP_TRANSL  false: prev_mlp's three translation outputs are masked to 0 in the dense forward (the layer
-                       keeps its shape, so state_dicts are unchanged). Needs PREVPOS_EMBED and the dense path.
-
-    DT2 round (docs/DT2_PREREG.md section 2), two more keys of the dense tracker, off by default (the modules, the random
-    draws that build them, the forward ops and the loss are those of the earlier rounds bit for bit):
-
-      ROOT_HEAD        `none` (default) | `spatial` | `anchor`. A second root-rotation readout whose three outputs are
-                       ADDED to the root axis-angle columns [3:6] of the trunk's 51-d output (next to the fc's own root
-                       row) before prev_mlp, the event gate and `prev + delta`; its last layer is zero-initialised, so the
-                       model starts as the baseline. Needs PREDICT_DELTA, the 51-d layout and a torchvision-style trunk
-                       (`resnet_forward_taps`). Built after every other module, so under one seed the rest of the model
-                       has the baseline's initial weights.
-                         spatial  layer3 map -> `SpatialRootHead` (keeps the spatial layout; 183,395 parameters for l3)
-                         anchor   layer2 map (stride 8) sampled at the 21 joints of the previous state's FK, projected
-                                  with the render intrinsics (`_intrinsics`, so DomRand's K' enters) -> `AnchorRootHead`
-                                  (needs PREV_RENDER: MANO and the intrinsics)
-      RENDER_FP32      true: the previous-state render (MANO FK, projection, z-buffer) runs with autocast disabled, so the
-                       training render under bf16 autocast equals the fp32 render the evaluation uses bit for bit. Needs
-                       PREV_RENDER and the dense path.
+    MODEL.ENCODER `xyz_mesh` (S37-XYZ, the C1 / S45 recipe): the previous state's mesh in camera XYZ, events
+    associated along their rays, one shared relation encoder, a MeshGNN and one common readout writing the
+    51D delta (`semkine.xyz_mesh`); it consumes `EventPacketBatch`es through :meth:`forward_packet`.
     """
 
     #: rasterizable faces and their channel width
     RENDER_FACES = {"sil": 1, "inv": 1, "semsil": 1}
-    #: values of MODEL.ROOT_HEAD
-    ROOT_HEADS = ("none", "spatial", "anchor")
     #: every MODEL key the model or the training script understands
     MODEL_KEYS = frozenset(
         {
             "BACKBONE", "POSE_REPR", "OUTPUT_DIM", "MANO_NCOMPS", "PREDICT_BETA",
             "PREDICT_DELTA", "PREVPOS_EMBED", "PREV_RENDER", "ZERO_EVENT_GATE",
-            "ROUTED_READOUT", "ROUTE_BAND_PX", "ROUTE_FRONT_K",
-            # S37 root input fusion (docs/S37_EDGE6_ROOTFUSE_PREREG_20260929.md)
-            "ROOT_FUSION",
-            # S37 root innovation (docs/S37_ROOT_INNOVATION_PREREG.md)
-            "ROOT_INNOVATION", "ROOT_INNOV_HIDDEN", "ROOT_INNOV_WIDTH", "PREV_MLP_ROOT",
-            "MESH_QUERY", "MESH_QUERY_TOKENS", "MESH_QUERY_BAND_PX", "MESH_QUERY_SIGMA_PX",
-            "ENCODER_NODE_ATTRS",
-            "FK_GRAPH_VERTS", "FK_GRAPH_BAND_PX", "FK_GRAPH_K", "FK_GRAPH_NODE_ID",
-            "MESH_GRAPH_BAND_PX", "MESH_GRAPH_FRONT_PX", "MESH_GRAPH_Z_TOL",
-            "MESH_GRAPH_OBS_FLOW", "MESH_GRAPH_NODE_ID",
-            # S37-XYZ (docs/S37_XYZ_SCREEN_PREREG_20260929.md)
+            # S37-XYZ (docs/S37_XYZ_SCREEN_PREREG_20260929.md); XYZ_GEOM only accepts true
             "XYZ_BAND_PX", "XYZ_FRONT_PX", "XYZ_Z_TOL", "XYZ_K", "XYZ_GEOM", "XYZ_REL_HIDDEN",
             "XYZ_SLOT_DIM", "XYZ_READOUT_HIDDEN",
-            # XYZ-ASSOC (docs/EXPERIMENT_RECORDS.md#xyz-assoc-20261009)
-            "XYZ_ASSOC_MODE", "XYZ_CONTOUR_GAP", "XYZ_ASSOC_PREV",
+            # XAG (docs/EXPERIMENT_RECORDS.md#xag-paired-c1-20261018): source-label routing, opt-in
             "XAG_ASSOC", "XAG_GNN",
-            # XB ABCD residual evidence study; defaults leave the XYZ/S39 paths unchanged.
-            "XYZ_RESIDUAL_MODE", "XYZ_RESIDUAL_SEED",
-            # XVM C1+sign (docs/EXPERIMENT_RECORDS.md#xvm-prereg-20261021): signed contour record features, opt-in
-            "XYZ_SIGN",
-            # AURA (docs/EXPERIMENT_RECORDS.md#aura-prereg-20261024): one association variant, opt-in
-            "XYZ_AURA",
-            # AGG778 (docs/EXPERIMENT_RECORDS.md#agg778-prereg-20261024): one aggregation variant, opt-in
-            "XYZ_AGG",
-            # MRF (docs/EXPERIMENT_RECORDS.md#mrf-prereg-20261024): one receptive-field (MeshGNN) variant, opt-in
-            "XYZ_RF",
             "RENDER_CHANNELS", "RENDER_H", "RENDER_W", "RENDER_SCALE",
             "RENDER_CHUNK", "RENDER_DEPTH_TOL", "INIT_FROM",
-            "ACTIVE_HEAD", "ACTIVE_FEAT_DIM", "ACTIVE_HIDDEN",
-            "ENCODER", "ENCODER_HIDDEN", "ENCODER_FEAT", "ENCODER_CELL", "ENCODER_LAYERS",
-            "ENCODER_K", "ENCODER_MAX_NODES", "ENCODER_WINDOW", "ENCODER_T_SCALE",
-            # S38 sparse pyramid (`semkine.sparse_pyramid`) and root measurement
-            "ENCODER_CHANNELS", "ENCODER_BLOCKS", "ROOT_MEAS", "ROOT_REF", "ROOT_FILTER_GAIN",
-            "FINGER_MEAS", "FINGER_FILTER_GAIN",
-            "U1A_MODE", "U1A_HIDDEN", "U1A_FREEZE_ENCODER",
-            "DISTILL_WEIGHT", "DISTILL_CKPT",
-            # absolute EventGNN control
-            "POSE_HEAD_HIDDEN",
-            # DT round (docs/DT_RENDER_TRACK_PREREG.md section 2): dense trunk, ray planes, root composition, prev_mlp
-            "CNN_BACKBONE", "CAM_PLANES", "ROOT_COMPOSE", "PREV_MLP_TRANSL",
-            # DT2 round (docs/DT2_PREREG.md section 2): a second root readout, fp32 render
-            "ROOT_HEAD", "RENDER_FP32",
-            # trk6 / S42 round (docs/EXPERIMENT_RECORDS.md#s42-prereg): hand-centric glimpse of the dense tracker
-            "GLIMPSE", "GLIMPSE_SPAN_M", "GLIMPSE_KAPPA",
-            # S43 (docs/EXPERIMENT_RECORDS.md#s43-prereg): decoupled translation head on the sparse trunk
-            "TRANSL_HEAD", "TRANSL_HEAD_HIDDEN", "SPARSE_NOISE",
+            "ENCODER", "ENCODER_HIDDEN", "ENCODER_LAYERS", "ENCODER_MAX_NODES",
+            "CNN_BACKBONE",
+            # the S37 per-joint decoder heads were removed; the key stays whitelisted for the frozen S45-line configs
+            # that carry `ACTIVE_HEAD: false`, and only `false` is accepted
+            "ACTIVE_HEAD",
         }
     )
-    #: every TRACK key the model or the dataset understands. Whitelisted for the same reason
-    #: MODEL keys are: `UNROLL_PAIR` / `UNROLL_P` / `UNROLL_RAMP` were once read by nothing, and
-    #: two arms trained to completion as silent copies of the arm they were meant to differ from.
+    #: every TRACK key the model or the dataset understands. Whitelisted so that a key nothing reads cannot turn a
+    #: config-only "ablation" into a silent copy of the baseline.
     TRACK_KEYS = frozenset(
         {
             "PREV_NOISE_T", "PREV_NOISE_R", "PREV_NOISE_POSE", "PREV_NOISE_MODE",
             "PREV_NOISE_LARGE_T", "PREV_NOISE_LARGE_R", "PREV_NOISE_LARGE_POSE",
             "PREV_NOISE_P_SMALL", "PREV_NOISE_P_LARGE", "PREV_NOISE_P_CORR",
-            "UNROLL_PAIR", "UNROLL_P", "UNROLL_RAMP", "UNROLL_RESIDUAL",
-            "GAIN_REG_W", "GAIN_REG_SCALE",
-            # DT2 round, package E: closed-loop rollout of the conditioning state on triplet batches (`_maybe_rollout`)
-            "ROLLOUT_P", "ROLLOUT_RAMP",
-            # S42 candidate B: deployed-loop self-conditioning on clip batches (`_maybe_self`)
-            "SELF_P", "SELF_RAMP", "SELF_FILTER",
         }
     )
     #: floor of the semsil value inside the mask, so the mask stays readable as a
@@ -1321,121 +589,15 @@ class MNISTModel(BaseModel):
             # A silently ignored MODEL key means a config-only "ablation" that never
             # reached the network, so refuse to build instead of running the default.
             raise ValueError(f"unknown MODEL keys: {unknown}")
+        if model_cfg.get("ACTIVE_HEAD", False):
+            raise ValueError("MODEL.ACTIVE_HEAD (the per-joint decoder heads) was removed; only `false` is accepted")
         track_cfg = self.cfg.get("TRACK", {}) or {}
         unknown = sorted(set(track_cfg) - self.TRACK_KEYS)
         if unknown:
             raise ValueError(f"unknown TRACK keys: {unknown}")
-        # S22. Probability that a paired sample's main window is re-conditioned on the model's own
-        # prediction for the window before it, annealed over `UNROLL_RAMP = [hold, full]`. The ramp
-        # is not cosmetic: at a constant 0.5 from step 0 half the conditioning states come from an
-        # untrained network, and the measured optimum is to stop reading the conditioning state at
-        # all (teacher-forced RA 42.5 mm against 12.1 without the mixing).
-        self.unroll_p = float(track_cfg.get("UNROLL_P", 0.0))
-        ramp = track_cfg.get("UNROLL_RAMP") or (0, 0)
-        self.unroll_ramp = (int(ramp[0]), int(ramp[1]))
-        # E5.5c: add the lead prediction's *error* on top of the noised state instead of replacing
-        # the state with the prediction. Both replacement variants failed with one root cause: the
-        # lead prediction is near-clean (1-2 mm), so replacement teaches "prev is trustworthy".
-        # Constant-P collapsed outright (TF 42.5 mm); annealed kept TF but pushed the recursive
-        # echo excess back from x1.85-1.95 to x2.22-2.26 (probe 2026-08-25 21:40) because half the
-        # samples lost the large-error curriculum. The residual form keeps GT + curriculum noise
-        # and injects the self-error's correlated *structure* on top.
-        self.unroll_residual = bool(track_cfg.get("UNROLL_RESIDUAL", False))
-        # Retention penalty. Measured across 11 checkpoints and two seeds, the recursive error is
-        # ranked by how much of a conditioning-state error survives one step (Spearman +0.93/+1.00)
-        # and *anti*-ranked by single-step accuracy (-0.61/-1.00): `s22`'s unroll arm has the best
-        # teacher-forced error in the set and the worst tracking. Retention spans 0.215-0.693 across
-        # recipes and reproduces to within 0.05 across seeds, so it is a stable property that no
-        # recipe has ever optimised on purpose. `GAIN_REG_W` optimises it directly.
-        self.gain_reg_w = float(track_cfg.get("GAIN_REG_W", 0.0))
-        self.gain_reg_scale = float(track_cfg.get("GAIN_REG_SCALE", 1.0))
         self.predict_delta = bool(model_cfg.get("PREDICT_DELTA", False))
         self.prevpos_embed = bool(model_cfg.get("PREVPOS_EMBED", False))
         self.prev_render = bool(model_cfg.get("PREV_RENDER", False))
-        # S37 (routed readout, 2026-09-07). The graph stays state-free; the previous state enters
-        # at the readout only, as a
-        # per-node responsibility over the 16 MANO joints computed from its projected FK
-        # (`semkine.routed_readout`). Each finger decoder then reads its own joint's routed
-        # evidence and nothing else from the events; the root reads the pooled vector plus all
-        # sixteen evidence vectors in joint order.
-        self.routed = bool(model_cfg.get("ROUTED_READOUT", False))
-        self.route_band_px = float(model_cfg.get("ROUTE_BAND_PX", 16.0))
-        self.route_front_k = int(model_cfg.get("ROUTE_FRONT_K", 8))
-        # How the root reads the routed evidence. `concat` is S37: one linear map of
-        # [f; e_0 .. e_15]. `per_joint` (2026-09-29, the user's variant): joint j's evidence is fused
-        # with the pooled vector by its own MLP, [f; e_j] -> ACTIVE_HIDDEN -> 6, and the sixteen
-        # outputs are summed into the root update.
-        self.root_fusion = str(model_cfg.get("ROOT_FUSION", "concat")).lower()
-        if self.root_fusion not in ("concat", "per_joint"):
-            raise ValueError(f"MODEL.ROOT_FUSION must be concat or per_joint, got {self.root_fusion!r}")
-        if self.root_fusion == "per_joint" and not self.routed:
-            raise ValueError("ROOT_FUSION: per_joint fuses the routed joint evidence; it needs ROUTED_READOUT")
-        # S38 root measurement (docs/S38_ROOT_TRACKING_VERDICT.md). `delta` is S37: the root rotation is
-        # `prev + delta` in axis-angle, the delta read off [f; routed evidence]. `abs`: the root rotation
-        # is measured per packet from the encoder's state-free pool alone, as a rotation about the fixed
-        # reference `ROOT_REF` (axis-angle, camera frame; the training-set mean root),
-        # R = Exp(r) R_ref, so the head regresses a deviation that is small for nearly every sample
-        # (median 15 deg) instead of an axis-angle near its pi seam. Nothing of `prev` reaches it: the
-        # routed evidence depends on prev, and an absolute head that shares the belief's source shares
-        # its error (docs/ARCHITECTURE_DECISION.md B3). Translation and fingers stay S37's.
-        # `ROOT_FILTER_GAIN` a < 1 (inference only) makes the fed-back root the geodesic step of size a
-        # from the previous output toward the measurement, R_t = R_{t-1} Exp(a Log(R_{t-1}^T R_meas)),
-        # the constant-gain filter of `semkine.anchored.CausalFilter`. Training sees the measurement.
-        self.root_meas = str(model_cfg.get("ROOT_MEAS", "delta")).lower()
-        if self.root_meas not in ("delta", "abs"):
-            raise ValueError(f"MODEL.ROOT_MEAS must be delta or abs, got {self.root_meas!r}")
-        self.root_filter_gain = float(model_cfg.get("ROOT_FILTER_GAIN", 1.0))
-        if not 0.0 < self.root_filter_gain <= 1.0:
-            raise ValueError("MODEL.ROOT_FILTER_GAIN must be in (0, 1]")
-        if self.root_meas == "abs":
-            if not (self.routed and self.root_fusion == "concat" and self.predict_delta):
-                raise ValueError("ROOT_MEAS: abs replaces the root rotation of the S37 routed delta readout; "
-                                 "it needs ROUTED_READOUT, ROOT_FUSION concat and PREDICT_DELTA")
-            ref = model_cfg.get("ROOT_REF")
-            if ref is None or len(ref) != 3:
-                raise ValueError("ROOT_MEAS: abs needs MODEL.ROOT_REF, the reference root as 3 axis-angle numbers")
-        elif self.root_filter_gain != 1.0:
-            raise ValueError("ROOT_FILTER_GAIN filters an absolute root measurement; set ROOT_MEAS: abs")
-        # S38 finger measurement. `delta` is S37 (fifteen routed joint decoders write prev + delta). `abs`: the
-        # 45 finger parameters are measured per packet from the encoder's state-free pool, and at inference
-        # `FINGER_FILTER_GAIN` g < 1 moves the fed-back fingers from prev toward the measurement by g (the
-        # linear filter of `semkine.anchored.CausalFilter`); an event-free packet holds prev. Translation
-        # stays the routed head's prev + delta. (The 2000-step screen: the sparse pyramid's routed finger
-        # decoders lost 7 mm of zgz_local RA to S37's, while its pool read fingers absolutely as well as S37.)
-        self.finger_meas = str(model_cfg.get("FINGER_MEAS", "delta")).lower()
-        self.u1a_mode = str(model_cfg.get("U1A_MODE", "off")).lower()
-        if self.u1a_mode not in ("off", "shared", "untied"):
-            raise ValueError("U1A_MODE must be off, shared or untied")
-        self.u1a_freeze_encoder = bool(model_cfg.get("U1A_FREEZE_ENCODER", True))
-        if self.u1a_mode != "off" and not (
-                str(model_cfg.get("ENCODER", "")).lower() == "sparse_pyramid"
-                and self.routed and bool(model_cfg.get("ACTIVE_HEAD", False))
-                and self.root_meas == "abs" and self.finger_meas == "abs"
-                and self.root_fusion == "concat" and self.predict_delta
-                and not self.prev_render and not model_cfg.get("ROOT_INNOVATION", False)):
-            raise ValueError("U1a requires S38 sparse_pyramid, routed abs root/fingers and no rendering/innovation")
-        if self.finger_meas not in ("delta", "abs"):
-            raise ValueError(f"MODEL.FINGER_MEAS must be delta or abs, got {self.finger_meas!r}")
-        self.finger_filter_gain = float(model_cfg.get("FINGER_FILTER_GAIN", 1.0))
-        if not 0.0 < self.finger_filter_gain <= 1.0:
-            raise ValueError("MODEL.FINGER_FILTER_GAIN must be in (0, 1]")
-        if self.finger_meas == "abs" and not (self.routed and self.root_fusion == "concat" and self.predict_delta):
-            raise ValueError("FINGER_MEAS: abs replaces the routed finger decoders; it needs ROUTED_READOUT, "
-                             "ROOT_FUSION concat and PREDICT_DELTA (translation stays routed prev + delta)")
-        if self.finger_meas != "abs" and self.finger_filter_gain != 1.0:
-            raise ValueError("FINGER_FILTER_GAIN filters an absolute finger measurement; set FINGER_MEAS: abs")
-        # S37 mesh query (2026-09-07, the user's design). The previous state enters in one form
-        # only -- its FK mesh -- and the mesh reads the graph: fixed query vertices gather node
-        # features, the graph's edge (local motion) summary and event offsets inside a fixed
-        # kernel, skinning weights carry that to the joints, each joint decoder reads its own
-        # joint's evidence and is gated by its coverage (`semkine.mesh_query`). No prev_mlp, no
-        # prev angles in the heads, no rendered node channels, no derived event tokens.
-        self.mesh_query = bool(model_cfg.get("MESH_QUERY", False))
-        if self.mesh_query and (self.routed or self.prev_render):
-            raise ValueError("MESH_QUERY is the only conditioning path of its arm")
-        if self.mesh_query and self.prevpos_embed:
-            raise ValueError("MESH_QUERY: the previous state enters through its FK mesh only; "
-                             "set PREVPOS_EMBED: false")
         self.zero_event_gate = bool(model_cfg.get("ZERO_EVENT_GATE", self.prev_render))
         self.render_channels = self._parse_render_channels(model_cfg)
         # Two planes per event face. `DATA.EVENT_CHANNELS` is unset in every existing config, which
@@ -1443,48 +605,16 @@ class MNISTModel(BaseModel):
         self.event_channels = EV.event_channels(self.cfg)
         in_ch = (2 * len(self.event_channels)
                  + sum(self.RENDER_FACES[c] for c in self.render_channels))
-        # Keep parameter names conv1 / rn for loading original 12D checkpoints.
+        # Keep parameter names conv1 / rn for loading original 12D checkpoints. The xyz_mesh model discards this
+        # layer below, but its construction draws random numbers that every initial weight after it depends on.
         self.conv1 = nn.Conv2d(in_ch, 3, kernel_size=3, padding=1)
 
-        # S10. The active head, and specifically the one design the repository's own history says
-        # is required. A zero-initialised additive per-joint bypass alongside a direct 51D
-        # regression was measured to be lazy: the direct path takes the gradient and the bypass
-        # contributes 0.16 mm, indistinguishable from noise. So here the trunk does not emit a pose
-        # at all. It emits a feature vector; a small head reads root translation and rotation off
-        # it; and each of the fifteen joints has its own decoder which is the *sole* pathway to that
-        # joint's local pose. There is no direct route for the trunk to write a finger angle, so the
-        # per-joint decoders cannot be ignored, and zeroing them at inference on the same checkpoint
-        # is a decisive non-laziness check rather than a suggestive one.
-        self.active_head = bool(model_cfg.get("ACTIVE_HEAD", False))
-        #: set at inference to zero every joint decoder, for the same-checkpoint ablation
-        self.ablate_joint_heads = False
         self.encoder_name = str(model_cfg.get("ENCODER") or "").lower()
         if self.encoder_name in ("", "none", "lnes"):
             self.encoder_name = ""
-        # S37 FK graph (2026-09-07, the user's design, no geometry branch). The previous state's
-        # FK *is* the graph -- joint nodes, sampled surface-vertex nodes, a background node, edges
-        # along the mesh / skinning / kinematic tree -- and the events are its observations: every
-        # event is handed to the node under its pixel and each node's input is only what its
-        # events say (count, offset, spread, time, polarity, local flow). No event graph, no
-        # tokens, no rendering, no geometric node or edge features (`semkine.fk_graph`).
-        self.fk_graph = self.encoder_name == "fk_graph"
-        if self.fk_graph and (self.prev_render or self.routed or self.mesh_query):
-            raise ValueError("ENCODER=fk_graph is the only conditioning path of its arm")
-        if self.fk_graph and not self.active_head:
-            raise ValueError("ENCODER=fk_graph decodes joints from joint nodes; it needs ACTIVE_HEAD")
-        # S37 mesh graph (2026-09-18, the user's drawing). The previous state's *full* MANO mesh
-        # is the graph -- 778 vertex nodes plus a background node, edges = the mesh faces -- and
-        # the events are its observations exactly as in `fk_graph`, handed to the nearest
-        # *visible* vertex. After EdgeConv on the mesh, the fixed skinning weights pool the vertex
-        # features into sixteen joint evidences (`semkine.mesh_graph`); joint decoder k reads its
-        # own joint's evidence, the root reads all sixteen in order plus the background node. The
-        # state and the delta stay 51D MANO parameters: FK needs rotations, not joint positions.
-        self.mesh_graph = self.encoder_name == "mesh_graph"
-        if self.mesh_graph and (self.prev_render or self.routed or self.mesh_query):
-            raise ValueError("ENCODER=mesh_graph is the only conditioning path of its arm")
-        if self.mesh_graph and not self.active_head:
-            raise ValueError("ENCODER=mesh_graph decodes joints from pooled vertex evidence; "
-                             "it needs ACTIVE_HEAD")
+        elif self.encoder_name != "xyz_mesh":
+            raise ValueError(f"MODEL.ENCODER must be xyz_mesh (or absent for the dense LNES tracker), got "
+                             f"{model_cfg.get('ENCODER')!r}")
         # S37-XYZ (2026-09-29, the user's drawing). prev's full mesh in camera XYZ, events associated
         # along their rays, a shared relation encoder, one MeshGNN on the face 1-ring gated by the 3D
         # edges, 16 LBS slots + the residual slot, one common readout that also reads prev[3:51] and
@@ -1493,211 +623,18 @@ class MNISTModel(BaseModel):
         from semkine.xag import validate_config as validate_xag_config
         self.xag_assoc_mode, self.xag_gnn_mode = validate_xag_config(model_cfg, xyz_mesh=self.xyz_mesh)
         self.xag_enabled = "XAG_ASSOC" in model_cfg or "XAG_GNN" in model_cfg
-        if self.xyz_mesh and (self.prev_render or self.routed or self.mesh_query):
+        if self.xyz_mesh and self.prev_render:
             raise ValueError("ENCODER=xyz_mesh is the only conditioning path of its arm")
-        if self.xyz_mesh and (self.prevpos_embed or bool(model_cfg.get("ACTIVE_HEAD", False))):
-            raise ValueError("ENCODER=xyz_mesh has one common readout: set PREVPOS_EMBED and "
-                             "ACTIVE_HEAD false")
-        if not self.xyz_mesh and any(k in model_cfg for k in ("XYZ_ASSOC_MODE", "XYZ_CONTOUR_GAP", "XYZ_ASSOC_PREV")):
-            raise ValueError("MODEL.XYZ_ASSOC_MODE / XYZ_CONTOUR_GAP / XYZ_ASSOC_PREV belong to ENCODER=xyz_mesh")
-        if not self.xyz_mesh and any(k in model_cfg for k in ("XYZ_RESIDUAL_MODE", "XYZ_RESIDUAL_SEED")):
-            raise ValueError("MODEL.XYZ_RESIDUAL_MODE / XYZ_RESIDUAL_SEED belong to ENCODER=xyz_mesh")
-        if not self.xyz_mesh and "XYZ_AURA" in model_cfg:
-            raise ValueError("MODEL.XYZ_AURA belongs to ENCODER=xyz_mesh")
-        if not self.xyz_mesh and "XYZ_SIGN" in model_cfg:
-            raise ValueError("MODEL.XYZ_SIGN belongs to ENCODER=xyz_mesh")
-        if not self.xyz_mesh and "XYZ_AGG" in model_cfg:
-            raise ValueError("MODEL.XYZ_AGG belongs to ENCODER=xyz_mesh")
-        if not self.xyz_mesh and "XYZ_RF" in model_cfg:
-            raise ValueError("MODEL.XYZ_RF belongs to ENCODER=xyz_mesh")
-        # DT round (docs/DT_RENDER_TRACK_PREREG.md section 2). Four keys of the dense tracker. Every default builds the
-        # same modules from the same random draws and runs the same forward ops as the earlier rounds, so the recorded
-        # closed-loop numbers stay reproducible bit for bit; every impossible combination raises instead of being
-        # silently ignored (the project rule for MODEL keys).
+        if self.xyz_mesh and self.prevpos_embed:
+            raise ValueError("ENCODER=xyz_mesh has one common readout: set PREVPOS_EMBED false")
         dense_trunk = not self.encoder_name
         self.cnn_backbone = model_cfg.get("CNN_BACKBONE", "resnet18")
         if not isinstance(self.cnn_backbone, str):
             raise ValueError(f"MODEL.CNN_BACKBONE must be a backbone name (a string), got {self.cnn_backbone!r}")
-        if "CNN_BACKBONE" in model_cfg and not (dense_trunk and not self.active_head):
+        if "CNN_BACKBONE" in model_cfg and not dense_trunk:
             raise ValueError("MODEL.CNN_BACKBONE replaces the dense ResNet18 trunk; it is only legal for the dense "
-                             "non-active-head path (no ENCODER, no ACTIVE_HEAD)")
-        self.cam_planes = model_cfg.get("CAM_PLANES", False)
-        if not isinstance(self.cam_planes, bool):
-            raise ValueError(f"MODEL.CAM_PLANES must be true or false, got {self.cam_planes!r}")
-        if self.cam_planes and not (self.prev_render and dense_trunk):
-            raise ValueError("MODEL.CAM_PLANES appends the render-resolution ray planes to the dense trunk's input, "
-                             "under the intrinsics the render uses; it needs PREV_RENDER and no ENCODER")
-        self.root_compose = str(model_cfg.get("ROOT_COMPOSE", "add")).lower()
-        if self.root_compose not in ("add", "so3"):
-            raise ValueError(f"MODEL.ROOT_COMPOSE must be add or so3, got {model_cfg.get('ROOT_COMPOSE')!r}")
-        if self.root_compose == "so3" and not (self.predict_delta and dense_trunk):
-            raise ValueError("MODEL.ROOT_COMPOSE: so3 composes the predicted rotation onto prev's root in the dense "
-                             "forward; it needs PREDICT_DELTA and no ENCODER")
-        self.prev_mlp_transl = model_cfg.get("PREV_MLP_TRANSL", True)
-        if not isinstance(self.prev_mlp_transl, bool):
-            raise ValueError(f"MODEL.PREV_MLP_TRANSL must be true or false, got {self.prev_mlp_transl!r}")
-        if not self.prev_mlp_transl and not (self.prevpos_embed and dense_trunk):
-            raise ValueError("MODEL.PREV_MLP_TRANSL: false masks the translation outputs of prev_mlp in the dense "
-                             "forward; it needs PREVPOS_EMBED and no ENCODER (the raw-event arms have PREV_MLP_ROOT)")
-        if self.cam_planes:
-            self._append_input_channels(self.conv1, 2)
-        # DT2 round: RENDER_FP32 and ROOT_HEAD (the head itself is built at the end of __init__)
-        self.render_fp32 = model_cfg.get("RENDER_FP32", False)
-        if not isinstance(self.render_fp32, bool):
-            raise ValueError(f"MODEL.RENDER_FP32 must be true or false, got {self.render_fp32!r}")
-        if self.render_fp32 and not (self.prev_render and dense_trunk):
-            raise ValueError("MODEL.RENDER_FP32 sets the precision of the previous-state render of the dense tracker; it "
-                             "needs PREV_RENDER and no ENCODER (anywhere else it would silently do nothing)")
-        _rh = model_cfg.get("ROOT_HEAD", "none")
-        if not isinstance(_rh, str) or _rh.lower() not in self.ROOT_HEADS:
-            raise ValueError(f"MODEL.ROOT_HEAD must be one of {list(self.ROOT_HEADS)}, got {_rh!r}")
-        self.root_head_kind = _rh.lower()
-        if self.root_head_kind != "none":
-            if not (dense_trunk and not self.active_head and self.predict_delta and self.output_dim == 51
-                    and self.pose_repr == "mano_full_axis_angle"):
-                raise ValueError("MODEL.ROOT_HEAD adds a readout to the root-rotation delta of the dense 51-d tracker; it "
-                                 "needs PREDICT_DELTA, the mano_full_axis_angle layout, no ENCODER and no ACTIVE_HEAD")
-            if self.root_head_kind == "anchor" and not self.prev_render:
-                raise ValueError("MODEL.ROOT_HEAD anchor samples the features at the previous state's projected joints; "
-                                 "it needs PREV_RENDER (MANO and the render intrinsics)")
-        # S42 GLIMPSE (docs/EXPERIMENT_RECORDS.md#s42-prereg). The dense trunk reads a square region of interest centred
-        # on the previous state's projected hand instead of the whole 240x180 frame: side kappa * f * span / Z pixels
-        # (Z the depth of the previous mesh's centroid, so the hand keeps one size in the crop whatever its depth),
-        # resampled to GLIMPSE x GLIMPSE (LNES: 2x super-sampled nearest, then 2x2 max), the previous state splatted straight into the
-        # crop's own intrinsics. 0 (the default): the whole frame, as every recorded run.
-        self.glimpse = int(model_cfg.get("GLIMPSE", 0) or 0)
-        self.glimpse_span = float(model_cfg.get("GLIMPSE_SPAN_M", 0.20))
-        self.glimpse_kappa = float(model_cfg.get("GLIMPSE_KAPPA", 1.5))
-        if self.glimpse:
-            if self.glimpse < 32 or not (self.prev_render and self.predict_delta and dense_trunk) or self.cam_planes \
-                    or self.root_head_kind != "none" or self.active_head or self.output_dim != 51 \
-                    or self.pose_repr != "mano_full_axis_angle":
-                raise ValueError("MODEL.GLIMPSE (>= 32) crops the input of the dense 51-d tracker; it needs PREV_RENDER, "
-                                 "PREDICT_DELTA and no ENCODER / CAM_PLANES / ROOT_HEAD / ACTIVE_HEAD")
-            if not (self.glimpse_span > 0.0 and self.glimpse_kappa > 0.0):
-                raise ValueError("MODEL.GLIMPSE_SPAN_M and MODEL.GLIMPSE_KAPPA must be positive")
-        elif "GLIMPSE_SPAN_M" in model_cfg or "GLIMPSE_KAPPA" in model_cfg:
-            raise ValueError("MODEL.GLIMPSE_SPAN_M / GLIMPSE_KAPPA without MODEL.GLIMPSE would silently do nothing")
-        self.distill_weight = float(model_cfg.get("DISTILL_WEIGHT", 0.0))
-        self.teacher = None
-        # DT round. The two terms that need more than the model's own config refuse to build without it: a silently
-        # skipped term trains a copy of the baseline under the name of the arm (it has happened in this project).
-        if self.distill_weight > 0.0 and dense_trunk and not model_cfg.get("DISTILL_CKPT"):
-            raise ValueError("MODEL.DISTILL_WEIGHT > 0 on the dense tracker needs MODEL.DISTILL_CKPT, the teacher's "
-                             "checkpoint (semkine/train.py builds the frozen teacher from it); without a teacher the "
-                             "distillation term would silently do nothing")
-        if self.accel_weight > 0.0:
-            if self.encoder_name or self.routed or self.mesh_query:
-                raise ValueError("LOSS.ACCEL_WEIGHT > 0 scores the three (lnes, prev, target, betas, K) windows of a "
-                                 "dense-tracker triplet; it is not defined for the raw-event (ENCODER / routed / mesh "
-                                 "query) models, which take packet batches")
-            _trip = self.cfg.get("DATA", {}).get("TRIPLET", False)
-            if isinstance(_trip, str) or not _trip:
-                raise ValueError("LOSS.ACCEL_WEIGHT > 0 needs DATA.TRIPLET: true (triplet batches); without it the "
-                                 "term would silently never be computed")
-            if not self.prev_render:
-                raise ValueError("LOSS.ACCEL_WEIGHT > 0 scores absolute FK joints with the model's MANO layer, which "
-                                 "the dense tracker has with MODEL.PREV_RENDER")
-        # DT2 round, package E: TRACK.ROLLOUT_P / ROLLOUT_RAMP (`_maybe_rollout`). Every impossible combination raises
-        # instead of training a copy of the baseline under the name of the arm.
-        # S42 candidate B (docs/EXPERIMENT_RECORDS.md#s42-prereg): TRACK.SELF_P / SELF_RAMP / SELF_FILTER, see `_maybe_self`
-        self.self_p = self._number("TRACK.SELF_P", track_cfg.get("SELF_P", 0.0))
-        if not 0.0 <= self.self_p <= 1.0:
-            raise ValueError(f"TRACK.SELF_P must lie in [0, 1], got {self.self_p}")
-        _sr = track_cfg.get("SELF_RAMP") or (0, 1)
-        self.self_ramp = (int(_sr[0]), int(_sr[1]))
-        self._self_gains = None
-        self._self_stats = None
-        if self.self_p > 0.0:
-            if not int((self.cfg.get("DATA", {}) or {}).get("CLIP_K", 0) or 0):
-                raise ValueError("TRACK.SELF_P > 0 needs DATA.CLIP_K (the clips it rolls out); without them it would "
-                                 "silently train the plain recipe")
-            if not self.self_ramp[1] > self.self_ramp[0] >= 0:
-                raise ValueError(f"TRACK.SELF_RAMP must be [start, full] with full > start >= 0, got {_sr!r}")
-            spec_path = track_cfg.get("SELF_FILTER")
-            if not spec_path:
-                raise ValueError("TRACK.SELF_P > 0 needs TRACK.SELF_FILTER, the deployed filter spec (JSON path)")
-            import json as _json
-            from semkine.anchored import AdaptiveFilter as _AF, GainSchedule as _GS
-            spec = _AF.canonical_spec(_json.loads(open(spec_path).read()))
-            if spec["beta_root"] or spec["beta_trans"] or spec["host"]:
-                raise ValueError("TRACK.SELF_FILTER: the rollout filter is the count-gain filter without velocity")
-            # plain attributes, not submodules: nothing enters the state dict
-            object.__setattr__(self, "_self_gains", (_GS(spec["a_root"]), _GS(spec["a_rest"]), _GS(spec["a_trans"])))
-        self.rollout_p = self._number("TRACK.ROLLOUT_P", track_cfg.get("ROLLOUT_P", 0.0))
-        if not 0.0 <= self.rollout_p <= 1.0:
-            raise ValueError(f"TRACK.ROLLOUT_P must be a probability in [0, 1] (0 = off), got {track_cfg.get('ROLLOUT_P')!r}")
-        _rr = track_cfg.get("ROLLOUT_RAMP", [500, 2000])
-        if not (isinstance(_rr, (list, tuple)) and len(_rr) == 2
-                and all(isinstance(v, int) and not isinstance(v, bool) for v in _rr) and 0 <= _rr[0] < _rr[1]):
-            raise ValueError(f"TRACK.ROLLOUT_RAMP must be [start_step, full_step], two integers with 0 <= start < full, "
-                             f"got {_rr!r}")
-        self.rollout_ramp = (int(_rr[0]), int(_rr[1]))
-        if self.rollout_p > 0.0:
-            if self.encoder_name or self.routed or self.mesh_query:
-                raise ValueError("TRACK.ROLLOUT_P > 0 runs the dense tracker's forward on triplet windows; it is not "
-                                 "defined for the raw-event (ENCODER / routed / mesh query) models")
-            _trip = self.cfg.get("DATA", {}).get("TRIPLET", False)
-            if isinstance(_trip, str) or not _trip:
-                raise ValueError("TRACK.ROLLOUT_P > 0 needs DATA.TRIPLET: true (triplet batches); without it the "
-                                 "rollout would silently never run")
-            if self.accel_weight > 0.0:
-                raise ValueError("TRACK.ROLLOUT_P > 0 together with LOSS.ACCEL_WEIGHT > 0 is not defined: the acceleration "
-                                 "term scores w2's forward against teacher-forced w0 / w1 windows, but w2's prev would "
-                                 "come from the rollout of those same windows")
-        hid = int(model_cfg.get("ACTIVE_HIDDEN", 64))
-        if self.fk_graph:
-            from semkine.fk_graph import FKGraphEncoder, FKGraphSpec
-            self._build_mano(model_cfg)
-            hidden = int(model_cfg.get("ENCODER_HIDDEN", 128))
-            self.fk_spec = FKGraphSpec.from_mano(
-                self.mano, n_verts=int(model_cfg.get("FK_GRAPH_VERTS", 192)),
-                k_mesh=int(model_cfg.get("FK_GRAPH_K", 6)))
-            self.fk_band_px = float(model_cfg.get("FK_GRAPH_BAND_PX", 16.0))
-            self.event_encoder = FKGraphEncoder(
-                self.fk_spec, hidden=hidden, n_layers=int(model_cfg.get("ENCODER_LAYERS", 3)),
-                node_id=bool(model_cfg.get("FK_GRAPH_NODE_ID", True)))
-            self.register_buffer("fk_vert_ids", self.fk_spec.vert_ids.clone(), persistent=False)
-            self.register_buffer("fk_lbs_wn", self.fk_spec.lbs_wn.clone(), persistent=False)
-            self.conv1 = None
-            self.rn = None
-            assert self.output_dim == 51, "the active head is defined for the 51D layout"
-            # root reads the sixteen joint nodes in joint order plus the background node
-            self.root_head = nn.Linear(17 * hidden, 6)
-            self.joint_heads = nn.ModuleList([
-                nn.Sequential(nn.Linear(hidden + 3, hid), nn.ReLU(inplace=True),
-                              nn.Linear(hid, 3))
-                for _ in range(15)
-            ])
-        elif self.mesh_graph:
-            from semkine.fk_graph import OBS_DIM, FKGraphEncoder
-            from semkine.mesh_graph import MeshGraphSpec
-            self._build_mano(model_cfg)
-            hidden = int(model_cfg.get("ENCODER_HIDDEN", 128))
-            self.mg_spec = MeshGraphSpec.from_mano(self.mano)
-            self.mg_band_px = float(model_cfg.get("MESH_GRAPH_BAND_PX", 16.0))
-            self.mg_front_px = float(model_cfg.get("MESH_GRAPH_FRONT_PX", 1.0))
-            self.mg_z_tol = float(model_cfg.get("MESH_GRAPH_Z_TOL", 0.01))
-            # The per-node flow fit (b_u, b_v) is the last two observation channels. H6 of the
-            # FK-graph pre-registration measured it at zero contribution in 50 ms packets, so the
-            # default here is the first six channels; MESH_GRAPH_OBS_FLOW restores all eight.
-            self.mg_obs_dim = OBS_DIM if bool(model_cfg.get("MESH_GRAPH_OBS_FLOW", False)) else OBS_DIM - 2
-            self.event_encoder = FKGraphEncoder(
-                self.mg_spec, hidden=hidden, n_layers=int(model_cfg.get("ENCODER_LAYERS", 3)),
-                node_id=bool(model_cfg.get("MESH_GRAPH_NODE_ID", True)), obs_dim=self.mg_obs_dim)
-            self.conv1 = None
-            self.rn = None
-            assert self.output_dim == 51, "the active head is defined for the 51D layout"
-            # evidence per joint = [skinning-weighted mean, hard-part max, coverage] over vertices;
-            # the root reads the sixteen evidences in joint order plus the background node
-            ev_dim = 2 * hidden + 1
-            self.root_head = nn.Linear(16 * ev_dim + hidden, 6)
-            self.joint_heads = nn.ModuleList([
-                nn.Sequential(nn.Linear(ev_dim + 3, hid), nn.ReLU(inplace=True),
-                              nn.Linear(hid, 3))
-                for _ in range(15)
-            ])
-        elif self.xyz_mesh:
+                             "path (no ENCODER)")
+        if self.xyz_mesh:
             from semkine.xyz_mesh import XYZMeshNet
             self._build_mano(model_cfg)
             assert self.output_dim == 51 and self.predict_delta, "xyz_mesh writes a 51D delta"
@@ -1706,185 +643,18 @@ class MNISTModel(BaseModel):
             self.xyz_z_tol = float(model_cfg.get("XYZ_Z_TOL", 0.01))
             self.xyz_k = int(model_cfg.get("XYZ_K", 16))
             self.xyz_max_nodes = int(model_cfg.get("ENCODER_MAX_NODES", 2048))
-            # XYZ-ASSOC, all opt-in. ASSOC_MODE: `hit_first` (the S37 rule) | `contour` (occluded-silhouette
-            # dual hypothesis + back-face filter, +1 relation input). ASSOC_PREV: `self` (the association is
-            # cast on prev's mesh) | `target` (oracle: on the window-end ground-truth mesh, geometry still
-            # prev's; diagnostic only, never deployable).
-            self.xyz_assoc_mode = str(model_cfg.get("XYZ_ASSOC_MODE", "hit_first"))
-            if self.xyz_assoc_mode not in ("hit_first", "contour"):
-                raise ValueError(f"MODEL.XYZ_ASSOC_MODE must be hit_first or contour, got {self.xyz_assoc_mode!r}")
-            self.xyz_assoc_prev = str(model_cfg.get("XYZ_ASSOC_PREV", "self"))
-            if self.xyz_assoc_prev not in ("self", "target"):
-                raise ValueError(f"MODEL.XYZ_ASSOC_PREV must be self or target, got {self.xyz_assoc_prev!r}")
-            self.xyz_contour_gap = float(model_cfg.get("XYZ_CONTOUR_GAP", 0.01))
-            if not (self.xyz_contour_gap >= 0.0 and self.xyz_contour_gap < float("inf")):
-                raise ValueError(f"MODEL.XYZ_CONTOUR_GAP must be a finite non-negative length in metres, "
-                                 f"got {model_cfg.get('XYZ_CONTOUR_GAP')!r}")
-            #: oracle arm only: the `(B, 51)` window-end ground truth the evaluation hands to the model
-            #: (`semkine.eval_track.track_sequence`); training and validation batches carry `batch.target`
-            self.xyz_target_override = None
-            # AGG778: absent / legacy builds the plain XYZMeshNet (bit for bit); a variant builds its subclass
-            self.xyz_agg = str(model_cfg.get("XYZ_AGG", "legacy"))
-            xyz_cls, agg_kw = XYZMeshNet, {}
-            if self.xyz_agg != "legacy":
-                from semkine.agg778 import AGG_MODES, AggXYZMeshNet
-                if self.xyz_agg not in AGG_MODES:
-                    raise ValueError(f"MODEL.XYZ_AGG must be one of {AGG_MODES}, got {self.xyz_agg!r}")
-                if self.xyz_assoc_prev != "self" or self.xag_gnn_mode != "legacy":
-                    raise ValueError("MODEL.XYZ_AGG is defined on the C1 recipe (ASSOC_PREV self, legacy GNN)")
-                xyz_cls, agg_kw = AggXYZMeshNet, {"agg": self.xyz_agg}
-            # MRF: absent / legacy builds the plain XYZMeshNet (bit for bit); a variant builds its subclass
-            self.xyz_rf = str(model_cfg.get("XYZ_RF", "legacy"))
-            if self.xyz_rf != "legacy":
-                from semkine.mrf import RF_MODES, MRFXYZMeshNet
-                if self.xyz_rf not in RF_MODES:
-                    raise ValueError(f"MODEL.XYZ_RF must be one of {RF_MODES}, got {self.xyz_rf!r}")
-                if self.xyz_agg != "legacy" or self.xyz_assoc_prev != "self" or self.xag_gnn_mode != "legacy":
-                    raise ValueError("MODEL.XYZ_RF is defined on the C1 recipe (ASSOC_PREV self, legacy GNN / AGG)")
-                xyz_cls, agg_kw = MRFXYZMeshNet, {"rf": self.xyz_rf}
-            # AURA: absent / legacy leaves the C1 association and class (bit for bit); `shell` builds its subclass,
-            # every other variant replaces the association in `_xyz_mesh_forward`
-            self.xyz_aura = str(model_cfg.get("XYZ_AURA", "legacy"))
-            if self.xyz_aura != "legacy":
-                from semkine.aura import AURA_MODES, AuraXYZMeshNet
-                if self.xyz_aura not in AURA_MODES:
-                    raise ValueError(f"MODEL.XYZ_AURA must be one of {AURA_MODES}, got {self.xyz_aura!r}")
-                if (self.xyz_agg != "legacy" or getattr(self, "xyz_rf", "legacy") != "legacy"
-                        or self.xyz_assoc_prev != "self" or self.xyz_assoc_mode != "hit_first"
-                        or self.xag_gnn_mode != "legacy" or self.xag_assoc_mode != "base"):
-                    raise ValueError("MODEL.XYZ_AURA is defined on the C1 recipe (hit_first / self association, "
-                                     "no XYZ_AGG / XYZ_RF / XAG)")
-                if self.xyz_aura == "shell":
-                    xyz_cls, agg_kw = AuraXYZMeshNet, {}
-            self.xyz = xyz_cls(
+            if not bool(model_cfg.get("XYZ_GEOM", True)):
+                raise ValueError("MODEL.XYZ_GEOM false (the C0 control without the explicit 3D channels) was removed; "
+                                 "the xyz_mesh model always reads its geometry")
+            self.xyz = XYZMeshNet(
                 self.mano.weights, self.mano.f,
                 hidden=int(model_cfg.get("ENCODER_HIDDEN", 128)),
                 n_layers=int(model_cfg.get("ENCODER_LAYERS", 3)),
                 rel_hidden=int(model_cfg.get("XYZ_REL_HIDDEN", 64)),
                 slot_dim=int(model_cfg.get("XYZ_SLOT_DIM", 32)),
-                readout_hidden=int(model_cfg.get("XYZ_READOUT_HIDDEN", 256)),
-                geom=bool(model_cfg.get("XYZ_GEOM", True)),
-                contour=self.xyz_assoc_mode == "contour",
-                residual_mode=str(model_cfg.get("XYZ_RESIDUAL_MODE", "legacy")),
-                residual_seed=int(model_cfg.get("XYZ_RESIDUAL_SEED", 19073)),
-                xag_gnn=self.xag_gnn_mode,
-                sign=bool(model_cfg.get("XYZ_SIGN", False)), **agg_kw)
+                readout_hidden=int(model_cfg.get("XYZ_READOUT_HIDDEN", 256)))
             self.conv1 = None
             self.rn = None
-        elif self.encoder_name:
-            # S2 / S16. The dense conv trunk is not built: a raw-event encoder that still
-            # allocated a resnet would be LNES with extra copies, and INIT_FROM would silently
-            # load the wrong weights.
-            from semkine.frontends import build_frontend
-            feat = int(model_cfg.get("ENCODER_FEAT", model_cfg.get("ACTIVE_FEAT_DIM", 256)))
-            # The previous state reaches the frontend the way it does in the arm that actually
-            # tracks: two rendered values sampled at each event's own pixel. Comparative, not
-            # indexing -- the event's position in the representation does not move with the pose.
-            extra = 2 if self.prev_render else 0
-            self.event_encoder = build_frontend(
-                self.encoder_name,
-                height=int(self.cfg.get("DATA", {}).get("HEIGHT", 180)),
-                width=int(self.cfg.get("DATA", {}).get("WIDTH", 240)),
-                hidden=int(model_cfg.get("ENCODER_HIDDEN", 128)),
-                feat_dim=feat,
-                extra_channels=extra,
-                cell=int(model_cfg.get("ENCODER_CELL", 4 if self.encoder_name == "sparse_pyramid" else 16)),
-                channels=model_cfg.get("ENCODER_CHANNELS"),
-                blocks=model_cfg.get("ENCODER_BLOCKS"),
-                n_layers=int(model_cfg.get("ENCODER_LAYERS", 2)),
-                # S36 `event_gnn`. The events are the nodes, so the cost knobs are how many of them
-                # survive per packet, how far back the causal neighbour search looks, and how many
-                # edges each node keeps. `max_nodes` is what holds memory flat as the event rate
-                # rises -- the property the retired `aegnn_lite` did not have.
-                k=int(model_cfg.get("ENCODER_K", 8)),
-                max_nodes=int(model_cfg.get("ENCODER_MAX_NODES", 768)),
-                window=int(model_cfg.get("ENCODER_WINDOW", 32)),
-                t_scale=float(model_cfg.get("ENCODER_T_SCALE", 1.0)),
-                node_attrs=str(model_cfg.get("ENCODER_NODE_ATTRS", "token7")),
-                readout=not self.mesh_query,
-                nodes=self.routed or self.mesh_query,
-            )
-            self.conv1 = None
-            self.rn = None
-            if self.active_head:
-                assert self.output_dim == 51, "the active head is defined for the 51D layout"
-                hidden = int(model_cfg.get("ENCODER_HIDDEN", 128))
-                if self.mesh_query:
-                    # evidence per joint = [node feat, edge summary, offset (2), mass, coverage]
-                    ev_dim = hidden + 4 + 3 + 1
-                    self.root_head = nn.Linear(ev_dim + 16 * ev_dim, 6)
-                    self.joint_heads = nn.ModuleList([
-                        nn.Sequential(nn.Linear(ev_dim, hid), nn.ReLU(inplace=True),
-                                      nn.Linear(hid, 3))
-                        for _ in range(15)
-                    ])
-                else:
-                    if self.routed:
-                        # evidence per joint = [weighted mean, max, coverage] over node features
-                        ev_dim = 2 * hidden + 1
-                        if self.root_fusion == "per_joint":
-                            from semkine.routed_readout import PerJointRootFusion
-                            self.root_fusion_head = PerJointRootFusion(feat, ev_dim, hid)
-                        elif self.root_meas == "abs":
-                            # S38: the routed head keeps the translation; the rotation is measured from
-                            # the encoder's pool alone. Zero-initialised: an untrained head says R_ref.
-                            self.root_head = nn.Linear(feat + 16 * ev_dim, 3)
-                            # The head reads the encoder's pool (`event_encoder.pooled`), not the projected
-                            # `feat`: `feat` also feeds the routed head's translation, whose loss dominates
-                            # the gradient and shut the projection off in the 500-step gate (0-18 % of its
-                            # units alive, a constant measurement). LayerNorm + GELU: no unit can die whole.
-                            pdim = int(self.event_encoder.pooled_dim)
-                            self.root_abs_head = nn.Sequential(nn.LayerNorm(pdim), nn.Linear(pdim, hid), nn.GELU(),
-                                                               nn.Linear(hid, 3))
-                            nn.init.zeros_(self.root_abs_head[-1].weight)
-                            nn.init.zeros_(self.root_abs_head[-1].bias)
-                            from semkine.anchored import _pq
-                            from semkine.lie import so3_exp
-                            ref = [float(v) for v in model_cfg["ROOT_REF"]]
-                            self.register_buffer("root_ref_R", so3_exp(torch.tensor(ref, dtype=torch.float32)),
-                                                 persistent=False)
-                            #: the same reference as a float64 quaternion, for the host-side inference path
-                            self.root_ref_q = _pq(ref)
-                        else:
-                            self.root_head = nn.Linear(feat + 16 * ev_dim, 6)
-                        head_in = ev_dim
-                    else:
-                        self.root_head = nn.Linear(feat, 6)
-                        head_in = feat
-                    if self.finger_meas == "abs":
-                        # S38: no routed finger decoder; the pool measures all 45 finger parameters
-                        self.joint_heads = nn.ModuleList()
-                        pdim = int(self.event_encoder.pooled_dim)
-                        self.finger_abs_head = nn.Sequential(nn.LayerNorm(pdim), nn.Linear(pdim, 256), nn.GELU(),
-                                                             nn.Linear(256, 45))
-                        nn.init.zeros_(self.finger_abs_head[-1].weight)
-                        nn.init.zeros_(self.finger_abs_head[-1].bias)
-                    else:
-                        self.joint_heads = nn.ModuleList([
-                            nn.Sequential(nn.Linear(head_in + 3, hid), nn.ReLU(inplace=True),
-                                          nn.Linear(hid, 3))
-                            for _ in range(15)
-                        ])
-            else:
-                # absolute EventGNN control: an optional hidden layer makes the absolute readout non-linear
-                # (POSE_HEAD_HIDDEN = 0 keeps the single linear layer of every earlier arm).
-                ph = int(model_cfg.get("POSE_HEAD_HIDDEN", 0))
-                self.pose_head = (nn.Linear(feat, self.output_dim) if ph <= 0 else
-                                  nn.Sequential(nn.Linear(feat, ph), nn.ReLU(inplace=True),
-                                                nn.Linear(ph, self.output_dim)))
-        elif self.active_head:
-            assert self.output_dim == 51, "the active head is defined for the 51D layout"
-            feat = int(model_cfg.get("ACTIVE_FEAT_DIM", 256))
-            self.rn = models.resnet18(num_classes=feat)
-            self.root_head = nn.Linear(feat, 6)
-            # One decoder per joint, each conditioned on the shared feature and on that joint's own
-            # previous angle. Separate parameters rather than one grouped layer: the point is that a
-            # joint's update can be produced, and later suppressed, independently of the others.
-            self.joint_heads = nn.ModuleList([
-                nn.Sequential(nn.Linear(feat + 3, hid), nn.ReLU(inplace=True),
-                              nn.Linear(hid, 3))
-                for _ in range(15)
-            ])
         else:
             # `resnet18` (the default) is torchvision's resnet18(num_classes=OUTPUT_DIM) itself: same call, same draws
             self.rn = build_backbone(self.cnn_backbone, self.output_dim)
@@ -1893,28 +663,8 @@ class MNISTModel(BaseModel):
         self.sparse_trunk = bool(getattr(self.rn, "takes_mask", False))
         # PREV_RENDER: false is the S43 ablation A1 (docs/EXPERIMENT_RECORDS.md#s43-ablation): the trunk sees the LNES alone
         # and the previous state enters only through prev_mlp and the delta's skip connection
-        if self.sparse_trunk and not (self.predict_delta and not self.glimpse
-                                      and not self.cam_planes and self.root_head_kind == "none"):
-            raise ValueError("a sparse CNN_BACKBONE is the S43 trunk: it needs PREDICT_DELTA, and no GLIMPSE / CAM_PLANES "
-                             "/ ROOT_HEAD")
-        # S43 wave 2, MODEL.TRANSL_HEAD: the translation of the output is prev_t + head([pooled trunk features, detached |
-        # prev_t]); the head is the only thing the translation loss trains (the trunk gets no translation gradient)
-        # S43 deviation 5, MODEL.SPARSE_NOISE p: in training only, every inactive pixel inside an active 4 px (level-2) cell
-        # of the sparse trunk's input gets a random-polarity, random-time LNES event with probability p -- isolated noise
-        # events the trunk must learn to ignore (what hot pixels do for the dense trunk) without changing the active sets of
-        # levels 2..4 (hot pixels spread over the frame light up every coarse cell, deviation 3)
-        self.sparse_noise = self._number("MODEL.SPARSE_NOISE", model_cfg.get("SPARSE_NOISE", 0.0))
-        if self.sparse_noise and not (self.sparse_trunk and 0.0 < self.sparse_noise < 1.0):
-            raise ValueError("MODEL.SPARSE_NOISE is a probability in (0, 1) for the S43 sparse trunk")
-        self.transl_head = None
-        if model_cfg.get("TRANSL_HEAD", False):
-            if not self.sparse_trunk or self.output_dim != 51 or self.root_compose != "add":
-                raise ValueError("MODEL.TRANSL_HEAD reads the S43 sparse trunk's pooled features (51-d, additive root)")
-            th = int(model_cfg.get("TRANSL_HEAD_HIDDEN", 128))
-            self.transl_head = nn.Sequential(nn.Linear(self.rn.fc.in_features + 3, th), nn.ReLU(inplace=True),
-                                             nn.Linear(th, 3))
-            nn.init.zeros_(self.transl_head[2].weight)
-            nn.init.zeros_(self.transl_head[2].bias)
+        if self.sparse_trunk and not self.predict_delta:
+            raise ValueError("a sparse CNN_BACKBONE is the S43 trunk: it needs PREDICT_DELTA")
         if self.prevpos_embed:
             self.prev_mlp = nn.Sequential(
                 nn.Linear(self.output_dim, 64),
@@ -1925,94 +675,19 @@ class MNISTModel(BaseModel):
             nn.init.zeros_(self.prev_mlp[2].weight)
             nn.init.zeros_(self.prev_mlp[2].bias)
 
-        node_encoders = ("event_gnn", "sparse_pyramid") if self.routed else ("event_gnn",)
-        if (self.routed or self.mesh_query) and not (self.encoder_name in node_encoders
-                                                     and self.active_head):
-            raise ValueError("ROUTED_READOUT / MESH_QUERY read event_gnn (routed: or sparse_pyramid) node "
-                             "features into the active joint heads; they need that ENCODER and ACTIVE_HEAD")
         self._ctx_betas = None
         self._ctx_K = None
-        if self.prev_render or self.routed or self.mesh_query or (self.sparse_trunk and self.loss_type == "so3_trans_fk"):
+        if self.prev_render or (self.sparse_trunk and self.loss_type == "so3_trans_fk"):
             # (S43 ablation A1: the SO3 + FK loss needs MANO even when nothing is rendered)
             self._build_mano(model_cfg)
         if self.prev_render:
             self._register_vertex_codes()
-        if self.mesh_query:
-            from semkine.mesh_query import MeshQuery
-            self.mesh_query_mod = MeshQuery(
-                self.mano.weights,
-                n_tokens=int(model_cfg.get("MESH_QUERY_TOKENS", 192)),
-                band_px=float(model_cfg.get("MESH_QUERY_BAND_PX", 16.0)),
-                sigma_px=float(model_cfg.get("MESH_QUERY_SIGMA_PX", 8.0)),
-                node_dim=int(model_cfg.get("ENCODER_HIDDEN", 128)),
-                edge_dim=self.event_encoder.EDGE_SUMMARY_DIM,
-            )
-        if self.routed or self.mesh_query or self.fk_graph or self.mesh_graph or self.xyz_mesh:
+        if self.xyz_mesh:
             #: diagnostics of the last `forward_packet`, for the training loop and the probes
             self.route_stats = {}
-            #: set at inference to zero every evidence vector (fk_graph: every observation), for
-            #: the same-checkpoint ablation that decides whether the evidence is load-bearing
+            #: set at inference to zero every event record, for the same-checkpoint ablation that decides
+            #: whether the evidence is load-bearing
             self.ablate_evidence = False
-            #: probe-only: when set to a `(B, 51)` state, the *geometry* (routing / mesh query /
-            #: event assignment) uses it instead of the packet's `prev_state` while everything
-            #: else still sees the packet's prev. This is the "oracle routing" arm of the
-            #: closed-loop shortcut test.
-            self.route_prev_override = None
-        if self.fk_graph or self.mesh_graph:
-            #: probe-only: `(obs_dim,)` 0/1 mask over the observation channels (H6 sufficiency)
-            self.obs_feature_mask = None
-        # S37 root innovation (2026-09-29, docs/S37_ROOT_INNOVATION_PREREG.md). A second root path
-        # that reads where the events sit relative to prev's projected silhouette, with prev's part
-        # lever arms multiplying that residual (`semkine.root_innovation`); and the option to drop
-        # the event-blind `prev_mlp` pull on the six root dimensions.
-        self.root_innovation = bool(model_cfg.get("ROOT_INNOVATION", False))
-        self.prev_mlp_root = bool(model_cfg.get("PREV_MLP_ROOT", True))
-        if self.root_innovation:
-            if not (self.routed and self.active_head):
-                raise ValueError("ROOT_INNOVATION reads the S37 routing; it needs ROUTED_READOUT")
-            if self.root_fusion != "concat":
-                raise ValueError("ROOT_INNOVATION adds to the S37 concat root head; set ROOT_FUSION: concat")
-            from semkine.root_innovation import RootInnovationHead
-            self.root_innov_head = RootInnovationHead(
-                hidden=int(model_cfg.get("ROOT_INNOV_HIDDEN", 32)),
-                width=int(model_cfg.get("ROOT_INNOV_WIDTH", 16)))
-            #: set at inference to zero the innovation features (the arm's mechanism ablation)
-            self.ablate_innovation = False
-        if not self.prev_mlp_root and not self.prevpos_embed:
-            raise ValueError("PREV_MLP_ROOT: false only means something with PREVPOS_EMBED")
-        if self.u1a_mode != "off":
-            from semkine.u1a_readout import U1aReadout
-            self.u1a_readout = U1aReadout(
-                pooled_dim=int(self.event_encoder.pooled_dim), feat_dim=feat,
-                evidence_dim=2 * int(self.event_encoder.hidden) + 1,
-                hidden=int(model_cfg.get("U1A_HIDDEN", 64)), mode=self.u1a_mode)
-            # Translation's unified node consumes the original feat/evidence/full-prev fields.
-            # Its output replaces BOTH the routed delta and the old event-blind prev_mlp delta.
-            for old in ("root_head", "root_abs_head", "finger_abs_head", "joint_heads", "prev_mlp"):
-                if hasattr(self, old):
-                    delattr(self, old)
-            self.prevpos_embed = False
-            if self.u1a_freeze_encoder:
-                self.event_encoder.requires_grad_(False)
-                self.event_encoder.eval()
-        if self.root_head_kind != "none":
-            # last, so every module above is built from the same random draws as without the head
-            self._build_root_head(model_cfg)
-        # Stage-1 training of an arm on a frozen trunk: only parameters under these prefixes train.
-        prefixes = (self.cfg.get("TRAIN", {}) or {}).get("TRAINABLE_PREFIXES")
-        if prefixes:
-            prefixes = tuple(str(p) for p in prefixes)
-            for name, p in self.named_parameters():
-                p.requires_grad_(name.startswith(prefixes))
-            if not any(p.requires_grad for p in self.parameters()):
-                raise ValueError(f"TRAIN.TRAINABLE_PREFIXES {list(prefixes)} match no parameter")
-
-    def train(self, mode: bool = True):
-        super().train(mode)
-        if getattr(self, "u1a_mode", "off") != "off" and self.u1a_freeze_encoder:
-            # requires_grad=False alone does not freeze BatchNorm running statistics.
-            self.event_encoder.eval()
-        return self
 
     def _build_mano(self, model_cfg):
         """The MANO layer plus the render-frame intrinsics every conditioning path projects with."""
@@ -2140,133 +815,12 @@ class MNISTModel(BaseModel):
             camera_K[:, 1, 2] * s,
         )
 
-    @staticmethod
-    def _append_input_channels(conv, n: int) -> None:
-        """Widen `conv` in place by `n` input channels appended LAST, without drawing a random number.
-
-        The first channels keep their weights and the bias bit for bit and the new ones start at zero (the convention
-        of `init_from_abs_checkpoint_state`), so a model built with `CAM_PLANES` has, under the same seed, exactly the
-        initial weights of the model without the planes everywhere except those new input slices: conv1's first
-        channels, its bias, the trunk and prev_mlp are the same tensors, and the two models compute the same function
-        at initialisation.
-        """
-        w = conv.weight.data
-        conv.weight = nn.Parameter(torch.cat([w, w.new_zeros(w.shape[0], n, *w.shape[2:])], dim=1))
-        conv.in_channels = int(w.shape[1]) + n
-
-    def _cam_planes(self, camera_K):
-        """`CAM_PLANES`: the camera-ray slopes of every render-resolution pixel, `(B, H, W, 2)` float32.
-
-        plane_u[r, c] = (c - cx) / fx and plane_v[r, c] = (r - cy) / fy, with `(fx, fy, cx, cy)` the render
-        intrinsics of each sample (`_intrinsics`: its own K times RENDER_SCALE, so DomRand's K' enters) and c, r the
-        integer pixel indices `_render_chunk` projects to (u = fx x / z + cx rounded to the nearest index). The value
-        at a pixel is therefore x / z and y / z of the ray through it, whatever the (augmented) focal length.
-        """
-        fx, fy, cx, cy = self._intrinsics(camera_K)
-        B, h, w = camera_K.shape[0], self.render_h, self.render_w
-        c = torch.arange(w, device=camera_K.device, dtype=torch.float32)
-        r = torch.arange(h, device=camera_K.device, dtype=torch.float32)
-        u = ((c[None, :] - cx[:, None]) / fx[:, None])[:, None, :].expand(B, h, w)
-        v = ((r[None, :] - cy[:, None]) / fy[:, None])[:, :, None].expand(B, h, w)
-        return torch.stack([u, v], dim=-1)
-
     def _fk(self, params, betas):
         """Differentiable MANO forward: params -> (verts, 21 OpenPose joints)."""
         dec = decode_to_mano_inputs(
             params, self.pose_repr, self.mano.hands_components, self.mano.hands_mean
         )
         return self.mano(betas, dec["global_orient"], dec["local_full_aa"], dec["transl"])
-
-    @staticmethod
-    def _stage_channels(rn, name):
-        """Output channels of stage `name` of a torchvision-style BasicBlock ResNet; ValueError if it is not there."""
-        stage = getattr(rn, name, None)
-        if stage is None or isinstance(stage, nn.Identity):
-            raise ValueError(f"MODEL.ROOT_HEAD reads the {name} feature map, which this trunk does not have")
-        try:
-            return int(stage[-1].bn2.num_features)
-        except (AttributeError, TypeError, IndexError):
-            raise ValueError(f"MODEL.ROOT_HEAD needs a BasicBlock ResNet trunk, {name} is {type(stage).__name__}") from None
-
-    def _build_root_head(self, model_cfg):
-        """`MODEL.ROOT_HEAD`: the second root readout (`SpatialRootHead` / `AnchorRootHead`), see the class docstring.
-        Feature-map sizes are those of the ResNet stem (7x7 s2, max-pool s2) and stride-2 stages: layer2 ceil(n / 8),
-        layer3 ceil(n / 16), for the input height / width of the dense tracker (DATA.HEIGHT / WIDTH)."""
-        if not isinstance(self.rn, models.ResNet):
-            raise ValueError(f"MODEL.ROOT_HEAD reads feature maps of a torchvision-style ResNet trunk, got "
-                             f"{type(self.rn).__name__}")
-        data = self.cfg.get("DATA", {}) or {}
-        H, W = int(data.get("HEIGHT", 180)), int(data.get("WIDTH", 240))
-        if self.root_head_kind == "spatial":
-            c3 = self._stage_channels(self.rn, "layer3")
-            self.root_readout = SpatialRootHead(c3, -(-H // 16), -(-W // 16))
-        else:
-            c2 = self._stage_channels(self.rn, "layer2")
-            self.root_readout = AnchorRootHead(c2, n_joints=21)
-            #: layer2 cell m sits at input pixel 8 m (see `_anchor_features`); its map is ceil(H / 8) x ceil(W / 8)
-            self._anchor_stride = 8
-            self._anchor_hw = (-(-H // 8), -(-W // 8))
-
-    def _anchor_features(self, f2, prevpos, betas_f, k_f):
-        """`ROOT_HEAD: anchor`: `(B, 21, C + 3)` features of the 21 OpenPose joints of the previous state.
-
-        The joints are the FK of `prevpos` (MANO, absolute camera frame, metres) projected with the render intrinsics
-        `_intrinsics(K')` (the same `K * RENDER_SCALE`, per sample, as the render and the event frame, so DomRand's
-        augmented K' enters): u = fx x / z + cx, v = fy y / z + cy, in render pixels where a pixel's centre is its integer
-        index (the render rounds u to the nearest index).
-
-        Grid geometry, derived from the stem. conv1 (7x7, stride 2, padding 3), max-pool (3x3, stride 2, padding 1) and
-        layer2's first conv (3x3, stride 2, padding 1) each centre output cell m on input index 2 m, so layer2 cell m
-        sits at input pixel 8 m: the continuous layer2 index of pixel u is u / 8. `grid_sample(align_corners=True)` maps
-        the normalised coordinate -1 to index 0 and +1 to index N - 1 with a linear map in index space, so
-        g = 2 (u / 8) / (N - 1) - 1 reproduces exactly that index (with `align_corners=False` the cell centres would sit at
-        half-index offsets and the stride-8 geometry would be off by up to 4 pixels). The last cell (index 22 / 29) sits at
-        pixel 176 / 232, short of the image's last pixel 179 / 239: coordinates are clamped to the map (`padding_mode=
-        "border"`), not zero-extended.
-
-        A joint is in bounds when z > 0 and its rounded pixel lies in the image (the render's own test); out-of-bounds
-        joints get a zero feature and flag 0, in-bounds ones the sampled feature and flag 1. Each joint's vector is
-        [feature (C), u / (W - 1) 2 - 1, v / (H - 1) 2 - 1 (clamped to +-2), flag]. The FK / projection run in float32
-        with autocast off and without gradient (the previous state is an input); the sampling is differentiable in the
-        feature map.
-        """
-        B, C, H2, W2 = f2.shape
-        if (H2, W2) != self._anchor_hw:
-            raise ValueError(f"ROOT_HEAD anchor was built for a {self._anchor_hw} layer2 map, got {(H2, W2)}")
-        h, w = self.render_h, self.render_w
-        dev = f2.device
-        with torch.autocast(device_type=dev.type, enabled=False):
-            with torch.no_grad():
-                _, joints = self._fk(prevpos.float(), betas_f.float())
-                fx, fy, cx, cy = self._intrinsics(k_f.float())
-                x, y, z = joints.unbind(-1)
-                z_safe = z.clamp(min=1e-6)
-                u = fx[:, None] * x / z_safe + cx[:, None]
-                v = fy[:, None] * y / z_safe + cy[:, None]
-                inb = (z > 1e-6) & (u >= -0.5) & (u < w - 0.5) & (v >= -0.5) & (v < h - 0.5)
-                s = float(self._anchor_stride)
-                gx = 2.0 * (u / s) / (W2 - 1) - 1.0
-                gy = 2.0 * (v / s) / (H2 - 1) - 1.0
-                grid = torch.stack([gx, gy], dim=-1).unsqueeze(2)                    # (B, 21, 1, 2)
-                inb_f = inb.to(torch.float32)
-                pos = torch.stack([2.0 * u / (w - 1) - 1.0, 2.0 * v / (h - 1) - 1.0], dim=-1).clamp(-2.0, 2.0)
-            samp = F.grid_sample(f2.float(), grid, mode="bilinear", padding_mode="border", align_corners=True)
-            samp = samp.squeeze(-1).transpose(1, 2) * inb_f.unsqueeze(-1)            # (B, 21, C), zero out of bounds
-            return torch.cat([samp, pos, inb_f.unsqueeze(-1)], dim=-1)
-
-    def _trunk_with_root_head(self, z, prevpos, betas_f, k_f):
-        """The dense trunk `rn(z)` plus the root readout: the trunk's logits (bit for bit `rn(z)`, see
-        `resnet_forward_taps`) with the head's three outputs added to the root-rotation columns."""
-        tap = "layer3" if self.root_head_kind == "spatial" else "layer2"
-        out, got = resnet_forward_taps(self.rn, z, (tap,))
-        f = got[tap]
-        if self.root_head_kind == "spatial":
-            r = self.root_readout(f)
-        else:
-            r = self.root_readout(self._anchor_features(f, prevpos, betas_f, k_f))
-        r = r.to(out.dtype)
-        rs = self.slices.root
-        return torch.cat([out[:, : rs.start], out[:, rs] + r, out[:, rs.stop:]], dim=1)
 
     def _render_chunk(self, prevpos, betas, camera_K):
         """Rasterize the previous state into the requested faces; (B, H, W, C)."""
@@ -2319,138 +873,7 @@ class MNISTModel(BaseModel):
 
         return torch.cat([faces[c] for c in self.render_channels], dim=-1)
 
-    def _splat(self, verts, fx, fy, cx, cy, h, w):
-        """`_render_chunk`'s point splat of `verts` (B, V, 3) with explicit per-row intrinsics into an h x w image:
-        (B, h, w, C) with the sil / inv faces of `render_channels` (S42 GLIMPSE renders into its crop with this)."""
-        x, y, z = verts.unbind(-1)
-        z_safe = z.clamp(min=1e-6)
-        u = fx[:, None] * x / z_safe + cx[:, None]
-        v = fy[:, None] * y / z_safe + cy[:, None]
-        ui = u.round().long()
-        vi = v.round().long()
-        B, n_v = ui.shape
-        valid = (z > 1e-6) & (ui >= 0) & (ui < w) & (vi >= 0) & (vi < h)
-        b_idx = torch.arange(B, device=verts.device)[:, None].expand(B, n_v)
-        pix = (b_idx * (h * w) + vi * w + ui)[valid]
-        z_valid = z_safe[valid].float()
-        depth_flat = torch.full((B * h * w,), 1.0e6, device=verts.device, dtype=torch.float32)
-        sil_flat = torch.zeros((B * h * w,), device=verts.device, dtype=torch.float32)
-        if pix.numel() > 0:
-            depth_flat.scatter_reduce_(0, pix, z_valid, reduce="amin", include_self=True)
-            sil_flat.scatter_(0, pix, torch.ones_like(z_valid))
-        sil = sil_flat.view(B, h, w).clamp(0, 1)
-        faces = []
-        for c in self.render_channels:
-            if c == "sil":
-                faces.append(sil.unsqueeze(-1))
-            elif c == "inv":
-                faces.append((((1.0 / depth_flat.view(B, h, w)).clamp(0.0, 5.0) / 5.0) * sil).unsqueeze(-1))
-            else:
-                raise ValueError(f"MODEL.GLIMPSE splats the sil / inv faces only, not {c!r}")
-        return torch.cat(faces, dim=-1)
-
-    def glimpse_geometry(self, verts, camera_K):
-        """S42: the crop of a previous mesh `verts` (B, V, 3): full-frame centre (uc, vc) = centre of the projected mesh box, side (px) and the crop's
-        intrinsics. A crop pixel (i, j) has its centre at full-frame (uc + (j - R/2) / sc, vc + (i - R/2) / sc)."""
-        R = self.glimpse
-        fx, fy, cx, cy = self._intrinsics(camera_K)
-        z = verts[..., 2].mean(dim=1).clamp(min=0.05)
-        zv = verts[..., 2].clamp(min=1e-3)
-        u = fx[:, None] * verts[..., 0] / zv + cx[:, None]
-        v = fy[:, None] * verts[..., 1] / zv + cy[:, None]
-        uc = 0.5 * (u.amin(dim=1) + u.amax(dim=1))            # centre of the projected mesh box
-        vc = 0.5 * (v.amin(dim=1) + v.amax(dim=1))
-        side = (self.glimpse_kappa * fx * self.glimpse_span / z).clamp(min=16.0, max=960.0)
-        sc = R / side
-        return {"uc": uc, "vc": vc, "side": side, "sc": sc,
-                "K": (fx * sc, fy * sc, (cx - uc) * sc + R / 2, (cy - vc) * sc + R / 2)}
-
-    def _glimpse_chunk(self, prevpos, betas, camera_K):
-        """S42: (render in the crop (B, R, R, C), grid (B, R, R, 2) for `F.grid_sample` of the full-frame LNES)."""
-        R = self.glimpse
-        verts, _ = self._fk(prevpos, betas)
-        verts = verts.float()
-        g = self.glimpse_geometry(verts, camera_K.float())
-        rend = self._splat(verts, *g["K"], R, R)
-        # 2x super-sampled grid: crop sub-pixel j2 in [0, 2R) has its centre at crop coordinate (j2 + 0.5) / 2 - 0.5;
-        # `glimpse_lnes` takes nearest samples there and max-pools 2x2, so a crop pixel keeps the most recent event of
-        # its footprint whenever the crop is no more than 2x down-sampled (side <= 2R)
-        j = (torch.arange(2 * R, device=verts.device, dtype=torch.float32) + 0.5) / 2.0 - 0.5 - R / 2
-        u = g["uc"][:, None] + j[None, :] / g["sc"][:, None]
-        v = g["vc"][:, None] + j[None, :] / g["sc"][:, None]
-        gx = (2.0 * u + 1.0) / self.render_w - 1.0                     # align_corners=False pixel centres
-        gy = (2.0 * v + 1.0) / self.render_h - 1.0
-        grid = torch.stack([gx[:, None, :].expand(-1, 2 * R, -1), gy[:, :, None].expand(-1, -1, 2 * R)], dim=-1)
-        return rend, grid
-
-    @staticmethod
-    def glimpse_lnes(lnes, grid):
-        """S42: the (B, C, R, R) crop of the full-frame LNES `lnes` (B, H, W, C) on the 2x super-sampled `grid`."""
-        ev = F.grid_sample(lnes.permute(0, 3, 1, 2).float(), grid, mode="nearest", padding_mode="zeros",
-                           align_corners=False)
-        return F.max_pool2d(ev, 2)
-
-    def _glimpse_inputs(self, prevpos, betas, camera_K):
-        chunk = max(int(self.render_chunk), 1)
-        parts = [self._glimpse_chunk(prevpos[i0:i0 + chunk], betas[i0:i0 + chunk], camera_K[i0:i0 + chunk])
-                 for i0 in range(0, prevpos.shape[0], chunk)]
-        return torch.cat([p[0] for p in parts]), torch.cat([p[1] for p in parts])
-
-    def _forward_glimpse(self, lnes, prevpos, betas=None, camera_K=None):
-        """S42 GLIMPSE forward: the dense tracker's `forward` with the trunk on the hand-centric crop. Everything after
-        the trunk (prev_mlp, the zero-event gate on the WHOLE window, prev + delta, root composition) is unchanged."""
-        B = lnes.shape[0]
-        betas_f, k_f = self._resolve_betas_K(prevpos, betas, camera_K)
-        with torch.no_grad():
-            if self.render_fp32:
-                with torch.autocast(device_type=prevpos.device.type, enabled=False):
-                    rend, grid = self._glimpse_inputs(prevpos.float(), betas_f, k_f)
-            else:
-                rend, grid = self._glimpse_inputs(prevpos.float(), betas_f, k_f)
-            ev = self.glimpse_lnes(lnes, grid)
-        x = torch.cat([ev.to(lnes.dtype), rend.permute(0, 3, 1, 2).to(dtype=lnes.dtype)], dim=1).contiguous()
-        out = self.rn(self.conv1(x))
-        if self.prevpos_embed:
-            pm = self.prev_mlp(prevpos.to(out.dtype))
-            if not self.prev_mlp_transl:
-                t = self.slices.transl
-                pm = torch.cat([pm[:, : t.start], torch.zeros_like(pm[:, t]), pm[:, t.stop:]], dim=-1)
-            out = out + pm
-        delta = out
-        empty = None
-        if self.zero_event_gate:
-            empty = lnes.reshape(B, -1).abs().sum(dim=1, keepdim=True) <= 0
-            delta = torch.where(empty, torch.zeros_like(delta), delta)
-        out = delta + prevpos.to(out.dtype)
-        if self.root_compose == "so3":
-            out = self._compose_root_so3(out, delta, prevpos)
-            if empty is not None:
-                out = torch.where(empty, prevpos.to(out.dtype), out)
-        return out
-
-    @torch.no_grad()
-    def _sparse_noise(self, x):
-        """MODEL.SPARSE_NOISE: (B, C, H, W) input with isolated LNES noise inside active level-2 cells (see __init__)."""
-        from sparse_trunk import cell_mask
-        ne = 2 * len(self.event_channels)
-        m = input_mask(x)
-        h, w = x.shape[2], x.shape[3]
-        c2 = F.interpolate(cell_mask(cell_mask(m)), scale_factor=4, mode="nearest")[:, :, :h, :w]
-        hit = (c2 > 0) & (m == 0) & (torch.rand_like(m) < self.sparse_noise)                 # (B, 1, H, W)
-        pol = torch.randint(0, 2, m.shape, device=x.device)
-        val = torch.rand_like(m).clamp_(min=1.0 / 300.0)
-        noise = torch.cat([torch.where(hit & (pol == 0), val, torch.zeros_like(val)),
-                           torch.where(hit & (pol == 1), val, torch.zeros_like(val))], dim=1).to(x.dtype)
-        return torch.cat([x[:, :2] + noise, x[:, 2:]], dim=1) if ne >= 2 else x
-
     def _render_prev(self, prevpos, betas, camera_K):
-        if self.render_fp32:
-            # MODEL.RENDER_FP32: the whole render (MANO FK, projection, z-buffer) in plain float32 under any autocast
-            with torch.autocast(device_type=prevpos.device.type, enabled=False):
-                return self._render_prev_chunks(prevpos, betas, camera_K)
-        return self._render_prev_chunks(prevpos, betas, camera_K)
-
-    def _render_prev_chunks(self, prevpos, betas, camera_K):
         B = prevpos.shape[0]
         chunk = max(int(self.render_chunk), 1)
         out = [
@@ -2461,141 +884,13 @@ class MNISTModel(BaseModel):
         ]
         return torch.cat(out, dim=0)
 
-    def _decode_active(self, feat, prevpos, evidence=None, root_extra=None, root_add=None):
-        """Assemble the 51D output from the root head and the fifteen joint decoders.
-
-        Without `evidence`, every decoder reads the shared pooled vector and its own joint's
-        previous angle, which is the S10 arrangement. With `evidence` `(B, 16, E)` (S37), joint
-        decoder `k` reads evidence row `k + 1` -- its own joint's routed nodes, and nothing else
-        from the events -- while the root reads the pooled vector (when there is one), all sixteen
-        rows in joint order (a permutation-invariant pool over parts would cancel a rotational
-        offset field) and, for the FK graph, the background node (`root_extra`). With
-        `ROOT_FUSION: per_joint` the root is instead the sum of sixteen per-joint MLPs, head j
-        reading `[f; e_j]` (`semkine.routed_readout.PerJointRootFusion`); the heads keep their own
-        weights, so the sum stays joint-ordered.
-
-        The fifteen decoders are executed as a Python loop on purpose. Batching them into one
-        `baddbmm` computes the same math ~0.7 ms faster per recursive step, but the different
-        accumulation order perturbs the output by ~1e-6, and the closed loop amplified that to
-        0.15 mm of recursive RA on seed 3408 -- past the 0.05 mm reproduction gate that pins
-        every recorded number (S36 latency audit, 2026-08-29). Bit-reproducibility wins.
-        """
-        ref = feat if feat is not None else evidence
-        if evidence is None:
-            root = self.root_head(feat)
-        elif self.root_fusion == "per_joint":
-            root = self.root_fusion_head(feat, evidence.to(ref.dtype))
-        else:
-            evidence = evidence.to(ref.dtype)
-            parts = ([feat] if feat is not None else []) + [evidence.flatten(1)]
-            if root_extra is not None:
-                parts.append(root_extra.to(ref.dtype))
-            root = self.root_head(torch.cat(parts, dim=-1))
-        if root_add is not None:
-            root = root + root_add.to(root.dtype)
-        if root.shape[-1] == 3:
-            # S38 ROOT_MEAS abs: the routed head writes the translation only; forward_packet sets the
-            # rotation from the absolute measurement
-            root = torch.cat([root, torch.zeros_like(root)], dim=-1)
-        prev = prevpos.to(ref.dtype)
-        cols = [root]
-        for k, head in enumerate(self.joint_heads):
-            if self.ablate_joint_heads:
-                # The ablation is a genuine silence, not a scaled-down update: with PREDICT_DELTA
-                # the output is `prev + out`, so zero here means "this joint does not move".
-                cols.append(torch.zeros(ref.shape[0], 3, device=ref.device, dtype=ref.dtype))
-                continue
-            src = feat if evidence is None else evidence[:, k + 1]
-            cols.append(head(torch.cat([src, prev[:, 6 + 3 * k : 9 + 3 * k]], dim=-1)))
-        if not len(self.joint_heads):
-            # S38 FINGER_MEAS abs: forward_packet writes the measured fingers
-            cols.append(root.new_zeros(root.shape[0], 45))
-        return torch.cat(cols, dim=-1)
-
-    def _fk_node_uv(self, prev, betas_f, k_f):
-        """Projected pixels `(B, 16 + V, 2)` of the FK-graph nodes under state `prev`: joint nodes
-        (skinning-weighted surface centroids, joint order) then the sampled vertices. `no_grad`:
-        the state is conditioning, and here it only decides which node an event is handed to."""
-        with torch.no_grad():
-            verts, _ = self._fk(prev.float(), betas_f)
-            pts = torch.cat([torch.einsum("jv,bvc->bjc", self.fk_lbs_wn, verts.float()),
-                             verts.float()[:, self.fk_vert_ids]], dim=1)           # (B, 16+V, 3)
-            fx, fy, cx, cy = self._intrinsics(k_f)
-            x, y, z = pts.unbind(-1)
-            z_safe = z.clamp(min=1e-6)
-            return torch.stack([fx[:, None] * x / z_safe + cx[:, None],
-                                fy[:, None] * y / z_safe + cy[:, None]], dim=-1)
-
-    def _fk_graph_forward(self, batch, prev):
-        """S37 FK graph: FK of `prev` -> node pixels -> events assigned and summarised per node ->
-        EdgeConv on the fixed graph -> joint nodes and background node for the decoders."""
-        from semkine.fk_graph import assign_and_observe
-        prev_geo = prev if self.route_prev_override is None else \
-            self.route_prev_override.to(prev.device, prev.dtype)
-        betas_f, k_f = self._resolve_betas_K(prev_geo, batch.betas, batch.camera_K)
-        with torch.no_grad():
-            uv = self._fk_node_uv(prev_geo, betas_f, k_f)
-            obs, assign = assign_and_observe(batch.events, batch.ptr, uv, batch.delta_t_s,
-                                             self.fk_band_px)
-            n_ev = int(batch.events.shape[0])
-            self.route_stats = {
-                "route_frac_routed": (assign < uv.shape[1]).float().mean() if n_ev else obs.new_zeros(()),
-                "route_joints_hit": (obs[:, :16, 0] > 0).sum(1).float().mean(),
-            }
-        if self.obs_feature_mask is not None:
-            obs = obs * self.obs_feature_mask.to(obs).view(1, 1, -1)
-        if self.ablate_evidence:
-            obs = torch.zeros_like(obs)
-        h = self.event_encoder(obs)                                                  # (B, N, hidden)
-        return h[:, :16], h[:, -1]
-
-    def _mesh_graph_forward(self, batch, prev):
-        """S37 mesh graph: FK of `prev` -> 778 projected vertices and their visibility -> events
-        handed to the nearest visible vertex and summarised per node -> EdgeConv on the mesh ->
-        skinning weights pool the vertices into sixteen joint evidences `(B, 16, 2C+1)`; the
-        background node `(B, C)` goes to the root."""
-        from semkine.fk_graph import assign_and_observe
-        from semkine.mesh_graph import (assign_events_by_lut, lbs_pool_evidence,
-                                        nearest_node_lut, visible_vertices)
-        prev_geo = prev if self.route_prev_override is None else \
-            self.route_prev_override.to(prev.device, prev.dtype)
-        betas_f, k_f = self._resolve_betas_K(prev_geo, batch.betas, batch.camera_K)
-        with torch.no_grad():
-            verts, _ = self._fk(prev_geo.float(), betas_f)                           # (B, 778, 3)
-            uv, z = self._project_verts(verts, k_f)                                  # (B, 778, 2)
-            vis = visible_vertices(verts, uv, z, self.mano.f, self.render_h, self.render_w,
-                                   self.mg_front_px, self.mg_z_tol)                  # (B, 778)
-            # jump-flood LUT: O(BHW), independent of event count and of the 778 nodes
-            lut = nearest_node_lut(uv, vis, self.render_h, self.render_w, self.mg_band_px)
-            assign_pre = assign_events_by_lut(batch.events, lut, background=uv.shape[1])
-            obs, assign = assign_and_observe(batch.events, batch.ptr, uv, batch.delta_t_s,
-                                             self.mg_band_px, assign_pre=assign_pre)
-            obs = obs[..., : self.mg_obs_dim]
-            has = obs[:, :-1, 0] > 0                                                 # vertex saw an event
-            n_ev = int(batch.events.shape[0])
-            self.route_stats = {
-                "route_frac_routed": (assign < uv.shape[1]).float().mean() if n_ev else obs.new_zeros(()),
-                "mg_frac_visible": vis.float().mean(),
-            }
-        if self.obs_feature_mask is not None:
-            obs = obs * self.obs_feature_mask.to(obs).view(1, 1, -1)
-        if self.ablate_evidence:
-            # "the mesh saw nothing": observations and the observed-vertex mask both go, so the
-            # pool cannot leak *where* events fell through its weights
-            obs = torch.zeros_like(obs)
-            has = torch.zeros_like(has)
-        h = self.event_encoder(obs)                                                  # (B, 779, C)
-        e, count = lbs_pool_evidence(h[:, :-1], self.mano.weights, vis, has)
-        self.route_stats["route_joints_hit"] = (count > 0).sum(1).float().mean()
-        return e, h[:, -1]
-
     def _xyz_mesh_forward(self, batch, prev):
         """S37-XYZ: FK of `prev` in camera XYZ, event rays through the render-frame intrinsics
         (`_intrinsics`, the same `s K` the events live in, per sample under domrand), the ray/mesh
         association, then the three learned modules of `semkine.xyz_mesh`. Returns the 51D delta."""
         from semkine.encoder import event_tokens
         from semkine.events import EV_X, EV_Y
-        from semkine.xyz_mesh import associate_rays, stride_sample, vertex_normals
+        from semkine.xyz_mesh import associate_rays, stride_sample
         events, ptr = batch.events, batch.ptr
         B = int(ptr.numel() - 1)
         if events.shape[0] == 0:
@@ -2612,439 +907,79 @@ class MNISTModel(BaseModel):
                             zero = zero + parameter.reshape(-1)[0] * 0.0
                 return prev.new_zeros(B, 51) + zero
             return prev.new_zeros(B, 51)
-        prev_geo = prev if self.route_prev_override is None else \
-            self.route_prev_override.to(prev.device, prev.dtype)
-        betas_f, k_f = self._resolve_betas_K(prev_geo, batch.betas, batch.camera_K)
+        betas_f, k_f = self._resolve_betas_K(prev, batch.betas, batch.camera_K)
         src, mask = stride_sample(ptr, self.xyz_max_nodes)
         tok = event_tokens(events, ptr, batch.delta_t_s, self.render_h, self.render_w)
         tok = tok[src.reshape(-1)].view(B, -1, tok.shape[-1]) * mask.unsqueeze(-1)
         with torch.no_grad():
-            verts, _ = self._fk(prev_geo.float(), betas_f)                           # (B, 778, 3)
+            verts, _ = self._fk(prev.float(), betas_f)                               # (B, 778, 3)
             fx, fy, cx, cy = self._intrinsics(k_f)
             ev = events[src.reshape(-1)].view(B, -1, events.shape[1])
             px, py = ev[..., EV_X].float(), ev[..., EV_Y].float()
             d = torch.stack([(px - cx[:, None]) / fx[:, None], (py - cy[:, None]) / fy[:, None],
                              torch.ones_like(px)], dim=-1)
             f_px = (fx * fy).sqrt()
-            verts_assoc, geo_kw, assoc_kw = verts, {}, {}
-            verts_gt = None
-            if self.xyz_assoc_prev == "target" or self.xyz.xag_oracle:
-                tgt = self.xyz_target_override if self.xyz_target_override is not None else batch.target
-                if (tgt is None or tgt.shape != prev_geo.shape or not bool(torch.isfinite(tgt).all())
-                        or not bool((tgt.abs().sum(-1) > 0).all())):
-                    raise RuntimeError("XYZ/XCL oracle needs finite window-end ground truth (B,51): set "
-                                       "model.xyz_target_override or pass batch.target; all-zero targets are invalid")
-                verts_gt, _ = self._fk(tgt.to(prev_geo.device).float(), betas_f)
-            if self.xyz_assoc_prev == "target":
-                # oracle: the assignment (vid / A / q / valid / hit) comes from the window-end ground-truth
-                # mesh; dXYZ, z_prior and the edge geometry stay on prev's own mesh (`verts_geo`)
-                verts_assoc = verts_gt
-                geo_kw = {"verts_geo": verts}
-            if self.xyz.xag_oracle:
-                geo_kw["verts_gt"] = verts_gt
-            if self.xyz_assoc_mode == "contour":
-                assoc_kw = {"mode": "contour", "normals": vertex_normals(verts_assoc, self.mano.f),
-                            "gap": self.xyz_contour_gap}
-            assoc = associate_rays(d, mask, verts_assoc, self.mano.f, self.xyz.vert_faces,
+            assoc = associate_rays(d, mask, verts, self.mano.f, self.xyz.vert_faces,
                                    band=self.xyz_band_px / f_px, front_tol=self.xyz_front_px / f_px,
-                                   z_tol=self.xyz_z_tol, k=self.xyz_k, **assoc_kw)
+                                   z_tol=self.xyz_z_tol, k=self.xyz_k)
             xag_aux = {}
             if self.xag_assoc_mode != "base":
                 from semkine.xag import route_association, sample_sources
-                source = sample_sources(batch, src, mask, require_depth=self.xag_assoc_mode == "full_oracle")
-                depth_kw = {"source_depth": source["xag_depth"]} if self.xag_assoc_mode == "full_oracle" else {}
+                source = sample_sources(batch, src, mask)
                 assoc, xag_aux = route_association(
                     self.xag_assoc_mode, assoc, d, mask, verts, self.mano.f, self.xyz.vert_faces,
                     self.xyz.lbs_w, self.xyz_band_px / f_px, self.xyz_front_px / f_px,
                     self.xyz_z_tol, source_part=source["xag_part"], source_face=source["xag_face"],
-                    source_bary=source["xag_bary"], source_valid=source["xag_valid"], k=self.xyz_k, **depth_kw)
+                    source_bary=source["xag_bary"], source_valid=source["xag_valid"], k=self.xyz_k)
                 xag_aux.update(source)
-        # AURA (docs/EXPERIMENT_RECORDS.md#aura-prereg-20261024): an association variant replaces C1's, no_grad
-        if getattr(self, "xyz_aura", "legacy") not in ("legacy", "shell"):
-            from semkine.aura import apply_aura
-            with torch.no_grad():
-                assoc = apply_aura(self.xyz_aura, assoc, d, mask, verts_assoc, self.mano.f, self.xyz.vert_faces,
-                                   (fx, fy, cx, cy), batch, self.xyz.lbs_hard, k=self.xyz_k)
-        # AGG778 fan-out binning reads the association band (ray units); every other path passes nothing new
-        agg_kw = {"band": self.xyz_band_px / f_px} if getattr(self, "xyz_agg", "legacy") == "fanout" else {}
         delta, stats, aux = self.xyz(tok, d, mask, verts, assoc, prev[:, 3:51],
-                                     ablate=self.ablate_evidence, capture=getattr(self, "xyz_keep_aux", False), **geo_kw,
-                                     **agg_kw)
+                                     ablate=self.ablate_evidence, capture=getattr(self, "xyz_keep_aux", False))
         self.route_stats = stats
         if getattr(self, "xyz_keep_aux", False):
             #: probe-only: the association and the pooled slots of the last packet batch
             self.xyz_last = {"assoc": assoc, "d": d, "mask": mask, "verts": verts, "tok": tok,
                              "src": src, "delta": delta.detach(), **{k: v.detach() for k, v in aux.items()},
                              **xag_aux}
-            if "verts_geo" in geo_kw:
-                self.xyz_last["verts_assoc"] = verts_assoc
-            if self.xyz.xag_oracle:
-                self.xyz_last["verts_gt"] = verts_gt
-        # region agent log
-        if self.training and self._agent_should_log():
-            from semkine.xyz_mesh import agent_log
-            with torch.no_grad():
-                rot_gap = (prev[:, 3:6] - batch.target[:, 3:6]).norm(dim=-1)            # rad, prev vs GT
-                big = rot_gap >= 0.25
-                live = mask.float()
-
-                def frac(x, sel):
-                    den = (live * sel[:, None]).sum()
-                    return float((x.float() * live * sel[:, None]).sum() / den.clamp_min(1)) if den > 0 else None
-                agent_log("H2", "model.py:_xyz_mesh_forward", "association stats (train batch)", {
-                    "step": int(self.global_step), "B": B, "geom": bool(self.xyz.geom),
-                    "valid_all": frac(assoc["valid"], torch.ones_like(big)),
-                    "hit_all": frac(assoc["hit"], torch.ones_like(big)),
-                    "valid_small_gap": frac(assoc["valid"], ~big), "hit_small_gap": frac(assoc["hit"], ~big),
-                    "valid_big_gap": frac(assoc["valid"], big), "hit_big_gap": frac(assoc["hit"], big),
-                    "share_big_gap": float(big.float().mean()),
-                    "resid_mass": float(stats["xyz_resid_mass"]),
-                    "verts_direct": float(stats["xyz_verts_direct"]), "verts_prop": float(stats["xyz_verts_prop"]),
-                    "delta_abs_mean": {"t": float(delta[:, :3].float().abs().mean()),
-                                       "rot": float(delta[:, 3:6].float().abs().mean()),
-                                       "pose": float(delta[:, 6:].float().abs().mean())},
-                })
-        # endregion
         return delta
 
-    # region agent log
-    def _agent_should_log(self) -> bool:
-        trainer = getattr(self, "_trainer", None)
-        if trainer is None or int(getattr(trainer, "global_rank", 0)) != 0:
-            return False
-        step = int(self.global_step)
-        if step % 100 != 0 or getattr(self, "_agent_last_step", -1) == step:
-            return False
-        self._agent_last_step = step
-        return True
-
-    def on_after_backward(self):
-        if not getattr(self, "xyz_mesh", False):
-            return
-        trainer = getattr(self, "_trainer", None)
-        step = int(self.global_step)
-        if trainer is None or int(trainer.global_rank) != 0 or step % 100 != 0:
-            return
-        from semkine.xyz_mesh import agent_log
-        groups = {"relation": ["xyz.rel."], "vertex_in": ["xyz.vin."], "edge_gate": ["xyz.edge.", ".gate."],
-                  "mesh_msg": [".msg.", ".slf."], "readout": ["xyz.slot_proj.", "xyz.fc1.", "xyz.fc2."]}
-        out = {}
-        for gname, keys in groups.items():
-            sq, n = 0.0, 0
-            for name, p in self.named_parameters():
-                if p.grad is not None and any(k in name for k in keys):
-                    sq += float(p.grad.detach().float().square().sum())
-                    n += 1
-            out[gname] = {"grad_norm": sq ** 0.5, "n_tensors": n}
-        out["weight_norm_fc2"] = float(self.xyz.fc2.weight.detach().float().norm())
-        agent_log("H3", "model.py:on_after_backward", "grad norms per learned module", {
-            "step": step, "geom": bool(self.xyz.geom), "loss": getattr(self, "_agent_last_loss", None),
-            "groups": out})
-    # endregion
-
-    def _project_verts(self, verts, k_f):
-        """Pinhole projection with the render intrinsics: `(uv (B, V, 2), z (B, V))`."""
-        fx, fy, cx, cy = self._intrinsics(k_f)
-        x, y, z = verts.unbind(-1)
-        z_safe = z.clamp(min=1e-6)
-        uv = torch.stack([fx[:, None] * x / z_safe + cx[:, None],
-                          fy[:, None] * y / z_safe + cy[:, None]], dim=-1)
-        return uv, z_safe
-
-    def _project_prev(self, prev, betas_f, k_f):
-        """MANO FK of `prev` projected with the render intrinsics: `(uv (B, 778, 2), z (B, 778))`.
-
-        Under `no_grad`: the state is conditioning, not a differentiable pathway (same rule as
-        the render path).
-        """
-        with torch.no_grad():
-            verts, _ = self._fk(prev.float(), betas_f)
-            return self._project_verts(verts, k_f)
-
-    def _route_nodes(self, px, py, mask, prev, betas_f, k_f):
-        """S37-routed responsibilities `(B, N, 16)` of the sampled nodes over the joints of `prev`:
-        the front-most nearest-vertex LBS lookup of `semkine.routed_readout`. Also returns the
-        per-node distance to the hand and the vertex id, for the probes."""
-        from semkine.routed_readout import route_front_vertex_lbs
-        with torch.no_grad():
-            uv, z = self._project_prev(prev, betas_f, k_f)
-            return route_front_vertex_lbs(px, py, mask, uv, z, self.mano.weights,
-                                          self.route_band_px, self.route_front_k)
-
-    def _node_responsibility(self, px, py, mask, prev, betas_f, k_f):
-        """Probe interface shared by both S37 arms: `(B, N, 16)` share of each node's evidence
-        that reaches each joint under the geometry of `prev`."""
-        if self.routed:
-            return self._route_nodes(px, py, mask, prev, betas_f, k_f)[0]
-        uv, z = self._project_prev(prev, betas_f, k_f)
-        return self.mesh_query_mod.node_responsibility(px, py, mask, uv, z)
-
-    def _decode_mesh(self, e, mesh, cov):
-        """S37 mesh query: root reads the mesh aggregate and all sixteen joint evidences in joint
-        order; joint decoder k reads evidence row k + 1 and nothing else, and is gated by that
-        joint's coverage so an unobserved joint does not move (per-joint zero-event identity)."""
-        e = e.to(self.root_head.weight.dtype)
-        mesh = mesh.to(e.dtype)
-        seen = (cov > 0)
-        root = self.root_head(torch.cat([mesh, e.flatten(1)], dim=-1)) * seen.any(1, keepdim=True).to(e.dtype)
-        cols = [root]
-        for k, head in enumerate(self.joint_heads):
-            if self.ablate_joint_heads:
-                cols.append(torch.zeros(e.shape[0], 3, device=e.device, dtype=e.dtype))
-                continue
-            cols.append(head(e[:, k + 1]) * seen[:, k + 1: k + 2].to(e.dtype))
-        return torch.cat(cols, dim=-1)
-
     def forward_packet(self, batch):
-        """Raw-event forward for an `EventPacketBatch`. Empty packets return bitwise `prev`."""
+        """Raw-event forward for an `EventPacketBatch` (MODEL.ENCODER xyz_mesh). Empty packets return bitwise `prev`."""
         if not self.encoder_name:
             raise RuntimeError("forward_packet requires MODEL.ENCODER")
-        events = batch.events
-        ptr = batch.ptr
         prev = batch.prev_state
-        extra = None
-        if self.prev_render:
-            betas_f, k_f = self._resolve_betas_K(prev, batch.betas, batch.camera_K)
-            with torch.no_grad():
-                rend = self._render_prev(prev.float(), betas_f, k_f)
-            rend = rend.to(dtype=events.dtype, device=events.device)
-            from semkine.encoder import query_render
-            extra = query_render(rend, events)
-        evidence = None
-        root_add = None
-        if self.fk_graph:
-            joints_h, background = self._fk_graph_forward(batch, prev)
-            out = self._decode_active(None, prev, joints_h, root_extra=background)
-        elif self.mesh_graph:
-            evidence, background = self._mesh_graph_forward(batch, prev)
-            out = self._decode_active(None, prev, evidence, root_extra=background)
-        elif self.xyz_mesh:
-            out = self._xyz_mesh_forward(batch, prev)
-        elif self.mesh_query:
-            _, h, g, px, py, mask = self.event_encoder(events, ptr, batch.delta_t_s, None,
-                                                       return_nodes=True)
-            B = int(ptr.numel() - 1)
-            mq = self.mesh_query_mod
-            if h.shape[1] == 0:
-                e = torch.zeros(B, 16, mq.ev_dim, device=events.device, dtype=h.dtype)
-                mesh = torch.zeros(B, mq.ev_dim, device=events.device, dtype=h.dtype)
-                cov = torch.zeros(B, 16, device=events.device, dtype=torch.float32)
-                self.route_stats = {}
-            else:
-                prev_geo = prev if self.route_prev_override is None else \
-                    self.route_prev_override.to(prev.device, prev.dtype)
-                betas_f, k_f = self._resolve_betas_K(prev_geo, batch.betas, batch.camera_K)
-                uv, z = self._project_prev(prev_geo, betas_f, k_f)
-                e, mesh, cov, self.route_stats = mq(h, g, px, py, mask, uv, z)
-            if self.ablate_evidence:
-                # "the mesh saw nothing": evidence and coverage both zero, so every gate closes
-                # and the arm degenerates to the do-nothing tracker (output = prev)
-                e, mesh, cov = torch.zeros_like(e), torch.zeros_like(mesh), torch.zeros_like(cov)
-            out = self._decode_mesh(e, mesh, cov)
-        else:
-            if self.routed:
-                from semkine.routed_readout import pool_joint_evidence
-                feat, h, _, px, py, mask = self.event_encoder(events, ptr, batch.delta_t_s, extra,
-                                                              return_nodes=True)
-                if self.root_meas == "abs" and self.u1a_mode == "off":
-                    with torch.autocast(device_type=feat.device.type, enabled=False):
-                        abs_r = self.root_abs_head(self.event_encoder.pooled.float())
-                if self.finger_meas == "abs" and self.u1a_mode == "off":
-                    with torch.autocast(device_type=feat.device.type, enabled=False):
-                        abs_f = self.finger_abs_head(self.event_encoder.pooled.float())
-                if h.shape[1] == 0:
-                    evidence = torch.zeros(feat.shape[0], 16, 2 * h.shape[-1] + 1,
-                                           device=feat.device, dtype=feat.dtype)
-                    self.route_stats = {}
-                    if self.root_meas == "abs" and self.u1a_mode == "off":
-                        abs_rot = self._abs_root(abs_r, prev, batch.counts, events.shape[0])
-                else:
-                    prev_route = prev if self.route_prev_override is None else \
-                        self.route_prev_override.to(prev.device, prev.dtype)
-                    betas_f, k_f = self._resolve_betas_K(prev_route, batch.betas, batch.camera_K)
-                    if self.root_innovation:
-                        # the same FK / projection / routing `_route_nodes` computes, kept so the
-                        # innovation features reuse them
-                        from semkine.routed_readout import route_front_vertex_lbs
-                        from semkine.root_innovation import innovation_features, lever_arms
-                        with torch.no_grad():
-                            verts, joints = self._fk(prev_route.float(), betas_f)
-                            uv, zv = self._project_verts(verts, k_f)
-                            a, dist, vid = route_front_vertex_lbs(
-                                px, py, mask, uv, zv, self.mano.weights,
-                                self.route_band_px, self.route_front_k)
-                            # fp32 in training and evaluation alike: under bf16 autocast the SDF
-                            # blur and the pooling einsum would otherwise drop to bf16 in training only
-                            with torch.autocast(device_type=px.device.type, enabled=False):
-                                q = innovation_features(px.float(), py.float(), mask, a.float(), vid,
-                                                        uv.float(), self.render_h, self.render_w)
-                                g = lever_arms(verts.float(), joints[:, self.FK_ROOT_JOINT].float(),
-                                               self.mano.weights.float(), *self._intrinsics(k_f))
-                            if self.ablate_innovation:
-                                q = torch.zeros_like(q)
-                        root_add = self.root_innov_head(q, g)
-                    else:
-                        a, dist, _ = self._route_nodes(px, py, mask, prev_route, betas_f, k_f)
-                    if self.root_meas == "abs" and self.u1a_mode == "off":
-                        # read back after the routing, whose own host syncs have already drained the GPU
-                        abs_rot = self._abs_root(abs_r, prev, batch.counts, events.shape[0])
-                    evidence, count = pool_joint_evidence(h, a, mask)
-                    live = mask.sum(1).clamp_min(1).to(torch.float32)
-                    self.route_stats = {
-                        "route_frac_routed": ((a.sum(-1) > 0).sum(1).to(torch.float32) / live).mean(),
-                        "route_joints_hit": (count > 0).sum(1).to(torch.float32).mean(),
-                    }
-                if self.ablate_evidence:
-                    evidence = torch.zeros_like(evidence)
-            else:
-                feat = self.event_encoder(events, ptr, batch.delta_t_s, extra)
-            if self.active_head:
-                if self.u1a_mode != "off":
-                    with torch.autocast(device_type=feat.device.type, enabled=False):
-                        t_delta, abs_r, abs_f = self.u1a_readout(
-                            self.event_encoder.pooled.float(), feat.float(), evidence.float(), prev.float())
-                    self.u1a_last_raw = torch.cat([t_delta, abs_r, abs_f], dim=-1).detach()
-                    abs_rot = self._abs_root(abs_r, prev, batch.counts, events.shape[0])
-                    out = torch.cat([t_delta, t_delta.new_zeros(t_delta.shape[0], 48)], dim=-1)
-                else:
-                    out = self._decode_active(feat, prev, evidence, root_add=root_add)
-            else:
-                out = self.pose_head(feat)
-        if self.prevpos_embed:
-            pm = self.prev_mlp(prev.to(out.dtype))
-            if not self.prev_mlp_root:
-                # the event-blind pull on translation and global rotation is removed; the finger
-                # rows are the trained S37 ones
-                pm = torch.cat([torch.zeros_like(pm[:, :6]), pm[:, 6:]], dim=-1)
-            out = out + pm
+        out = self._xyz_mesh_forward(batch, prev)
         if self.predict_delta:
             delta = out
             if self.zero_event_gate:
                 empty = (batch.counts <= 0).unsqueeze(-1)
                 delta = torch.where(empty, torch.zeros_like(delta), delta)
             out = delta + prev.to(out.dtype)
-        if self.root_meas == "abs" or self.finger_meas == "abs":
-            out = out.float()
-            fingers = out[:, 6:]
-            if self.finger_meas == "abs":
-                fingers = self._abs_fingers(abs_f, prev, batch.counts, events.shape[0])
-            out = torch.cat([out[:, :3], abs_rot if self.root_meas == "abs" else out[:, 3:6], fingers], dim=-1)
         return out
-
-    def _abs_fingers(self, f, prev, counts, n_events: int):
-        """S38 `FINGER_MEAS: abs`: the 45 finger parameters `(B, 45)`, float32: the packet's measurement `f`
-        (training), at inference moved from prev by `FINGER_FILTER_GAIN`; an event-free packet holds prev's."""
-        prev_f = prev[:, 6:].float()
-        meas = f
-        if not self.training and self.finger_filter_gain < 1.0:
-            meas = prev_f + self.finger_filter_gain * (f - prev_f)
-        if f.shape[0] == 1 and not self.training:          # batch 1: emptiness is known on the host
-            return prev_f if n_events == 0 else meas
-        return torch.where((counts <= 0).unsqueeze(-1), prev_f, meas)
-
-    def _abs_root(self, r, prev, counts, n_events: int):
-        """S38 `ROOT_MEAS: abs`: the packet's root rotation `(B, 3)`, float32, which `forward_packet` writes
-        into the root-rotation columns: the measurement R = Exp(r) R_ref, `r = root_abs_head(pool)` read off
-        the encoder's state-free pool; an event-free packet holds prev's.
-        At inference, `ROOT_FILTER_GAIN` a < 1 then moves the fed-back root from prev toward the
-        measurement by a geodesic step of size a, R_t = R_{t-1} Exp(a Log(R_{t-1}^T R)) (the slerp of
-        `semkine.anchored.anchor_blend`); every other column is the network's own. Returned in float32:
-        under bf16 the axis-angle near 130 deg would be rounded to ~0.5 deg.
-
-        Training composes on the GPU (differentiable, float32). Inference composes the same rotations
-        in float64 Python arithmetic on the host, one round trip per packet (`anchored.root_step`): at
-        batch 1 the generic SO(3) maps cost ~2 ms of kernel launches (docs/S37_ROOT_TRACKING_VERDICT.md
-        section 5.5) and numpy's per-call dispatch ~0.1 ms. The two paths agree to float32 precision
-        (tests/test_s38.py)."""
-        prev = prev.float()
-        if self.training:
-            from semkine.lie import so3_exp, so3_log
-            with torch.autocast(device_type=r.device.type, enabled=False):
-                rot = so3_log(so3_exp(r) @ self.root_ref_R)
-            return torch.where((counts <= 0).unsqueeze(-1), prev[:, 3:6], rot)
-        from semkine.anchored import root_step
-        if r.shape[0] == 1:                       # batch 1: emptiness is known on the host
-            rows = torch.cat([r, prev[:, 3:6]], dim=-1).tolist()
-            live = [n_events > 0]
-        else:
-            rows = torch.cat([r, prev[:, 3:6], counts.view(-1, 1).float()], dim=-1).tolist()
-            live = [v[6] > 0 for v in rows]
-        vals = [root_step(v[0:3], self.root_ref_q, v[3:6], self.root_filter_gain) if ok else v[3:6]
-                for v, ok in zip(rows, live)]
-        return torch.tensor(vals, dtype=torch.float32).to(r.device, non_blocking=True)
-
-    def _compose_root_so3(self, added, delta, prevpos):
-        """`ROOT_COMPOSE: so3`: `added` is the additive update `delta + prevpos`; its root-rotation columns are replaced
-        by the principal axis-angle Log(Exp(delta_root) @ Exp(prev_root)), the delta applied on the LEFT (camera
-        frame), so a rotation of prev about any camera axis rotates the output by the same angle when delta is 0.
-        Translation and finger columns are `added`'s, untouched. The root block runs in float32 with autocast off
-        (a bf16 axis-angle near 130 degrees would be rounded to ~0.5 degree), is differentiable, and `so3_log` goes
-        through a quaternion, so it is well conditioned up to |phi| = pi and never returns a norm above pi.
-        The result is float32 whatever the trunk's dtype.
-        """
-        from semkine.lie import so3_exp, so3_log
-        r = self.slices.root
-        with torch.autocast(device_type=delta.device.type, enabled=False):
-            rot = so3_log(so3_exp(delta[:, r].float()) @ so3_exp(prevpos[:, r].float()))
-            return torch.cat([added[:, : r.start].float(), rot, added[:, r.stop:].float()], dim=-1)
 
     def forward(self, x, prevpos, betas=None, camera_K=None):
         if self.encoder_name:
             raise RuntimeError("this model reads raw events; call forward_packet")
         lnes = x
         B = lnes.shape[0]
-        if self.glimpse:
-            return self._forward_glimpse(lnes, prevpos, betas, camera_K)
         if self.prev_render:
             betas_f, k_f = self._resolve_betas_K(prevpos, betas, camera_K)
             with torch.no_grad():
                 rend = self._render_prev(prevpos.float(), betas_f, k_f)
             rend = rend.to(dtype=lnes.dtype, device=lnes.device)
             x = torch.cat([lnes, rend], dim=-1)
-            if self.cam_planes:
-                # appended last: the channels before them keep the published order
-                with torch.no_grad():
-                    planes = self._cam_planes(k_f).to(dtype=lnes.dtype, device=lnes.device)
-                x = torch.cat([x, planes], dim=-1)
         x = x.permute(0, 3, 1, 2).contiguous()
         if self.sparse_trunk:
-            if self.training and self.sparse_noise:
-                x = self._sparse_noise(x)
             m0 = input_mask(x)
             feats, _ = self.rn.pooled(self.conv1(x) * m0, m0)
             out = self.rn.fc(feats)
-        elif self.root_head_kind == "none":
-            out = self.rn(self.conv1(x))
         else:
-            if not self.prev_render:                       # `spatial` reads the trunk only; `anchor` requires PREV_RENDER
-                betas_f = k_f = None
-            out = self._trunk_with_root_head(self.conv1(x), prevpos, betas_f, k_f)
-        if self.active_head:
-            out = self._decode_active(out, prevpos)
+            out = self.rn(self.conv1(x))
         if self.prevpos_embed:
-            pm = self.prev_mlp(prevpos.to(out.dtype))
-            if not self.prev_mlp_transl:
-                # PREV_MLP_TRANSL: false. The event-blind pull on the translation (it reads the raw previous
-                # translation) is dropped; the layer keeps its shape, its masked outputs get a zero gradient.
-                t = self.slices.transl
-                pm = torch.cat([pm[:, : t.start], torch.zeros_like(pm[:, t]), pm[:, t.stop:]], dim=-1)
-            out = out + pm
+            out = out + self.prev_mlp(prevpos.to(out.dtype))
         if self.predict_delta:
             delta = out
-            empty = None
             if self.zero_event_gate:
                 empty = lnes.reshape(B, -1).abs().sum(dim=1, keepdim=True) <= 0
                 delta = torch.where(empty, torch.zeros_like(delta), delta)
             out = delta + prevpos.to(out.dtype)
-            if self.root_compose == "so3":
-                out = self._compose_root_so3(out, delta, prevpos)
-                if empty is not None:
-                    # Log(Exp(prev)) is prev only up to float error (and to the pi seam): hold it exactly
-                    out = torch.where(empty, prevpos.to(out.dtype), out)
-            if self.transl_head is not None:
-                p_t = prevpos[:, :3].to(out.dtype)
-                t = p_t + self.transl_head(torch.cat([feats.detach().to(out.dtype), p_t], dim=1))
-                if empty is not None:
-                    t = torch.where(empty, p_t, t)
-                out = torch.cat([t, out[:, 3:]], dim=1)
         return out

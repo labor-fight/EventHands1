@@ -1,0 +1,18 @@
+{
+ "round": 14,
+ "routers": {},
+ "arms": {
+  "pfat0pdz_cos": {"router": "t0p", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "lr_schedule": "cosine",
+                   "schedule_of": "pfat0pdz",
+                   "note": "pfat0pdz's recipe and sampling stream with TRAIN.LR_SCHEDULE cosine (warmup 500 unchanged, then cosine to 0.02 at step 6000); equal to pfat0pdz through step 500; its own T0P readings are descriptive (over budget)"},
+  "pfat0pdz_rep_cos": {"router": "t0p", "assoc": "pfa", "onhand_tau": 0.5, "dz": true, "sampler": "dedicated",
+                       "repeat_of": "pfat0pdz_cos", "lr_schedule": "cosine", "schedule_of": "pfat0pdz_rep",
+                       "note": "pfat0pdz_rep's recipe and sampling stream (S45-AT s45samp's) with the cosine schedule; equal to pfat0pdz_rep through step 500; T0P readings descriptive"},
+  "xt0cos_srdwa": {"pair_trunk": "pfat0pdz_cos", "router": "srdwkda", "assoc": "pfa", "onhand_tau": 0.5, "dz": true,
+                   "fast": true, "pairing": "t2_cosine",
+                   "note": "zero training: the cosine trunk (original stream) with srdwkda at test; pairs with xt0_srdwa"},
+  "xt0repcos_srdwa": {"pair_trunk": "pfat0pdz_rep_cos", "router": "srdwkda", "assoc": "pfa", "onhand_tau": 0.5,
+                      "dz": true, "fast": true, "pairing": "t2_repeat_cosine",
+                      "note": "zero training: the cosine trunk (s45samp's stream) with srdwkda at test; pairs with xt0rep_srdwa"}
+ }
+}

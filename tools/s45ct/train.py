@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 from tools.xyz_c1_repro import train as B  # noqa: E402  (sets the strict environment, re-execs once)
 import yaml  # noqa: E402
+from tools.frozen import accepts  # noqa: E402
 from tools.s45ct.common import (ARMS, OUT, PROTOCOL, T1D_CONFIG, config_frozen, config_path, expected_raw,  # noqa: E402
                                 install_hook, now, read, require, save, sha, verify_protocol)
 
@@ -68,7 +69,7 @@ def check_binding(options, config):
     require(replay["status"] == "PASS" and replay["t1d_code_replay_exact"] is True,
             "Current code does not replay T1d training exactly; the pairing premise fails")
     require(read(OUT / "acceptance" / "acceptance.json")["status"] == "PASS", "Step-0 acceptance not passed")
-    require(pre["wrapper_sha256"] == sha(__file__), "Training wrapper changed since preflight")
+    require(accepts(__file__, pre["wrapper_sha256"]), "Training wrapper changed since preflight")
 
 
 def fresh_claim(options, cfg):

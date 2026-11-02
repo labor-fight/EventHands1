@@ -9,12 +9,10 @@ occur it is a pure quadratic, and a quadratic's gradient vanishes with the error
 remove. Between them, nothing pushes absolute position.
 
 The gates below are about gradients, not about loss values, because that is where the failure lives:
-a loss can be large and still supply no usable signal. Two remedies are checked independently, both
-defaulting to off so every existing arm stays bit-identical:
-
-* `ABS_FK_WEIGHT` -- a non-root-relative FK term, in metres, which is the quantity the non-aligned
-  metric measures
-* `TRANS_BETA` -- moving the SmoothL1 transition to the error scale, restoring a constant gradient
+a loss can be large and still supply no usable signal. They test the mechanism with plain torch (the two
+remedies they were written for, `LOSS.ABS_FK_WEIGHT` -- a non-root-relative FK term, in metres -- and
+`LOSS.TRANS_BETA` -- the SmoothL1 transition moved to the error scale -- were removed from the model with
+the closed DT arms; the kept `so3_trans_fk` loss is the S4 loss with their defaults).
 """
 from __future__ import annotations
 
@@ -85,21 +83,6 @@ def test_absolute_fk_term_has_a_constant_translation_gradient():
         # Unit gradient along the error direction, independent of the error's size: the defining
         # property of an L2-norm-of-difference term and the reason it does not stall.
         assert abs(float(t.grad.norm()) - 1.0) < 1e-9, (err, float(t.grad.norm()))
-
-
-def test_defaults_leave_the_loss_untouched():
-    """`ABS_FK_WEIGHT=0` and `TRANS_BETA=1` must reproduce the legacy loss exactly.
-
-    Checked on the configuration surface rather than by running a training step, so it holds for
-    every arm trained before this stage without re-running any of them.
-    """
-    from model import BaseModel
-
-    cfg = {"LOSS": {"TYPE": "so3_trans_fk"}}
-    loss_cfg = cfg["LOSS"]
-    assert float(loss_cfg.get("ABS_FK_WEIGHT", 0.0)) == 0.0
-    assert float(loss_cfg.get("TRANS_BETA", 1.0)) == 1.0
-    assert hasattr(BaseModel, "_so3_fk_loss")
 
 
 def test_smooth_l1_beta_is_supported_by_this_torch():

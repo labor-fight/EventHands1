@@ -1,0 +1,25 @@
+{
+  "round": 10,
+  "prereg": "docs/EXPERIMENT_RECORDS.md#s45sm-r10-prereg-20261031",
+  "routers": {
+    "srpkda": {"kind": "srp", "anneal_of": "srpkd", "anneal_steps": 2000, "heldout": "ylf", "dz": true, "params": 137787,
+               "kd": {"teacher": "t0p", "T": 2.0, "lambda_patch": 1.0, "lambda_coord": 0.5, "lambda_onhand": 0.5},
+               "note": "srpkd annealed: its own recipe continued from its final checkpoint for 2000 steps, fresh Adam, LR warmed up over 100 steps to 1e-3 then linearly to 0 (tools/s45sm/router_train7.py)"},
+    "sr1a": {"kind": "sr", "anneal_of": "sr1", "anneal_steps": 2000, "heldout": "ylf", "dz": true, "params": 137028,
+             "note": "sr1 annealed, as srpkda (tools/s45sm/router_train7.py)"},
+    "srdwkda": {"kind": "dw", "anneal_of": "srdwkd", "anneal_steps": 2000, "heldout": "ylf", "dz": true, "params": 137291,
+                "kd": {"teacher": "t0p", "T": 2.0, "lambda_patch": 1.0, "lambda_coord": 0.5, "lambda_onhand": 0.5},
+                "note": "srdwkd annealed, as srpkda (tools/s45sm/router_train7.py)"},
+    "srpkdh": {"kind": "srph", "decode_of": "srpkd", "params": 137787,
+               "note": "srpkd decoded part-first (semkine/s45sm_hier.py); srpkd's weights (tools/s45sm/decode_variant.py)"},
+    "srpkdah": {"kind": "srph", "decode_of": "srpkda", "params": 137787,
+                "note": "srpkda decoded part-first"},
+    "srdwkdh": {"kind": "dwh", "decode_of": "srdwkd", "params": 137291,
+                "note": "srdwkd decoded part-first"},
+    "srdwkdah": {"kind": "dwh", "decode_of": "srdwkda", "params": 137291,
+                 "note": "srdwkda decoded part-first"},
+    "t0ph": {"kind": "t0ph", "decode_of": "t0p", "params": 1606683,
+             "note": "T0P decoded part-first (over budget, descriptive)"}
+  },
+  "arms": {}
+}

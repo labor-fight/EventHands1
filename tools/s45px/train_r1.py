@@ -13,6 +13,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 from tools.s45px import train as T  # noqa: E402  (strict environment via tools/xyz_c1_repro/train.py)
+from tools.frozen import accepts  # noqa: E402
 from tools.s45px.common import (ARMS, OUT, PROTOCOL, S45TR, config_frozen, read, require, sha,  # noqa: E402
                                 verify_protocol)
 
@@ -26,12 +27,12 @@ def check_binding(options, config):
     config_frozen(config)
     files = read(MANIFEST)["file_sha256"]
     for name in AMENDED:
-        require(sha(ROOT / name) == files[name], "amendment-1 file changed: " + name)
+        require(accepts(ROOT / name, files[name]), "amendment-1 file changed: " + name)
     for arm in ARMS:
         pre = read(OUT / "receipts_r1" / f"preflight_{arm}.json")
         require(pre["status"] == "PASS" and pre["protocol_sha256"] == sha(PROTOCOL)
                 and pre["s45_steps_1_2_exact_and_departs_at_step3"] is True, "Preflight not accepted (amendment 1): " + arm)
-        require(pre["wrapper_sha256"] == sha(T.__file__), "Training wrapper changed since preflight")
+        require(accepts(T.__file__, pre["wrapper_sha256"]), "Training wrapper changed since preflight")
     TR.verify_protocol()
     replay = read(S45TR / "receipts" / "preflight_s45replay.json")
     require(replay["status"] == "PASS" and replay["s45_code_replay_exact"] is True,
