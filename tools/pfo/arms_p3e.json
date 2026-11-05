@@ -1,0 +1,4 @@
+{
+  "f1mp": {"trunk": "full", "set": {"AUG.DOMRAND.HOT_PIXEL_RATE": 0.0}, "router": "r_s2d", "section": "pfo-p3e-prereg-20261103"},
+  "f1sr1": {"trunk": "nomp", "set": {"AUG.DOMRAND.HOT_PIXEL_RATE": 0.0}, "section": "pfo-p3e-prereg-20261103"}
+}

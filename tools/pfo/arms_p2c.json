@@ -1,0 +1,3 @@
+{
+  "nohot": {"trunk": "base", "set": {"AUG.DOMRAND.HOT_PIXEL_RATE": 0.0}, "section": "pfo-p2c-prereg-20261103"}
+}

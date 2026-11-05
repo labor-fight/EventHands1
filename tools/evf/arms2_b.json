@@ -1,0 +1,4 @@
+{
+  "b": {"evf": {"NET": "graph", "HIDDEN": 48}, "base": "a", "section": "evf-prereg-20261104",
+        "note": "starting point B, the graph version: A's level-0 node features, three pooled space-time levels (6 / 12 / 24 px cells) with virtual-frame injection at every level and radius edges (relative displacement / time only), A's readout over levels 1-3"}
+}

@@ -1,0 +1,11 @@
+[
+ "semkine/evf_model2.py", "semkine/evf_graph.py", "semkine/evf_model.py", "semkine/evf_net.py", "semkine/evf_nodes.py",
+ "semkine/evf_render.py", "tools/evf/arms2.py", "tools/evf/arms2_b.json", "tools/evf/arms2_r2.json",
+ "tools/evf/train2.py", "tools/evf/nets2.py", "tools/evf/run2.py", "tools/evf/run3.py", "tools/evf/decide2.py",
+ "tools/evf/jobs2.py", "tools/evf/jobs3.py", "tools/evf/replay2.py", "tools/evf/chain.py", "tools/evf/freeze.py",
+ "tests/test_evf2.py",
+ "configs/evf_20261104/evf_b_s3407_screen.yaml", "configs/evf_20261104/evf_b_s3407.yaml",
+ "configs/evf_20261104/evf_alarge_s3407_screen.yaml", "configs/evf_20261104/evf_alarge_s3407.yaml",
+ "configs/evf_20261104/evf_ait2_s3407_screen.yaml", "configs/evf_20261104/evf_ait2_s3407.yaml",
+ "configs/evf_20261104/evf_ait2_s3407_smoke3.yaml", "configs/evf_20261104/evf_ait2_s3407_smoke3b.yaml"
+]

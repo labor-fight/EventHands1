@@ -1,0 +1,6 @@
+{
+  "a": {"evf": {}, "base": "", "section": "evf-prereg-20261104",
+        "note": "starting point A, the point version: event attributes + virtual-frame samples + event-minus-prediction relative quantities -> shared MLP -> 17 soft joint queries + packet statistics + prev48 -> 51-D increment"},
+  "anovf": {"evf": {"VF": false}, "base": "a", "section": "evf-prereg-20261104",
+            "note": "control: A without the virtual frame (events only: attributes and image position; prev48 path kept); comparison only, never screened"}
+}

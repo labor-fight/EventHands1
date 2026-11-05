@@ -1,0 +1,7 @@
+{
+  "files": [
+    "tools/pfo2/specs.py", "tools/pfo2/run2.py", "tools/pfo2/jobs_a2.py", "tests/test_pfo2_a2.py",
+    "outputs/pfo2/20261103/jobs/a2.json", "outputs/pfo2/20261103/manifests/s0.json",
+    "outputs/pfo2/20261103/manifests/a1.json", "outputs/pfo2/20261103/manifests/p0.json"
+  ]
+}

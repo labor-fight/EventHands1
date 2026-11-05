@@ -1,0 +1,7 @@
+{
+  "ait2": {"evf": {"ITERS": 2, "MAX_NODES": 4096}, "base": "a", "section": "evf-r2-prereg-20261104",
+           "note": "A with two updates per packet (the virtual frame re-rendered at the first update, shared weights); the node cap 6144 -> 4096 keeps the full-load packet within 2x S43 (two passes)"},
+  "alarge": {"track": {"PREV_NOISE_P_SMALL": 0.2, "PREV_NOISE_P_LARGE": 0.5, "PREV_NOISE_P_CORR": 0.3}, "base": "a",
+             "section": "evf-r2-prereg-20261104",
+             "note": "A trained with a larger share of large / directed prior errors: small / large / directed 0.2 / 0.5 / 0.3 (B2's contract 0.5 / 0.3 / 0.2); magnitudes unchanged"}
+}

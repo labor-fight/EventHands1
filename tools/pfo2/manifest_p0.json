@@ -1,0 +1,12 @@
+{
+  "files": [
+    "tools/pfo2/p0a.py", "tools/pfo2/p0b.py", "tools/pfo2/p0c.py", "tools/pfo2/p0d.py", "tools/pfo2/engine.py",
+    "tools/pfo2/jobs_p0.py", "semkine/pfo2_routes.py", "tests/test_pfo2_p0.py", "outputs/pfo2/20261103/jobs/p0.json",
+    "outputs/pfo2/20261103/manifests/s0.json", "outputs/pfo2/20261103/manifests/a1.json",
+    "outputs/pfo2/20261103/diagnostics/p0_power/*", "tools/s45loc/common.py", "semkine/pfo_trunk2.py",
+    "outputs/pfo/20261103/routers/r_s2d/r_s2d_final.ckpt", "outputs/pfo/20261103/routers/r_wide/r_wide_final.ckpt",
+    "outputs/pfo/20261103/readings/pfo_f1_s340*/e1/states.npz", "outputs/pfo/20261103/readings/pfo_f1_s340*/e1/report.json",
+    "outputs/pfo/20261103/readings/pfo_f1_s340*/pert/report.json",
+    "outputs/pfo/20261103/runs/pfo_f1_s340*/pfo_f1_s340*-step=6000.ckpt"
+  ]
+}

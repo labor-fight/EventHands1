@@ -1,0 +1,11 @@
+[
+ "semkine/evf_render.py", "semkine/evf_nodes.py", "semkine/evf_net.py", "semkine/evf_model.py", "semkine/evf_async.py",
+ "tools/evf/__init__.py", "tools/evf/common.py", "tools/evf/arms.py", "tools/evf/arms_r1.json", "tools/evf/train.py",
+ "tools/evf/nets.py", "tools/evf/run.py", "tools/evf/replay.py", "tools/evf/decide.py", "tools/evf/jobs.py",
+ "tools/evf/chain.py", "tools/evf/cost.py", "tools/evf/freeze.py", "tests/test_evf.py",
+ "configs/evf_20261104/evf_a_s3407_screen.yaml", "configs/evf_20261104/evf_a_s3407.yaml",
+ "configs/evf_20261104/evf_anovf_s3407_screen.yaml",
+ "tools/pfo/engine.py", "tools/pfo/nets.py", "tools/pfo/common.py", "tools/pfo2/run.py", "tools/pfo2/specs.py",
+ "semkine/train.py", "model/model.py", "semkine/dataset.py", "semkine/eval_track.py",
+ "configs/pfo2_20261103/pfo2_fgs_s3407.yaml", "configs/pfo2_20261103/eval/pfo2_fgs_s3407.yaml"
+]

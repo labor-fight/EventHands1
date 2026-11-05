@@ -33,6 +33,167 @@
     - GPU：S45 50 步预检、pfat0pdz 50 步预检（经新 `train`）与原记录逐位相同；S45 与 xt0_srdwa 的主行重评精度数组完全相同。
   - 验收中发现并修正新 `train` 入口把动词留在 argv 里的错误（`#s45sm-tools-cutover-amend1`）。
 
+## ACU · 对应偏差 × 更新规则 × 因果异步（用户 2026-11-04 /goal，约 15:25 UTC）
+
+- **目标：**
+  - 两条线分别定位、设计、验证，最后合成严格因果、支持异步事件输入的统一方案：A = 事件—MANO 对应的结构性偏差；B = 状态更新纠错不足、闭环累积。
+  - 精度：五项全面优于 S43（引擎三种子 12.81 / 8.02 / 10.77 / 6.64 / 10.24），并提升错误前态恢复与长序列稳定性。
+  - 成本：时延、FLOPs、参数（含路由器或其替代）与 S43 同量级。
+  - 资源：只用 GPU 2–7、CPU 全量。
+- **写定约束：**
+  - 部署候选必须因果异步：事件 e_i 的编码、关联、更新只用它自己、过去事件的缓存与当时的 MANO 状态；
+  - 须测"前缀不变"与"分包不变"；旧 r_s2d 与标签路由只作诊断对照；
+  - 2×2（原 / 新观测 × 原 / 新更新）须适配重训、匹配预算；测试时替换只作诊断；
+  - **满足因果异步或改变观测接口若须大改，先调研并给出最小方案、公式、收益依据、成本与风险，征得用户同意再做。**
+- **已做（`docs/EXPERIMENT_RECORDS.md#acu-diag-20261104`，零训练、CPU、描述，未登记臂）：**
+  - 工具 `tools/acu/diag_*.py`（D1 逐步分解、D1b 证据量、D2 接口信息、D3 因果路由、D4 可观测方向、D5 投影 vs 缩小）；产物 `outputs/acu/20261104/diag/`。
+  - 要点：
+    - 所有网络（含 B2-gt、S43）从正确前态出发都乱改，闭环每步只纠回自身误差的 3–13 %，闭环误差 ≈ 同包反复的不动点；
+    - 只用身份、由前态轮廓关联（CA），路由器带进的偏差少一半到四分之三（D2）；
+    - r_s2d 改成只看过去事件的滑窗图，身份精度只降 1–5 个百分点（D3）；
+    - 按可观测方向挡住学到的更新不如均匀缩小（D5，负结果）。
+  - 审计出 B2 部署路径的三处未来信息：整包事件图路由；`stride_sample` 依赖包总数；token 的 SAE 回填用包跨度，包边界清零。
+- **用户决定（`#acu-decisions-20261104`）：** 身份来源 = PR 点式异步图路由器（完全不用事件图 CNN）；批准 CA；B 线只筛 B1；登记后自动推进。
+- **已登记、已冻结（`outputs/acu/20261104/manifests/`）：**
+  - s1a：a1 = B2-gt + CA，a2 = B2 + CA（`#acu-s1-prereg-20261104`）；
+  - s1b：b1 = B2 + B1（`#acu-s1b-prereg-20261104`）；
+  - s1c：PR 路由器（`#acu-s1c-prereg-20261104`）；
+  - s2：异步 2×2 {PFA, CA} × {原, B1}，PR 身份，因果管线（`#acu-s2-prereg-20261104`，门 = s1c `PR_OK`）。
+- **第 1a 阶段结果（`#acu-s1a-results-20261104`，18:52 UTC）：**
+  - a1 `IFACE_LOSES_INFO`：CA + 标签身份 RA 10.73，对 B2-gt 5.98；
+  - a2 `CA_NOT_EFFECTIVE`：CA + r_s2d 为 12.75，对 B2 3407 11.47；
+  - 单步几乎不变，损失在闭环：按前态最近轮廓关联，测得的残差偏向前态，纠错弱，从均值手型出发不收敛；
+  - 不做允许的那次接口修订，2×2 照登记跑。换观测接口须先征得用户同意。
+- **第 1b 阶段结果（`#acu-s1b-results-20261104`，21:03 UTC）：** b1 `B1_NOT_EFFECTIVE`，RA 11.92 对 B2 11.47。
+  - 单步注入变小，E3 好 0.15 mm；但运动增益一起变小，闭环纠回份额不变（根 0.03、手指 0.06），放大 2.05 → 2.19。
+  - 2×2 的"新更新"格照登记仍用 B1。B 线换别的机制须用户决定。
+- **代码：**
+  - `semkine/acu_ca.py`（CA）、`acu_b1.py`（B1）、`acu_pr.py`（PR + 因果步长）、`acu_hist.py`（50 ms 历史）、`acu_causal.py`（因果逐事件管线）；
+  - `tools/acu/`（arms*、train*、run*、jobs*、decide*、router_pr、chain_r2、freeze）；
+  - 测试 `tests/test_acu*.py`，每个文件单独进程跑：全局钩子同进程会残留。
+- **驱动：** `tools/acu/chain_r2.py`（`setsid nohup … run`，16:31 UTC 起，pid 记在 `outputs/acu/20261104/chain.pid`）。
+  - `policy.json` 的 `gpus` = [4, 5, 6, 7]，`train_pairs` = [[4, 5], [6, 7]]（`#acu-amend1-20261104`）：
+    - 另一用户（lmx）占着 GPU 0–3（18:41–21:06 UTC 离开过 GPU 3，那段时间 GPU 3 只跑单卡读数）；
+    - lmx 再离开 GPU 3 时可以加回 3（只跑单卡读数），并在账本该节登记。
+  - 作业按阶段 `chain_r2.py add`；失败保留、不重试；fresh-only；DRAIN / STOP 只在紧急时用。
+- **注意：**
+  - 新阶段的文件放新文件；已冻结的 `tools/acu/*.py` 不改。
+  - 第 2 阶段训练依赖 PR 检查点（`outputs/acu/20261104/routers/pr/pr_final.ckpt` 及 `receipts/pr_formal.json`）。
+- **工程修订 2（`#acu-amend2-20261104`）：**
+  - 故障：PR 用 float64 `cumsum`，CUDA 确定性模式下报错。`pr:pre` 失败，连带 s1c / s2 / s3 全部跳过。
+  - 修正：`semkine/acu_pr_det.py` 改用 int64 定点前缀和。
+  - 凡运行 PR 的作业都经包装入口：`tools/acu/router_prd.py`、`train_s2d.py`、`python -m tools.acu.detrun <模块>`、规划器 `jobs_s3r2.py`。
+  - 作业以 `r2:` 前缀重新登记（`jobs/amend2.json`，冻结 `manifests/amend2.json`），失败现场在 `preflight_failed/`。
+  - 新的 GPU 入口冻结前先在 GPU 上、确定性模式下跑通一次。CPU 冒烟发现不了 CUDA 的确定性报错。
+- **第 1c 阶段结果（`#acu-s1c-results-20261104`，22:49 UTC）：** PR `PR_WEAK`（等价 PASS；zgz_local 部位 / 手指组精度 0.456 / 0.625，r_s2d 0.703 / 0.858；ylf_local 同样）。主线第 2 阶段按规则关闭，PR2 修订放行。
+- **PR 修订 PR2（`#acu-pr2-prereg-20261104`，22:10 UTC，写于任何 PR / PR2 读数之前）：**
+  - 起因：PR 训练日志部位精度 0.56，r_s2d 同步 0.79，`PR_WEAK` 几乎确定。
+  - PR2 = PR + 因果多尺度形状上下文（`semkine/acu_pr2.py`，3 个尺度 × 5 × 5 格的计数与固定特征，40 ms，int64 前缀和），成本与 PR 持平（50,020 参数）。
+  - 设计试点在 `outputs/acu/20261104/pilot_pr2/`：第 500 步训练部位精度 0.54，PR 0.42。
+  - 冻结工具在命名空间 q 下原样运行：`tools/acu/ns_q.py` 把根改到 `outputs/acu/20261104q`、`configs/acu_20261104q`（与研究根同级），PR → PR2。
+  - 入口：`router_pr2.py`、`train_s2q.py`、`python -m tools.acu.qrun <模块>`、`jobs_s3q.py`。命名空间入口必须先 `ns_q.enter()`，再 import 其它 tools.acu 模块。
+  - 作业 `jobs/q.json`（键前缀 `q:`，50 个），冻结 `manifests/pr2.json`。
+  - `q:gate0` 只在主 s1c 为 `PR_WEAK` 时放行；PR2 也 `PR_WEAK` 时第 2 阶段关闭，须问用户身份来源。
+- **PR2 停止（`#acu-stop-pr2-20261105`；用户 2026-11-05 约 01:40 UTC："现在停止训练吧，默认PR_WEAK，现在重新分析"）：**
+  - 01:41:23 UTC touch `outputs/acu/20261104/STOP`，01:42:26 驱动记 STOPPED_PRESERVED；PR2 训练在第 3119 步被终止，没有检查点。
+  - PR2 按用户决定视作 `PR_WEAK`（不是读数），第 2、3 阶段未跑，45 个 `q:` 作业未开始。
+  - 不重启驱动、不追加作业；STOP 文件只在用户下令时移除。之后转入重新分析（`#acu-reanalysis-20261105`）。
+- **重新分析（`#acu-reanalysis-20261105`，零训练、描述，未登记臂）：**
+  - 工具 `outputs/acu/20261104/analysis/reanalysis/router_reliability.py`（同 router_breakdown 的节点与解码，加置信度与"包 × 部位"相干偏移）。
+  - 置信度挑得出部位错误（r_s2d 前 30 % 部位精度 0.95–1.00），挑不出部位内相干偏移：新受试者 5.4–6.1 mm，路由器训练受试者 3.4 mm，σ* 不是原因。
+  - PR 欠拟合：在自己的训练受试者上部位精度也只有 0.48–0.49。
+  - A、B 是同一问题：证据有相干偏差，主干学到低增益。主干用九人训练，其中八人的路由是样本内质量，比测试时干净（推断）。
+  - 建议先做训练—测试一致的相干偏移剂量—反应（标签 + 合成部位内位移场 0 / 3 / 6 mm，三训练约 5 h），据此决定逐事件对应 + 异步路由器这条路是否继续。未登记，待用户决定。
+- **注意：** 等待脚本不要用 `pgrep -f` / `grep` 匹配会出现在等待命令自身里的字符串；本次 D4 的等待循环自匹配过一次，已停掉。
+
+## B2UB · B2 的分层理想实验与上限（用户 2026-11-04："U1 + U2，连 U3 一起做；沿用 GPU 2–7"）
+
+- **范围：** B2 = F + gshare（PFO2 三种子）。U1 测试时理想路由（零训练，B2 三种子）；U2 闭环逐自由度钳位（零训练，新任务 `e1c`）；U3 B2-gt = B2 配方改为标签路由训练（只训种子 3407）。只用 GPU 2–7、CPU 全量；标签 / GT 只作诊断；全部读数是描述，不改 PFO / PFO2 / EVF 的判读（"路由器线永久关闭"不重开）。
+- **预注册：** `docs/EXPERIMENT_RECORDS.md#b2ub-prereg-20261104`（写定读法、K1–K4 逐位工程验收、差距分解、上限表）。冻结 `outputs/b2ub/20261104/manifests/r1.json`（`python -m tools.b2ub.freeze write|verify --stage r1`）；已冻结文件不改，新行为放新文件。
+- **代码：** `tools/b2ub/`（common、arms、train、engine（e1c）、run（u1 / f1label / u2 / accept / u3 / u3c / check）、analyze、jobs、chain、freeze）、`tests/test_b2ub.py`、`configs/b2ub_20261104/`；产物 `outputs/b2ub/20261104/`。CPU 测试设 `CUDA_VISIBLE_DEVICES=""`。
+- **注意：** `tools/pfo/nets.py` 的混合路由（label_loc / label_part / label_onhand）默认用 sr1 当路由器；`tools/b2ub/run.py` 在本进程里把 `_router_for` 重新绑定到配置的部署路由器（B2 为 r_s2d）。B2-gt 训练时 `semkine.xag.sample_sources` 保持原生（读包里的 XAG 伪源），关联钩子与 B2 训练相同（`semkine/s45sm.py` 的 PFA + 空射线关联）。
+- **驱动：** `tools/b2ub/chain.py`（EVF 调度器原样；`setsid nohup … run`；`drain` / STOP 仅紧急；fresh-only；失败保留不重试）。作业 `python -m tools.b2ub.jobs r1`；判读 `python -m tools.b2ub.analyze all`（最终作业，只算一次）。
+- **结果（`#b2ub-results-20261104`，2026-11-04 04:53 UTC COMPLETE）：** 118 个作业全过，K1–K4 逐位 PASS，U3 训练验收 PASS，无修订。
+  - U1 `TEST_ROUTE_INSUFFICIENT`：B2 + 测试时标签路由三种子 13.70 / 7.97 / 11.68 / 6.28 / RA 10.63，local 仍高于 S43；收益全在事件落到哪个面（部位 + 部位内定位），手上判定无用。
+  - U2：部署 B2 的闭环损失（自身闭环 11.57 对前态全钳位 5.49）约一半根旋转、一半手指，平移约 10 %，近似可加。
+  - U3 `BOUND_BELOW_S43`（单种子）：B2-gt + 标签路由 8.05 / 4.17 / 6.75 / 3.55 / RA 5.98，五项比 S43 低 3.1–4.8 mm，比 pfagtdz 低 0.5–0.8 mm；配部署路由 r_s2d 为 RA 15.44（暴露偏差 +3.97）。
+  - 差距分解（3407，RA 11.47 → 4.18）：测试时路由 1.10（15 %）、训练时路由 4.39（60 %）、剩余闭环 1.80（25 %）。P0-B 只量了测试时那一块；路由器线的关闭不因此改，是否重新评估由用户决定。不自动开新臂。
+  - 事后分析（`#b2ub-why-20261104`，描述）：闭环放大几乎只由训练时路由决定（r_s2d 训练 2.05 / 1.93，标签训练 1.43 / 1.43，不论测试路由）。可部署设计（S43、B2、pfasrdz、EVF）都落在"单步准 ↔ 放大小"的同一条权衡上，RA 都在 10.2 以上；改主干只能沿这条线挪，要越过须改进入主干的信息。
+
+## PFO · 以 pfasrdz 为对象的瓶颈定位与定向小改（用户 2026-11-03 /goal）
+
+- **目标：** 保持 pfasrdz 框架（SRNet 事件观测 → PFA 关联 → 事件—顶点关系编码与聚合 → MANO MeshGNN → LBS 槽池化 → 状态增量更新），先定位精度与效率瓶颈，再做有针对性的小改动，使五项精度（MPJPE / MPVPE local、global、RA）全面优于 S43（三种子 12.80 / 8.01 / 10.77 / 6.65 / 10.24），参数、端到端时延、FLOPs（含路由器）与 S43 同量级。
+  - /goal 即执行授权：只用 GPU 2–7、CPU 全量，各阶段预注册、冻结、验收后自动推进；关键结论用配对多种子；标签 / 真值只作诊断；路由不依赖前态。
+- **预注册：** `docs/EXPERIMENT_RECORDS.md#pfo-prereg-20261103`（协议、预算、第 1 阶段零训练诊断）、`#pfo-p2a-prereg-20261103`（基础臂 B 与 MeshGNN 对照）。冻结清单 `outputs/pfo/20261103/manifests/p1.json`、`p2a.json`；已冻结文件不再改，新行为放新文件。
+- **预算（写定）：** 与 S43 主表实现（稀疏执行器）同块、同标志、同 600 个 lyq 包重测；参数、实际执行 MACs、时延（主行口径与端到端 p50 / p99）倍率分别 ≤ 1.5 为"接近"，≤ 2.0 为"同量级"。时延的确定性 / 默认两种标志都测，比较时两边同一种。
+- **代码：** `tools/pfo/`（common、nets、engine、cost、check、jobs、chain；第 2 阶段 arms、train、run2、jobs2）、`semkine/pfo_diag.py`（测试时干预与阶段截取）、`semkine/pfo_trunk.py`（MeshGNN 变体 base / nomp / self / rewire）、`tests/test_pfo*.py`、`configs/pfo_20261103/`；产物 `outputs/pfo/20261103/`。
+- **驱动：** `tools/pfo/chain.py`（`setsid nohup … run`，队列 `queue.json`、状态 `status.json`、日志 `logs/`）；作业只用 `chain.py add` 追加；失败保留不重试；停机 `touch outputs/pfo/20261103/STOP`。训练分两条链（一次一个训练），留一对卡给读数；成本块是 GPU 4 独占作业。
+- **训练：** `tools/pfo/train.py --config configs/pfo_20261103/pfo_<arm>_s<seed>.yaml`（semkine/train.py + sr1 路由钩子 + 主干变体 + 确定性标志）；种子改 `SEED`（初值与数据流），余弦衰减；读数经 `python -m tools.pfo.run2 eval|cost|accept`。
+- **已知（写入前已见）：** pfasrdz 的单步（E3 overall 5.75）比 S43 教师强制（8.29）准，闭环放大 2.17 对 1.24，差距在闭环。成本烟测：pfasrdz 的 MACs 约为 S43 执行器的 3 倍（MeshGNN 153 M、路由器稠密主干 165 M），时延约持平；MANO FK 在两者中都约 3 ms。
+- **工程修订 1（`#pfo-amend1-20261103`）：** G0 的 S43 闭环逐位判据不适用（evalx 用非确定性内核，闭环放大舍入差），改为段首 + 单步 + 三种子均值判据（G0b PASS）。之后与 S43 的比较一律用引擎重算的三种子数（12.81 / 8.02 / 10.77 / 6.64 / 10.24）。
+- **第 1 阶段结果（`#pfo-p1-results-20261103`）：**
+  - 瓶颈是闭环纠错增益偏低：local 每步保留约一半的根 / 手指注入误差，S43 0.08–0.16。
+  - global 的差距是根旋转长时漂移。
+  - 起作用的路由误差是部位内定位（尤其手掌）与部位，不是手上判定或阈值。
+  - 训练时的路由质量同时决定主干能用多好的证据。
+  - 探针没看到未读出的线性信息。
+- **第 2 阶段登记：** `#pfo-p2a-prereg-20261103`（B + MeshGNN 对照：nomp / self / rewire）、`#pfo-p2r-prereg-20261103`（低成本 SRNet：r_s2d / r_s2dns / r_s2dw，sr1 配方只改结构）、`#pfo-p2b-prereg-20261103`（noise / bank / t0ptrain / noprev / pos）、`#pfo-p2c-prereg-20261103`（nohot）。
+  - 新臂只加 `tools/pfo/arms_<阶段>.json`，入口 `train3.py`、`run5.py`、`jobs4.py`。
+  - 最终行由 `tools/pfo/final.py` 生成（`outputs/semkine/pfo_<名>_main_row.json`，可直接用 `tools/report_table.py` 出表）。
+- **第 2k 阶段（`#pfo-p2k-prereg-20261103`，零训练、只用 CPU；用户 11-03 下令，由另一会话登记）：** 显式几何更新的杀死测试。在 sr1 / T0P / 标签路由的 PFA 重投影残差上解一步高斯—牛顿，对照 B。代码 `tools/pfo/gn.py`、`tests/test_pfo_gn.py`，产物 `outputs/pfo/20261103/gn/`，作业键前缀 `p2k:`。写定规则：sr1 路由下一步 E3 > B 的 E3 均值，或 zgz_local R15 / F15 保留率 ≥ 0.45 → 不做这个大改。
+  - 结果（`#pfo-p2k-results-20261103`）：**KILL**。sr1 下 local 保留率 R15 0.86、F15 0.99；48 个网格点里没有一个能既纠错又不被带偏。标签路由下根 / 平移一步几乎纠完（0.21 / 0.09），手指在任何设置下都 ≥ 0.68。不做显式几何更新。
+- **最终阶段（`#pfo-p3-plan-20261103`、`#pfo-p3-prereg-20261103`）：**
+  - F = `f1`：B 去掉消息传递（trunk4 "nomp"）+ 训练不注入热像素（`nohot`）+ 路由器 `r_s2d`，三种子。逐一去掉 `f1hot`（两种子）。
+  - 附加臂（每个相对 F 只改一处，两种子与 F 配对，规则按五项判据，`tools/pfo/analyze3.py rules`）：
+    - `#pfo-p3b-prereg-20261103`：`f1bank`、`f1w50`；
+    - `#pfo-p3c-prereg-20261103`：`f1self`（逐顶点深度，部署走 `semkine/pfo_trunk5.py` + `tools/pfo/run9.py`，先过等价检查）、`f1noise`。
+  - 部署路由器零训练替换（`#pfo-p3d-prereg-20261103`）：`r_s2dkd` / `r_s2dw` / `r_wide` / `r_s2d_nh` 换进 F 三种子，按五项判据决定。
+  - 最终成本块：`tools/pfo/jobs6.py cost --after <最后的作业>`（GPU 4 独占，两种标志）。等最后一批训练开训后再追加，避免它就绪后挡住其它 GPU 作业。
+  - 闭环检查表：`tools/pfo/analyze3.py checks`；主行：`tools/pfo/final.py row` / `compare`。
+  - 2026-11-03 04:55 UTC（`#pfo-p3e-prereg-20261103`，写于 F 种子 3408 / 3409 读数前）：F 种子 3407 RA 11.64 比同种子 nohot（10.63）差 1.0 mm，而 F 只多两处成本驱动的结构决定；登记逐一恢复臂 `f1mp`（恢复消息传递）与 `f1sr1`（路由器回 sr1），各两种子对 F 配对，规则"恢复后好 ≥ 0.3 mm 且两种子同向才撤销"；后果（低成本传播 l1 / gshare 替代、p3d 候选重判、补三种子）已写定。读数工具 `tools/pfo/analyze4.py rules`；`tools/pfo/arms_p3e.json` 冻结于 `manifests/p3e.json`。
+  - 2b / 2c 筛选读齐：noise、bank、t0ptrain、noprev、pos 都不晋级，只有 nohot 晋级；逐一去掉消融 f1hot 两种子确认 nohot 留在 F（RA −0.34 / −0.94，收益全在 local）。
+  - **2026-11-03 10:01 UTC 用户指令"现在停止goal"（`#pfo-stop-20261103`）：** 用驱动自己的 STOP 停止，10:02 记 STOPPED_PRESERVED；f1self 3407 / 3408（第 5500 步）与 f1noise 3407（第 4000 步）被终止、现场保留、不评测；96 个作业未开始（f1self / f1noise 评测、f1noise 3408、p3e 两臂、f1bank 3409、r_s2dw × 3409、最终成本块）。不再登记、不追加；续做须用户下令、先写工程修订并换新驱动（chain.py 是 fresh-only），被终止的臂 fresh 重跑。停止时判读状态与交付物状态见该节。
+  - 附加臂 f1bank 两种子按写定规则采纳（`#pfo-p3b-bank-20261103`，08:50 UTC；只靠 global 8.00 < 8.02 的 0.02 mm 边际，local 反而差 1.5 mm，如实标注）；种子 3409 已排队（`p3b2:*`）。路由器替换（p3d）在最终配置确定后再对其三种子追加。
+  - **F 三种子结果（`#pfo-p3-f-results-20261103`，06:15 UTC）：15.09 / 9.16 / 12.20 / 7.49 / RA 11.92，五项判据 0 / 5，不达标**；保留率与 B 相同（local R15 0.44–0.46），差距仍在闭环饱和水平。最终配置等附加臂 / 路由器替换 / 恢复臂读完后按写定规则选。
+  - 最终成本块 `p3:cost:*`（`jobs/p3_cost.json`）已于 03:45 UTC 追加，挂在 18 个训练验收之后。模块贡献 / 成本表：`python -m tools.pfo.modtable`（`analysis/modules.md`）。
+- **2026-11-03 09:3x UTC 用户指令"现在能不能停止goal，你根据目前的结论和进展重新设计goal"（`#pfo-stop-20261103`）：** 停止 PFO goal。驱动 STOP 由脱离会话的等待进程在三个在跑训练（f1self 3407 / 3408、f1noise 3407）退出后触发（最迟 12:30 UTC），驱动记 STOPPED_PRESERVED；之后不登记新轮、不追加作业、不重启驱动。未跑：f1self / f1noise 评测、f1bank 3409、p3e、r_s2dw 第三种子、成本块；最终配置未选。停止时最好的三种子可部署行 F + r_s2dkd 14.77 / 9.02 / 11.82 / 7.38 / RA 11.69（0 / 5），目标未达成。chain.py 是 fresh-only，后继研究要用新驱动目录或新状态文件。
+
+## EVF · 事件点 × 前态虚拟帧的闭环跟踪（用户 2026-11-03 /goal，约 16:10 UTC）
+
+- **目标：** 三种子五项均值全部低于 S43 引擎重算 12.81 / 8.02 / 10.77 / 6.64 / 10.24，成本与 S43 同量级（逐项倍率，≤ 1.5 接近、≤ 2.0 同量级）。
+  - 原始事件点直接进网络（不用路由器 / PFA / LNES / 事件图像）；前态只经两条路进网络：虚拟帧（前态 MANO 渲染，节点按自己的像素读取，显式"事件减预测"）与可选 prev48。不得用前态硬性决定事件归属。
+  - 损失一字不改（so3_trans_fk 1 / 1 / 2 …），其余沿用 B2 配方。须先征得用户同意：改损失、改数据或划分、测试时用标签、改输入方案。驱动重启须用户下令。
+- **预注册：** `docs/EXPERIMENT_RECORDS.md#evf-prereg-20261104`（输入实现、A / anovf、判据、轮次与后果、避坑、交付）。冻结 `outputs/evf/20261104/manifests/r<k>.json`（`python -m tools.evf.freeze write|verify --stage r<k>`，列表 `tools/evf/manifest_r<k>.json`）；已冻结文件不改，新行为放新文件。
+- **规则：** 过筛（种子 3407，2000 步，对 B2 3407 第 2000 步）= zgz_local R15 与 F15 都低 ≥ 0.10 且 E3 不差 > 1.0 mm；过筛才训满 6000（门作业，退出码 3 = 规则关闭）；单种子有效 = 对 B2 3407 第 6000 步 RA 与 G 都好 ≥ 0.5 mm；有效后才加 3408 / 3409；采纳 = 三种子 G 好 ≥ 0.5 且无种子 RA 差 > 0.1；不用"低于 S43 的项数"。
+- **代码：** `semkine/evf_render.py`（精确光栅化、轮廓、融合 Triton JFA）、`evf_nodes.py`（前缀稳定节点、特征）、`evf_net.py`（A 与投影平移头）、`evf_model.py`（EVFModel，BaseModel 损失不变）、`evf_async.py`（异步运行时）；`tools/evf/`（common、arms + `arms_r<k>.json`、train、nets（引擎的 evf 网络类型）、run、replay、decide、jobs、chain、cost、freeze）；`tests/test_evf.py`。运行 CPU 测试时设 `CUDA_VISIBLE_DEVICES=""`（否则会用到 GPU 0）。
+- **驱动：** `tools/evf/chain.py`（PFO2 调度器逻辑；`setsid nohup … run`；`drain` / `policy.json` / STOP 仅紧急；fresh-only；作业按阶段追加）。训练用 `tools/evf/train.py --config configs/evf_20261104/evf_<arm>_s<seed>[_<phase>].yaml`（screen = 同配方第 2000 步停；Trainer deterministic；expandable_segments）。读数 `python -m tools.evf.run eval|evalb2|accept`。
+- **注意：** 训练包装器经 `--max-steps` 改步数，DDP 子进程会用改过的 argv 重跑包装器（已处理）；手动起 DDP 时每个进程用不同的 MASTER_PORT。
+- **结案（2026-11-03 19:05 UTC，停止点 1；交付 `#evf-close-20261104`）：** 第 1 轮 A（点版本）、anovf（对照），第 2 轮 b（图版本）、ait2（两次迭代）、alarge（加大扰动），种子 3407 第 2000 步都不过筛（对 B2 第 2000 步 R15 / F15 0.48 / 0.48、E3 5.78）。
+  - EVF 臂单步最好（E3 4.95–5.43，E3 − 恒等 1.6–2.1），但保留率 0.56–0.67，高于 B2，闭环放大 3.2–3.7。
+  - f1 显示它们反复喂同一包会越走越远（均值手型起点 C 1.18–1.19 > 1；B2 0.85，S43 0.71）：学到的是"事件中的运动"，不是"预测与事件对齐"。
+  - 去掉虚拟帧：E3 9.36，平移完全不纠。
+  - 成本（同块）：A 参数 0.07×、MACs 0.21× / 满载 1.27×、时延 1.6×；b 时延 3.1–3.3×。A 的异步—同步等价 PASS（2.7e-7）。
+  - 驱动 COMPLETE（19:39）。续做（运动外推通道、去时间特征的诊断臂、不动点训练）须用户下令、换新驱动。
+
+## PFO2 · 以 F 为基底的闭环增益（用户 2026-11-03 /goal，约 10:30 UTC）
+
+- **目标：** 以 PFO 的 F（pfasrdz 配方 + 余弦、训练不注入热像素、r_s2d）为基底，保持原框架，MeshGNN 以单轮 l1 或共享门控 gshare 保留；三种子五项均值全部低于 S43 引擎重算的 12.81 / 8.02 / 10.77 / 6.64 / 10.24；参数、执行 MACs、端到端时延对 S43 稀疏执行器的倍率逐项报（≤ 1.5 接近、≤ 2.0 同量级），同块同标志同 600 个 lyq 包重测。
+  - /goal 即执行授权：只用 GPU 2–7、CPU 全量，各阶段预注册、冻结、验收后自动推进；大改（换表示 / 关联范式 / 主干 / 状态更新框架）先论证、征求同意；驱动重启须用户下令。
+- **预注册：** `docs/EXPERIMENT_RECORDS.md#pfo2-prereg-20261103`（协议、写定规则、第 0 批训练、探针判据、第 1 阶段结构、停止点、交付）；探针实现细节 `#pfo2-p0-prereg-20261103`（在任何探针读数前写）。冻结清单 `outputs/pfo2/20261103/manifests/s<k>.json`（`python -m tools.pfo2.freeze write|verify --stage s<k>`），已冻结文件不改，新行为放新文件。
+- **规则要点：** 采纳 / 替换 = 五项正差距和改善 ≥ 0.5 mm 且无种子 RA 变差 > 0.1；禁止"低于 S43 的项数"判据；单种子只用于杀死，晋级 / 采纳 / 承重要两种子配对同向，达标要三种子。
+- **代码：** `tools/pfo2/`（common、chain、arms + `arms_<stage>.json`、train、run、replay、decide、jobs、freeze）、`semkine/pfo2_*.py`、`tests/test_pfo2*.py`、`configs/pfo2_20261103/`；产物 `outputs/pfo2/20261103/`。PFO 的引擎 / 成本工具 / F 与 S43 读数只读沿用（`tools/pfo2/run.py` 把引擎输出根改到 PFO2），PFO 目录不写入。
+- **驱动：** `tools/pfo2/chain.py`（`setsid nohup … run`；`chain.py drain` = 只停派发、在跑作业跑完后退出；STOP 仅紧急；`policy.json` 与作业 `pairs` 只决定训练用哪对卡；失败保留不重试；fresh-only）。作业只用 `chain.py add` 追加；`chain.py summary` 看状态。门作业（`decide gate`）退出码 3 = 被写定规则关闭，不是故障。
+- **第 0 批：** f1mp 两种子（两种子都好 ≥ 0.3 mm → 基底 gshare，否则 l1）→ 基底 B2 三种子（验收：预检与每种子前 500 步与单项变体实现 rl1 / rgs 逐位相同）；f1self（第 5500 步）/ f1noise（第 4000 步）是 PFO 停止时截断的权重，只评测、只作描述。
+- **工程修订 1（`#pfo2-amend1-20261103`）：** semkine/train.py 建 Trainer 时不传 `deterministic`，Lightning 会调 `torch.use_deterministic_algorithms(False)`，所以 **PFO 的全部训练（含 F）都是非确定性内核**（同种子只共享初值与数据流）。f1mp 保留 F 的程序（`tools/pfo2/train.py`）以便配对；B2 与之后所有 PFO2 臂用 `tools/pfo2/train_det.py` / `train_s1.py`（Trainer `deterministic=True`，逐位可复现）。F 复现门改为程序等价检查（`tools/pfo2/equiv.py`）。以后任何新训练入口都要给 Trainer 传 deterministic=True。
+- **工程修订 2（`#pfo2-amend2-20261103`）：** 同一检查点的多个读数并发写同一 spec 文件会竞争；新入口一律用 `tools/pfo2/specs.py`（`run2.py`、`run_s1.py`）。
+- **已定（`#pfo2-s0-results-20261103`）：** B2 = F + gshare（`fgs`；f1mp 对 F −0.51 / −0.67 mm）。P0-A FAIL、P0-B σ* 4.42 mm → 路由器线永久关闭、P0-C ρ_feat 0.525 → A1 / A2 / A3 都不开；P0-D 待 B2 三种子（`p0d2:*`）。
+- **第 1 阶段（`#pfo2-s1-prereg-20261103`）：** GNN (a) 位移头（解析 LBS 雅可比最小二乘）与 (c) 差分消息，各 full / self / rewire 两种子（`tools/pfo2/arms1_s1.json`，注册表 `reg1.py` 读 `arms1_*.json`——**不要**把新臂文件命名成 `arms_*.json`，冻结的 `arms.py` 会去读它）；规则 `decide_s1.py --plan tools/pfo2/plan_s1.json`。P0-D 不过则停止点 (i) 触发，立即 `chain.py drain`。
+- **调度注意：** 驱动不把评测放在有训练的卡上，训练队列一直有就绪作业时评测会饿死；要读数时用 `policy.json` 暂时拿掉一对训练卡。大批描述性 GPU 作业会挡住排在后面的关键作业（队列顺序派发）。
+
+- **修订 3（`#pfo2-amend3-20261103`，用户 11-03 约 15:45 UTC："尽量不要跑那么多种子，确定有效果以后再多种子验证"）：** 15:48 UTC 起 `policy.json` 训练对为空（不开新训练，读数与 P0-D 照常）。新臂先只训种子 3407 筛选（RA 比 B2 3407 好 ≥ 0.3 mm，或 local R15 / F15 都降 ≥ 0.05，且 E3 不差 > 0.3 mm）才加种子 3408；三种子只给最终配置。第 1 阶段是否继续，待用户在 PFO2 与新方案之间决定。
+
+- **PFO2 结案（`#pfo2-close-20261103`，17:25 UTC）：** 按修订 3 与停止点 (i)（P0-D CLOSED，一阶增益 −0.49）收尾；17:13 drain，17:19 DRAINED；B2 三种子 15.00 / 8.58 / 12.38 / 6.92 / RA 11.57（G 5.98，目标未达成）；gdisp 两种子只作描述（RA −0.63 / +0.73，无效应）。PFO2 驱动不再重启；B2 读数只读沿用为 EVF 对照。
+
 ## T1A-UB · S45-T1a 框架的上限估计与预算内逼近（用户 2026-11-02 目标）
 
 - **目标：** 保持 S45-T1a 的框架（事件输入—事件与 MANO 交互—网格特征处理—状态增量更新），估计其可达上限，并在参数、时延、FLOPs 三项各自不超过 T1a 的前提下优化内部设计。
@@ -524,3 +685,26 @@ stay in the arm's pre-registration section of `docs/EXPERIMENT_RECORDS.md` for w
 - 用户2026-10-15要求立即排查local递推：三seed debug已到2000步并以`STOPPED_DEBUG_GATE_FAIL`停止；未全量。冻结权重的全2590包D分解和112片段×9初态×6模式诊断发现D二维几何/姿态深度偏差、I正确前态漂移及联合扰动t/root误差抵消同时存在，未发现腕点坐标或DGP求解错误。原门/冻结训练源码不变；`xkf_debug2000_main_row.json`为明确标记非正式step2000的完整序列诊断，不能充当step6000或readiness。见`docs/EXPERIMENT_RECORDS.md#xkf-local-recovery-20261015`。S39不变。
 - 用户2026-10-15要求立即修复：XKF R2三seed同LR配对续训2000→2200及全部评估已完成（GPU2–7）。`XKFRepairModel`的FP32累加、真实GT运动标签及训练专用D几何辅助均opt-in，旧冻结源码不变；25项实现测试、20项分析器测试及136项独立训练审计通过。I的local clean漂移减少，但D全local深度三个seed均差于对照，local融合clean及恢复门FAIL；`outputs/xkf/repair_20261015_r2/decision.json`为`STOPPED_DEBUG_GATE_FAIL`，未全量、不原样加长该候选。主行`xkf_r2_control_step2200`与`xkf_r2_repair_step2200`均非正式；代码正确性不等于效果过门。统一表、完整配对证据和后续边界见`docs/EXPERIMENT_RECORDS.md#xkf-repair-r2-20261015`。S39不变。
 - 用户同日再次明确要求“local融合修好”：R3继续执行（GPU2–7、debug先于全量），不是因R2失败而停止任务。独立测量标定、训练原始事件BN统计、融合策略及真实own-loop验证见`docs/EXPERIMENT_RECORDS.md#xkf-fusion-r3-20261015`和`outputs/xkf/fusion_20261015_r3/protocol.json`；保留旧失败与全部原门，不挑seed/片段，不以冻结平移或代码测试通过代替恢复效果。旧冻结源码及S39不变。
+
+## IDP · 身份 / 点位阶梯（用户 2026-11-05 "现在直接进行，开训。"）
+
+- **来历：** 对关联问题"第一个原因"的零训练归因（会话 scratchpad，未登记）：路由器的沿骨误差由数据决定（r_s2d / sr1 / T0P 的包级偏移相关 0.67–0.85），集中在透视缩短比 < 0.6 的手指（三分之一节点贡献约六成均方误差，T0P 也不救）；路由器读的是手指的可见范围（去掉指尖事件整指预测移 7–15 mm）。结论：标签上界 5.98 不可达，要先分开"身份"与"点位"的责任。
+- **三臂（B2 配方、种子 3407）：** l1 = 训练与测试都用 `label_part`（标签身份 + r_s2d 点位）；l2 = l1 + `semkine/idp_feat.py` 的记录特征（前态手指透视缩短比与屈曲角，零初值映射进 φ）；l3 = B2 + 同一特征（可部署）。
+- **预注册：** `docs/EXPERIMENT_RECORDS.md#idp-prereg-20261105`；冻结 `outputs/idp/20261105/manifests/r1.json`（`python -m tools.idp.freeze write|verify --stage r1`）。规则：L1 `POINT_ERROR_LIMITS` / `IDENTITY_IS_LEVER` / `MIXED`；L2 `FEAT_HELPS` / `FEAT_NULL`；L3 按修订 3 筛选，补种子须用户下令。
+- **代码：** `tools/idp/`（common、arms、train、run、analyze、jobs、chain、freeze）、`semkine/idp_feat.py`、`tests/test_idp.py`（CPU，`CUDA_VISIBLE_DEVICES=""`）、`configs/idp_20261105/`。只读沿用 PFO 引擎、PFO2 的 B2、B2UB 的 label_part 读数、EVF 的 B2 成本块。
+- **驱动：** `tools/idp/chain.py`（B2UB 驱动逻辑；`setsid nohup … run`；fresh-only；失败保留不重试；DRAIN / STOP 仅紧急）。作业 `outputs/idp/20261105/jobs/r1.json`（31 个）。读 XAG 源的训练声明 260 GiB，l1 / l2 串行。
+- **注意：** `tools/pfo/nets.py` 的混合路由默认用 sr1；本研究与 B2UB 一样在进程里把 `_router_for` 重新绑定到配置的 r_s2d。训练时 label_part 混合经 `tools.pfo.nets.mixed_sources` 装在 `semkine.s45sm.install` 之上。
+- **结果（`#idp-results-20261105`，08:58 UTC COMPLETE，31 个作业全过）：** L1 **MIXED**（RA 9.69，五项单种子全低于 S43；配 r_s2d 11.55，无暴露崩塌）；L2 **FEAT_NULL**（9.49，对 L1 −0.19）；L3 **SCREEN_FAIL**（11.74）。
+  - 事后零训练（描述）：B2 → 标签上界 5.5 mm ≈ 手指级身份 1.4 + 指节 0.4 + 沿骨点位 3.7；误差集中在图像里很短的手指；加大路由器、置信度门控、固定规则前态仲裁都无效。
+  - L1 式训练（标签部位只在训练时）部署结果与 B2 同档，但能兑现身份改善（1.86 mm 对 B2 主干 0.39），可作后续主干基底；补种子须用户下令。
+
+## PCR · 前态条件路由器（用户 2026-11-05 "……让路由器这一段学会用三维先验来解开弯曲手指的歧义……这部分为什么不进行呢"）
+
+- **来历：** IDP 与零训练读数显示 B2 到标签上界的 5.5 mm ≈ 手指级身份 1.4 + 指节 0.4 + 沿骨点位 3.7，误差都集中在图像里很短（弯曲 / 朝向相机）的手指上；加大路由器、置信度门控、固定规则的前态仲裁都无效。用户已放开路由器段的异步要求，并决定让路由器读前态（偏离 PFO 的"路由不依赖前态"，只限本研究）。
+- **两臂（只训路由器，r_s2d 配方，种子 3407）：** `pcr` = r_s2d + 前态 16 通道部位投影图（零初值 `prior_in`），训练前态 = 数据集 mixed 噪声；`pcrb` = 同上 + 一半前态换成 pfasrdz 闭环状态库（N4）。零训练换进冻结的 L1 / B2 主干读闭环。
+- **预注册：** `docs/EXPERIMENT_RECORDS.md#pcr-prereg-20261105`；冻结 `outputs/pcr/20261105/manifests/r1.json`。规则：d = RA(L1 + R) − RA(L1 + r_s2d)，≤ −0.85 `PCR_WORKS`，≥ −0.30 `PCR_NULL`，其间 `PCR_WEAK`；R15 / F15 升 ≥ 0.05 标 `PRIOR_COLLAPSE`。重训主干与补种子须用户下令。
+- **代码：** `semkine/pcr_router.py`、`tools/pcr/`、`tests/test_pcr.py`（CPU，`CUDA_VISIBLE_DEVICES=""`）、`configs/pcr_20261105/`。新路由器经评测配置的 S45SM 块接入（kind "pcr"，`register()` 让 `FAST.install` 装上读前态的采样器）。
+- **驱动：** `tools/pcr/chain.py`（GPU 4–7，B2UB 驱动逻辑，fresh-only）。作业 `outputs/pcr/20261105/jobs/r1.json`（36 个）。
+- **结果（`#pcr-results-20261105`，10:18 UTC COMPLETE，36 个作业全过）：** pcr / pcrb 都是 **PCR_NULL**（RA 11.85 / 11.76 对 L1 + r_s2d 11.55），pcrb 标 **PRIOR_COLLAPSE**。
+  - 前态正确时单步更准（E3 local 8.36 → 7.38 / 6.78），闭环里路由跟着前态走：R15 0.34 → 0.38 / 0.42，C 0.86 → 0.90 / 0.96。闭环前态下手指级准确率只多 0.6–0.8 个点。
+  - 按预注册：单包事件图路由 → 逐事件对应框架的精度线到此为止，下一方向待用户决定。

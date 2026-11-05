@@ -1,0 +1,8 @@
+{
+  "f1rep": {"pfo_arm": "f1", "module": "trunk4", "replay_of": "f1", "section": "pfo2-prereg-20261103"},
+  "f1mp": {"pfo_arm": "f1mp", "module": "trunk4", "section": "pfo2-prereg-20261103"},
+  "fl1": {"pfo_arm": "f1", "trunk": "l1", "module": "trunk4", "reference": "rl1", "section": "pfo2-prereg-20261103"},
+  "fgs": {"pfo_arm": "f1", "trunk": "gshare", "module": "trunk4", "reference": "rgs", "section": "pfo2-prereg-20261103"},
+  "rl1": {"pfo_arm": "f1", "trunk": "l1", "module": "trunk3", "reference_for": "fl1", "section": "pfo2-prereg-20261103"},
+  "rgs": {"pfo_arm": "f1", "trunk": "gshare", "module": "trunk3", "reference_for": "fgs", "section": "pfo2-prereg-20261103"}
+}

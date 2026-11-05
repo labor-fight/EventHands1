@@ -1,0 +1,9 @@
+{
+  "g1rep": {"base": "fgs", "trunk": "gshare", "replay_of": "fgs", "section": "pfo2-s1-prereg-20261103"},
+  "gdisp": {"base": "fgs", "trunk": "gshare+disp", "losses": {"disp": 1.0}, "family": "disp", "graph": "real", "section": "pfo2-s1-prereg-20261103"},
+  "gdisps": {"base": "fgs", "trunk": "gshare+self+disp", "losses": {"disp": 1.0}, "family": "disp", "graph": "self", "section": "pfo2-s1-prereg-20261103"},
+  "gdispr": {"base": "fgs", "trunk": "gshare+rewire+disp", "losses": {"disp": 1.0}, "family": "disp", "graph": "rewire", "section": "pfo2-s1-prereg-20261103"},
+  "gdiff": {"base": "fgs", "trunk": "gshare+diff", "family": "diff", "graph": "real", "section": "pfo2-s1-prereg-20261103"},
+  "gdiffs": {"base": "fgs", "trunk": "gshare+self+diff", "family": "diff", "graph": "self", "section": "pfo2-s1-prereg-20261103"},
+  "gdiffr": {"base": "fgs", "trunk": "gshare+rewire+diff", "family": "diff", "graph": "rewire", "section": "pfo2-s1-prereg-20261103"}
+}

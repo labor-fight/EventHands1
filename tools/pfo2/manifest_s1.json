@@ -1,0 +1,12 @@
+{
+  "files": [
+    "semkine/pfo2_trunk.py", "semkine/pfo2_train.py", "semkine/pfo2_dual.py",
+    "tools/pfo2/reg1.py", "tools/pfo2/train_s1.py", "tools/pfo2/run_s1.py", "tools/pfo2/jobs_s1.py",
+    "tools/pfo2/replay_s1.py", "tools/pfo2/decide_s1.py", "tools/pfo2/arms1_s1.json", "tools/pfo2/plan_s1.json",
+    "tests/test_pfo2_trunk.py", "outputs/pfo2/20261103/jobs/s1.json", "configs/pfo2_20261103/pfo2_g*.yaml",
+    "outputs/pfo2/20261103/manifests/s0.json", "outputs/pfo2/20261103/manifests/a1.json",
+    "outputs/pfo2/20261103/manifests/p0.json", "outputs/pfo2/20261103/manifests/a2.json",
+    "outputs/pfo2/20261103/decisions/s0_mp.json", "outputs/pfo2/20261103/decisions/p0a.json",
+    "outputs/pfo2/20261103/decisions/p0b.json", "outputs/pfo2/20261103/decisions/p0c.json"
+  ]
+}

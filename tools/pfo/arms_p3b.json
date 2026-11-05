@@ -1,0 +1,24 @@
+{
+  "f1bank": {
+    "trunk": "nomp",
+    "set": {
+      "AUG.DOMRAND.HOT_PIXEL_RATE": 0.0
+    },
+    "router": "r_s2d",
+    "bank": {
+      "root": "/data1/lyq/code/mesh/EventHands1/outputs/s45sm/20261031/banks/pfasrdz",
+      "p": 0.5
+    },
+    "section": "pfo-p3b-prereg-20261103"
+  },
+  "f1w50": {
+    "trunk": "nomp",
+    "set": {
+      "AUG.DOMRAND.HOT_PIXEL_RATE": 0.0,
+      "AUG.SPEED_AUG": false,
+      "DATA.WINDOW_MIN": 50
+    },
+    "router": "r_s2d",
+    "section": "pfo-p3b-prereg-20261103"
+  }
+}

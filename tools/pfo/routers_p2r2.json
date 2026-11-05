@@ -1,0 +1,4 @@
+{
+  "r_wide": {"design": {"stem": "s2d", "trunk": [16, 48, 128, 256]}, "kd": null, "steps": 6000},
+  "r_s2dkd": {"design": {"stem": "s2d"}, "kd": {"teacher": "t0p", "T": 2.0, "lambda_part": 1.0, "lambda_coord": 0.5, "lambda_onhand": 0.5}, "steps": 6000}
+}

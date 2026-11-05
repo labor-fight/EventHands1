@@ -1,0 +1,4 @@
+{
+  "f1self": {"trunk": "self", "set": {"AUG.DOMRAND.HOT_PIXEL_RATE": 0.0}, "router": "r_s2d", "section": "pfo-p3c-prereg-20261103"},
+  "f1noise": {"trunk": "nomp", "set": {"AUG.DOMRAND.HOT_PIXEL_RATE": 0.0, "TRACK.PREV_NOISE_P_SMALL": 0.2, "TRACK.PREV_NOISE_P_LARGE": 0.5, "TRACK.PREV_NOISE_P_CORR": 0.3}, "router": "r_s2d", "section": "pfo-p3c-prereg-20261103"}
+}

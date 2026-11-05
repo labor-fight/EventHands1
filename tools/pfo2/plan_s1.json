@@ -1,0 +1,30 @@
+{
+  "base": "fgs",
+  "replay": "g1rep",
+  "seeds": [
+    3407,
+    3408
+  ],
+  "gnn": {
+    "disp": {
+      "full": "gdisp",
+      "self": "gdisps",
+      "rewire": "gdispr"
+    },
+    "diff": {
+      "full": "gdiff",
+      "self": "gdiffs",
+      "rewire": "gdiffr"
+    }
+  },
+  "main": {},
+  "router": {},
+  "base_deps": [
+    "a2:eval:fgs:3407:e1@6000",
+    "a2:eval:fgs:3407:e3@6000",
+    "a2:eval:fgs:3407:pert@6000",
+    "a2:eval:fgs:3408:e1@6000",
+    "a2:eval:fgs:3408:e3@6000",
+    "a2:eval:fgs:3408:pert@6000"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "files": [
+    "tools/pfo2/train_det.py", "tools/pfo2/equiv.py", "tools/pfo2/run_a1.py", "tools/pfo2/jobs_a1.py",
+    "tools/pfo2/freeze2.py", "tests/test_pfo2_a1.py", "outputs/pfo2/20261103/jobs/a1.json",
+    "outputs/pfo2/20261103/manifests/s0.json", "configs/pfo2_20261103/*.yaml",
+    "outputs/pfo2/20261103/diagnostics/amend1/det*.py", "outputs/pfo2/20261103/diagnostics/amend1/*.log",
+    "outputs/pfo2/20261103/diagnostics/amend1/dA/*", "outputs/pfo2/20261103/diagnostics/amend1/dB/*",
+    "outputs/pfo2/20261103/diagnostics/amend1/dA/logs/**/*", "outputs/pfo2/20261103/diagnostics/amend1/dB/logs/**/*",
+    "outputs/pfo2/20261103/runs/pfo2_f1rep_s3407_preflight/*",
+    "outputs/pfo2/20261103/runs/pfo2_f1rep_s3407_preflight/logs/**/*"
+  ]
+}
