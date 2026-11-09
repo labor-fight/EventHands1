@@ -1,0 +1,18 @@
+[
+ "semkine/pmr_trunk3.py",
+ "tools/pmr/arms3.py",
+ "tools/pmr/train3.py",
+ "tools/pmr/run3.py",
+ "tools/pmr/analyze5.py",
+ "tools/pmr/jobs6.py",
+ "tests/test_pmr_amend3.py",
+ "tools/pmr/analyze4.py",
+ "tools/pmr/arms2.py",
+ "semkine/pmr_trunk.py",
+ "tools/pmr/train.py",
+ "tools/pmr/run.py",
+ "configs/pmr_20261109/pmr_d1l1b_s3407_preflight.yaml",
+ "configs/pmr_20261109/pmr_d1l1b_s3407.yaml",
+ "configs/pmr_20261109/pmr_d1l2b_s3407_preflight.yaml",
+ "configs/pmr_20261109/pmr_d1l2b_s3407.yaml"
+]

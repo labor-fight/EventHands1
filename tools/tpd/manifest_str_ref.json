@@ -1,0 +1,11 @@
+[
+ "tools/tpd/run_str_ref.py",
+ "tools/tpd/run_str.py",
+ "tools/tpd/ns_str.py",
+ "semkine/tpd_str.py",
+ "tools/evf/mech.py",
+ "tools/pfo/engine.py",
+ "tools/pfo/nets.py",
+ "outputs/tpd/20261105/specs/tpd_rol5_s3408.json",
+ "outputs/tpd/20261105/specs/tpd_rol5_s3409.json"
+]

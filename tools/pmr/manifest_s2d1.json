@@ -1,0 +1,15 @@
+[
+ "tools/pmr/jobs3.py",
+ "tools/pmr/analyze2.py",
+ "tools/pmr/jobs.py",
+ "tools/pmr/run.py",
+ "tools/pmr/train.py",
+ "tools/pmr/arms.py",
+ "tools/pmr/analyze.py",
+ "semkine/pmr_trunk.py",
+ "tests/test_pmr_s23.py",
+ "configs/pmr_20261109/pmr_d1r_s3408.yaml",
+ "configs/pmr_20261109/pmr_d1r_s3409.yaml",
+ "configs/pmr_20261109/pmr_d1n_s3408.yaml",
+ "configs/pmr_20261109/pmr_d1n_s3409.yaml"
+]

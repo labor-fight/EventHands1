@@ -1,0 +1,10 @@
+[
+ "tools/tpd/erh_eval2.py",
+ "tools/tpd/erh_eval.py",
+ "outputs/tpd/20261105/specs/tpd_rol5_s3408.json",
+ "outputs/tpd/20261105/specs/tpd_rol5_s3409.json",
+ "outputs/tpd/20261105/receipts/tpd_rol5_s3408.json",
+ "outputs/tpd/20261105/receipts/tpd_rol5_s3409.json",
+ "configs/tpd_20261105/eval/tpd_rol5_s3408.yaml",
+ "configs/tpd_20261105/eval/tpd_rol5_s3409.yaml"
+]

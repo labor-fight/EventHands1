@@ -708,3 +708,37 @@ stay in the arm's pre-registration section of `docs/EXPERIMENT_RECORDS.md` for w
 - **结果（`#pcr-results-20261105`，10:18 UTC COMPLETE，36 个作业全过）：** pcr / pcrb 都是 **PCR_NULL**（RA 11.85 / 11.76 对 L1 + r_s2d 11.55），pcrb 标 **PRIOR_COLLAPSE**。
   - 前态正确时单步更准（E3 local 8.36 → 7.38 / 6.78），闭环里路由跟着前态走：R15 0.34 → 0.38 / 0.42，C 0.86 → 0.90 / 0.96。闭环前态下手指级准确率只多 0.6–0.8 个点。
   - 按预注册：单包事件图路由 → 逐事件对应框架的精度线到此为止，下一方向待用户决定。
+
+## TPD · B2 三问题分解求解（用户 2026-11-05 /goal，约 14:30 UTC）
+
+- **目标：** 以 B2 为起点分别解决手指级身份（约 1.4 mm）、指节与沿骨点位（约 4.1 mm）、框架自身闭环损失（约 1.8 mm），再合成；最终可部署形式三种子五项均值全部低于 S43 引擎值 12.81 / 8.02 / 10.77 / 6.64 / 10.24、每种子 RA < 11.0。/goal 即执行授权（每阶段预注册、冻结、验收后自动推进），只在改数据协议 / 划分、放宽约束、部署行用标签时停下来问；只用 GPU 2–7。约束 4（闭环网络不得用稠密前态表示，稀疏 FK 投影允许）的边界待用户确认，新增前态投影的臂（EXT）登记前先问。
+- **登记：** `docs/EXPERIMENT_RECORDS.md#tpd-prereg-20261105`（目标、约束、阶段、通用规则、停止点）；各阶段另有小节。
+- **代码：** `semkine/tpd_*.py`、`tools/tpd/`、`tests/test_tpd*.py`（CPU，`CUDA_VISIBLE_DEVICES=""`，每个文件单独进程跑）、`configs/tpd_20261105/`；产物 `outputs/tpd/20261105/`。
+- **驱动：** `tools/tpd/chain.py`（IDP 调度逻辑，允许 GPU 2–7 上有 ≤ 6 GiB 的他人轻负载；`setsid nohup … run`；fresh-only；失败保留不重试；DRAIN / STOP 仅紧急）。作业按阶段 `chain.py add`；条件作业经 `tools/tpd/maybe.py`（规则未放行时为空操作，exit 0）。
+  - 现役是驱动 5：`TPD_DRIVER_DIR=driver5 tools/tpd/chain4.py`（= `chain3.py`，只用 GPU 4–7，训练对 (4,5) / (6,7)；状态 `outputs/tpd/20261105/driver5/`）。用户 2026-11-06 起 TPD 只用 GPU 4–7（GPU 0、3 有别人的进程；修订 6 `#tpd-amend6-20261106`）。新作业一律 `TPD_DRIVER_DIR=driver5 python tools/tpd/chain4.py add`；会自己追加作业的工具要设这个环境变量（`run_rolk.py` 之类默认写驱动 4）。
+  - 驱动 4 已 DRAIN（只让在跑的 c5 3407 训练跑完），它的 27 个待跑作业原样迁到驱动 5，排在 `d5:wait:c5` 后面。`chain2.py` 每次遍历只判一次训练间隔，规则已关闭的条件作业改作 CPU 作业跑、不占卡；`chain3.py` 另加 `TPD_START_BUSY_OK`。驱动 1–4 状态保留（修订 1–3、6）。
+  - 分工（2026-11-06）：本研究有两个会话。STR 与驱动由一个会话负责；合成阶段的结果、ERH 表、成本块由另一个会话负责。账本只在末尾追加，追加前先互相通知。
+  - /dev/shm（252 GB）是瓶颈：K ≥ 5 的展开批次很大（带 XAG 源约 2.5 GB），用预取 1（`tools/tpd/ns_amend3.py`，配置 `configs/tpd_20261105/amend3/`，入口 `tools/tpd/a3.py`）；c0 式的可变窗 XAG 训练单独约占 110 GB，不和两个 K = 5 训练同时跑（修订 3、5）。
+  - 新的包装入口先做双卡 DDP 冒烟：Lightning 用改写后的 `sys.argv` 重启 rank 1（修订 4）。
+- **阶段 ROL（`#tpd-rol-prereg-20261105`）：** B2 的 K 包闭环展开微调（`semkine/tpd_rol.py`：展开数据集、可微前态几何、逐包梯度检查点、余弦到 0），四臂 rol1 / rol3d / rol3 / rol5（种子 3407，从 B2 3407 第 6000 步微调 1500 步，峰值 1e-3）；入选臂自动补种子 3408（从 B2 3408）。入口 `tools/tpd/train_rol.py`、读数 `python -m tools.tpd.run_rol`、判读 `python -m tools.tpd.analyze_rol plan|all|all2`、作业 `python -m tools.tpd.jobs_rol rol`、冻结 `python -m tools.tpd.freeze write|verify --stage rol`。
+- **注意：** autocast 会缓存 no_grad 下做的权重低精度副本，训练步里任何 no_grad 主干前向之后要 `torch.clear_autocast_cache()`，否则该步梯度到不了权重（ROL 冒烟发现）。GPU 冒烟入口 `tools/tpd/smoke_rol.py`（`TPD_SMOKE_DIR`、`TPD_SMOKE_STEPS`）。
+- **ROL 结果（`#tpd-rol-results-20261105`）：** 选中 rol5（3407 RA 10.49）；种子 3408 RA 9.48，对 B2 3408 `SCREEN_PASS` → `ADOPT`。增益全在单步（E3 降），放大不降。
+  - ROL-c（`#tpd-rolc-prereg-20261105`，描述）：rol5 补种子 3409，三个种子各自零训练换成因果形式读数，表 `analysis/rolc.md`；入口 `tools/tpd/train_rolc.py`、`run_rolc.py`（经 `ns_seed.py` 把种子表扩到 3409）。
+- **成本块工具：** `python -m tools.tpd.cost run|jobs`（PFO 成本工具原样；因果形式的逐包步长 k 在取窗时算出、随包携带，测试 `tests/test_tpd_cost.py`）。按 `#tpd-syn-prereg-20261105`，等最终配置确定后再登记（GPU 4 独占，同块重测 S43，两种标志）。
+- **ROL-c 结果（`#tpd-rolc-results-20261105`）：** rol5 部署形式三种子 12.86 / 7.75 / 10.66 / 6.28 / 10.12（只有 MPJPE-L 高于 S43 0.05，但不异步）；零训练换成因果形式 13.37 / 7.99 / 10.97 / 6.48 / 10.49。
+- **ROL-k（`#tpd-rolk-prereg-20261106`，描述）：** rol5 在因果形式下训练（`tools/tpd/ns_rolk.py`、`train_rolk.py`、`run_rolk.py`），种子 3407 对零训练因果形式的 rol5 3407 按修订 3 筛选；通过时筛选作业自己往驱动 4 加种子 3408 / 3409（`jobs/rolk_s23.json`）。不是目标写定的最终配置（从头、L1 式）。结果 `SCREEN_FAIL`（RA 10.57 对 10.78，门 −0.3；`#tpd-rolk-results-20261106`），阶段停止。
+- **EvRealHands（`#tpd-erh-prereg-20261106`，只报）：** 转换 `tools/tpd/erh_convert.py`（右手 42 条 → `outputs/tpd/20261105/erh/data/`；K / 时钟 / MANO 约定的核对见 `erh/convert_report.md`），读数 `tools/tpd/erh_eval.py`（3d 层；loop 与 h200；保持起点基线；GT 轮廓诊断）。手在 0.8–1.06 m，超出训练深度；冒烟里所有网络（含 S43）在 200 ms 内发散。表 `erh_eval table` 在最终配置读数之后运行一次。
+- **问题 2 EXT（`#tpd-ext0-prereg-20261105`）：** 零训练可行性 `KILL`（r = 0.28 < 0.3），不训练。
+- **问题 1 LC（`#tpd-lc-prereg-20261105`）：** `semkine/tpd_lc.py`（r_s2d + 包前 200 ms 历史通道，零初值）与对照 lc0，`tools/tpd/router_lc.py` 微调 3000 步；两者 `ID_SCREEN_FAIL`（zgz_local 手指级 0.866 / 0.856，门 0.90），不读闭环。读数入口 `python -m tools.tpd.run_lc`；判读表修订 1 用 `tools/tpd/analyze_lc2.py`。杠杆 (b)–(d) 不开（理由见 `#tpd-syn-prereg-20261105`）。
+- **异步形式（`#tpd-causal-prereg-20261105`）：** B2 原样不过前缀检验（节点按包总数均匀取样；token 的"未发放"填包实际跨度）。`semkine/tpd_causal.py`（因果步长 k = ceil(n_prev / 2048)、"未发放"填 Δt）通过 `tools/tpd/asynccheck.py`；B2 零训练换成因果形式 RA +0.26 → `TRAIN_CAUSAL`：最终配置在因果形式下训练（`semkine/tpd_final.py`、`tools/tpd/train_final.py`、`tools/tpd/run_final.py`）。
+- **合成（`#tpd-syn-prereg-20261105`）：** c0（L1 式、因果、B2 可变窗）与 ROL 选中臂对应的展开臂（c3d / c3 / c5），从头 6000 步；条件作业经 `tools/tpd/maybe_syn.py`；判读 `python -m tools.tpd.analyze_syn screen|keep|final`。读 XAG 源的训练实测约 200 GiB PSS，同时最多两个。
+- **流式形式 STR（`#tpd-str-prereg-20261106`）：** `semkine/tpd_str.py`。
+  - 节点按过去 50 ms 的事件率逐事件稀疏，不截包末；像素时间面跨包保持。路由器 r_s2d 仍按包、豁免，所以不能说"事件到达即写入"。
+  - 入口：`train_str.py`、`run_str.py`、`asynccheck_str.py`（含分包检验）、`jobs_str.py`，冻结 `manifests/str.json`。
+  - 零训练换入（`#tpd-str-ref-results-20261106`，描述）：rol5 三种子 12.95 / 7.96 / 10.70 / 6.46 / 10.28。
+- **2026-11-06 04:52 UTC 用户指令"先停止训练吧"（`#tpd-stop-20261106`）：** 用驱动自己的 STOP 停了驱动 4、驱动 5（都记 STOPPED_PRESERVED）。
+  - 被终止的训练现场保留，不评测：
+    - STR 3407，约第 950 步，检查点到第 500 步；
+    - c5 3407，约第 5250 步，检查点到第 5000 步。
+  - 没跑：合成筛选、STR 筛选、EvRealHands 表、成本块。目标未达成。
+  - 不重启、不追加；STOP 文件保留。续做须用户下令、先写工程修订、换新驱动目录，被终止的臂 fresh 重跑。
