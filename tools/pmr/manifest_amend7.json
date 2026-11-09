@@ -1,0 +1,8 @@
+[
+ "tools/pmr/chain4.py",
+ "tools/pmr/chain3.py",
+ "tools/pmr/chain2.py",
+ "tools/pmr/migrate3.py",
+ "tools/pmr/migrate.py",
+ "tests/test_pmr_amend7.py"
+]

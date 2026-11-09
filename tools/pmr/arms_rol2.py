@@ -1,5 +1,5 @@
 """PMR stage S5 rollout fine-tunes (docs/EXPERIMENT_RECORDS.md#pmr-s5-prereg-20261109): tools/pmr/arms_rol.py (frozen)
-over the union registry tools/pmr/arms_any.py, so a base arm of any PMR registry can be fine-tuned. TPD's rol5 recipe
+over the union registry tools/pmr/arms_any2.py, so a base arm of any PMR registry can be fine-tuned. TPD's rol5 recipe
 (semkine/tpd_rol.py, tools/tpd/arms_rol.py `rol5`) applied to an accepted PMR arm from its own step-6000 checkpoint.
 
   <arm>_rol5   K = 5 consecutive 50 ms packets, gradient through the prior, per-packet checkpointing, equal weights;
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import copy
 
-from tools.pmr import arms_any as A
+from tools.pmr import arms_any2 as A
 
 from .common import CONFIGS, OUT, SEEDS, read, require
 

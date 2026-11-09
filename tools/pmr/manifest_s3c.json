@@ -1,0 +1,14 @@
+[
+ "tools/pmr/jobs11.py",
+ "tools/pmr/s3cauto.py",
+ "tools/pmr/analyze8.py",
+ "tools/pmr/cost5.py",
+ "tools/pmr/cost3.py",
+ "tools/pmr/cost2.py",
+ "tools/pmr/run_forms.py",
+ "tools/pmr/asynccheck.py",
+ "tools/pmr/erh.py",
+ "semkine/pmr_fast.py",
+ "tests/test_pmr_s3c.py",
+ "tests/test_pmr_fast.py"
+]

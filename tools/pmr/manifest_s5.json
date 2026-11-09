@@ -1,0 +1,22 @@
+[
+ "tools/pmr/s5auto.py",
+ "tools/pmr/jobs8.py",
+ "tools/pmr/analyze7.py",
+ "tools/pmr/arms_rol2.py",
+ "tools/pmr/train_rol2.py",
+ "tools/pmr/run_rol2.py",
+ "tools/pmr/cost4.py",
+ "tools/pmr/arms_any2.py",
+ "tools/pmr/arms_rol.py",
+ "tools/pmr/analyze2.py",
+ "tools/pmr/analyze3.py",
+ "tools/pmr/train4.py",
+ "tools/pmr/train5.py",
+ "tools/pmr/train6.py",
+ "tools/pmr/run4.py",
+ "tools/pmr/run5.py",
+ "tools/pmr/run6.py",
+ "tools/pmr/chain2.py",
+ "tests/test_pmr_s5.py",
+ "tests/test_pmr_s5auto.py"
+]

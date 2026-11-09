@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PMR stage S5 rollout readings and acceptance (docs/EXPERIMENT_RECORDS.md#pmr-s5-prereg-20261109): tools/pmr/run_rol.py
-(frozen) over the union registry (tools/pmr/arms_rol2.py, arms_any.py), through PFO's frozen
+(frozen) over the union registry (tools/pmr/arms_rol2.py, arms_any2.py), through PFO's frozen
 engine with the output root redirected to outputs/pmr/20261109 (tools/pmr/run.py's procedure for the rollout arms).
 
     python -m tools.pmr.run_rol2 read --arm A --seed S --task T
@@ -20,7 +20,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 
-from tools.pmr import arms_any as PA  # noqa: E402
+from tools.pmr import arms_any2 as PA  # noqa: E402
 from tools.pmr import arms_rol2 as A  # noqa: E402
 from tools.pmr.common import CONFIGS, OUT, now, read, require, save, sha  # noqa: E402
 

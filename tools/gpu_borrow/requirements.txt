@@ -1,0 +1,2 @@
+# Official NVIDIA NVML binding. Without it, monitoring uses nvidia-smi XML.
+nvidia-ml-py>=12

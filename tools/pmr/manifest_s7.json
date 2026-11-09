@@ -1,0 +1,16 @@
+[
+ "semkine/pmr_trunk8.py",
+ "semkine/pmr_trunk4.py",
+ "semkine/pmr_trunk6.py",
+ "semkine/pmr_trunk7.py",
+ "semkine/pmr_trunk.py",
+ "tools/pmr/arms8.py",
+ "tools/pmr/train8.py",
+ "tools/pmr/run8.py",
+ "tools/pmr/jobs13.py",
+ "tools/pmr/analyze10.py",
+ "tools/pmr/analyze9.py",
+ "tools/pmr/train.py",
+ "tools/pmr/run.py",
+ "tests/test_pmr_s7.py"
+]

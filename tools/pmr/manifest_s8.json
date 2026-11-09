@@ -1,0 +1,20 @@
+[
+ "tools/pmr/arms_any3.py",
+ "tools/pmr/train_rol3.py",
+ "tools/pmr/run_rol3.py",
+ "tools/pmr/cost6.py",
+ "tools/pmr/analyze11.py",
+ "tools/pmr/jobs14.py",
+ "tools/pmr/arms_any2.py",
+ "tools/pmr/arms_rol2.py",
+ "tools/pmr/train_rol2.py",
+ "tools/pmr/run_rol2.py",
+ "tools/pmr/analyze7.py",
+ "tools/pmr/cost2.py",
+ "tools/pmr/arms7.py",
+ "tools/pmr/arms8.py",
+ "tools/pmr/train7.py",
+ "tools/pmr/run7.py",
+ "semkine/pmr_trunk7.py",
+ "tests/test_pmr_s8.py"
+]

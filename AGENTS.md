@@ -1,5 +1,44 @@
 # Agent conventions for EventHands1
 
+## 论文命名（用户 2026-11-09）
+
+- 论文正文、图表及方法说明统一使用 **Event Surface Mapping Network (ESMNet)**；首次出现写全称，后续用 `ESMNet`。
+- 这是原 `SRNet` 的论文名称调整。代码类名、配置键、检查点与实验编号保持原标识，历史冻结记录保留原文；不因改名重新训练或改动模型。
+- **EvHandTrack（用户 2026-11-09"看看哪个方法指标最好，最适合收敛一下，命名 EvHandTrack"）：** 收敛后的方法 = B2 + rol5 三种子（TPD `tpd_rol5_s3407/8/9`）。
+  - 组成：B2 = PFO2 `fgs`（r_s2d 路由 + PFA → 事件—顶点关系编码 → 单轮门控 MeshGNN → LBS 槽池化 → 51 维加性状态更新），从头 6000 步；rol5 = 从同种子 B2 第 6000 步做 K = 5 闭环展开微调 1500 步（梯度穿过前态）。
+  - 身份：`outputs/evhandtrack/identity.json`（检查点、配置、路由器、读数、成本、异步回执的 SHA；`python -m tools.evhandtrack.identity verify`）。
+  - **主行用流式形式**（用户 2026-11-09"主行最好用流式形式"；`semkine/tpd_str.py`，路由器 r_s2d 按更新间隔、豁免）：`outputs/semkine/evhandtrack_main_row.json`，三种子 12.95 / 7.96 / 10.70 / 6.46 / RA 10.28（rol5 权重零训练换入）。三个种子的流式异步检验（前缀 / 顺序 / 分块）都 PASS（`outputs/evhandtrack/receipts/`）。
+  - 出表：`python tools/report_table.py evhandtrack_s43 evhandtrack_packet evhandtrack --label evhandtrack="EvHandTrack（B2 + rol5，三种子，流式形式）"`。`evhandtrack_s43` 是 S43 的精度配同块成本；`evhandtrack_packet` 是普通分包形式（12.86 / 7.75 / 10.66 / 6.28 / 10.12，不异步，只作描述）。
+  - 成本：`tools/evhandtrack/cost.py`，GPU 4 上一块测完（S43、分包、流式）。测量时主机负载 33–87，绝对时延偏高，比较用同块倍率；安静时应重测。
+  - 和 ESMNet 一样，只是论文命名：run 名、配置键、检查点保持原标识，不重训。S39 / S43 的地位不变（S43 是对照）。账本 `docs/EXPERIMENT_RECORDS.md#evhandtrack-20261109`。
+
+## GPU 借卡原则（用户 2026-11-09："现在可以使用全部卡，但是使用GPU0-3号时，用gpu-borrow run借卡指令"，要求固定为长期原则）
+
+- **范围：**
+  - GPU 0–3 是借用卡。任何作业（训练、读数、冒烟、探针）要用它们，都必须经 `gpu-borrow run --gpus <卡> -- <命令>`，从不直接用。
+  - GPU 4–7 照旧直接用。
+  - 用户 2026-11-09 起允许全部 8 张卡（PMR goal 起），各研究里"只用 GPU 2–7 / 4–7"的旧写法不再禁止借卡。
+- **gpu-borrow 的规则：**
+  - 位置：`~/.local/bin/gpu-borrow`，代码与说明在 `tools/gpu_borrow/`（README）。
+  - 启动：所选卡全部连续空闲 600 s（≤ 256 MiB、≤ 5 %）才启动。
+  - 让卡：lmx 在任一所选卡上出现，或作业之外有别的计算进程出现，就整作业 SIGKILL。之后再等 600 s 空闲，用同一命令（或 `--resume-command`）重启。
+  - 环境：子进程的 `CUDA_VISIBLE_DEVICES` 是卡的 UUID。
+  - 只读查看：`gpu-borrow probe --gpus 0,1,2,3`、`gpu-borrow status`。
+- **用法约束：**
+  - 借卡作业与 4–7 上的作业分开启动，不把 0–7 绑成一个 DDP 作业。
+  - 一张借来的卡上只放一个作业：同卡上自己的另一个作业也会触发让卡。
+  - fresh-only 的训练被让卡后，下次启动先把上次未完成的输出目录归档，再从头跑；不靠断点续训。PMR 的实现是 `tools/pmr/borrow_job.py`。
+  - 冻结的读数工具按序号要求 GPU 在 2–7 之间，借卡时会被拒，所以读数不放在借来的卡上。
+  - gpu-borrow 的系统服务里文件句柄软上限是 1024：K = 5 的 rol5 微调在借卡上会报 `received 0 items of ancdata` 而失败（`#pmr-amend8-20261109`），只放直连卡；从头训练（约 500 个句柄）在借卡上正常。
+- **systemd-oomd 风险与修复（2026-11-09）：** 旧版 gpu-borrow 作业落在 `user@1004.service` 下。该服务的 systemd-oomd 配置为内存压力 > 50% 持续 20 s；50% 指 PSI 内存停顿时间比例，不是 RAM 使用率。同一服务下还有 GNOME 桌面、ToDesk、Firefox。
+  - 2026-11-09 借卡冒烟时，oomd 先杀了 Firefox，约 15 s 后又杀了冒烟本身（`#pmr-amend4-20261109`）。
+  - 修复代码改为默认系统级后端：实际训练及全部 DDP 后代运行在独立的 `/gpuborrow.slice/` 下，仍用普通用户 `lyq`，不再通过 `systemd-run --user` 启动大内存训练。不关闭全局 oomd，也不靠 `ManagedOOMPreference=omit` 排除训练。
+  - 用户已明确撤回工具自行添加的宿主内存策略。借卡规则仍为按卡优先让出、连续空闲 600 s 后启动；系统 slice 只负责隔离桌面，不额外限制宿主内存、交换或全局并发，不按宿主可用内存或 PSI 增加启动门槛。研究驱动本来已有的内存预算和调度规则不变。
+  - 管理员安装入口与核对步骤见 `tools/gpu_borrow/README.md`。本机已经安装过旧版系统后端；撤回服务器上旧版策略须执行安装器 `--user lyq --update` 并通过 `gpu-borrow check-system` 核对，不能把源码修改当成服务器策略已经撤回。后端缺失时默认拒绝启动，不回退旧用户 scope；`--isolation user` 只供受控轻量兼容测试，不能用于研究训练。
+  - `check-system` 用极小 CPU 命令核对 UID、实际 cgroup 路径，以及工具此前添加的服务与 slice 上限已恢复为不设限；不启动 GPU 训练，也不修改研究驱动策略。OOM 或真实训练失败不按 GPU 抢占无限重试。
+- **原则生效前已在跑的作业：** gpu-borrow 不接管已在跑的进程。原则生效前已在 GPU 0–3 上跑的作业，要么停掉、经 gpu-borrow 重跑，要么挂守卫 `tools/pmr/borrow_guard.py`，按同一规则让卡。
+- **驱动：** PMR 驱动 4 `tools/pmr/chain4.py`（继承驱动 3、2；成本读数不提前清场，`#pmr-amend7-20261109`）已内置这些规则：借用对只跑训练，等不到卡就改到直连对（`#pmr-amend4-20261109`、`#pmr-amend5-20261109`）。以后的驱动照此写；停掉子进程后先回收（`Popen.wait`），再查它的进程组，否则僵尸会读成"活着"。
+
 ## 代码清理（用户 2026-11-01"这批代码有点乱，你清理删除一下，屎山代码你也清理一下"）
 
 - **第一步已做（2026-11-01 07:33–07:55 UTC）：删除已结案研究的代码，最终 1,067 个文件（约 21.3 万行），61 个顶层目录整个消失。**

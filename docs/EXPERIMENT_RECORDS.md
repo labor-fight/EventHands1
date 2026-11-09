@@ -25883,3 +25883,624 @@ E1 RA 拆成两项之积：单步误差 E3（从 GT 前态走一步）× 闭环�
 - ROL 之后两问（3407，描述）：去掉 P 差 +2.49 mm（local +1.63 / global +3.23）；换成拼接 + MLP 差 +0.37 mm（global 好 0.57、local 差 1.46）。
 - 下一轮已按自动推进权登记：`#pmr-s4-prereg-20261109`、`#pmr-s4b-prereg-20261109`。
 <!-- EXPERIMENT_RECORD:PMR-S3A-RESULTS-20261109:END -->
+
+<a id="pmr-s4c-prereg-20261109"></a>
+## PMR 阶段 S4c 预注册：门的几何输入（2026-11-09 02:05 UTC，写于任何 S4 / S4b / S4c 训练与读数之前；S3b 阶梯的部分读数已见）
+
+**依据（S3b 已读的两级，种子 3407，从头，描述）。**
+
+| 行 | E1 MPJPE-L / G / MPVPE-L / G / RA | E3 |
+|---|---|---|
+| R（D1） | 12.68 / 9.96 / 10.59 / 7.97 / 11.22 | 5.92 |
+| `d1g0` 门不读几何 | 14.69 / 8.90 / 11.99 / 7.76 / 11.59 | 6.08 |
+| `d1h0` 无手节点边 | 14.35 / 10.44 / 12.17 / 8.10 / 12.26 | 5.10 |
+
+- 门去掉几何后，local 差 2.0、global 好 1.06：几何门帮小运动的 local，伤大运动的 global。
+- D1 的门读相机轴下的量（边向量的相机分量、像平面占比、终点深度），随手的全局位姿变。大运动时前态滞后，这些量就偏了。
+- 无手节点边的 RA 差 1.04（根误差 8.74° 对 7.19°）：手节点承担根的估计。
+
+**两个改进（只改门读的几何量，门仍由前态 FK 的关节几何算出、各轮共享；`semkine/pmr_trunk6.py`，注册表 `tools/pmr/arms6.py`）。**
+- `d1ghand`：手系下的关节构型。边向量转到前态根坐标系 R_0^T v / 2 cm，加长度与边类型；对手的全局旋转不变（测试）。
+- `d1gview`：只用可观测性的量：长度、像平面占比、终点深度、边类型，不用方向。
+- 两者都在 D1 构造之后、在隔离的随机数作用域里新建几何嵌入（输入宽度不同），删去 D1 的嵌入；其余共享参数初值同 D1。节点输入同 D1，对照就是 D1 的 `d1n` / `d1m`。
+- 种子 3407，从头 6000 步，B2 配方，无 ROL；入口 `tools/pmr/train6.py` / `run6.py`。
+- 测试 `tests/test_pmr_s4c.py` 9 项 CPU 测试通过：在 MNISTModel 内能建起；初始增量为 0；共享参数同 D1；每个参数参与反向；ghand 对全局旋转不变而 D1 的门会变；消息置零时旁路审计成立；作业表、五候选联合选择、S5 工具接受 S4c 的臂。
+
+**联合选择（取代 `s4.json` 与 `s4_joint.json` 用来选 S5 的臂；`python -m tools.pmr.analyze6c joint`，S4 + S4b + S4c 全部读数后算一次）。** 规则同 S4：对 dual、hp、pos、ghand、gview，各自的筛选（单侧健全性）成立且 global 改善 ≥ 0.5 mm 即采纳，取 RA 最低者 → `REFINE_<X>`，否则 `NO_REFINEMENT`。S4、S4b 自己的选择作业照写，只作记录。
+
+**预算。** 两个从头训练，约 5 GPU·h，排在 S4b 之后。到本节约 36 GPU·h。S5 工具已改用第二个注册表并集 `tools/pmr/arms_any2.py`（`arms_any.py` 已随 S4b 冻结），并接受五个候选。
+
+**排程与冻结。** 驱动 1 追加 `outputs/pmr/20261109/jobs/s4c.json`（`python -m tools.pmr.jobs10 s4c --freeze s4c`）。冻结 `outputs/pmr/20261109/manifests/s4c.json`（清单 `tools/pmr/manifest_s4c.json`）。
+<!-- EXPERIMENT_RECORD:PMR-S4C-PREREG-20261109:END -->
+
+<a id="pmr-amend4-20261109"></a>
+### PMR 工程修订 4：GPU 0–3 只经 gpu-borrow 借用，换驱动 2；借卡冒烟被 systemd-oomd 杀掉，借用对暂停（2026-11-09 03:50 UTC；不改任何登记、配方与判读）
+
+- **用户指令（约 03:10 UTC）：** "你继续执行goal，现在可以使用全部卡，但是使用GPU0-3号时，用gpu-borrow run借卡指令，你能不能理解并且固定这个原则"。
+  - GPU 范围从 2–7 改为 0–7：GPU 0–3 上的任何作业都经 `gpu-borrow run`（lmx 优先、按卡让出、连续空闲 600 s 后续用），GPU 4–7 照旧直接用。
+  - 原则写入 AGENTS.md 开头一节。
+- **指令到达时的在跑作业：** 驱动 1 在 GPU 2–3 上有 `s4:train:d1dual`（约第 3500 步）。
+  - gpu-borrow 不接管已在跑的进程，所以 03:28 起挂守卫 `tools/pmr/borrow_guard.py`（gpu-borrow 的解释器与 NVML）。
+  - 规则同 gpu-borrow：lmx 或任何组外计算进程一出现在 GPU 2 / 3 上，就整组 SIGKILL（gpu-borrow 默认的零宽限）。被杀则失败保留，之后经 gpu-borrow fresh 重跑。
+  - 日志 `outputs/pmr/20261109/borrow_guard/`。
+- **驱动 2（`tools/pmr/chain2.py`，状态 `outputs/pmr/20261109/driver2/`）：** 驱动 1 的调度逻辑原样，另加以下规则。
+  - 借用对 (0, 1)、(2, 3) 只跑训练：
+    - 包装：外层 `gpu-borrow run --gpus i,j --state-dir driver2/borrow/<键>`，内层 `tools/pmr/borrow_job.py`，再包住原命令。
+    - 派发条件：gpu-borrow 看来两卡都空闲（无 lmx 或计算进程、≤ 256 MiB、≤ 5 %），且没有本驱动或驱动 1 的作业占着。训练优先用借用对。
+  - 读数、成本块、CPU 作业不用 GPU 0–3：冻结的读数工具按序号要求 GPU 在 2–7 之间，而且一张借来的卡上只能有一个作业。
+  - 被让卡后重跑：
+    - gpu-borrow 让卡后等 600 s 空闲，再启动同一命令。
+    - `borrow_job.py` 记下每次启动。从第二次起，先把上次未完成的输出目录移到 `outputs/pmr/20261109/preempted/<run>/attempt<k>`，再 fresh 重跑。
+    - 训练入口是 fresh-only、逐位确定的，所以重跑就是同一个训练；换卡不改数值（`#s45at-amend1-check-20261031`）。
+    - 第一次启动时已存在的输出目录不移动，入口照旧拒绝。
+  - 改道：借用的作业连续 30 min 没在跑（lmx 一直占着），而有空闲的直连对时，驱动停掉它的包装器（gpu-borrow 自己清理作业 scope），在直连对上经 `borrow_job.py` 重跑。
+  - 驱动 1 里仍在跑的作业所占的 GPU 视为占用（`PMR_PEER_DRIVERS`）。
+  - 主机内存：声明预算 440 → 560 GiB（四个训练各声明 130 GiB，实测每个约 55 GiB PSS）。每次启动仍要求 MemAvailable ≥ 声明 + 20 GiB。
+- **借卡冒烟：失败。**
+  - 做法：`tools/pmr/borrow_smoke.py`，冻结的 `train.py` 原样，注册表换成 D1-R 的冒烟配置（20 步），输出到 `outputs/pmr/20261109/borrow_smoke/`；经 gpu-borrow + `borrow_job.py` 跑在 GPU 0–1 上。
+  - 经过：03:29 派发，03:39:01 启动。两个 rank 都看到 UUID 形式的两张卡，模型建好（PMRNet_r 761 K）。03:40:16 rank 0 被 SIGKILL（退出码 −9），gpu-borrow 记 FAILED，不重试。
+  - 原因（推断）：gpu-borrow 用 `systemd-run --user --scope` 起作业，作业因此落在 `user@1004.service` 下。Ubuntu 默认让 systemd-oomd 监视这个 cgroup：内存压力超过 50% 持续 20 s，就杀掉其中回收活动最多的子 cgroup。证据：
+    - 03:39:58，oomd 杀了同一服务下 Firefox 的 scope（83 个进程，用户 journal）。
+    - 约 15 s 后冒烟的 rank 0 死亡；15 s 正是 oomd 两次动作之间的等待。
+    - 该服务的 `oom_kill` 计数为 0，所以不是内核 OOM。冒烟刚结束时该服务的压力 avg60 为 31.6 %。
+    - 驱动 1 的训练在 `session-8.scope` 里，不受 oomd 监视，所以以前没遇到。
+  - 影响：用户的 Firefox 被杀。同一服务下还有 GNOME 桌面与 ToDesk。借卡训练的启动可能让它们被杀，借卡训练自己也会被杀。
+  - 处理：驱动 2 的 `policy.json` 暂时只放 (4, 5)、(6, 7) 两对训练，GPU 0–3 不用，等用户决定怎么处理 oomd。用户决定后改 `policy.json` 打开借用对，驱动不重启。
+- **迁移（03:45 UTC）：**
+  - 驱动 1 DRAIN。在跑的 `s4:train:d1dual` [2, 3]、`s4:train:d1hp` [6, 7]、`s4:train:d1dualn` [4, 5] 在那里跑完。`a3` 阶梯的读数与表 03:35 已完成。
+  - 其余 64 个 PENDING 作业原样迁到驱动 2（`python -m tools.pmr.migrate move --from driver1`，作业文件 `outputs/pmr/20261109/jobs/driver2_migrated.json`）。对三个在跑训练的依赖换成 `d2:wait:<键>`（等该作业在驱动 1 结束，EXIT_0 才放行），已完成的依赖去掉。
+  - 驱动 2 于 03:45:59 UTC 启动（`setsid nohup`）。
+- **测试：** `tests/test_pmr_borrow.py` 7 项 CPU 测试通过：
+  - `borrow_job.py` 只归档自己被停掉的那次尝试；
+  - 训练先占空闲的借用对且被 gpu-borrow 包住，lmx 或驱动 1 占着的卡不用；
+  - 读数只用 4–7；
+  - 长等改道；
+  - 迁移的依赖改写；
+  - 驱动 1 队列里每个训练都有 `TRAIN.OUTPUT_DIR`。
+- **冻结：** `outputs/pmr/20261109/manifests/amend4.json`（清单 `tools/pmr/manifest_amend4.json`）。
+<!-- EXPERIMENT_RECORD:PMR-AMEND4-20261109:END -->
+
+<a id="pmr-amend4b-20261109"></a>
+### PMR 工程修订 4 补记：gpu-borrow 系统后端冒烟通过，借用对打开（2026-11-09 05:10 UTC）
+
+- **系统后端：** 用户装好 gpu-borrow 的系统隔离后端，`gpu-borrow check-system` 04:42 UTC 验证通过。
+  - 作业改由 root helper 用 `systemd-run --system` 放进 `gpuborrow.slice`，以 lyq 身份运行，不再落在 `user@1004.service` 下，因此不受那条 oomd 规则管。
+  - 每个服务 MemoryHigh 160G / MemoryMax 192G、不用交换。
+  - 准入要求 MemAvailable ≥ 192 + 64 GiB 且内存 PSI full avg10 ≤ 10 %，每个用户同一时间只有一个借卡作业（memory.lock）。
+  - 环境变量、工作目录、argv 原样传进服务，驱动 2 与 `borrow_job.py` 不用改。
+- **冒烟 2：** 用同一冒烟命令、同一尝试记录跑在 GPU 0–1 上，结果通过。
+  - 第二次启动先把第一次（被 oomd 杀掉）的输出目录归档到 `outputs/pmr/20261109/preempted/run/attempt1`，归档路径按设计工作。
+  - 第一次等待时内存准入一直报错：`~/.local/state/gpu-borrow` 的权限是 0775，后端要求 0700。改为 0700 后准入通过。
+  - 05:04:58 启动，05:05:45 正常结束（20 步，退出码 0）。服务内存峰值约 60 GB，单进程文件句柄最多 463，系统服务的软上限是 1024。
+- **借用对：** 04:52 起驱动 2 的 `policy.json` 打开 (2, 3)，04:56 起 (0, 1)、(2, 3) 都打开（用户："不要这么保守，实验第一"）。
+  - 一次只有一个借卡作业在跑；派到另一对上的作业保留自己的空闲计时，锁一放开就启动。
+  - 05:04 起 GPU 2–3 上有 lyq 的 mano_labeling 进程（contour_refine_v3 的 refine worker，没有经 gpu-borrow）。派到 (2, 3) 的 `s4b:pre:d1pos` 因此一直让卡，到 30 min 且有空闲直连对时改道。
+
+<a id="pmr-s5-prereg-20261109"></a>
+## PMR 阶段 S5 预注册（条件式）：S4 联合选择选出的改进 X 的三种子确认与 rol5（2026-11-09 05:11 UTC，写于 S4 / S4b / S4c 联合选择与任何 S5 训练、读数之前）
+
+**依据。** S3a 判 `NOT_DONE`：R + rol5 三种子 12.50 / 9.17 / 10.32 / 7.80 / 10.72，local 两项低于 S43，global 两项与 RA 不低于。S4 / S4b / S4c 的五个改进都针对 global。
+
+`#pmr-s4c-prereg-20261109` 写定联合选择（`decisions/s4c_joint.json`）：筛选成立且 global 改善 ≥ 0.5 mm 即采纳，取 RA 最低者 → `REFINE_<x>`，否则 `NO_REFINEMENT`。本节写于该选择算出之前，对五个可能的 X 都适用。
+
+**自动登记。** 驱动 2 的 CPU 作业 `s5:auto`（依赖 `s4c:joint`，`python -m tools.pmr.s5auto`）：
+- `REFINE_<x>`：X = d1<x> 的 S5 作业表（`tools/pmr/jobs8.py`）写入 `outputs/pmr/20261109/jobs/s5.json`，并追加到驱动 2。rol5 微调限定在直连对 (4, 5)、(6, 7)：K = 5 的批次是本研究最大的，而借卡服务的内存上限是 192 GiB。
+- `NO_REFINEMENT`：不登记作业，记录在 `decisions/s5_auto.json`；我写归因，另行登记下一轮。
+
+**训练。**
+- 从头（B2 配方，6000 步，无 ROL）：X × 3408 / 3409。
+  - X 为 dual、pos 时节点输入与 D1 不同，另加其无 P 对照 × 3408 / 3409。
+  - X 为 hp、ghand、gview 时，无 P 对照用 D1 的 R-noprop（三种子已有）。
+- rol5（`tools/pmr/train_rol2.py`，TPD rol5 配方原样 + 预取 1）：
+  - X_rol5 × 3407 / 3408 / 3409；
+  - X 为 dual、pos 时，另加其 R-noprop / R-mlp + rol5 × 3407，进论文表（hp / ghand / gview 用 D1 的）；
+  - 每个新微调臂先在 3407 跑 40 步预检。
+- 验收：从头训练同 S1（数据流与 B2 同种子逐位相同）；微调同 S3a（首步起点逐位相同，热启动 = 基础臂已验收的检查点）。
+
+**读数。**
+- 全部新检查点的 e1、e3、pert、f1：PFO 引擎，部署路由，普通分包形式。
+- X 的成本读数：`tools/pmr/cost4.py`，GPU 4 独占，默认标志。
+
+**写定判读（`python -m tools.pmr.analyze7 s5 --arm X`，全部读数后算一次）。**
+- 模块：每个种子都有 RA(无 P 对照, s) − RA(X, s) > 0 → `MODULE_ESTABLISHED`。
+- 完成：X + rol5 三种子 E1 五项均值全部低于 S43 引擎值 12.81 / 8.02 / 10.77 / 6.64 / 10.24 → `DONE`。
+- 目标的"完成" = 两者同时成立；否则 `NOT_DONE`，按自动推进权写归因、登记下一轮。
+- S3 的只报项（成本倍率对 S43 逐项、异步检验、因果 / 流式形式、EvRealHands）对最终形式另行登记，排在判读之后。
+
+**已用与预算。**
+- 到本节约 49 GPU·h（训练 43、读数 5）。
+- S5 含读数：X 为 hp / ghand / gview 时约 12 GPU·h（2 个从头 + 3 个 rol5）；X 为 dual / pos 时约 20 GPU·h（4 个从头 + 5 个 rol5）。
+
+**冻结。** `outputs/pmr/20261109/manifests/s5.json`（清单 `tools/pmr/manifest_s5.json`）。测试 `tests/test_pmr_s5.py` 7 项、`tests/test_pmr_s5auto.py` 6 项 CPU 通过。
+<!-- EXPERIMENT_RECORD:PMR-S5-PREREG-20261109:END -->
+
+<a id="pmr-s3c-prereg-20261109"></a>
+## PMR 阶段 S3c 预注册：S3 的只报项（D1 的 R + rol5 与最终形式；2026-11-09 05:17 UTC，写于任何 S3c 读数之前）
+
+**范围。** 目标 S3 要求对 R + rol5 报四项：对 S43 的成本倍率、异步检验、因果 / 流式形式、EvRealHands。全部只报，不进任何规则。对象有两个：
+- D1 的 R + rol5（S3a 三种子，已验收）；
+- 最终形式 X + rol5（S5 选出的改进，`#pmr-s5-prereg-20261109`）。
+
+**读数（每个微调臂 A_rol5，`tools/pmr/jobs11.py`）。**
+- 异步（CPU，种子 3407）：TPD 的冻结检验（`tools/pmr/asynccheck.py`）。
+  - 普通形式与因果形式做前缀不变与顺序检验，流式形式另加分包不变。
+  - 回执 `receipts/async_<tag>__<form>.json`。
+- 输入形式：三种子零训练换成 TPD 的因果形式（`semkine/tpd_causal.py`）与流式形式（`semkine/tpd_str.py`），读 e1、e3（`tools/pmr/run_forms.py`）。路由器 r_s2d 仍按包（豁免）。
+- EvRealHands：三种子、tier 3d、普通分包形式、自身闭环（`tools/pmr/erh.py`，TPD 的冻结评测器）。对照 S43、B2、B2 + rol5（因果形式）用 TPD 已有的读数。
+- 排程：D1 的读数现在追加，插在训练空档里跑；X 的读数各等自己那个种子的 S5 验收。
+
+**成本块（GPU 4 独占）。**
+- 工具：`tools/pmr/cost5.py`，即 `cost3.py` 换成并集注册表。
+- 时间：在 S5 判读与全部 S3c 读数之后一次跑完。
+- 内容：
+  - S43 执行器（默认、确定性标志）、S43 稠密（默认）、B2（默认）；
+  - D1 与 X 的参考实现（默认、确定性）；
+  - 最后是 D1 与 X 的快速实现（默认）。等价检查不过则拒跑，不影响其它作业。
+- 倍率 = X / S43 执行器，同块、同标志，逐项报：参数（含路由器）、MACs（含 MANO FK）、主行时延、端到端 p50 / p99。
+
+**登记方式。**
+- D1 的读数作业 `outputs/pmr/20261109/jobs/s3c_d1.json` 现在追加到驱动 2。
+- 最终形式的作业由 CPU 作业 `s3c:auto`（依赖 `s5:auto`，`tools/pmr/s3cauto.py`）在 S5 登记后追加（`jobs11.py final --arm X`）。
+- S5 未登记（`NO_REFINEMENT`）时不追加，最终形式与成本块另行登记。
+
+**表。** `tools/pmr/analyze8.py s3c --arm A` → `analysis/s3c_<A>.md`，D1 与 X 各一份。
+
+**预算。** 约 4 GPU·h：读数 2 × 18 个，成本块约 1 h 独占。
+
+**冻结。** `manifests/s3c.json`（清单 `tools/pmr/manifest_s3c.json`）。测试 `tests/test_pmr_s3c.py` 8 项、`tests/test_pmr_fast.py` 4 项 CPU 通过。
+<!-- EXPERIMENT_RECORD:PMR-S3C-PREREG-20261109:END -->
+
+<a id="pmr-amend5-20261109"></a>
+### PMR 工程修订 5：驱动 2 改道时误判僵尸进程，停下了全部作业；换驱动 3（2026-11-09 05:35 UTC；不改任何登记、配方与判读）
+
+- **事故：**
+  - 05:28:39，驱动 2 把等了 36 min 的 `s4b:pre:d1pos` 从借用对 (2, 3) 改道。GPU 2–3 被 lyq 的 mano_labeling 进程占着，这个预检一直没开跑。
+  - 改道先向 gpu-borrow 包装器发 SIGTERM。包装器正常退出了，但 `chain2.py` 没有先回收（reap）这个子进程，就用 `killpg(pid, 0)` 查它的进程组：僵尸进程仍算组员，于是读成"还活着"。
+  - 60 s 后驱动报错（`the gpu-borrow wrapper of s4b:pre:d1pos did not stop`），按急停清理了全部子作业，05:30:42 记 STOPPED_PRESERVED。
+  - 被杀的作业：`s4b:train:d1posm`（GPU 4–5，第 18 min）；`s4b:train:d1posn`（借用 GPU 0–1，05:28:31 刚启动）。`s4b:pre:d1pos` 从未开跑。
+  - 其余作业不受影响：`s4:train:d1dualm` 05:28:44 已 EXIT_0。
+  - 修订 4 的测试把 `live_group` 打了桩，所以没测出这个问题。
+- **修复（驱动 3，`tools/pmr/chain3.py`，状态 `outputs/pmr/20261109/driver3/`）：**
+  - 改道时先 `Popen.wait` 回收包装器，再检查进程组；急停清理也先回收。测试用真实的僵尸子进程复现并验证了这一点。
+  - 速度：用户要求实验优先，所以训练先占空闲的直连对，再用借用对；借卡等待超过 900 s（原 1800 s）才改道。
+- **迁移（05:32 UTC，`python -m tools.pmr.migrate2 --from driver2`，作业文件 `jobs/driver3_migrated.json`）：**
+  - 待跑作业与停止时在跑的作业共 61 个，原样重新入队。
+  - d1posn、d1posm 的残留输出目录先移到 `outputs/pmr/20261109/formal_failed/driver2_stop/`（保留），两个训练从头重跑；它们是逐位确定的，重跑结果相同。
+  - 驱动 3 于 05:32:18 UTC 启动（`setsid nohup`）。
+- **测试：** `tests/test_pmr_amend5.py` 5 项 CPU 通过：
+  - 僵尸子进程被回收，改道正常完成；
+  - 急停清理不再空等；
+  - 直连优先，改道阈值 900 s；
+  - 迁移的依赖改写与输出目录归档。
+- **冻结：** `manifests/amend5.json`（清单 `tools/pmr/manifest_amend5.json`）。
+<!-- EXPERIMENT_RECORD:PMR-AMEND5-20261109:END -->
+
+<a id="pmr-s6-prereg-20261109"></a>
+## PMR 阶段 S6 预注册：手节点边的逐部位低秩适配 d1hub（2026-11-09 07:17 UTC，写于 S4c 与 S6 任何读数之前）
+
+**依据（零训练、描述；种子 3407 闭环按根、手指、腕部拆分）。**
+- R + rol5 对 S43：local 已经胜出（RA 11.92 对 12.8）。global 的差距一半在根（多 0.4–0.9°），一半在手指（多 0.6–0.8°）。
+- 手指差距不是门在大动作下算错：在 zgz_global 的整体转速四个分位里，R 都比 B2 多约 1°。
+- R 几乎不纠平移：
+  - local 注入 10 mm 平移误差后一步还剩 92 %（T10 0.92），B2 剩 52 %；
+  - zgz_global 腕部误差 R 47 mm，B2 28、S43 约 27；local 腕部 R 17 mm，S43 约 35。
+- 两个 S4 改进让手节点拿到更多部位信息，平移都变好了：
+  - hp（掌—手节点边单列）global 腕部 25.6 mm、T10 0.86；
+  - dual（部位带相机系矩）T10 0.73。
+- D1 里部位到手节点的消息是 16 个部位的平均，每个部位只占 1/16。
+- 推断：手节点分不清各部位的证据，平移与根的对齐修正增益低，全局运动中滞后，进而拖累对应与手指。
+
+**设计。** 主干 `semkine/pmr_trunk7.py` 的 "hub"，注册表 `tools/pmr/arms7.py`，臂 `d1hub`。
+- 每一轮里，部位 j 到手节点的消息加 B_j A h_j，手节点到部位 j 的消息加 B'_j A' h_hub。A、A' 为 C → 8 共享，B_j、B'_j 为 8 → C 逐部位，零初始化。
+- 门、节点输入、读出同 D1。适配在隔离的随机数作用域里新建，共享参数初值同 D1，起点函数就是 D1。
+- 参数约 +11.7 万（R 为 76.1 万）。
+- 对照是 D1 的 R-noprop / R-mlp（节点输入与读出不变）。消息置零时适配不传任何东西，旁路审计成立。
+
+**训练与读数。**
+- 种子 3407，从头 6000 步，B2 配方，无 ROL。
+- 预检 40 步 → 正式训练 → 验收（入口 `tools/pmr/train7.py` / `run7.py`）。
+- 读数 e1、e3、pert、f1。
+
+**写定判读（`python -m tools.pmr.analyze9 s6`，在读数与 S4c 联合选择之后算一次）。**
+- 规则同 S4：筛选成立（单侧健全性，对照 d1n / d1m，B2 3407）且 global 改善 ≥ 0.5 mm → `ADOPT_hub`，否则 `HUB_NOT_ADOPTED`。
+- 描述：与 D1 R、联合选择选出的臂并排，含两段录制的腕部 / 根 / 手指拆分。
+
+**与最终形式的关系。**
+- S5（联合选择选出的臂 X）照常进行。
+- `ADOPT_hub` 时，下一轮（S7，另行登记，登记前报告 GPU 时）确认 d1hub 或 X + hub（3 种子 + rol5），取哪一个看 S5 的判读与两者的读数。
+- `HUB_NOT_ADOPTED` 时按 S5 的判读走。
+
+**已用与预算。** 到本节约 77 GPU·h（含借卡排队与驱动 2 停止时被杀的训练）。S6 约 3 GPU·h（一个从头训练、预检与读数），用 S4c 训练期间空着的借卡。
+
+**排程与冻结。** 驱动 3 追加 `outputs/pmr/20261109/jobs/s6.json`（`python -m tools.pmr.jobs12 s6 --freeze s6`）。冻结 `manifests/s6.json`（清单 `tools/pmr/manifest_s6.json`）。测试 `tests/test_pmr_s6.py` 5 项 CPU 通过。
+<!-- EXPERIMENT_RECORD:PMR-S6-PREREG-20261109:END -->
+
+<a id="pmr-amend6-20261109"></a>
+### PMR 工程修订 6：S3c 自动登记因跨驱动依赖失败，改由 s3cauto2 追加（2026-11-09 08:26 UTC；不改任何登记、配方与判读）
+
+- **S4 + S4b + S4c 联合选择（08:25，`decisions/s4c_joint.json`）：`REFINE_ghand`。** 结果见 `#pmr-s4c-results-20261109`（另写）。`s5:auto` 随即为 d1ghand 追加 S5 的 35 个作业。
+- **故障：** `s3c:auto` 失败，报 `unknown dependency in s3c:cost:s43:exec:default`。
+  - S3c 成本块依赖 D1 的全部 S3c 读数。其中三项异步检验（plain / causal / str）在驱动 2 停止前已完成（EXIT_0）。
+  - 修订 5 的迁移只搬未完成的作业，所以驱动 3 的队列里没有这三个键。
+  - 作业表 `jobs/s3c.json` 已写出，`decisions/s3c_auto.json` 没有写。
+- **处理：** 新文件 `tools/pmr/s3cauto2.py` 原样读 `jobs/s3c.json`，只去掉"不在驱动 3 队列、但在早先驱动里已 EXIT_0"的依赖，其余未知依赖一律拒绝；随后追加 30 个作业，记录在 `decisions/s3c_auto2.json`。三项异步检验的回执已在 `receipts/`，不受影响。
+- **冻结：** `manifests/amend6.json`（清单 `tools/pmr/manifest_amend6.json`）。
+<!-- EXPERIMENT_RECORD:PMR-AMEND6-20261109:END -->
+
+<a id="pmr-s4c-results-20261109"></a>
+## PMR S4 + S4b + S4c 结果：联合选择 `REFINE_ghand`（2026-11-09 08:25 UTC）
+
+种子 3407，从头 6000 步，无 ROL，PFO 引擎，部署路由，普通分包形式。表见 `analysis/s4c_joint.md`。
+
+| 行 | E1 五项 | E3 | local T10 |
+|---|---|---|---|
+| D1 R | 12.68 / 9.96 / 10.59 / 7.97 / 11.22 | 5.92 | 0.92 |
+| d1dual | 13.52 / 9.51 / 11.02 / 7.70 / 11.38 | 6.08 | 0.73 |
+| d1hp | 13.04 / 9.44 / 10.57 / 7.79 / 11.11 | 6.14 | 0.86 |
+| d1pos | 13.50 / 9.05 / 11.01 / 7.45 / 11.12 | 5.87 | 0.78 |
+| **d1ghand** | **12.91 / 8.44 / 10.60 / 7.28 / 10.52** | 6.01 | 0.85 |
+| d1gview | 13.23 / 9.33 / 10.98 / 7.88 / 11.14 | 6.09 | 0.94 |
+| B2 | 14.76 / 8.61 / 11.98 / 6.83 / 11.47 | 5.59 | 0.52 |
+| S43（引擎三种子） | 12.81 / 8.02 / 10.77 / 6.64 / 10.24 | | |
+
+- 筛选五个都成立（单侧健全性）。global 改善 ≥ 0.5 mm 而采纳的有 hp（0.52）、pos（0.91）、ghand（1.52）、gview（0.63）；dual（0.45）未采纳。
+- 采纳者中 RA 最低的是 ghand（10.52）→ `REFINE_ghand`。
+  - ghand 的筛选数：(a) 去掉 P 差 3.45，(b) R-mlp 差 2.06，(c) 比 B2 好 0.95。
+  - global 好 1.52 mm，local 只差 0.23。
+- 描述：
+  - 梯子已显示门里的几何量帮 local、伤 global（`d1g0`：global −1.06、local +2.0）。
+  - ghand 把门的几何输入换到手系（前态根坐标系下的关节向量，对手的整体位姿不变），在保住 local 的同时拿回了 global。
+  - 只用可观测性量的 gview 只好 0.63。
+- 后续：
+  - `s5:auto` 已为 d1ghand 登记 S5（`#pmr-s5-prereg-20261109`，35 个作业）；S3c 由 `tools/pmr/s3cauto2.py` 追加（`#pmr-amend6-20261109`）。
+  - S6（d1hub）照登记进行，判读时与 ghand 并排。
+<!-- EXPERIMENT_RECORD:PMR-S4C-RESULTS-20261109:END -->
+
+<a id="pmr-s7-prereg-20261109"></a>
+## PMR 阶段 S7 预注册：ghand 与手节点改进的组合（2026-11-09 09:10 UTC，写于 S5 / S6 / S7 任何读数之前）
+
+**依据（S4c 已读，种子 3407，从头，闭环拆分；描述）。**
+- ghand：12.91 / 8.44 / 10.60 / 7.28 / RA 10.52。
+  - 腕部误差已经追平或胜过 S43：global 28.6 mm 对 29.5，local 19.9 对 34.9。
+  - 剩下的差距主要在手指（global 10.49° 对 9.82，local 14.39° 对 13.56），其次是 global 的根（6.50° 对约 6.0）。
+- 用 R 自己从头到 rol5 的变化粗估，ghand + rol5 的三种子均值约 12.7 / 7.7 / 10.3 / 7.1 / 10.0：MPVPE-G 仍高于 S43 的 6.64，MPJPE-L 只剩约 0.1 的余量。
+- 在已采纳的改进里，hp 是唯一在两段录制上都改善手指的（global 10.55°、local 14.26°，D1 为 11.00° / 14.42°）。hub 是 hp 的推广，在 S6 训练中。
+- pos 的 local 代价是 0.82，不进组合。
+
+**两个组合（`semkine/pmr_trunk8.py`，注册表 `tools/pmr/arms8.py`）。**
+- `d1ghandhp`：ghand 的手系门 + hp 的掌—手节点单列边。门改读 hp 自己的门类型表（hub→palm 当 hub→part，palm→hub 当 part→hub），与 hp 原本一致。
+- `d1ghandhub`：ghand 的手系门 + hub 的逐部位低秩适配。
+- 两者都由已冻结的改进子类按 Python 的方法解析顺序组合，各自的新模块都在隔离的随机数作用域里新建，共享参数初值同 D1。
+- 节点输入与读出同 D1，所以对照是 D1 的 R-noprop / R-mlp。
+
+**训练与读数。**
+- 种子 3407，从头 6000 步，B2 配方，无 ROL。
+- 预检 40 步 → 正式训练 → 验收（入口 `tools/pmr/train8.py` / `run8.py`）。
+- 读数 e1、e3、pert、f1。
+
+**写定判读（`python -m tools.pmr.analyze10 s7 --arms d1ghandhp,d1ghandhub`，全部读数后算一次）。**
+- 每个组合 Y 先过筛选：(a)(b)(c) 对 d1n / d1m / B2，单侧健全性。
+- Y 取代 ghand 成为最终候选，须同时满足：
+  - 筛选成立；
+  - RA 比 ghand（3407）低 ≥ 0.3 mm；
+  - MPJPE-L 不比 ghand 高 0.3 mm 以上。
+- 满足者中取 RA 最低者 → `REPLACE_<Y>`；没有 → `KEEP_ghand`。
+
+**与 S5 的关系。**
+- S5 判 `DONE` 时，目标完成，S7 只作描述（论文的组合消融）。
+- S5 判 `NOT_DONE` 时：S7 为 `REPLACE_<Y>`，下一轮 S8 确认 Y（种子 3408 / 3409 + rol5 × 3）；S7 为 `KEEP_ghand`，按 S5 的归因另行设计。
+- S8 另行登记，登记前报告 GPU 时。
+
+**已用与预算。** 到本节约 99 GPU·h（含借卡排队与被杀的训练）。S7 约 5.5 GPU·h。排程上，ghand+hp 先用 S6 之后空出的借卡；ghand+hub 用 S5 的 rol5 跑完后空出的直连对。
+
+**排程与冻结。** 驱动 3 追加 `outputs/pmr/20261109/jobs/s7.json`（`python -m tools.pmr.jobs13 s7 --arms d1ghandhp,d1ghandhub --freeze s7`）。冻结 `manifests/s7.json`（清单 `tools/pmr/manifest_s7.json`）。测试 `tests/test_pmr_s7.py` 8 项 CPU 通过。
+<!-- EXPERIMENT_RECORD:PMR-S7-PREREG-20261109:END -->
+
+<a id="pmr-s8-prereg-20261109"></a>
+## PMR 阶段 S8 预注册：d1hub 的三种子确认与 rol5（2026-11-09 10:48 UTC，写于任何 S8 训练与读数之前；S6 的读数已见、写定判读未算）
+
+**依据（描述）。**
+- **单种子筛选不可靠。** ghand 在 S5 里补了种子 3408 / 3409（从头）：14.02 / 9.79 / 11.14 / 7.80 / 11.75 与 14.10 / 10.40 / 11.65 / 8.16 / 12.12。
+  - 三种子均值 13.68 / 9.54 / 11.13 / 7.75 / 11.46，与 D1 的 13.21 / 9.62 / 10.99 / 7.84 / 11.29 持平。
+  - 3407 上 1.52 mm 的 global 增益几乎全是种子偶然性（单种子噪声底约 0.8 mm）。
+  - S4–S7 那些 0.5–1.5 mm 的单种子差距都要多种子才能判断。
+- **global 差距落在根上（三种子均值，zgz_global）。**
+  - R + rol5 对 S43：根 6.65° 对 6.03°，手指 10.55° 对 9.88°，RA 9.17 对 8.02。
+  - ROL 让 B2 的根从 6.01° 降到 5.08°，R 的根却从 6.44° 升到 6.65°。
+  - R 的根与平移只能从手节点读出，而手节点拿到的部位信息是 16 条消息的平均。
+- **d1hub 正好补根（S6，种子 3407，单种子，描述）。**
+  - 读数：13.16 / 9.39 / 10.70 / 7.66 / 11.14。
+  - global 的根 6.01°，同种子的 R 为 6.66°；手指 11.03°，与 R 的 11.00° 持平；global 腕部 31.2 mm，R 为 47.0。
+  - 机制与上面的差距对得上。
+
+**训练（S5 的流水线原样，臂 X = d1hub，作业键前缀 `s8:`）。**
+- 从头（B2 配方，6000 步，无 ROL，入口 `tools/pmr/train7.py` / `run7.py`）：d1hub × 3408 / 3409。节点输入同 D1，无 P 对照用 D1 的 R-noprop（三种子已有）。
+- rol5（`tools/pmr/train_rol3.py` = `train_rol2.py` + `tools/pmr/arms_any3.py` 的注册表扩展，TPD rol5 配方原样 + 预取 1）：
+  - d1hub_rol5 × 3407 / 3408 / 3409，先在 3407 跑 40 步预检；
+  - 不限卡对：rol5 实测约 63 GiB，在借卡服务的上限之内。
+- 验收：从头同 S1，微调同 S3a（`tools/pmr/run_rol3.py`）。
+
+**读数。**
+- 全部新检查点的 e1、e3、pert、f1。
+- d1hub 的成本读数（`tools/pmr/cost6.py`，GPU 4 独占，默认标志）。
+
+**写定判读（`python -m tools.pmr.analyze11 s5 --arm d1hub`，即 S5 的规则原样，全部读数后算一次）。**
+- 模块：每个种子 RA(d1n, s) − RA(d1hub, s) > 0。
+- 完成：d1hub + rol5 三种子 E1 五项均值全部低于 S43 引擎值 12.81 / 8.02 / 10.77 / 6.64 / 10.24。
+- 两者同时成立 = 目标"完成"；否则 `NOT_DONE`，写归因、登记下一轮。
+- 文件名沿用 analyze7：`decisions/s5_d1hub.json`、`analysis/s5_d1hub.md`、`outputs/semkine/pmr_d1hub_rol5_3seed_main_row.json`。
+
+**与其它阶段的关系。** S5（ghand）、S6 的写定判读、S7（ghand + hp / hub）照登记跑完。S8 不依赖它们的判读。
+
+**已用与预算。** 到本节约 122 GPU·h（含借卡排队与被杀的训练）。S8 约 11 GPU·h：2 个从头训练、4 个微调（含预检）、读数与成本。
+
+**排程与冻结。** 驱动 3 追加 `outputs/pmr/20261109/jobs/s8.json`（`python -m tools.pmr.jobs14 s8 --arm d1hub --freeze s8`）。冻结 `manifests/s8.json`（清单 `tools/pmr/manifest_s8.json`）。测试 `tests/test_pmr_s8.py` 4 项 CPU 通过。
+<!-- EXPERIMENT_RECORD:PMR-S8-PREREG-20261109:END -->
+
+<a id="pmr-amend7-20261109"></a>
+### PMR 工程修订 7：成本读数不再提前清场，换驱动 4（2026-11-09 12:23 UTC；不改任何登记、配方与判读）
+
+- **问题：** 驱动 2 / 3 的调度里，独占作业（GPU 4 上的成本读数）一就绪，就停止派发其它所有 GPU 作业，等在跑的作业全部结束才开测。
+  - 11:50 起 S5 的成本读数就绪。GPU 4–5 从此空着，S8 的 rol5 预检就绪也派不出去。
+  - 驱动 3 要等三个各跑约 75 min 的训练（S7 ghand+hub、S8 d1hub 3408 / 3409）全部结束，S8 的关键路径因此晚约 1 h。
+- **处理：** 驱动 4（`tools/pmr/chain4.py`，状态 `outputs/pmr/20261109/driver4/`）。
+  - 就绪的成本读数不再挡住派发。它等到本驱动和对等驱动都没有作业占着 GPU、也没有就绪的训练或读数时才开测。
+  - 开测之后照旧不启动别的作业，所以仍是独占测量，测量条件不变。
+  - 其余与驱动 3 相同。
+- **迁移（12:22 UTC）：**
+  - 驱动 3 DRAIN，在跑的三个训练在那里跑完。
+  - 52 个待跑作业原样迁到驱动 4（`python -m tools.pmr.migrate3 --from driver3`，作业文件 `jobs/driver4_migrated.json`）。
+  - 对三个在跑训练的依赖换成 `d4:wait:<键>`。
+  - 驱动 4 于 12:22:09 UTC 启动（`PMR_PEER_DRIVERS=driver3`，驱动 3 占着的卡视为占用）。
+- **另记：**
+  - gpu-borrow 的系统配置在 07:51 UTC 已去掉内存预算与"一次一个借卡作业"的锁。此后两对借用卡可以同时用，S7 与 S8 曾各占一对。
+  - rol5 作业声明 140 GiB 主机内存（实测约 63 GiB），在可用内存不足 160 GiB 时会等。
+- **测试：** `tests/test_pmr_amend7.py` 3 项 CPU 通过：
+  - 有训练就绪时成本读数不抢先，也不挡住训练；
+  - 机器空闲时它独占 GPU 4，开测期间不启动别的作业；
+  - 迁移的等待作业。
+- **冻结：** `manifests/amend7.json`（清单 `tools/pmr/manifest_amend7.json`）。
+<!-- EXPERIMENT_RECORD:PMR-AMEND7-20261109:END -->
+
+<a id="pmr-s7-results-20261109"></a>
+## PMR S7 结果：`KEEP_ghand`（2026-11-09 12:38 UTC）
+
+种子 3407，从头，无 ROL，PFO 引擎。表见 `analysis/s7.md`。
+
+| 行 | E1 五项 | global 腕 mm / 根 ° / 手指 ° |
+|---|---|---|
+| d1ghand | 12.91 / 8.44 / 10.60 / 7.28 / 10.52 | 28.6 / 6.50 / 10.49 |
+| d1ghandhp | 14.12 / 9.17 / 11.63 / 7.86 / 11.47 | 32.4 / 6.51 / 10.55 |
+| d1ghandhub | 12.91 / 9.60 / 10.73 / 7.99 / 11.14 | 39.0 / 6.80 / 10.75 |
+
+- 两个组合的筛选都成立（去掉 P 差 2.50 / 2.83）。
+- RA 都不比 ghand 低 0.3 mm 以上，所以不取代。
+- 描述：
+  - ghand 在 3407 上的值偏好：S5 补的种子 3408 / 3409 显示它的三种子均值与 D1 持平（`#pmr-s8-prereg-20261109`）。
+  - ghand + hub 的 global 根 6.80°，没有复现 d1hub 单独时的 6.01°。单种子 0.5–1 mm 级的差异仍以种子噪声为主。
+  - 三种子的 d1hub + rol5 见 S8。
+<!-- EXPERIMENT_RECORD:PMR-S7-RESULTS-20261109:END -->
+
+<a id="pmr-amend8-20261109"></a>
+### PMR 工程修订 8：rol5 微调在借卡服务里因文件句柄上限失败，S8 的两个种子改在直连对重跑（2026-11-09 12:53 UTC；不改任何登记、配方与判读）
+
+- **故障：**
+  - S8 的 d1hub_rol5 种子 3407（借用对 0–1）与 3408（借用对 2–3）都失败，失败保留。随之跳过：它们的读数，以及 `s8:cost:d1hub`、`s8:verdict`。
+  - 训练日志报 `RuntimeError: received 0 items of ancdata`，随后 `Pin memory thread exited unexpectedly`。
+  - 原因（推断）：gpu-borrow 的系统服务里进程可打开的文件数软上限是 1024。K = 5 的展开批次在 DataLoader 进程之间传递的张量（每个张量占一个文件句柄）超过了这个数。
+  - 从头训练只用约 500 个，在借卡上一直正常（d1pos、ghand+hp、ghand+hub、S8 的 d1hub 3408 都训完了）。
+  - S5 的 rol5 当初限定在直连对，所以没遇到。种子 3409 跑在直连对上，不受影响。
+  - 另记：两个作业的第一次启动都因 gpu-borrow 查询时有 GPU 进程刚好消失（monitor_error）而让卡并重启。这是 gpu-borrow 的保守设计。
+- **处理：**
+  - 3408 那次注定失败的重启由我先停掉。
+  - 两个失败的输出目录移到 `outputs/pmr/20261109/formal_failed/s8_borrow_nofile/`。3407 第一次尝试的目录已由 `borrow_job.py` 移到 `preempted/`。
+  - `tools/pmr/jobs15.py` 以 `:r2` 键重新登记两个种子的 rol5 微调（同一配置，只放在直连对 (4, 5)、(6, 7)），连同它们的验收、读数，以及 S8 的成本读数与写定判读。
+  - 3407 的基础验收在驱动 3 里已经完成，不再作为依赖。
+  - 以后的 rol5 微调一律只放直连对；借用对只跑从头训练。
+- **测试：** `tests/test_pmr_amend8.py` 1 项 CPU 通过。
+- **冻结：** `manifests/amend8.json`（清单 `tools/pmr/manifest_amend8.json`）。
+<!-- EXPERIMENT_RECORD:PMR-AMEND8-20261109:END -->
+
+<a id="pmr-s9-prereg-20261109"></a>
+## PMR 设计 D2 预注册（S9）：满秩的部位→手节点分型边 d1hubfull，三种子 + rol5（2026-11-09 12:58 UTC，写于任何 D2 训练与读数之前）
+
+**为什么进入设计循环的 D2。**
+- D1 过了筛选，模块也成立（S2）。但它的最终形式 R + rol5（S3a）在 global 上未达 S43。
+- 之后的改进（S4–S8）在三种子上都没有改变均值。
+  - ghand：从头三种子均值 13.68 / 9.54 / 11.13 / 7.75 / 11.46。d1hub：13.62 / 9.56 / 11.13 / 7.78 / 11.45。D1：13.21 / 9.62 / 10.99 / 7.84 / 11.29。
+  - 单种子的 0.5–1.5 mm 差异都是种子噪声。
+- D1 这一族到此为止。按目标的设计循环，依失败归因出 D2（最多 3 个设计）。
+
+**失败归因（零训练、三种子，描述）。**
+- 单步不是问题。E3 从真值前态走一步，global 的根 R 为 4.06°、B2 为 3.95°，几乎相同。
+- 差距出在闭环放大：
+  - 从头：global 根 R 6.44°，B2 6.01°。
+  - rol5 之后：R 6.65°，B2 5.08°。ROL 帮了 B2 的根，没帮 R 的根。
+- R-noprop 单步最准（global RA 3.88），闭环最差（13.97）。P 的作用是稳住闭环。
+- R 的根与平移只从手节点读出，手节点收到的是 16 条部位消息的平均（各 1/16）。R-mlp 的根与平移读的是拼接后的部位状态，它的 global 和 B2 一样好（3407 为 8.70，R 为 9.96）。
+- 推断：手节点得到的部位证据不足，闭环里纠不回根。秩 8 的适配（d1hub）三种子无效，所以这里做满容量的检验。
+
+**设计 D2（`semkine/pmr_trunk9.py` 的 "hubfull"，注册表 `tools/pmr/arms9.py`，臂 `d1hubfull`）。**
+- 每一轮里，部位 j 到手节点的消息在 D1 的共享映射之外加 W_j h_j。W_j 为 C → C，逐部位，零初始化，三轮共约 +79 万参数。
+- 手节点因此能分别看到每个部位的状态，得到与 R-mlp 根 / 平移读出相同的信息。关节仍走 D1 的运动学树传播与逐关节局部读出。
+- 硬规则：
+  - 无旁路：消息置零后，部位 i 的证据对关节 j ≠ i 的梯度为零，测试通过；
+  - 图在部位层级；门由前态 FK 几何算出、各轮共享，同 D1；
+  - 节点输入与读出同 D1；没有拼接后过 MLP，部位信息只经分型边进入手节点。
+- 起点函数 = D1，共享参数初值同 D1。总参数约 169 万（含路由器），在 S43 的 282 万之内。
+
+**S0。**
+- 接线与旁路审计：`tests/test_pmr_s9.py` 4 项 CPU 通过。
+- 零训练代理沿用 D1 的结果（zgz 交叉拟合差距 1.44 mm ≥ 1.0）。理由：D2 的节点输入与 D1 完全相同，代理量的是节点统计量里可供跨部位传递的信息，与 P 的内部容量无关。
+
+**训练与读数。**
+- 三种子直接从头训练（B2 配方，6000 步，无 ROL）：先在 3407 跑 40 步预检，再训 3407 / 3408 / 3409（`tools/pmr/train9.py` / `run9.py`）；读数 e1、e3、pert、f1。
+- rol5：先 3407 预检，再训 3407 / 3408 / 3409（`tools/pmr/train_rol4.py` / `run_rol4.py`，`arms_any4` 扩展注册表），只放直连对（`#pmr-amend8-20261109`）。
+- 成本读数：`tools/pmr/cost7.py`，GPU 4 独占，默认标志。
+- 从头训练可用借用对。
+
+**写定判读。**
+- S1 筛选（种子 3407，原规则 + 单侧健全性）：对照用 D1 的 d1n / d1m，同节点输入、同读出。(a) 去掉 P 差 ≥ 1.0 mm 且 local / global 同向；(b) R-mlp 不比 D2 好超过 0.3；(c) D2 对 B2 3407 ≤ +0.3。筛选不成立则 D2 判失败，写归因；之后的 rol5 读数只作描述。
+- 模块与完成（`python -m tools.pmr.analyze12 s5 --arm d1hubfull`，即 S5 的规则原样）：
+  - 模块：每个种子 RA(d1n, s) − RA(d1hubfull, s) > 0。
+  - 完成：d1hubfull + rol5 三种子五项均值全部低于 S43 的 12.81 / 8.02 / 10.77 / 6.64 / 10.24。
+  - 两者都成立 = 目标"完成"。
+- 文件名沿用 analyze7：`decisions/s5_d1hubfull.json` 等。
+
+**已用与预算。** 到本节约 151 GPU·h（含借卡排队、被杀与失败的训练）。D2 约 16 GPU·h（3 个从头训练、4 个微调含预检、读数与成本）。
+
+**排程与冻结。** 驱动 4 追加 `outputs/pmr/20261109/jobs/s9.json`（`python -m tools.pmr.jobs16 s9 --freeze s9`）。冻结 `manifests/s9.json`（清单 `tools/pmr/manifest_s9.json`）。
+<!-- EXPERIMENT_RECORD:PMR-S9-PREREG-20261109:END -->
+
+<a id="pmr-stop-20261109"></a>
+### PMR 驱动 4 由 STOP 文件停止（2026-11-09 14:01 UTC）
+
+- **经过：** 14:00:14 UTC，`outputs/pmr/20261109/driver4/STOP` 出现（属主 lyq，不是本会话放的）。驱动 4 于 14:01:18 记 STOPPED_PRESERVED，按急停终止了在跑的作业，现场保留：
+  - `s8:rtrain:d1hub_rol5:s3408:r2`（直连 4–5，13:47 开训）；
+  - `s9:train:d1hubfull:s3407` / `s3408` / `s3409`（D2 的三个从头训练，借用 0–1、2–3 与直连 6–7；最近的检查点分别为第 2500 / 3000 步，3409 刚开训）。
+- **停止时已有的结果（描述，写定判读未算）：**
+  - S5：ghand + rol5 三种子 12.30 / 9.18 / 10.13 / 7.77 / 10.63，local 两项低于 S43，global 两项与 RA 不低于，判 NOT_DONE。写定判读挂在推迟的成本读数之后，没有算。
+  - S8：d1hub + rol5 已有 3407、3409 两个种子：11.97 / 9.27 / 9.62 / 7.92 / 10.52 与 12.79 / 9.98 / 10.51 / 8.52 / 11.28，同样在 global 上不达标。
+  - D2 没有读数。
+- **之后：** 不重启驱动、不移除 STOP、不追加作业。续做须用户下令，届时换新驱动目录，被终止的训练从头重跑（输出目录先归档）。
+<!-- EXPERIMENT_RECORD:PMR-STOP-20261109:END -->
+
+<a id="pmr-stop-note-20261109"></a>
+### PMR 停止补记：STOP 由用户下令；未跑的作业与零训练检验（2026-11-09 14:05 UTC，会话 eventhands1-13）
+
+**来源。** 上节的 STOP 文件是会话 eventhands1-13 按用户指令放的。用户约 14:00 UTC："现在停止吧"。所以这次是用户下令的停止，不是故障。
+
+**未跑（58 个作业保持 PENDING）。**
+- S5：`s5:cost:d1ghand`、`s5:verdict`。
+- S3c：11 个成本读数与两张表。
+- S8：种子 3408 的 rol5 读数、`s8:cost:d1hub`、`s8:verdict`。
+- S9 / D2：筛选、三种子读数、rol5、成本与判读。
+
+**停止时的对照（描述）。**
+- B2 + rol5（TPD 三种子，12.86 / 7.75 / 10.66 / 6.28 / 10.12）仍是 RA 最低的三种子行。
+- R + rol5 三种子为 12.50 / 9.17 / 10.32 / 7.80 / 10.72。
+- 从头三种子 RA：ghand 11.46，d1hub 11.45，D1 11.29。S4–S8 的改进都没有改变三种子均值。
+- global 的差距主要在根旋转（三种子 zgz_global）：ghand + rol5 6.9°，S43 约 6.0°，B2 + rol5 5.1°。ROL 让 B2 的根变好，让 PMR 的根变差。
+
+**零训练检验（未登记、描述；用户 08:00 UTC 前后下令"在 0–1 双卡上零训练检验值不值得做"）。** 脚本与报告在 `outputs/pmr/20261109/analysis/hub_probe_s13/`。
+- d1hub 的值得性检验：经 gpu-borrow 在 GPU 0–1 上抓 D1 R（3407 / 3408）在 zgz 上自身闭环前态的节点状态，用岭回归读出。
+  - 事先写定的规则判为 `MARGINAL`：HP8 − H（global，单步 RA）−0.20 / −0.17，门槛 −0.30 / −0.15。
+- 同一检验里"手节点状态的线性读出把单步 RA 从 11.22 / 11.01 降到 8.88 / 9.00"是泄漏，已撤回：
+  - 奇偶交错交叉拟合把相隔 50 ms 的邻居放进了拟合集。
+  - 前后两半拟合时是 11.16 / 10.77，与常数偏置相同。
+  - 换另一段 zgz 录制拟合时是 15.43 / 13.62，比 R 自身还差。
+  - 以后的零训练读出用带缓冲的连续块与跨录制拟合，不按相邻端点交错。
+
+**之后。** 同上节：不重启、不移除 STOP、不追加；续做须用户下令。
+<!-- EXPERIMENT_RECORD:PMR-STOP-NOTE-20261109:END -->
+
+<a id="evhandtrack-20261109"></a>
+## EvHandTrack：收敛的方法与命名（2026-11-09 14:30 UTC，零训练、只读）
+
+**指令。** 用户 2026-11-09 约 14:15 UTC："你现在看看哪个方法指标最好，最适合收敛一下，命名 EvHandTrack"。
+
+**候选（zgz，PFO 引擎 E1，W50 原始、无滤波，三种子，可部署）。**
+
+| 行 | 五项（MPJPE-L / G / MPVPE-L / G / RA） | 对 S43 | 成本（对 S43 同块，默认标志） |
+|---|---|---|---|
+| S43（对照） | 12.81 / 8.02 / 10.77 / 6.64 / 10.24 | | |
+| **B2 + rol5** | 12.86 / 7.75 / 10.66 / 6.28 / 10.12 | 四项更低，MPJPE-L +0.05 | 参数 0.21×、MACs 1.93×、行时延 1.17×、端到端 p50 / p99 1.20× |
+| PMR ghand + rol5 | 12.30 / 9.19 / 10.12 / 7.77 / 10.63 | local 两项更低，global 两项与 RA 更高 | 结构同 D1 R（行时延约 2.0×） |
+| PMR R + rol5 | 12.50 / 9.17 / 10.32 / 7.80 / 10.72 | 同上 | 参数 0.32×、MACs 0.90×、行时延约 2.0×（PMR 自己的成本块，不同块） |
+| B2（无 ROL） | 15.00 / 8.58 / 12.38 / 6.92 / 11.57 | 五项都更高 | 同 B2 + rol5 |
+
+- **选 B2 + rol5。** 理由：
+  - RA、MPJPE-G、MPVPE-G 都是三种子可部署行里最低的；五项里四项低于 S43。
+  - 时延与 S43 同量级（≤ 1.5 为"接近"），参数是 S43 的五分之一。
+  - PMR 的两行只在 local 上更好，global 与 RA 更差，时延约 2 倍。
+- **不作候选：**
+  - S39：协议不同（W = 200 + 自适应滤波 + 证据门）。
+  - S43：对照，事件图像路线。
+  - 单种子或不可部署的行。
+- **形式。** 主行用普通分包形式，与所有对照同一口径。零训练换入的因果形式（13.37 / 7.99 / 10.97 / 6.48 / 10.49）与流式形式（12.95 / 7.96 / 10.70 / 6.46 / 10.28）只作描述；普通分包形式按包总数取节点，不满足异步约束（`#tpd-causal-prereg-20261105`）。
+
+**命名与身份。**
+- EvHandTrack = B2 + rol5，三种子 3407 / 3408 / 3409（TPD `tpd_rol5_s<seed>`，`#tpd-rol-prereg-20261105`、`#tpd-rolc-results-20261105`）。
+- 只是论文命名：run 名、配置键、检查点保持原标识，不重训。
+- `tools/evhandtrack/identity.py write` 写出 `outputs/evhandtrack/identity.json` 与 `outputs/semkine/evhandtrack_main_row.json`，写入前逐项核对：
+  - rol5 第 1500 步检查点的 SHA = TPD 验收回执；
+  - 训练配置 SHA = 启动记录；
+  - INIT_FROM = 同种子 B2 第 6000 步，其 SHA = PFO2 验收回执；
+  - 三种形式的读数都读的是这个检查点，评测配置未变；
+  - 成本读数是 B2 3407 的。
+- `verify` 22 个文件 SHA 全部一致。
+
+**主表（`python tools/report_table.py dt3_dz_l3_w200cfg evf_s43 evf_b2 pmr_d1r_rol5_3seed evhandtrack`）。**
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S43（W50 原始，引擎三种子，同块成本） | 12.81 | 8.02 | 10.77 | 6.64 | 10.24（10.29 / 10.27 / 10.17） | 11.02 ms | 0.128 G | 2.82 M |
+| B2（无 ROL，三种子） | 15.00 | 8.58 | 12.38 | 6.92 | 11.57（11.47 / 10.64 / 12.60） | 12.84 ms | 0.248 G | 0.59 M |
+| PMR R + rol5（三种子） | 12.50 | 9.17 | 10.32 | 7.80 | 10.72（10.16 / 10.76 / 11.23） | 21.94 ms | 0.116 G | 0.90 M |
+| EvHandTrack（B2 + rol5，三种子） | 12.86 | 7.75 | 10.66 | 6.28 | 10.12（10.49 / 9.48 / 10.41） | 12.84 ms | 0.248 G | 0.59 M |
+
+- S39 行用 W = 200 与滤波，和其余各行不是同一口径。其余各行的 Latency 是 PFO / EVF 统一成本工具的行口径。
+
+**没做的。** 不训练、不评测、不改任何冻结文件或驱动状态。PMR 仍是停止状态。
+<!-- EXPERIMENT_RECORD:EVHANDTRACK-20261109:END -->
+
+<a id="evhandtrack-str-20261109"></a>
+### EvHandTrack 主行改用流式形式（2026-11-09 14:45 UTC）
+
+**指令。** 用户约 14:20 UTC："主行最好用流式形式"。
+
+**形式。**
+- 流式形式（`semkine/tpd_str.py`，`#tpd-str-prereg-20261106`）：
+  - 每个事件的取舍与 token 只由它自己和流中在它之前的事件决定；
+  - 像素时间面跨更新保留；
+  - 不截事件；
+  - 路由器 r_s2d 仍按更新间隔工作（豁免）。
+- 权重是 rol5 的，零训练换入（TPD 的 `__str` 读数，`#tpd-str-ref-results-20261106`）。
+
+**本节新做的（零训练）。**
+- **流式异步检验：** `tools/tpd/asynccheck_str.py` 原样，三个种子各一次，CPU，14:31–14:39 UTC。
+  - 回执 `outputs/evhandtrack/receipts/async_evhandtrack_s<种子>.json`，都 PASS。
+  - 每个种子 24 个抽样包，前缀、顺序（最大差 0.0）、分块三项全过。
+  - TPD 当初登记的 `str:async:s3407` 因停止没有跑，这里补上。
+- **成本块：** `tools/evhandtrack/cost.py`，PFO 成本工具原样。
+  - 流式形式的钩子照 `tools/tpd/cost.py` 的因果形式写：取窗后在主机侧算流式状态（计入端到端时延），随包携带。
+  - GPU 4，默认标志，14:22–14:27 UTC 连测 S43 执行器、EvHandTrack 3407 分包形式、流式形式。
+  - GPU 4 采样日志 `outputs/evhandtrack/logs/gpu4_sampler.log`：只有这三个作业，没有别的进程。
+  - 主机上有别的用户的作业，1 分钟负载 33–87。
+  - 14:21 的第一次尝试刚开始就被我停掉：启动时看到 GPU 4 有占用，事后是瞬时的。输出移到 `outputs/evhandtrack/costs_aborted_s43_s3407__exec__default_1421/`。
+
+| 同块读数 | 行时延 raw / anchor / scaled（ms） | 端到端 p50（ms） | MACs（G） | 参数 |
+|---|---|---|---|---|
+| S43 执行器 | 14.89 / 2.382 / 10.94 | 15.66 | 0.128 | 2.82 M |
+| EvHandTrack 分包形式 | 17.15 / 2.147 / 13.98 | 17.45 | 0.248 | 0.59 M |
+| EvHandTrack 流式形式 | 16.22 / 1.773 / 16.01 | 18.81 | 0.236 | 0.59 M |
+
+- **流式对 S43（同块）：** 参数 0.21×、MACs 1.84×、行时延 1.46×、端到端 p50 1.20×，都在"接近"（≤ 1.5）以内。
+  - 流式每包平均 1,593 个节点、最多 3,480 个；分包形式节点上限 2,048。
+  - 流式比分包多的时间在 token（跨更新的时间面，+0.8 ms）和路由段（+1.7 ms）。
+- **读法：** 负载下的绝对值偏高。S43 的 raw 14.89 对 EVF 安静块 9.33；scaled 10.94 对 11.02 一致；分包形式 scaled 13.98 对 12.84（+9 %）。
+  - 所以表里的 Latency 有约 10 % 的不确定。端到端 p99 受负载抖动支配，不作比较。
+  - 主机安静时应在同一工具下重测。
+
+**身份与主行（`python -m tools.evhandtrack.identity write`，`verify` 28 个文件全部一致）。**
+- `identity.json` 的主形式改为 streaming，新增三个种子的异步回执与同块成本读数的 SHA。
+- 主行：
+  - `outputs/semkine/evhandtrack_main_row.json`：流式；
+  - `evhandtrack_packet_main_row.json`：普通分包，描述；
+  - `evhandtrack_s43_main_row.json`：S43 的引擎三种子精度配同块成本。
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S43（W50 原始，引擎三种子） | 12.81 | 8.02 | 10.77 | 6.64 | 10.24（10.29 / 10.27 / 10.17） | 10.94 ms | 0.128 G | 2.82 M |
+| EvHandTrack 普通分包形式（不异步，描述） | 12.86 | 7.75 | 10.66 | 6.28 | 10.12（10.49 / 9.48 / 10.41） | 13.98 ms | 0.248 G | 0.59 M |
+| EvHandTrack（B2 + rol5，三种子，流式形式） | 12.95 | 7.96 | 10.70 | 6.46 | 10.28（10.60 / 9.71 / 10.54） | 16.01 ms | 0.236 G | 0.59 M |
+
+- **对 S43：** MPJPE-G、MPVPE-L、MPVPE-G 三项更低；MPJPE-L 高 0.14，RA 高 0.04；每个种子 RA < 11.0。
+- **流式对分包：** 换形式的代价是 RA +0.11 / +0.23 / +0.13（每个种子）。
+
+**没做的。** 不训练；流式形式下的 rol5 训练（TPD 的 STR 臂）在 TPD 停止时被终止，未重跑。
+<!-- EXPERIMENT_RECORD:EVHANDTRACK-STR-20261109:END -->

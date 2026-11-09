@@ -2,7 +2,7 @@
 """PMR stage S5 job list (docs/EXPERIMENT_RECORDS.md#pmr-s5-prereg-20261109): the refinement S4 selected, written once and
 appended with `chain.py add`. Generating the list writes the registered configs.
 
-    python -m tools.pmr.jobs8 s5 --arm d1dual|d1hp|d1pos --freeze s5 --out outputs/pmr/20261109/jobs/s5.json
+    python -m tools.pmr.jobs8 s5 --arm d1dual|d1hp|d1pos|d1ghand|d1gview --freeze s5 --out outputs/pmr/20261109/jobs/s5.json
 
 From scratch (tools/pmr/train4.py, B2's recipe, 6000 steps): the refinement X and, when its node inputs differ from D1's
 (dual, pos), its no-P control at seeds 3408 / 3409 (hp reuses D1's R-noprop seeds); acceptance (tools/pmr/run4.py /
@@ -22,16 +22,18 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 
-from tools.pmr import arms_any as U  # noqa: E402
+from tools.pmr import arms_any2 as U  # noqa: E402
 from tools.pmr import arms_rol2 as R2  # noqa: E402
 from tools.pmr.common import PY, ROOT as RR, require  # noqa: E402
 from tools.pmr.jobs import TASKS, TRAIN_MEM, cpu, gpu  # noqa: E402
 from tools.pmr.jobs4 import ROL_MEM  # noqa: E402
 
-CONTROLS = {"d1dual": ("d1dualn", "d1dualm"), "d1hp": None, "d1pos": ("d1posn", "d1posm")}
+CONTROLS = {"d1dual": ("d1dualn", "d1dualm"), "d1hp": None, "d1pos": ("d1posn", "d1posm"), "d1ghand": None,
+            "d1gview": None}
 #: the stage whose entries and registry train / read a refinement from scratch
 ENTRY = {"d1dual": ("tools/pmr/train4.py", "tools.pmr.run4", "s4"), "d1hp": ("tools/pmr/train4.py", "tools.pmr.run4", "s4"),
-         "d1pos": ("tools/pmr/train5.py", "tools.pmr.run5", "s4b")}
+         "d1pos": ("tools/pmr/train5.py", "tools.pmr.run5", "s4b"),
+         "d1ghand": ("tools/pmr/train6.py", "tools.pmr.run6", "s4c"), "d1gview": ("tools/pmr/train6.py", "tools.pmr.run6", "s4c")}
 #: a control's refinement (its stage and entries are its refinement's)
 CONTROL_OF = {c: x for x, cs in CONTROLS.items() if cs for c in cs}
 

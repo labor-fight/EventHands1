@@ -26,12 +26,12 @@ for _p in (str(ROOT / "model"), str(ROOT)):
 
 import yaml  # noqa: E402
 
-from tools.pmr import arms_any as PA  # noqa: E402
+from tools.pmr import arms_any2 as PA  # noqa: E402
 from tools.pmr.arms_rol2 import build_config, config_path, parse  # noqa: E402
 from tools.pmr.common import now, require, save, sha  # noqa: E402
 
 POLICY = {"trainer_deterministic": True, "benchmark": False}
-CODE = ("tools/pmr/train_rol2.py", "tools/pmr/arms_rol2.py", "tools/pmr/arms_any.py", "tools/pmr/common.py",
+CODE = ("tools/pmr/train_rol2.py", "tools/pmr/arms_rol2.py", "tools/pmr/arms_any2.py", "tools/pmr/common.py",
         "semkine/tpd_rol.py", "semkine/pmr_trunk.py", "tools/pfo2/arms.py", "tools/pfo/train.py", "semkine/s45sm.py",
         "semkine/pfo_router.py", "semkine/xyz_mesh.py", "semkine/train.py", "semkine/dataset.py", "semkine/events.py",
         "semkine/xag.py", "model/model.py", "model/mano_layer.py")

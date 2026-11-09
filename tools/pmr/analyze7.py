@@ -2,7 +2,7 @@
 """PMR stage S5 written verdict (docs/EXPERIMENT_RECORDS.md#pmr-s5-prereg-20261109), computed once after every reading;
 CPU only, read-only.
 
-    python -m tools.pmr.analyze7 s5 --arm d1dual|d1hp|d1pos
+    python -m tools.pmr.analyze7 s5 --arm d1dual|d1hp|d1pos|d1ghand|d1gview
         -> analysis/s5_<arm>.md, decisions/s5_<arm>.json, main rows
            outputs/semkine/pmr_<arm>_rol5_3seed_main_row.json (+ the controls' rol5 rows, seed 3407)
 
@@ -21,15 +21,15 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 import numpy as np  # noqa: E402
 
-from tools.pmr import arms_any as U  # noqa: E402
+from tools.pmr import arms_any2 as U  # noqa: E402
 from tools.pmr import arms_rol2 as R2  # noqa: E402
 from tools.pmr.analyze import fmt, mech  # noqa: E402
 from tools.pmr.analyze2 import rule as module_rule  # noqa: E402
 from tools.pmr.analyze3 import done, main_row  # noqa: E402
 from tools.pmr.common import OUT, S43_ENGINE, SEEDS, now, require, save  # noqa: E402
 
-NOPROP = {"d1dual": "d1dualn", "d1hp": "d1n", "d1pos": "d1posn"}
-MLP = {"d1dual": "d1dualm", "d1hp": "d1m", "d1pos": "d1posm"}
+NOPROP = {"d1dual": "d1dualn", "d1hp": "d1n", "d1pos": "d1posn", "d1ghand": "d1n", "d1gview": "d1n"}
+MLP = {"d1dual": "d1dualm", "d1hp": "d1m", "d1pos": "d1posm", "d1ghand": "d1m", "d1gview": "d1m"}
 TPD_OUT = ROOT / "outputs/tpd/20261105"
 
 
