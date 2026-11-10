@@ -26504,3 +26504,394 @@ E1 RA 拆成两项之积：单步误差 E3（从 GT 前态走一步）× 闭环�
 
 **没做的。** 不训练；流式形式下的 rol5 训练（TPD 的 STR 臂）在 TPD 停止时被终止，未重跑。
 <!-- EXPERIMENT_RECORD:EVHANDTRACK-STR-20261109:END -->
+
+<a id="cmp-prereg-20261110"></a>
+### CMP · 五方法对比实验预注册（2026-11-09 UTC，写于任何 CMP 读数之前）
+
+**指令。** 用户 2026-11-09 约 17:00 UTC（北京时间 11-10 01:00）："现在进行整体的实验，你给我使用全卡，分别进行 EventHands，EvHandPose，Event encoder + previous-state MLP，Event encoder + GRU，EvHandTrack。这几个，作为对比试验"。即开训授权，用全部 8 张卡（GPU 0–3 只经 `gpu-borrow run`）。
+
+**目的。** 论文主对比表：五个方法在同一数据、同一训练合同、同一闭环评测下的精度与成本。描述性对比，不设通过门，不做方法改动。
+
+**统一协议。**
+- 数据与训练合同：每个基线继承同种子 B2 配置（`configs/pfo2_20261103/pfo2_fgs_s<种子>.yaml`）的数据、增广、前态噪声、MANO 与损失块。即 9 人训练（`splits_semkine.json`）、zgz 测试；domrand 滚转 / 缩放 / 平移 / 保留率，无热像素；速度增广 30–300 ms；极性翻转与逐像素交换；mixed 前态噪声；so3_trans_fk 1 / 1 / 2；序列 GT betas。
+- 训练：单卡；帧阶段 512 × 累积 2 = B2 的等效批量 1024；Adam、bf16、warm-up 后余弦；确定性 Trainer；fresh-only；种子 3407 / 3408 / 3409；每臂只读固定末步，不按 zgz 选点。
+- 评测：PFO 冻结引擎 E1（zgz 2590 个端点，50 ms 网格；段首 GT + 协议初始噪声，序列间共用 rng），与 EvHandTrack 主行同一口径；输出根改到 `outputs/cmp/20261110/`，PFO 目录不写。所有窗口在段首裁短。
+- 成本：全部训练与读数结束后跑一个独占块（GPU 4，默认标志，lyq_local 前 600 包），在同一块里依次测：
+  - S43 执行器、EvHandTrack 流式形式：`tools/evhandtrack/cost.py` 原样，输出改到本研究。EvHandTrack 上次成本块测于主机负载 33–87，这次当作安静重测。
+  - 四个基线：`tools/cmp/cost.py`，规则相同：参数、实际执行 MACs、行时延 × 1.75 / 锚点、端到端时延。
+
+**方法**（`tools/cmp/arms.py`；代码 `semkine/cmp_models.py`、`cmp_seq.py`、`cmp_evhp.py`、`semkine/evhandpose_official/`）。
+1. **EventHands**（`eh`，Rudnev 等 ICCV 2021）：LNES → ResNet-18 → 51 维绝对状态，6000 步。
+   - 偏离原文：输出全 45 维姿态，不用 6 维 PCA（标签带全姿态，这只会让基线更强）；用 GT betas；不加卡尔曼滤波。
+   - 主读数用 100 ms 窗口（本仓库 EventHands 移植的评测窗）；50 ms 窗口作描述（`__w50`）。
+2. **Event encoder + previous-state MLP**（`em` → `emrol5`）：同一 LNES ResNet-18 的 512 维池化特征，MLP([特征; 前态]) → 51 维增量（512 + 51 → 256 → 51，输出层零初值），加零事件门，输出 = 前态 + 增量。
+   - 训练分两段：先 6000 步；再按 EvHandTrack 的 rol5 配方从第 6000 步微调 1500 步（K = 5，梯度穿过前态，峰值 1e-3，warm-up 100，余弦到 0）。
+   - 主行 = `emrol5`，与 EvHandTrack（B2 + rol5）同一两段日程；`em` 第一段作描述。
+3. **Event encoder + GRU**（`eg`）：从同种子 `eh` 第 6000 步的编码器与头起步，加 GRU(512)，隐状态从 0 起。
+   - 输出 = 头(特征) + 零初值头(隐状态)，所以起点就是 EventHands 网络。
+   - 训练：K = 16 包 × 50 ms 的序列，1500 步，峰值 1e-3，余弦到 0，梯度范数裁剪 5。
+   - 主读数：最近 16 包滑窗，与训练形式一致；从段首一直滚动隐状态的形式作描述（`__rolling`）。
+4. **EvHandPose**（`epf` → `ep`，Jiang 等 TPAMI 2024）：网络是官方代码原样（FlowNet = MultiResUNet；Backbone = 融合层 + ResNet-34 式各级 + ConvGRU + 预测头），全监督训练。
+   - 偏离官方：
+     - 全帧 240 × 180 补零到 256 × 192，不用官方由标注关节生成的裁剪框（部署时没有）；
+     - 子窗改为 50 ms 包，每个序列 12 包，监督最后 3 包（官方 seq_len 12、annot_len 3）；
+     - 用 GT betas，输出 51 维；损失 so3_trans_fk；
+     - FlowNet 的伪真值是 GT MANO 表面在包首尾之间的网格光流（官方 flow loss 形式，四个尺度），不做半监督阶段。
+   - 训练：FlowNet 3000 步（每步 32 包，确定性只告警：官方 U-Net 的上采样没有确定性 CUDA 反传），之后冻结；主阶段 7500 步（每步 32 个序列 = 官方 batch，Adam 5e-4，L2 1e-4）。
+   - 主读数：最近 12 包滑窗。
+5. **EvHandTrack**：现有身份（`outputs/evhandtrack/identity.json`，三种子，主行为流式形式），不重训，读数沿用。
+
+**读法（写在任何读数之前）。**
+- 主表：五行，每行三种子均值，RA 带三个种子的值。按惯例保留历史 EventHands-PCA6 行，并注明它是旧协议。
+- 描述：`eh` 的 50 ms 窗口、`em` 第一段、`eg` 的滚动形式。
+- 不做：不设门、不选点、不补种子、不改配方。发散、非有限值等异常照实记录，不重训。
+
+**驱动与工程。**
+- 驱动 `tools/cmp/chain.py`（`setsid nohup … run`，状态 `outputs/cmp/20261110/driver/`）：
+  - 训练一卡一个，先用直连卡 4–7，满了再经 gpu-borrow 用 0–3；
+  - 读数与成本块只放直连卡；
+  - 失败保留、不重试；STOP 只在紧急时用。
+- 借卡被让出后，`tools/cmp/borrow_job.py` 先归档上次的输出，再 fresh 重跑。
+- 工程验收（零读数）：
+  - CPU：序列包的 LNES 与评测端 `build_lnes` 逐位相同；前态 MLP 初值输出 = 前态；GRU 初值与 EventHands 输出相同（差 0.0）。
+  - GPU：六类阶段各冒烟 20 步，确定性模式下都跑通；四种评测适配器用冒烟权重在引擎上各跑 40 个端点。
+  - 冒烟权重只验工程，不作读数。
+<!-- EXPERIMENT_RECORD:CMP-PREREG-20261110:END -->
+
+<a id="cmp-amend1-20261110"></a>
+### CMP 修订 1：EvHandPose 加在线手部裁剪（2026-11-09 19:15 UTC，写于任何 EvHandPose 读数之前）
+
+**起因。** 只看了训练日志，没有读任何 EvHandPose 读数。
+- 全帧移植的 EvHandPose 主阶段（`ep`）到第 2259 步时，训练关节误差仍约 17 mm、旋转约 13°；同一阶段 EventHands 已降到 4.6 mm。
+- 官方网络的输入是 128 × 128 的手部裁剪：框为关节投影范围的 2 倍，平移在裁剪的虚拟相机里预测。
+- 去掉裁剪后，全帧经 64 倍下采样只剩 3 × 4 特征图，手约占一格。这样的移植会被视为削弱了基线。
+
+**修订。** 新增 `epcf` → `epc`（三种子），与 `ep` 只差裁剪。
+- 裁剪框：每个包由包首状态的 21 个 MANO 关节投影定框，倍率 2，不做扰动时以手为中心。
+  - 训练用 GT（上一个包末的 GT），保留官方每包 ±15 % 的平移扰动；
+  - 测试用跟踪器自己的前态（上一步的预测；段首为 GT + 协议初始噪声），即在线、跟踪式的裁剪，可部署。
+- 事件按官方变换映射进裁剪：绕主点缩放、减去左上角、取最近像素；LNES 与体素网格在 128 × 128 上构建。官方实现是双线性撒点，这里是简化。
+- 平移按官方的裁剪公式解码：t = (t'x + t'z · tlx / fx, t'y + t'z · tly / fy, t'z · s)。
+- FlowNet 在裁剪上重新预训练（网格光流伪真值用裁剪后的内参渲染），之后冻结。其余配方与 `ep` 相同：3000 + 7500 步，每步 32 个序列。
+
+**读法（写在任何 EvHandPose 读数之前）。** 主表的 EvHandPose 行改为 `epc`；全帧的 `ep` 照常读完，作描述行。这一决定没有参考任何 EvHandPose 读数。
+
+**工程。**
+- 新文件 `semkine/cmp_seq_crop.py`、`semkine/cmp_evhpc.py`；`tools/cmp/arms.py`、`semkine/cmp_models.py`、`tools/cmp/train.py`、`nets.py`、`cost.py`、`rows.py` 只加分支。
+- 已登记的 18 份配置逐字节不变（`write_configs` 复核）；冒烟权重重跑 `ep` / `eh` 的引擎读数，与修订前逐位相同。在跑的训练进程用的是启动时的代码，不受影响。
+- CPU：无增广、无扰动时，评测端裁剪与训练端 12 个包的 LNES / 体素 / 裁剪参数逐位一致；GT 平移经编码再解码，最大误差 3e-8 m；裁剪内光流覆盖约 2.4k 像素/包。
+- GPU：两段各冒烟 20 步；引擎 40 个端点、成本冒烟都跑通。
+- 冻结清单 `outputs/cmp/20261110/manifests/amend1.json`。
+- 成本块的作业队列加上 `epc`（`tools/cmp/cost.py` 的 BLOCK），成本作业的依赖补上新作业（`queue.json` 中这条作业仍是 PENDING 时修改，留有修改记录）。
+<!-- EXPERIMENT_RECORD:CMP-AMEND1-20261110:END -->
+
+<a id="cmp-amend2-20261110"></a>
+### CMP 修订 2：EvHandPose 训练步数的稳健性检查（2026-11-09 20:15 UTC，写于任何 EvHandPose 读数之前）
+
+**起因。** 只看了训练日志，没有读任何 EvHandPose 读数。
+- 第 5000 步时，裁剪版（`epc`）训练关节误差约 8.3 mm，全帧版（`ep`）约 8.6 mm，都还在下降；EventHands 结束时约 2.5 mm。可见慢的原因不在裁剪。
+- 登记的 7500 步只等于 EvHandTrack 的总步数。按官方全监督阶段 40 个 epoch 粗估约两万余步（数据量估算，未核实），7500 步约为其三分之一。
+- 而且每步只有 32 个序列 × 3 个受监督输出，见到的样本远少于其它方法。
+
+**修订。** 新增 `epcl` = `epc` 只把步数改为 22,500（3 倍，warm-up 500，余弦）。从同种子的 `epcf` FlowNet 起步，三种子。
+
+**读法（写在任何 EvHandPose 读数之前）。**
+- 主表同时列出 EvHandPose 两个步数：`epc` 是登记的步数，`epcl` 是 3 倍步数；`ep` 仍是描述行。
+- 不在两者之间挑选，也不因读数改变哪一行进主表。
+
+**工程。**
+- `tools/cmp/arms.py`、`rows.py` 只加条目；已登记配置逐字节不变（`write_configs` 复核）。
+- 冻结清单 `outputs/cmp/20261110/manifests/amend2.json`。
+- 成本块继续独占，依赖补上 `epcl` 的训练与读数，所以要等所有训练结束、主机安静后再跑。`epcl` 与 `epc` 网络相同，成本行沿用 `epc` 的读数。
+<!-- EXPERIMENT_RECORD:CMP-AMEND2-20261110:END -->
+
+<a id="cmp-amend3-20261110"></a>
+### CMP 修订 3：冷启动诊断（2026-11-09 20:45 UTC，事后登记，零训练，只作描述）
+
+**起因（事后，看过读数）。** 裁剪版 EvHandPose 3408 的登记读数（`epc`，在线裁剪，窗口裁在段首）在 zgz 上发散：RA 49.6 mm，平移误差约 10 m；第一步的前态是 GT 加小噪声，根对齐误差却已有 109 mm。
+- **排除实现错误：** 在训练序列上用 GT 前态喂满 12 包窗口，评测路径与训练路径输出一致（最大差 6e-5），根对齐误差 4–7 mm。
+- **原因是冷启动：**
+  - EvHandPose 训练时只监督 12 包序列的最后 3 包（官方 annot_len 3），从未学过历史少于 10 包时如何输出；
+  - 协议把窗口裁在段首，所以每段前约 0.55 s 都在训练分布之外；
+  - zgz_local 有 41 段，段长中位数 399 ms，248 / 1204 个端点的历史不足 12 包（zgz_global 只有 11 个）；
+  - 裁剪版的框来自前态，冷启动的错误输出把框带离手，之后再也找不回来。
+- `tools/cmp/diag_history.py` 按段内时间把读数拆成冷启动（< 550 ms）和稳态两部分，只做后处理。
+
+**诊断读数（零训练，只作描述，不进主表的判定）。**
+- `warm`：历史不在段首截断，用段首之前的事件补满（真实连续事件流里有这些事件，且都是过去的事件）。
+  - EventHands：整个 100 ms 窗口；GRU / EvHandPose：12 或 16 包。
+  - 裁剪版里，段首之前的包用跟踪器的初始化状态定框。
+  - 适用：`eh`、`eg`、`ep`、`epc`、`epcl`；EvHandTrack 与前态 MLP 是依赖状态的跟踪器，没有对应形式。
+- `gtcrop`（只给裁剪版）：在 `warm` 的基础上，每包的框都取自包首的 GT 状态（段首之前取 GT(a)）。这是 EvHandPose 论文评测时的裁剪方式，不可部署。
+- 实现：`tools/cmp/nets.py` 加两种形式，只加分支；冒烟权重重跑主形式，与修订前逐位相同。
+
+**读法。**
+- 登记的主读数与主表规则（修订 1、2）不变。
+- 诊断读数只回答两件事：EvHandPose 在本协议下吃亏，有多少来自冷启动与段首裁窗，有多少来自方法本身。
+- 结论以描述形式写进结果节。
+<!-- EXPERIMENT_RECORD:CMP-AMEND3-20261110:END -->
+
+<a id="cmp-results-20261110"></a>
+### CMP 结果：五方法对比（2026-11-09 23:57 UTC 全部完成）
+
+**完成情况。**
+- 驱动 `tools/cmp/chain.py` 从 17:19 跑到 23:57 UTC，104 个作业全部 DONE，没有失败。
+- 训练 27 个：`eh`、`em`、`emrol5`、`eg`、`epf`、`ep`、`epcf`、`epc`、`epcl`，各三种子。
+- 其中 12 个放在借来的 GPU 0–3 上，都一次跑完，没有发生让卡。
+- 每个读数都读固定末步，不选点。
+
+**主表（`python -m tools.cmp.rows table`；成本为种子 3407 的同块读数）。**
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| EventHands（LNES + ResNet-18，绝对回归，三种子） | 12.81 | 8.47 | 11.00 | 7.32 | 10.49（10.38 / 10.55 / 10.53） | 1.75 ms | 1.644 G | 11.20 M |
+| EvHandPose（官方网络 + 在线手部裁剪，全监督，三种子） | 42.12 | 46.86 | 37.60 | 39.15 | 44.65（38.93 / 49.64 / 45.39） | 5.74 ms | 3.675 G | 49.66 M |
+| EvHandPose（在线手部裁剪，22500 步，三种子；稳健性检查） | 43.61 | 51.67 | 37.47 | 40.84 | 47.92（40.29 / 57.68 / 45.80） | 5.74 ms | 3.675 G | 49.66 M |
+| Event encoder + previous-state MLP（+ rol5，三种子） | 13.81 | 9.28 | 11.77 | 7.75 | 11.38（11.01 / 11.37 / 11.77） | 2.00 ms | 1.644 G | 11.33 M |
+| Event encoder + GRU（三种子） | 14.17 | 8.41 | 11.98 | 7.27 | 11.08（10.96 / 11.17 / 11.12） | 2.21 ms | 1.670 G | 12.80 M |
+| EvHandTrack（B2 + rol5，三种子，流式形式） | 12.95 | 7.96 | 10.70 | 6.46 | 10.28（10.60 / 9.71 / 10.54） | 14.94 ms | 0.236 G | 0.59 M |
+
+- EventHands-PCA6 行是旧协议（8 人划分、PCA6、按投影后的 GT 计分）的历史数，按惯例保留，不可比；同协议重训的 EventHands 是下一行。
+- 按修订 1，主表里的 EvHandPose 是在线裁剪的 `epc`，它在三个种子上都发散（平移误差达米级）；按修订 2，22,500 步的 `epcl` 并列。两者的取舍规则都写在读数之前，这里照规则列出。
+
+**描述读数（修订 1、3，零训练，只作描述）。**
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EvHandPose，全帧（原登记移植） | 20.05 | 10.24 | 15.81 | 8.03 | 14.80（14.92 / 15.11 / 14.37） | 8.98 ms | 12.894 G | 49.66 M |
+| EvHandPose，全帧，段首前历史补满 | 15.19 | 10.24 | 12.43 | 8.03 | 12.54（12.43 / 12.94 / 12.26） | 8.98 ms | 12.894 G | 49.66 M |
+| EvHandPose，GT 裁剪框（不可部署） | 15.00 | 10.94 | 12.17 | 8.54 | 12.83（13.54 / 12.22 / 12.73） | 5.74 ms | 3.675 G | 49.66 M |
+| EvHandPose 22500 步，GT 裁剪框（不可部署） | 14.39 | 10.01 | 11.73 | 7.64 | 12.05（12.09 / 12.19 / 11.86） | 5.74 ms | 3.675 G | 49.66 M |
+| EventHands，50 ms 窗口 | 14.02 | 8.58 | 11.84 | 7.39 | 11.11（10.98 / 11.16 / 11.18） | 1.75 ms | 1.644 G | 11.20 M |
+| EventHands，窗口不在段首截断 | 12.76 | 8.47 | 10.97 | 7.32 | 10.47（10.35 / 10.53 / 10.52） | 1.75 ms | 1.644 G | 11.20 M |
+| 前态 MLP 第一段（无 rol5） | 14.29 | 8.90 | 12.11 | 7.57 | 11.40（11.13 / 11.69 / 11.39） | 2.00 ms | 1.644 G | 11.33 M |
+| GRU，段首起滚动隐状态 | 14.17 | 8.41 | 11.98 | 7.26 | 11.09（10.96 / 11.18 / 11.13） | 2.21 ms | 1.670 G | 12.80 M |
+| S43（同块成本；参照） | 12.81 | 8.02 | 10.77 | 6.64 | 10.24（10.29 / 10.27 / 10.17） | 10.99 ms | 0.128 G | 2.82 M |
+
+**冷启动与稳态（`tools/cmp/diag_history.py`，只做后处理）。** 把端点分成两部分：
+- 冷启动：段内历史 < 550 ms，即不足 12 包；local 248 / 1204 个端点，global 11 / 1386 个。
+- 稳态：其余端点。
+
+| 读数（三种子） | RA 全部 | RA 冷启动 | RA 稳态 | 稳态 MPJPE-L / G |
+|---|---|---|---|---|
+| EventHands | 10.49 | 12.33 | 10.28 | 12.92 / 8.45 |
+| EvHandTrack（流式） | 10.28 | 10.17 | 10.30 | 13.63 / 7.98 |
+| Event encoder + GRU | 11.08 | 13.14 | 10.86 | 14.42 / 8.38 |
+| Event encoder + 前态 MLP（+ rol5） | 11.38 | 12.39 | 11.27 | 14.15 / 9.27 |
+| EvHandPose 全帧 | 14.80 | 39.17 | 12.09 | 15.02 / 10.05 |
+| EvHandPose 全帧，历史补满 | 12.54 | 16.61 | 12.09 | 15.02 / 10.05 |
+| EvHandPose GT 裁剪框，22,500 步（不可部署） | 12.05 | 15.71 | 11.64 | 14.24 / 9.83 |
+| EvHandPose 在线裁剪（`epc`） | 44.65 | 46.40 | 44.46 | 41.03 / 46.85 |
+
+**成本（GPU 4 独占、默认标志、lyq_local 前 600 包；23:51–23:57 UTC，主机 1 分钟负载约 4）。**
+
+| 同块读数 | 行时延 raw / anchor / scaled（ms） | 端到端 p50（ms） | MACs（G） | 参数 |
+|---|---|---|---|---|
+| EventHands | 1.50 / 1.506 / 1.75 | 1.90 | 1.644 | 11.20 M |
+| 前态 MLP（+ rol5） | 1.70 / 1.487 / 2.00 | 2.04 | 1.644 | 11.33 M |
+| GRU（16 包滑窗） | 1.92 / 1.520 / 2.21 | 2.29 | 1.670 | 12.80 M |
+| EvHandPose 全帧（12 包滑窗） | 7.61 / 1.482 / 8.98 | 9.00 | 12.894 | 49.66 M |
+| EvHandPose 在线裁剪 | 4.94 / 1.508 / 5.74 | 8.63 | 3.675 | 49.66 M |
+| EvHandTrack 流式 | 12.61 / 1.477 / 14.94 | 14.24 | 0.236 | 0.59 M |
+| S43 执行器 | 9.44 / 1.502 / 10.99 | 9.56 | 0.128 | 2.82 M |
+
+- EvHandTrack 上次成本块在主机负载 33–87 下测得 16.01 ms，这次安静重测为 14.94 ms（−7 %）；S43 为 10.99 ms，与上次 10.94 ms 一致。EvHandTrack 身份文件与 `evhandtrack_main_row.json` 未改。
+- EventHands 的结构与时延锚点（EventHands-Full）相同，所以它的 scaled 时延按定义就是 1.75 ms。
+
+**读法（描述）。**
+1. **EvHandTrack**：五项里四项最低（MPJPE-G、MPVPE-L、MPVPE-G、RA）。MPJPE-L 比 EventHands 高 0.14；参数是各方法中最少的（EventHands 的 1/19）；MACs 是 EventHands 的 1/7；行时延最高（14.94 ms 对 1.75 ms）。
+2. **EventHands 是最强的基线。** 同一训练合同（domrand、so3_trans_fk、全姿态）下：
+   - 三种子 RA 10.49，比 EvHandTrack 只差 0.21；稳态段两者持平（10.28 对 10.30）。
+   - EvHandTrack 的总体 RA 优势主要来自段首冷启动：它用上了协议给的段首 GT 初值，冷启动段 10.17 对 12.33。
+   - 稳态下 EvHandTrack 在 global 好约 0.5 mm，在 local 反而差约 0.7 mm（13.63 对 12.92）。
+   - 旧表里的 EventHands-PCA6（30 / 10.99）明显低估了这类基线。
+3. **两个通用闭环 / 记忆基线不如开环的 EventHands。**
+   - GRU：RA 11.08；滚动形式与滑窗形式相同，长时程没有漂移；与 50 ms 窗口的 EventHands 同档（11.11）。
+   - 前态 MLP + rol5：RA 11.38。rol5 让 local 降了 0.48，但 global 升了 0.38，RA 几乎不变。B2 加 rol5 时改善了 1.45 mm，这里没有。
+4. **EvHandPose 在本协议下最弱。**
+   - 登记的在线裁剪版三种子都发散：没有重检测，前态一偏框就偏；3 倍训练也一样。
+   - 全帧版输在冷启动：只监督 12 包序列的最后 3 包，历史不足时输出无效。补足历史后 RA 12.54。
+   - 最好的读法是 GT 裁剪框加 3 倍训练（论文的评测方式，不可部署）：RA 12.05，稳态 11.64，仍比 EventHands / EvHandTrack 差约 1.4–1.8 mm。
+   - 成本最高：49.7 M 参数，全帧 12.9 G MACs。
+
+**偏离与局限。**
+- **EventHands**：全姿态代替 PCA6；不加卡尔曼滤波；评测窗口沿用本仓库移植的 100 ms，未对照原文核对。
+- **EvHandPose**：
+  - 只做全监督（没有半监督、对比度最大化与手边缘损失）；
+  - FlowNet 伪真值用表面采样渲染；
+  - 子窗为 50 ms；
+  - 用 GT betas 与 so3_trans_fk；
+  - 步数是 7500 / 22,500，官方步数未核实。
+- **训练合同**：四个基线都用 B2 的训练合同，比各自原配方更强。
+- **范围**：只在 zgz 一个受试者上测；成本只测了种子 3407。
+- **修订 3**：诊断读数是事后加的。
+
+**没做的。**
+- 没有在 EvRealHands 上评测，没有重训 S43；
+- 没有修改 EvHandTrack 身份，没有改任何冻结文件。
+
+**产物。**
+- 主行：`outputs/semkine/cmp_<方法>_main_row.json`；
+- 读数、成本与回执：`outputs/cmp/20261110/{readings,costs,receipts}/`；
+- 诊断：`outputs/cmp/20261110/analysis/diag_history.json`。
+<!-- EXPERIMENT_RECORD:CMP-RESULTS-20261110:END -->
+
+<a id="cmp-amend4-20261110"></a>
+### CMP 修订 4：EventHands 改为 ICCV 2021 原版配方（2026-11-10 UTC，写于任何 `eho` 读数之前）
+
+**起因。** 用户 2026-11-10："EventHands不是我现在调好的算法，是之前最初的ICCV2021的"。
+- 预注册里的 `eh` 只用了 EventHands 的网络，训练是本研究的合同：B2 的域随机化、速度增广、极性翻转与交换，so3_trans_fk 损失，全 45 维姿态，等效批量 1024，余弦日程。
+- 所以 `eh` 不是原论文方法。它的读数在本修订之前已全部读过（`#cmp-results-20261110`），本修订不改它的数，只改它在表里的身份。
+
+**修订。** 新增 `eho` = EventHands 原版配方，在本研究的数据上重训，三种子。
+- 配方出处：官方代码 github.com/r00tman/EventHands 的 `model/model.py`、`model/train.py`（提交 abfca72）；本机副本 `/data1/lyq/code/mesh/EventHands`。
+- 网络：conv1（2 → 3，3 × 3）+ torchvision resnet18(num_classes=12)，随机初始化。与官方定义逐位相同（`tests/test_cmp_eho.py`）。
+- 输出：12 维，即 6 个 MANO PCA 系数、根平移、根轴角。
+  - 训练标签由 51 维 GT 投影得到：α = (姿态 − hands_mean) · pinv(C6)，C6 是 hands_components 的前 6 行。
+  - 评测时解码回 51 维状态：[t, R, α · C6]。
+  - 局部误差里因此包含 PCA6 截断误差，这是原方法本身的一部分；计分对完整 GT，与其它方法相同。
+- 损失：官方加权 MSE，(6/0.1 · MSE(α) + 3/1e-4 · MSE(t) + 3/0.05 · MSE(R)) / 12，优化它的 log10。
+- 输入：LNES，固定 100 ms 窗（第 i 毫秒的事件取 i/100，后写覆盖），在有效区间起点截短。
+  - 无任何增广：无 domrand、无速度增广、无极性翻转与逐像素交换。
+- 训练：单卡，批量 64，Adam 1e-3 常数（无 warm-up、无衰减），fp32。
+  - 共 96,000 步，样本数与 `eh` 相同（6000 × 1024 = 614.4 万，约 1.34 个 epoch）。
+  - 每 6000 步存检查点；按 CMP 合同只读第 96,000 步。
+- 与其它臂相同的部分：9 人训练、zgz、E1 协议、GT betas。
+  - B2 的 DATA / MANO / TRACK 块原样继承。TRACK 块只决定 E1 段首噪声，保证协议噪声与其它臂一致；网络不读前态。
+- 与原文剩下的差异：
+  - 训练数据是本仓库 9 人的 v2e 仿真事件，不是原文的合成数据（数据协议固定）；
+  - 原文按合成验证集的 val_loss 选检查点；本研究的 val 就是 zgz（= 测试集），所以按 CMP 合同只读固定末步；
+  - 原文训练长度不定（max_epochs 1000），这里取与 `eh` 相同的样本数。
+
+**读数。**
+- 主读数：网络本身。每个 50 ms 端点读结束于该端点的 100 ms 窗（段首截短），与其它方法同一口径。
+- 描述读数：官方评测流程（`EVAL_REAL.md` / `EVAL_SYNTH.md` 第 2 步）里的卡尔曼滤波。
+  - 网络在每个毫秒都预测（1 kHz，窗口同样在段首截短），再接官方滤波器，取端点处的滤波值。
+  - `kf` = `filter/filter.py`（R = 5I，Q 方差 0.1）；`kff` = `filter/filter_fast.py`（R = I，Q 方差 3）；dt = 1 ms，每个有效区间从起点重新开始。
+  - 官方脚本把初值写成 `np.r_[z, 0·z]`，与 F / H 的交错排列不符，第一个状态会被打乱；这里用它的本意：位置 = 第一个输出，速度 = 0。
+  - 滤波读数每 50 ms 要 50 次前向；表里这两行的成本列沿用单次前向的读数。
+
+**读法（写在任何 `eho` 读数之前）。**
+- 主表的 EventHands 行改为 `eho`。
+- `eh` 改称"EventHands 网络 + B2 训练合同"，移入描述表。
+- 不在 `eho`、`eho__kf`、`eho__kff` 之间挑选主行，也不因读数改变哪一行进主表。
+- `eg`（事件编码器 + GRU）从 `eh` 起步的设计不变：编码器预训练用哪个网络，属于这条通用基线自己的设计，它不是 EventHands。
+- 冷启动诊断 `tools/cmp/diag_history.py` 补上 `eho` 的三种读数。
+
+**工程。**
+- 代码：
+  - 新文件 `semkine/cmp_eho.py`（`EHOModel`）；
+  - `semkine/cmp_models.py`、`tools/cmp/arms.py`、`nets.py`、`cost.py`、`rows.py`、`diag_history.py` 只加条目，`train.py` 只在审计清单里加上 `cmp_eho.py`。其它臂的行为不变，已登记配置逐字节不变。
+- 测试 `tests/test_cmp_eho.py`，7 项全过：
+  - 配置即原版配方；
+  - 网络与官方定义逐位相同（输入连续时）；
+  - 损失与官方公式相同；
+  - 12 / 51 维转换往返正确；
+  - 两种滤波与 filterpy 式 24 维稠密滤波一致；
+  - 已登记配置不变。
+- 冒烟（GPU 7）：
+  - 训练 20 步：数据为 9 人 72 条序列、457 万个样本，domrand 关闭；
+  - 三种读数各读 60 个端点；
+  - 成本：11,182,725 个参数，1.644 G MACs；
+  - 滤波的增量调用与一次性重算逐位相同。
+- 冻结清单 `outputs/cmp/20261110/manifests/amend4.json`。
+- 作业顺序：三种子训练（直连 GPU）→ 验收 → 主读数与两种滤波读数 → 冷启动诊断 → `eho` 成本（GPU 4 独占，延迟按同进程锚点缩放）→ 出行。
+- 驱动 `tools/cmp/chain.py` 在原状态目录重启；旧作业全部是 DONE，不会重跑。
+<!-- EXPERIMENT_RECORD:CMP-AMEND4-20261110:END -->
+
+<a id="evhandtrack-tree-20261110"></a>
+## EvHandTrack 改指运动学树方法：PMR ghand + rol5，主行用流式形式（2026-11-10 02:20 UTC；零训练，只补测异步检验与成本；会话 eventhands1-13）
+
+**用户纠正。** 用户 2026-11-10："你误会了啊，我之前让你命名的EvHandTrack是那个利用运动学树的那个实验"。
+- 11-09 那句"看看哪个方法指标最好，最适合收敛一下，命名 EvHandTrack"说的是 PMR（部位级运动学树传播 P）。我当时选了 B2 + rol5，是理解错了。
+- `#evhandtrack-20261109`、`#evhandtrack-str-20261109` 保留原文，以本节为准。
+- 用户 11-09 的"主行最好用流式形式"照旧适用。
+
+**在运动学树变体里选。** 三种子 + rol5 都齐的只有两个变体。读数都是 PMR 已有的：PFO 引擎 E1，部署路由。五项 = MPJPE-L / G、MPVPE-L / G、RA。
+
+| 变体 | 普通分包 | 因果 | 流式 |
+|---|---|---|---|
+| ghand + rol5 | 12.30 / 9.19 / 10.12 / 7.77 / 10.63 | 12.36 / 9.32 / 10.17 / 7.89 / 10.73 | **11.96 / 9.32 / 9.80 / 7.99 / 10.55** |
+| D1 R + rol5 | 12.50 / 9.17 / 10.32 / 7.80 / 10.72 | 12.45 / 9.35 / 10.21 / 7.95 / 10.80 | 12.13 / 9.33 / 9.90 / 8.02 / 10.63 |
+
+- d1hub + rol5 只有两个种子（3408 的展开在 PMR 停止时被终止），不参选；其余 PMR 变体都没有三种子 + rol5。
+- 选 ghand + rol5：三种形式下 RA 都最低，两项 local 也都最好。
+- 流式恰好也是它最好的形式：RA 10.55，各种子 10.33 / 10.41 / 10.91。
+
+**定义。** EvHandTrack = PMR `d1ghand` + rol5，三种子（`pmr_d1ghand_rol5_s3407/8/9`）。
+- 输入同 B2：r_s2d 路由 + PFA → 事件—顶点关系编码 → 16 个部位节点与手节点的事件可加统计量 + 学习通道。
+- 主干：运动学树传播 P（`semkine/pmr_trunk.py`，ghand 门在 `semkine/pmr_trunk6.py`）。
+  - 3 轮，走 62 条分型边（下行 / 上行 / 手→部位 / 部位→手）。
+  - 门由前态 FK 的关节向量在手系里算出（R₀ᵀv / 2 cm、长度、边型），各轮共享。
+  - 局部读出、无旁路：关节 j 的增量只读节点 j，根与平移只读手节点。
+  - 输出 51 维加性状态更新。
+- 配方：d1ghand 从头训 6000 步（B2 配方与数据流）；再从同种子第 6000 步做 rol5（K = 5，梯度穿过前态，1500 步）。
+- 只是论文命名：run 名、配置键、检查点不变，不重训。
+
+**补测（零训练）。**
+- **流式异步检验：** TPD 的冻结检验接 PMR 主干（`tools/evhandtrack/asynccheck.py`）。每个种子测 24 个包的前缀、顺序、分块三项，三个种子都 PASS，顺序差最大 0.0。回执在 `outputs/evhandtrack/receipts/`；3407 与 PMR S3c 的回执一致。
+- **成本块：** 工具 `tools/evhandtrack/cost2.py`（PFO 冻结成本工具 + PMR 分段计时）。
+  - GPU 7 独占，默认标志，S43 执行器同块测。
+  - 测量时 GPU 4–6 上跑着 CMP 的三个 EventHands 训练，主机 1 分钟负载 9.8–18.7（上一块是 33–87）。
+  - 主干用 `semkine/pmr_fast.py`：同一函数、更少内核；在 100 个包上与参考实现最大差 1.8e-7。
+
+| 行 | 行时延（折算） | 端到端 p50 / p99 | MACs | 参数 |
+|---|---|---|---|---|
+| S43 执行器 | 10.55 ms | 10.63 / 15.77 ms | 0.128 G | 2.82 M |
+| EvHandTrack 流式（快速实现） | 17.88 ms | 18.57 / 23.61 ms | 0.102 G | 0.90 M |
+| EvHandTrack 流式（参考实现，描述） | 23.01 ms | 22.41 / 26.14 ms | 0.105 G | 0.90 M |
+| EvHandTrack 分包（快速实现，描述） | 15.76 ms | 15.27 / 22.61 ms | 0.113 G | 0.90 M |
+
+- 流式对 S43（同块）：参数 0.32×，MACs 0.79×，行时延 1.69×，端到端 p50 1.75×、p99 1.50×。时延超出"接近"（≤ 1.5），在"同量级"（≤ 2.0）以内。
+- 第一次启动时，S43 那一项和我误开的 CPU 异步检验重叠（负载升到 30），整块作废后重测。现场在 `outputs/evhandtrack/costs_aborted_0204/`。
+
+**结果。**
+
+| 网络结构 | MPJPE-local | MPJPE-global | MPVPE-local | MPVPE-global | RA-MPJPE(递推) | Latency | FLOPs/step | Params |
+|---|---|---|---|---|---|---|---|---|
+| EventHands-PCA6 (baseline) | 30 | 10.99 | 23.58 | 8.15 | - | 1.76 ms | 1.653 G | 11.18 M |
+| S39：dt_dz_l3，W=200 + 自适应滤波 + 证据门 ramp1000 * | 10.27 | 7.36 | 8.94 | 6.25 | 8.71（8.91 / 8.53 / 8.69） | 4.09 ms | 1.252 G | 2.80 M |
+| S43（W50 原始，引擎三种子） | 12.81 | 8.02 | 10.77 | 6.64 | 10.24（10.29 / 10.27 / 10.17） | 10.55 ms | 0.128 G | 2.82 M |
+| B2 + rol5（三种子，流式形式；原误定的 EvHandTrack，成本为另一块） | 12.95 | 7.96 | 10.70 | 6.46 | 10.28（10.60 / 9.71 / 10.54） | 16.01 ms | 0.236 G | 0.59 M |
+| EvHandTrack 普通分包形式（不异步，描述） | 12.30 | 9.19 | 10.12 | 7.77 | 10.63（10.30 / 10.69 / 10.90） | 15.76 ms | 0.113 G | 0.90 M |
+| EvHandTrack（运动学树 ghand + rol5，三种子，流式形式） | 11.96 | 9.32 | 9.80 | 7.99 | 10.55（10.33 / 10.41 / 10.91） | 17.88 ms | 0.102 G | 0.90 M |
+
+- 对 S43：local 两项好（−0.85 / −0.97 mm），global 两项差（+1.30 / +1.35 mm），RA 高 0.31 mm；每个种子的 RA 都低于 11.0。
+- 对 B2 + rol5（流式）：local 好约 1 mm，global 差 1.4–1.5 mm，RA 高 0.27 mm。global 的差距主要在根旋转：分包形式下 ghand + rol5 6.9°，B2 + rol5 5.1°（`#pmr-stop-note-20261109`）。
+- B2 + rol5 的时延来自 11-09 那一块（负载 33–87）；CMP 安静块里它是 14.94 ms。
+
+**改名与文件。**
+- **EvHandTrack：**
+  - 身份 `outputs/evhandtrack/identity.json`（`python -m tools.evhandtrack.identity write|verify`，30 个文件）；
+  - 行：`evhandtrack`（流式）、`evhandtrack_packet`（描述）、`evhandtrack_s43`（S43 配本块成本）。
+- **B2 + rol5：** 不再叫 EvHandTrack，留作对照行"B2 + rol5"。
+  - 文件移到 `outputs/evhandtrack/b2rol5/`。`identity_as_written_20261109.json` 是原样记录；`identity.json` 按新路径重写，数字与文件 SHA 不变。
+  - 行：`b2rol5`、`b2rol5_packet`、`b2rol5_s43`；工具 `tools/evhandtrack/identity_b2rol5.py`。
+  - 它的成本工具 `tools/evhandtrack/cost.py` 不动，因为 CMP 的成本工具引用它。
+- **CMP：** EvHandTrack 行随之更换，见 `#cmp-amend5-20261110`。
+<!-- EXPERIMENT_RECORD:EVHANDTRACK-TREE-20261110:END -->
+
+<a id="cmp-amend5-20261110"></a>
+### CMP 修订 5：EvHandTrack 行改为运动学树方法（2026-11-10 02:20 UTC，写于新 EvHandTrack 行的任何 CMP 成本读数之前；会话 eventhands1-13）
+
+**起因。** 用户纠正了 EvHandTrack 的所指（`#evhandtrack-tree-20261110`）。
+- CMP 预注册写的"EvHandTrack 沿用现有身份"读的是 `outputs/evhandtrack/identity.json`，当时那里是 B2 + rol5。
+- 用户点名的五个方法之一 EvHandTrack 应是运动学树方法。
+
+**改动。**
+- **身份：** `outputs/evhandtrack/identity.json` 换成运动学树方法的身份，结构不变。`diag:history:a4` 及以后的冷启动诊断读到的 evhandtrack 就是新身份。
+- **`tools/cmp/rows.py`（只改条目）：**
+  - evhandtrack 的标签改为"EvHandTrack（运动学树 ghand + rol5，三种子，流式形式）"，成本标签改为 `evhandtrack_s3407__stream__pmrfast__default`；
+  - 新增描述行 `b2rol5`：读 `outputs/evhandtrack/b2rol5/identity.json`，成本沿用本研究块里已测的 `evhandtrack_s3407__stream__default`。
+- **旧行：** `outputs/semkine/cmp_evhandtrack_main_row.json`（B2 + rol5）移到 `outputs/cmp/20261110/superseded_amend5/`，免得新标签配上旧数据。
+- **作业** `jobs/amend5.json`：
+  - `cost:evhandtrack:a5:packet`、`cost:evhandtrack:a5:stream`：GPU 4 独占，紧接 `cost:eho`。命令 `tools/evhandtrack/cost2.py --out outputs/cmp/20261110`，主干用快速实现；分包那次先做参考 / 快速等价检查。
+  - 然后是 `rows:a5`（`rows write`，排在 `rows:a4` 之后）。
+  - `rows:a4` 运行时新 EvHandTrack 的成本读数还不存在，这一行会被跳过，由 `rows:a5` 写出。
+- 冻结 `manifests/amend5.json`。
+
+**读法。** 不变：描述性对比，不设门、不选点。
+- EvHandTrack 行的精度是 PMR 已有的流式读数（三种子）。
+- 成本与 `eho` 在修订 4 之后的同一个独占时段里测。S43 与其它方法沿用本研究第一块的读数，这一点同修订 4。
+<!-- EXPERIMENT_RECORD:CMP-AMEND5-20261110:END -->

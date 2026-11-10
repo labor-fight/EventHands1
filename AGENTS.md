@@ -4,13 +4,25 @@
 
 - 论文正文、图表及方法说明统一使用 **Event Surface Mapping Network (ESMNet)**；首次出现写全称，后续用 `ESMNet`。
 - 这是原 `SRNet` 的论文名称调整。代码类名、配置键、检查点与实验编号保持原标识，历史冻结记录保留原文；不因改名重新训练或改动模型。
-- **EvHandTrack（用户 2026-11-09"看看哪个方法指标最好，最适合收敛一下，命名 EvHandTrack"）：** 收敛后的方法 = B2 + rol5 三种子（TPD `tpd_rol5_s3407/8/9`）。
-  - 组成：B2 = PFO2 `fgs`（r_s2d 路由 + PFA → 事件—顶点关系编码 → 单轮门控 MeshGNN → LBS 槽池化 → 51 维加性状态更新），从头 6000 步；rol5 = 从同种子 B2 第 6000 步做 K = 5 闭环展开微调 1500 步（梯度穿过前态）。
-  - 身份：`outputs/evhandtrack/identity.json`（检查点、配置、路由器、读数、成本、异步回执的 SHA；`python -m tools.evhandtrack.identity verify`）。
-  - **主行用流式形式**（用户 2026-11-09"主行最好用流式形式"；`semkine/tpd_str.py`，路由器 r_s2d 按更新间隔、豁免）：`outputs/semkine/evhandtrack_main_row.json`，三种子 12.95 / 7.96 / 10.70 / 6.46 / RA 10.28（rol5 权重零训练换入）。三个种子的流式异步检验（前缀 / 顺序 / 分块）都 PASS（`outputs/evhandtrack/receipts/`）。
-  - 出表：`python tools/report_table.py evhandtrack_s43 evhandtrack_packet evhandtrack --label evhandtrack="EvHandTrack（B2 + rol5，三种子，流式形式）"`。`evhandtrack_s43` 是 S43 的精度配同块成本；`evhandtrack_packet` 是普通分包形式（12.86 / 7.75 / 10.66 / 6.28 / 10.12，不异步，只作描述）。
-  - 成本：`tools/evhandtrack/cost.py`，GPU 4 上一块测完（S43、分包、流式）。测量时主机负载 33–87，绝对时延偏高，比较用同块倍率；安静时应重测。
-  - 和 ESMNet 一样，只是论文命名：run 名、配置键、检查点保持原标识，不重训。S39 / S43 的地位不变（S43 是对照）。账本 `docs/EXPERIMENT_RECORDS.md#evhandtrack-20261109`。
+- **EvHandTrack（用户 2026-11-09"看看哪个方法指标最好，最适合收敛一下，命名 EvHandTrack"；2026-11-10 纠正："我之前让你命名的EvHandTrack是那个利用运动学树的那个实验"）：** 收敛后的方法 = 运动学树方法 PMR `d1ghand` + rol5 三种子（`pmr_d1ghand_rol5_s3407/8/9`），是 PMR 里三种子最好的一行。
+  - 组成：
+    - 输入同 B2：r_s2d 路由 + PFA → 事件—顶点关系编码 → 部位统计量。
+    - 主干：16 个部位节点 + 手节点上的运动学树传播 P，3 轮、62 条分型边；门由前态 FK 关节向量在手系里算出，各轮共享。局部读出、无旁路，输出 51 维加性状态更新。
+    - 训练：d1ghand 从头 6000 步（B2 配方）；rol5 = 从同种子第 6000 步做 K = 5 闭环展开微调 1500 步。
+  - 身份：`outputs/evhandtrack/identity.json`（`python -m tools.evhandtrack.identity write|verify`；记录检查点、配置、路由器、读数、成本、异步回执的 SHA）。
+  - **主行用流式形式**（用户 2026-11-09"主行最好用流式形式"；`semkine/tpd_str.py`，路由器 r_s2d 按更新间隔、豁免）：
+    - `outputs/semkine/evhandtrack_main_row.json`，三种子 11.96 / 9.32 / 9.80 / 7.99 / RA 10.55（PMR 已有的零训练流式读数）。
+    - 三个种子的流式异步检验都 PASS（`outputs/evhandtrack/receipts/`，工具 `tools/evhandtrack/asynccheck.py`）。
+  - 出表：`python tools/report_table.py evhandtrack_s43 evhandtrack_packet evhandtrack --label evhandtrack="EvHandTrack（运动学树 ghand + rol5，三种子，流式形式）"`。
+    - `evhandtrack_s43` 是 S43 的精度配同块成本。
+    - `evhandtrack_packet` 是普通分包形式（12.30 / 9.19 / 10.12 / 7.77 / 10.63，不异步，只作描述）。
+  - 成本：`tools/evhandtrack/cost2.py`，GPU 7 上一块测完（S43、分包、流式的快速 / 参考实现），主干用 `semkine/pmr_fast.py`。流式对 S43：参数 0.32×、MACs 0.79×、行时延 1.69×、端到端 p50 1.75×。
+  - B2 + rol5（11-09 误定为 EvHandTrack）改称"B2 + rol5"，留作对照：
+    - 文件在 `outputs/evhandtrack/b2rol5/`；
+    - 行 `b2rol5`（流式 12.95 / 7.96 / 10.70 / 6.46 / 10.28）、`b2rol5_packet`、`b2rol5_s43`；
+    - 工具 `tools/evhandtrack/identity_b2rol5.py`、`cost.py`（CMP 引用，不改）。
+  - 和 ESMNet 一样，只是论文命名：run 名、配置键、检查点保持原标识，不重训。S39 / S43 的地位不变（S43 是对照）。
+  - 账本 `docs/EXPERIMENT_RECORDS.md#evhandtrack-tree-20261110`，取代 `#evhandtrack-20261109`、`#evhandtrack-str-20261109`。
 
 ## GPU 借卡原则（用户 2026-11-09："现在可以使用全部卡，但是使用GPU0-3号时，用gpu-borrow run借卡指令"，要求固定为长期原则）
 
@@ -38,6 +50,49 @@
   - `check-system` 用极小 CPU 命令核对 UID、实际 cgroup 路径，以及工具此前添加的服务与 slice 上限已恢复为不设限；不启动 GPU 训练，也不修改研究驱动策略。OOM 或真实训练失败不按 GPU 抢占无限重试。
 - **原则生效前已在跑的作业：** gpu-borrow 不接管已在跑的进程。原则生效前已在 GPU 0–3 上跑的作业，要么停掉、经 gpu-borrow 重跑，要么挂守卫 `tools/pmr/borrow_guard.py`，按同一规则让卡。
 - **驱动：** PMR 驱动 4 `tools/pmr/chain4.py`（继承驱动 3、2；成本读数不提前清场，`#pmr-amend7-20261109`）已内置这些规则：借用对只跑训练，等不到卡就改到直连对（`#pmr-amend4-20261109`、`#pmr-amend5-20261109`）。以后的驱动照此写；停掉子进程后先回收（`Popen.wait`），再查它的进程组，否则僵尸会读成"活着"。
+
+## CMP · 五方法对比实验（用户 2026-11-09 约 17:00 UTC："现在进行整体的实验，你给我使用全卡，分别进行EventHands，EvHandPose，Event encoder + previous-state MLP，Event encoder + GRU，EvHandTrack。这几个，作为对比试验"）
+
+- **范围：** 论文主对比表。四个基线在本仓库重训，每个三种子；EvHandTrack 沿用现有身份，不重训。描述性对比，不设门、不选点。
+- **预注册：** `docs/EXPERIMENT_RECORDS.md#cmp-prereg-20261110`；冻结清单 `outputs/cmp/20261110/manifests/r1.json`、`r2.json`。
+- **统一合同：** 继承同种子 B2 配置的数据 / 增广 / 前态噪声 / 损失块；单卡、等效批量 1024；固定末步；PFO 引擎 E1；成本在所有读数之后跑一个独占块（GPU 4，默认标志）。
+- **臂（`tools/cmp/arms.py`）：**
+  - `eho` = EventHands 的 ICCV 2021 原版配方（修订 4，主表的 EventHands 行）：
+    - 网络与官方相同（conv1 + resnet18，12 维 = PCA6 + 平移 + 根旋转），官方加权 MSE 取 log10；
+    - 批量 64、Adam 1e-3 常数、fp32、固定 100 ms LNES、无增广，96,000 步（样本数同 `eh`）；
+    - 描述读数 `kf` / `kff` = 1 kHz 预测 + 官方卡尔曼滤波（filter.py / filter_fast.py）。
+  - `eh` = EventHands 网络 + B2 训练合同（全 45 维姿态，100 ms 窗口）。用户 2026-11-10 指出它不是原论文方法，修订 4 起只作描述行；
+  - `em` → `emrol5` = 编码器 + 前态 MLP，再加 EvHandTrack 的 rol5 微调；
+  - `eg` = 从 `eh` 起步的编码器 + GRU（16 包滑窗）；
+  - `epf` → `ep` = EvHandPose 官方网络（`semkine/evhandpose_official/`），全帧，网格光流预训练 FlowNet 后冻结，12 包滑窗。
+- **代码：**
+  - 模型与数据：`semkine/cmp_models.py`、`cmp_seq.py`、`cmp_evhp.py`、`cmp_eho.py`（修订 4）；
+  - 工具：`tools/cmp/`（train、run（accept / e1）、nets（引擎适配器）、cost、rows、chain、borrow_job）。
+  - 已冻结的文件不改，新行为放新文件。
+- **驱动：** `tools/cmp/chain.py`（`setsid nohup … run`，状态 `outputs/cmp/20261110/driver/`）。
+  - 训练先用直连卡 4–7，再经 gpu-borrow 用 0–3；读数与成本块只放 4–7。
+  - `HOLD` 文件让驱动在队列空时继续等新作业；`drain` 只停派发；STOP 只在紧急时用。
+  - 失败保留、不重试。
+- **出表：** `python -m tools.cmp.rows write` 写 `outputs/semkine/cmp_<方法>_main_row.json`；`python -m tools.cmp.rows table` 出主表。
+- **修订（都写在相应读数之前，修订 3 除外）：**
+  - 修订 1（`#cmp-amend1-20261110`）：加 EvHandPose 在线手部裁剪 `epcf` → `epc`，主表的 EvHandPose 行改为它；
+  - 修订 2（`#cmp-amend2-20261110`）：`epcl` = `epc` × 3 倍步数；
+  - 修订 3（`#cmp-amend3-20261110`，事后、描述）：`warm`（历史不在段首截断）与 `gtcrop`（GT 框，不可部署）两种读法，诊断工具 `tools/cmp/diag_history.py`；
+  - 修订 4（`#cmp-amend4-20261110`，2026-11-10，写于任何 `eho` 读数之前）：EventHands 改为原版配方 `eho`，`eh` 移入描述表；冻结 `manifests/amend4.json`，测试 `tests/test_cmp_eho.py`。驱动在原状态目录重启，作业 `jobs/amend4.json`。
+  - 修订 5（`#cmp-amend5-20261110`，2026-11-10，会话 eventhands1-13）：用户纠正 EvHandTrack 指运动学树方法。
+    - `outputs/evhandtrack/identity.json` 换成新身份。
+    - `rows.py` 的 evhandtrack 行改标签与成本标签；B2 + rol5 移入描述行 `b2rol5`，旧主行移到 `outputs/cmp/20261110/superseded_amend5/`。
+    - 新 EvHandTrack 的成本紧接 `cost:eho` 在 GPU 4 独占测（`tools/evhandtrack/cost2.py --out outputs/cmp/20261110`），然后 `rows:a5` 重写行。
+    - 冻结 `manifests/amend5.json`，作业 `jobs/amend5.json`。
+- **结果（`#cmp-results-20261110`，2026-11-09 23:57 UTC，104 个作业全部完成）：**
+  - 三种子 MPJPE-L / G、MPVPE-L / G、RA：
+    - EvHandTrack（修订 5 起为运动学树方法）11.96 / 9.32 / 9.80 / 7.99 / 10.55；修订 5 之前这一行是 B2 + rol5，12.95 / 7.96 / 10.70 / 6.46 / 10.28（现为描述行 `b2rol5`）；
+    - EventHands 网络 + B2 合同（`eh`，修订 4 起为描述行）12.81 / 8.47 / 11.00 / 7.32 / 10.49；原版 `eho` 见修订 4 的结果；
+    - GRU 14.17 / 8.41 / 11.98 / 7.27 / 11.08；
+    - 前态 MLP + rol5 13.81 / 9.28 / 11.77 / 7.75 / 11.38；
+    - EvHandPose 在线裁剪发散（RA 44.65），全帧 14.80，补足历史后 12.54，GT 框 3 倍步数 12.05（不可部署）。
+  - 稳态段（历史 ≥ 550 ms）`eh` 与 B2 + rol5 持平（10.28 / 10.30）；B2 + rol5 的 RA 优势主要来自段首冷启动。运动学树 EvHandTrack 的这一读数由 `diag:history:a4` 重算。
+  - 安静主机同块成本：B2 + rol5 14.94 ms / 0.236 G / 0.59 M，EventHands 网络 1.75 ms / 1.644 G / 11.20 M。运动学树 EvHandTrack 的 CMP 成本由修订 5 的作业测。
 
 ## 代码清理（用户 2026-11-01"这批代码有点乱，你清理删除一下，屎山代码你也清理一下"）
 
