@@ -1,0 +1,328 @@
+{
+ "config": {
+  "session": "ch_global",
+  "end_ms": 35407,
+  "packet_ms": 50,
+  "show_ms": 35,
+  "tau": 0.5,
+  "checkpoint": null,
+  "crop": [
+   142,
+   236,
+   86,
+   186
+  ],
+  "width": 3200,
+  "margin": 40,
+  "gap": 70,
+  "ss": 3,
+  "events_w": 640,
+  "finger_rgb": {
+   "palm": [
+    204,
+    172,
+    128
+   ],
+   "index": [
+    222,
+    172,
+    32
+   ],
+   "middle": [
+    58,
+    160,
+    100
+   ],
+   "little": [
+    214,
+    96,
+    160
+   ],
+   "ring": [
+    138,
+    108,
+    204
+   ],
+   "thumb": [
+    236,
+    132,
+    40
+   ]
+  },
+  "seg_dL": [
+   -0.12,
+   0.0,
+   0.1
+  ],
+  "label_L": 0.52,
+  "off": [
+   0.85,
+   0.008,
+   260
+  ],
+  "pane_fill": [
+   244,
+   245,
+   250
+  ],
+  "border_col": [
+   64,
+   68,
+   82
+  ],
+  "border_lw": 1.0,
+  "on_dot": 0.8,
+  "off_dot": 0.54,
+  "subdiv": 2,
+  "weight_smooth": 3,
+  "key_tint": 0.9,
+  "key_shade": 0.16,
+  "key_light": [
+   -0.3,
+   -1.0,
+   -0.3
+  ],
+  "outline_lw": 1.2,
+  "outline_col": [
+   150,
+   154,
+   165
+  ],
+  "bone_lw": 1.1,
+  "bone_col": [
+   64,
+   68,
+   82
+  ],
+  "joint_r": 4.0,
+  "joint_rim": 1.2,
+  "tip_r": 1.8,
+  "key_vpad": [
+   70,
+   14
+  ],
+  "key_hpad": 10,
+  "view": "auto",
+  "text": true,
+  "font": "NimbusSans-Regular.otf",
+  "text_col": [
+   48,
+   52,
+   64
+  ],
+  "finger_em": 33,
+  "joint_em": 26,
+  "legend_em": 29,
+  "label_color": "finger",
+  "halo": 0.14,
+  "finger_labels": {
+   "thumb": "Thumb",
+   "index": "Index",
+   "middle": "Middle",
+   "ring": "Ring",
+   "little": "Little"
+  },
+  "palm_label": "Palm",
+  "palm_at": [
+   0.0,
+   0.42
+  ],
+  "joint_finger": "little",
+  "joint_off_m": 0.0135,
+  "joint_leader": 0,
+  "label_gap": 12,
+  "legend": true,
+  "legend_label": "Off-hand"
+ },
+ "layout": "events",
+ "meta": {
+  "router": {
+   "variant": "r_s2dx2",
+   "checkpoint": "outputs/real/20261110/routers/r_s2dx2/r_s2d_final.ckpt",
+   "sha256": "dad9c0568f373ea725e144e1a8361617a5f540284001cfdcaf0c2c20b12fef99",
+   "params": 580116,
+   "design": {
+    "stem": "s2d",
+    "trunk": [
+     32,
+     64,
+     96,
+     128
+    ],
+    "fpn": 64,
+    "smooth": "conv3",
+    "head": 128
+   }
+  },
+  "packet": {
+   "session": "ch_global",
+   "subject": "ch",
+   "role": "train",
+   "light": "normal",
+   "canvas": "n346 (346x260)",
+   "ms": [
+    35358,
+    35407
+   ],
+   "events": 26908,
+   "raw_seconds": [
+    35.3707,
+    35.4207
+   ]
+  },
+  "agreement_with_labels": {
+   "labels": "outputs/real/20261110/xag_sources",
+   "labelled": 8679,
+   "onhand_and_labelled": 8550,
+   "part_acc": 0.8260818713450292,
+   "finger_acc": 0.9132163742690058,
+   "onhand_precision": 0.9638146770375381,
+   "onhand_recall": 0.9851365364673349
+  }
+ },
+ "stats": {
+  "events_panel": {
+   "shown_events": 7313,
+   "shown_onhand_events": 6114,
+   "onhand_pixels": 1750,
+   "offhand_pixels": 698,
+   "pixel_majority_share_mean": 0.9978115995115995,
+   "onhand_events_per_joint": [
+    1103,
+    241,
+    148,
+    253,
+    300,
+    326,
+    416,
+    371,
+    428,
+    473,
+    388,
+    417,
+    541,
+    128,
+    212,
+    369
+   ]
+  },
+  "colors": {
+   "0": [
+    204,
+    172,
+    128
+   ],
+   "1": [
+    178,
+    136,
+    2
+   ],
+   "2": [
+    222,
+    172,
+    32
+   ],
+   "3": [
+    255,
+    205,
+    81
+   ],
+   "4": [
+    6,
+    123,
+    67
+   ],
+   "5": [
+    58,
+    160,
+    100
+   ],
+   "6": [
+    93,
+    192,
+    130
+   ],
+   "7": [
+    173,
+    58,
+    124
+   ],
+   "8": [
+    214,
+    96,
+    160
+   ],
+   "9": [
+    249,
+    127,
+    191
+   ],
+   "10": [
+    104,
+    72,
+    165
+   ],
+   "11": [
+    138,
+    108,
+    204
+   ],
+   "12": [
+    168,
+    139,
+    238
+   ],
+   "13": [
+    189,
+    99,
+    3
+   ],
+   "14": [
+    236,
+    132,
+    40
+   ],
+   "15": [
+    254,
+    173,
+    113
+   ]
+  },
+  "name_colors": {
+   "index": [
+    132,
+    100,
+    0
+   ],
+   "middle": [
+    6,
+    123,
+    67
+   ],
+   "little": [
+    169,
+    54,
+    120
+   ],
+   "ring": [
+    104,
+    72,
+    165
+   ],
+   "thumb": [
+    158,
+    82,
+    2
+   ]
+  },
+  "offhand_color": [
+   203,
+   206,
+   211
+  ],
+  "size": [
+   1555,
+   1740
+  ]
+ }
+}

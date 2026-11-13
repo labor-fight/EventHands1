@@ -1,0 +1,108 @@
+{
+ "config": {
+  "session": "ch_global",
+  "stream": "event",
+  "t_start": 34.25,
+  "t_end": 35.42,
+  "slices": [
+   34.72,
+   35.05,
+   35.42
+  ],
+  "slice_ms": 35,
+  "length": 500,
+  "up": "z",
+  "az": -28,
+  "el": 48,
+  "dist": 3600,
+  "roll": 0,
+  "width": 3200,
+  "margin": 60,
+  "ss": 2,
+  "support_dt_us": 5000,
+  "support_min": 3,
+  "support_lo": 3,
+  "support_hi": 9,
+  "support_floor": 0.25,
+  "pane_support_min": 2,
+  "red": [
+   222,
+   45,
+   38
+  ],
+  "blue": [
+   33,
+   88,
+   214
+  ],
+  "dot": 1.2,
+  "alpha": 1.0,
+  "fade": 0.8,
+  "fade_gamma": 1.0,
+  "tint": 0.08,
+  "tail": 0.18,
+  "sublayers": 24,
+  "tex_scale": 8,
+  "pane_fill": [
+   0.955,
+   0.962,
+   0.98
+  ],
+  "pane_alpha": 0.55,
+  "pane_alpha_last": 0.86,
+  "pane_dot": 1.2,
+  "border_px": 1.0,
+  "border_col": [
+   64,
+   68,
+   82
+  ],
+  "border_alpha": 0.95,
+  "rails": true,
+  "rails_tail": 110,
+  "rails_lw": 1.0,
+  "rails_col": [
+   64,
+   68,
+   82
+  ],
+  "rails_alpha": 0.38,
+  "axis": true,
+  "axis_xy": [
+   -195.0,
+   152.0
+  ],
+  "axis_z0": 60,
+  "axis_z1": 60,
+  "axis_pad": 40,
+  "axis_dash": [
+   16,
+   11
+  ],
+  "axis_lw": 2.4,
+  "axis_head": 7.5,
+  "axis_col": [
+   64,
+   68,
+   82
+  ],
+  "axis_alpha": 0.95,
+  "axis_label": "t",
+  "axis_font": 46,
+  "crop_margin": 28,
+  "crop_alpha": 0.06
+ },
+ "stats": {
+  "events_in_window": 402925,
+  "events_drawn": 224487,
+  "slices": {
+   "34.720": 11424,
+   "35.050": 16062,
+   "35.420": 15518
+  },
+  "size": [
+   3200,
+   3839
+  ]
+ }
+}

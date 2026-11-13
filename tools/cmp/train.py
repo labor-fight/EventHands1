@@ -27,7 +27,7 @@ for _p in (str(ROOT / "model"), str(ROOT)):
 
 import yaml  # noqa: E402
 
-from tools.cmp.arms import ARMS, build_config, config_path  # noqa: E402
+from tools.cmp.arms import ARMS, EXT, build_config, config_path  # noqa: E402
 from tools.cmp.common import now, require, save, sha  # noqa: E402
 
 CODE = ("tools/cmp/train.py", "tools/cmp/arms.py", "tools/cmp/common.py", "semkine/cmp_models.py", "semkine/cmp_seq.py",
@@ -110,7 +110,14 @@ def main():
             super().on_train_batch_end(trainer, pl_module, outputs,
                                        (batch["lnes"],) if isinstance(batch, dict) else batch, batch_idx)
     T.ThroughputCallback = Throughput
-    if c["STAGE"] == "seq":
+    ext = EXT.get(c["ARM"])                                      # amendment 6: an extension arm's own dataset
+    if ext is not None and hasattr(ext, "build_dataset"):
+        native_build = T.build_dataset
+
+        def build(cfg_, split, components, train=None, **kwargs):
+            return ext.build_dataset(native_build(cfg_, split, components, train=train, **kwargs), cfg_, split)
+        T.build_dataset = build
+    elif c["STAGE"] == "seq":
         from semkine import cmp_seq as S
         native_build = T.build_dataset
         s = c["SEQ"]
@@ -127,7 +134,8 @@ def main():
         T.build_dataset = build
     out.mkdir(parents=True, exist_ok=False)
     save(out / "cmp_launch.json", {"cmp": c, "config": str(path), "config_sha256": sha(path),
-                                   "code_sha256": {f: sha(ROOT / f) for f in CODE if (ROOT / f).exists()},
+                                   "code_sha256": {f: sha(ROOT / f) for f in (*CODE, *getattr(ext, "CODE", ()))
+                                                   if (ROOT / f).exists()},
                                    "init_from": init, "init_from_sha256": sha(init) if init else None,
                                    "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
                                    "alloc_conf": os.environ.get("PYTORCH_CUDA_ALLOC_CONF"), "pid": os.getpid(),

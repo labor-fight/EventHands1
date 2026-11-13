@@ -1,0 +1,137 @@
+AUG:
+  DOMRAND:
+    ENABLED: true
+    HOT_PIXEL_RATE: 0.0
+    KEEP_MAX: 1.0
+    KEEP_MIN: 0.25
+    ROLL_DEG: 15.0
+    SCALE_MAX: 1.25
+    SCALE_MIN: 0.8
+    SHIFT_PX: 20.183333333333334
+    SCALE_MODE: depth
+  PIXEL_POLARITY_SWAP: true
+  POLARITY_FLIP: true
+  SPEED_AUG: true
+DATA:
+  HEIGHT: 260
+  INPUT_MODE: raw_packed
+  ROOT: /data1/lyq/code/mesh/EventHands/data/hand_data_real_n346
+  SPLITS_MANIFEST: /data1/lyq/code/mesh/EventHands/data/hand_data_real_n346/splits_real.json
+  USE_MEMMAP: true
+  WIDTH: 346
+  WINDOW_MAX: 300
+  WINDOW_MIN: 30
+EVAL:
+  OUTPUT_DIR: /data1/lyq/code/mesh/EventHands1/outputs/real/20261110/pmr/runs/pmr_d1m_rol5_s3408/eval
+  WINDOW_MS: 50
+LOSS:
+  FK_WEIGHT: 2.0
+  LAMBDA_POSE: 450.0
+  LAMBDA_R: 60.0
+  LAMBDA_T: 30000.0
+  LOG10: true
+  NORMALIZER: 51
+  ROT_WEIGHT: 1.0
+  TRANS_WEIGHT: 1.0
+  TYPE: so3_trans_fk
+MANO:
+  ADD_MEAN: true
+  BETA_SOURCE: sequence_gt
+  NPZ: /data1/lyq/code/mesh/EventHands1/assets/mano_right.npz
+MODEL:
+  ACTIVE_HEAD: false
+  BACKBONE: event_gnn
+  ENCODER: xyz_mesh
+  ENCODER_HIDDEN: 128
+  ENCODER_LAYERS: 3
+  ENCODER_MAX_NODES: 2048
+  MANO_NCOMPS: 45
+  OUTPUT_DIM: 51
+  POSE_REPR: mano_full_axis_angle
+  PREDICT_BETA: false
+  PREDICT_DELTA: true
+  PREVPOS_EMBED: false
+  PREV_RENDER: false
+  RENDER_CHUNK: 256
+  RENDER_H: 260
+  RENDER_SCALE: 0.540625
+  RENDER_W: 346
+  XYZ_BAND_PX: 23.066666666666666
+  XYZ_FRONT_PX: 4.325
+  XYZ_GEOM: true
+  XYZ_K: 16
+  XYZ_READOUT_HIDDEN: 256
+  XYZ_REL_HIDDEN: 64
+  XYZ_SLOT_DIM: 32
+  XYZ_Z_TOL: 0.01
+  ZERO_EVENT_GATE: true
+  XAG_ASSOC: face_route
+  XAG_GNN: legacy
+SEED: 3408
+TRACK:
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_P_CORR: 0.2
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_T: 0.005
+TRAIN:
+  ACCUMULATE_GRAD_BATCHES: 2
+  BATCH_SIZE_PER_GPU: 512
+  DEVICES: 1
+  LR: 0.001
+  MAX_STEPS: 1500
+  NUM_WORKERS: 6
+  OPTIMIZER: adam
+  OUTPUT_DIR: /data1/lyq/code/mesh/EventHands1/outputs/real/20261110/pmr/runs/pmr_d1m_rol5_s3408
+  PERSISTENT_WORKERS: true
+  PIN_MEMORY: true
+  PRECISION: bf16
+  PREFETCH_FACTOR: 1
+  RUN_NAME: pmr_d1m_rol5_s3408
+  SAVE_EVERY_N_STEPS: 500
+  STRATEGY: ddp
+  SYNC_BATCHNORM: false
+  VAL_CHECK_INTERVAL: 500
+  WARMUP_STEPS: 100
+  LR_SCHEDULE: cosine
+  LIMIT_VAL_BATCHES: 0
+PFO:
+  ARM: d1m_rol5
+  SEED: 3408
+  PHASE: formal
+  TRUNK: pmr
+  ROUTER: r_s2d
+  ROUTER_KIND: pfr
+  ROUTER_CHECKPOINT: /data1/lyq/code/mesh/EventHands1/outputs/real/20261110/routers/r_s2d/r_s2d_final.ckpt
+  ASSOC: pfa
+  ONHAND_TAU: 0.5
+  SECTION: pmr-d1-prereg-20261109
+  STUDY: PMR_20261109
+  MODULE: trunk4
+  PFO_ARM: f1
+  BASE_ARM: d1m
+PMR:
+  DESIGN: d1
+  VARIANT: mlp
+  MODULE: semkine.pmr_trunk
+REAL:
+  SECTION: real-amend5-20261111
+  CANVAS: n346
+  SPLITS_SHA256: 86c6460c9d066e81e01f1ff943a9aabaa27fe7a9a71dcbe32b7e0b81aa4a9709
+  CONVERSION: /data1/lyq/code/mesh/EventHands/data/hand_data_real_n346/conversion.json
+  SIM_ARM: d1m_rol5
+  PIXEL_SCALE: 1.4416666666666667
+  ROUTER: /data1/lyq/code/mesh/EventHands1/outputs/real/20261110/routers/r_s2d/r_s2d_final.ckpt
+S45SM:
+  ARM: pmr_d1m_rol5_s3408
+  ROUTER: r_s2d
+  ROUTER_KIND: pfr
+  ROUTER_CHECKPOINT: /data1/lyq/code/mesh/EventHands1/outputs/real/20261110/routers/r_s2d/r_s2d_final.ckpt
+  ASSOC: pfa
+  ONHAND_TAU: 0.5
+  FAST: true

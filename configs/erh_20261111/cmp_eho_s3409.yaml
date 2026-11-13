@@ -1,0 +1,93 @@
+AUG:
+  DOMRAND:
+    ENABLED: false
+  SPEED_AUG: false
+  POLARITY_FLIP: false
+  PIXEL_POLARITY_SWAP: false
+DATA:
+  HEIGHT: 260
+  INPUT_MODE: legacy_lnes
+  ROOT: /data1/lyq/code/mesh/EventHands/data/erh_n346
+  SPLITS_MANIFEST: /data1/lyq/code/mesh/EventHands/data/erh_n346/splits_erh.json
+  USE_MEMMAP: true
+  WIDTH: 346
+  WINDOW_MAX: 100
+  WINDOW_MIN: 100
+  FAST_PIPE: true
+LOSS:
+  TYPE: mse_51d
+  LAMBDA_POSE: 60.0
+  LAMBDA_T: 30000.0
+  LAMBDA_R: 60.0
+  NORMALIZER: 12
+  LOG10: true
+MANO:
+  ADD_MEAN: true
+  BETA_SOURCE: sequence_gt
+  NPZ: /data1/lyq/code/mesh/EventHands1/assets/mano_right.npz
+TRACK:
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_P_CORR: 0.2
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_T: 0.005
+SEED: 3409
+MODEL:
+  BACKBONE: resnet18
+  POSE_REPR: mano_pca6
+  OUTPUT_DIM: 12
+  MANO_NCOMPS: 6
+  PREDICT_BETA: false
+  PREDICT_DELTA: false
+  PREVPOS_EMBED: false
+  PREV_RENDER: false
+  ZERO_EVENT_GATE: false
+  RENDER_H: 260
+  RENDER_W: 346
+  RENDER_SCALE: 0.540625
+  RENDER_CHUNK: 256
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: 32
+  BATCH_SIZE_PER_GPU: 64
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 6
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 0.001
+  WARMUP_STEPS: 0
+  MAX_STEPS: 96000
+  VAL_CHECK_INTERVAL: 2000
+  SAVE_EVERY_N_STEPS: 6000
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: /data1/lyq/code/mesh/EventHands1/outputs/erh/20261111/runs/cmp_eho_s3409
+  RUN_NAME: cmp_eho_s3409
+  LR_SCHEDULE: constant
+  LIMIT_VAL_BATCHES: 8
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: /data1/lyq/code/mesh/EventHands1/outputs/erh/20261111/runs/cmp_eho_s3409/eval
+CMP:
+  ARM: eho
+  SEED: 3409
+  PHASE: formal
+  MODEL: eho
+  STAGE: frame
+  STUDY: ERH_20261111
+  SECTION: erh-prereg-20261111
+  EVAL:
+    WINDOW_MS: 100
+REAL:
+  SECTION: erh-prereg-20261111
+  AMENDMENT: erh-prereg-20261111
+  CANVAS: n346
+  SPLITS_SHA256: 0c52f67908ce6094e7a0dd88462c97e3faef4065f2d723a44776fb2d59b70ec8
+  CONVERSION: /data1/lyq/code/mesh/EventHands/data/erh_n346/conversion.json

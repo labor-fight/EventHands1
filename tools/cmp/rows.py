@@ -7,8 +7,8 @@ and the same-block cost of seed 3407), then the comparison table.
     python -m tools.cmp.rows table            # the five-method table (tools/report_table.py)
 
 Rows: eho (EventHands as published, amendment 4), epc (EvHandPose with its online hand crop, amendment 1), emrol5 (event encoder + previous-state MLP after rol5), eg (event
-encoder + GRU, sliding form), evhandtrack (the identity's streaming readings, re-costed in this block; amendment 5: the
-kinematic-tree identity, PMR ghand + rol5); descriptive: b2rol5 (B2 + rol5, the EvHandTrack row before amendment 5),
+encoder + GRU, sliding form), evhandtrack (the identity's streaming readings, re-costed in this block; amendments 5 / 5b: the
+kinematic-tree identity, PMR D1 + rol5); descriptive: b2rol5 (B2 + rol5, the EvHandTrack row before amendment 5),
 eh (the EventHands network on B2's training contract, the pre-registered port; main row until amendment 4), eho__kf /
 eho__kff (the published pipeline's Kalman filters), eh__w50, em (first stage), eg__rolling, ep (EvHandPose on the full
 frame, the pre-registered port), and s43 (S43 engine three-seed accuracy with its executor in this block).
@@ -35,13 +35,25 @@ LABELS = {
     "eho": "EventHands（ICCV 2021 原版配方：PCA6 + 原损失 + 原训练，三种子）",
     "eho__kf": "EventHands 原版 + 官方卡尔曼滤波 filter.py（1 kHz 预测，成本列为单次前向；描述）",
     "eho__kff": "EventHands 原版 + 官方卡尔曼滤波 filter_fast.py（1 kHz 预测，成本列为单次前向；描述）",
-    "epc": "EvHandPose（官方网络 + 在线手部裁剪，全监督，三种子）",
-    "epcl": "EvHandPose（在线手部裁剪，22500 步，三种子；稳健性检查）",
+    "epc": "EvHandPose 在线裁剪，修订 6 之前的训练（框取 GT、固定 12 包历史；在线发散，描述）",
+    "epcl": "EvHandPose 在线裁剪，修订 6 之前的训练，22500 步（描述）",
+    # amendment 6 (#cmp-amend6-20261110): the cropped EvHandPose trained for online use replaces epc in the main table
+    "epx": "EvHandPose（官方网络 + 在线手部裁剪，训练框取带噪跟踪状态，三种子）",
+    "epx__warm": "EvHandPose 在线裁剪（修订 6），段首前历史补满（描述）",
+    "epx__gtcrop": "EvHandPose（修订 6），GT 裁剪框（论文评测方式，不可部署；描述）",
+    # amendment 7 (#cmp-amend7-20261110): EventHPE, the event-based human-mesh tracker, with MANO
+    "ehpe": "EventHPE（ICCV 2021 官方网络与损失，换成 MANO，三种子）",
+    "ehpe__carry": "EventHPE，循环状态在段内不重置（描述）",
+    # amendment 9 (#cmp-amend9-20261110, descriptive): the official evaluation, 8 steps from the GT pose
+    "ehpe__gtinit": "EventHPE，每 8 个包从 GT 姿态重新初始化（论文评测方式，不可部署；描述）",
+    # amendment 8 (#cmp-amend8-20261110): FastMETRO with event input (the event-only baseline of EvRGBHand)
+    "fme": "FastMETRO-Event（ECCV 2022；EvRGBHand 官方事件配置，全帧，三种子）",
     "ep": "EvHandPose，全帧无裁剪（描述）",
     "emrol5": "Event encoder + previous-state MLP（+ rol5，三种子）",
     "eg": "Event encoder + GRU（三种子）",
-    # amendment 5 (#cmp-amend5-20261110): EvHandTrack is the kinematic-tree method; B2 + rol5 moves to the descriptive table
-    "evhandtrack": "EvHandTrack（运动学树 ghand + rol5，三种子，流式形式）",
+    # amendments 5 / 5b (#cmp-amend5-20261110, #cmp-amend5b-20261110): EvHandTrack is the kinematic-tree method PMR D1 +
+    # rol5; B2 + rol5 moves to the descriptive table
+    "evhandtrack": "EvHandTrack（运动学树 D1 + rol5，三种子，流式形式）",
     "b2rol5": "B2 + rol5（三种子，流式形式；修订 5 前的 EvHandTrack 行，描述）",
     "eh__w50": "EventHands，50 ms 窗口（描述）",
     "em": "Event encoder + previous-state MLP，无 rol5（描述）",
@@ -56,7 +68,7 @@ LABELS = {
     "eh__warm": "EventHands，100 ms 窗口不在段首截断（描述）",
     "eg__warm": "Event encoder + GRU，段首前历史补满（描述）",
 }
-MAIN = ("eho", "epc", "epcl", "emrol5", "eg", "evhandtrack")
+MAIN = ("eho", "epx", "ehpe", "fme", "emrol5", "eg", "evhandtrack")
 #: cost reading (outputs/cmp/20261110/costs/<tag>) of every row
 #: (descriptive rows carry the cost of the main arm with the same network: em = emrol5's network, the rolling GRU form
 #: runs the sliding form's network with one recurrent step instead of 16)
@@ -67,7 +79,10 @@ COSTS = {"eh": "cmp_eh_s3407__default", "eh__w50": "cmp_eh_s3407__default", "em"
          "s43": "s43_s3407__exec__default", "ep__warm": "cmp_ep_s3407__default", "epc__warm": "cmp_epc_s3407__default",
          "epc__gtcrop": "cmp_epc_s3407__default", "epcl__warm": "cmp_epc_s3407__default",
          "epcl__gtcrop": "cmp_epc_s3407__default", "eh__warm": "cmp_eh_s3407__default", "eg__warm": "cmp_eg_s3407__default",
-         "eho": "cmp_eho_s3407__default", "eho__kf": "cmp_eho_s3407__default", "eho__kff": "cmp_eho_s3407__default"}
+         "eho": "cmp_eho_s3407__default", "eho__kf": "cmp_eho_s3407__default", "eho__kff": "cmp_eho_s3407__default",
+         "epx": "cmp_epx_s3407__default", "epx__warm": "cmp_epx_s3407__default", "epx__gtcrop": "cmp_epx_s3407__default",
+         "ehpe": "cmp_ehpe_s3407__default", "ehpe__carry": "cmp_ehpe_s3407__default", "fme": "cmp_fme_s3407__default",
+         "ehpe__gtinit": "cmp_ehpe_s3407__default"}
 FIELDS = ("mpjpe_ra_mm", "mpvpe_ra_mm", "mpjpe_abs_mm", "mpvpe_abs_mm")
 
 

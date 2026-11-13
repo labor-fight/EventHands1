@@ -181,6 +181,9 @@ class EGModel(_Dense):
 
 
 KINDS = {"eh": EHModel, "em": EMModel, "eg": EGModel}
+#: amendment 6 (#cmp-amend6-20261110): model kinds defined in their own modules (each exposes `model_class(kind)`)
+EXT_MODELS = {"epxf": "semkine.cmp_evhpx", "epx": "semkine.cmp_evhpx", "ehpe": "semkine.cmp_ehpe",
+              "fme": "semkine.cmp_fme"}
 
 
 def model_class(kind):
@@ -195,6 +198,9 @@ def model_class(kind):
     if kind == "eho":                                              # amendment 4: EventHands as published
         from semkine.cmp_eho import EHOModel
         return EHOModel
+    if kind in EXT_MODELS:                                         # amendment 6
+        import importlib
+        return importlib.import_module(EXT_MODELS[kind]).model_class(kind)
     raise ValueError(f"unknown CMP model kind {kind!r}")
 
 

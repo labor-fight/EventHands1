@@ -4,31 +4,46 @@
 
 - 论文正文、图表及方法说明统一使用 **Event Surface Mapping Network (ESMNet)**；首次出现写全称，后续用 `ESMNet`。
 - 这是原 `SRNet` 的论文名称调整。代码类名、配置键、检查点与实验编号保持原标识，历史冻结记录保留原文；不因改名重新训练或改动模型。
-- **EvHandTrack（用户 2026-11-09"看看哪个方法指标最好，最适合收敛一下，命名 EvHandTrack"；2026-11-10 纠正："我之前让你命名的EvHandTrack是那个利用运动学树的那个实验"）：** 收敛后的方法 = 运动学树方法 PMR `d1ghand` + rol5 三种子（`pmr_d1ghand_rol5_s3407/8/9`），是 PMR 里三种子最好的一行。
-  - 组成：
-    - 输入同 B2：r_s2d 路由 + PFA → 事件—顶点关系编码 → 部位统计量。
-    - 主干：16 个部位节点 + 手节点上的运动学树传播 P，3 轮、62 条分型边；门由前态 FK 关节向量在手系里算出，各轮共享。局部读出、无旁路，输出 51 维加性状态更新。
-    - 训练：d1ghand 从头 6000 步（B2 配方）；rol5 = 从同种子第 6000 步做 K = 5 闭环展开微调 1500 步。
-  - 身份：`outputs/evhandtrack/identity.json`（`python -m tools.evhandtrack.identity write|verify`；记录检查点、配置、路由器、读数、成本、异步回执的 SHA）。
-  - **主行用流式形式**（用户 2026-11-09"主行最好用流式形式"；`semkine/tpd_str.py`，路由器 r_s2d 按更新间隔、豁免）：
-    - `outputs/semkine/evhandtrack_main_row.json`，三种子 11.96 / 9.32 / 9.80 / 7.99 / RA 10.55（PMR 已有的零训练流式读数）。
-    - 三个种子的流式异步检验都 PASS（`outputs/evhandtrack/receipts/`，工具 `tools/evhandtrack/asynccheck.py`）。
-  - 出表：`python tools/report_table.py evhandtrack_s43 evhandtrack_packet evhandtrack --label evhandtrack="EvHandTrack（运动学树 ghand + rol5，三种子，流式形式）"`。
-    - `evhandtrack_s43` 是 S43 的精度配同块成本。
-    - `evhandtrack_packet` 是普通分包形式（12.30 / 9.19 / 10.12 / 7.77 / 10.63，不异步，只作描述）。
-  - 成本：`tools/evhandtrack/cost2.py`，GPU 7 上一块测完（S43、分包、流式的快速 / 参考实现），主干用 `semkine/pmr_fast.py`。流式对 S43：参数 0.32×、MACs 0.79×、行时延 1.69×、端到端 p50 1.75×。
-  - B2 + rol5（11-09 误定为 EvHandTrack）改称"B2 + rol5"，留作对照：
-    - 文件在 `outputs/evhandtrack/b2rol5/`；
-    - 行 `b2rol5`（流式 12.95 / 7.96 / 10.70 / 6.46 / 10.28）、`b2rol5_packet`、`b2rol5_s43`；
-    - 工具 `tools/evhandtrack/identity_b2rol5.py`、`cost.py`（CMP 引用，不改）。
+- **EvHandTrack（用户 2026-11-09"看看哪个方法指标最好，最适合收敛一下，命名 EvHandTrack"；2026-11-10 两次纠正："我之前让你命名的EvHandTrack是那个利用运动学树的那个实验"、"EvHandTrack我说的是那个GNN确定能发挥效果的那一个，我昨天进行对比实验的那个"；2026-11-13 方法更新：11-12"全文统一成先路由"，11-13"论文用 r_s2dx2，真实数据，仿真数据，和 EvRealHands 两个真实数据集都换成 r_s2dx2"、"种子2个就行"、"更新一下EvHandTrack方法"）：** 现行方法 = 先路由采样 + 路由器 r_s2dx2 + PMR 设计 D1（R）+ rol5（臂 `rfsr` → `rfsr_rol5`，运行名 `pmr_rfsr_rol5_s<种子>`），种子 3407、3408。2026-11-10 定的先采样再路由版本叫"原版 EvHandTrack"，只作记录（本条末尾）。
+  - 选它的依据：S2 三种子对比实验确认 GNN（传播 P）有效，去掉 P 后 RA 差 2.75 / 4.28 / 3.80 mm（`#pmr-s2-results-20261109`）。不按"指标最好"挑变体。
+  - 组成（现行）：
+    - 输入：先路由采样（`semkine/rfs.py`）。
+      - 路由器 r_s2dx2（论文的 ESMNet）先判断整包全部事件，p ≥ 0.5 为手上。结构是 s2d stem，主干 32/64/96/128，FPN 64，头 128，58.0 万参数；r_s2d 是 16/24/48/64、32、64，13.7 万参数。
+      - 节点只从"手上事件 + 离它们 NEAR 像素以内（方窗）的手外事件"里按原规则采样：训练用每包 2048 的步长规则，读数用流式规则。NEAR 在 346 宽画布上是 16 px，在仿真 240 宽画布上是 11 px。
+      - 之后的 token、节点处的路由、PFA、残差槽和主干都不变；选节点不读前态、标签或 K。所以残差槽只收手边的手外事件。
+    - 路由器每个数据集各训一个，用该数据集 r_s2d 的配方，只换网络：
+      - 仿真：`outputs/rfsu/20261113/sim/routers/r_s2dx2/`；
+      - 真实 DAVIS346：`outputs/real/20261110/routers/chosen.json`；
+      - EvRealHands：`outputs/erh/20261111/routers/r_s2dx2/`。
+    - 主干：16 个部位节点 + 手节点上的运动学树传播 P（`semkine/pmr_trunk.py`，variant r）。3 轮、62 条分型边；门由前态 FK 关节几何算出，各轮共享。局部读出、无旁路，输出 51 维加性状态更新。与原版相同。
+    - 训练：`rfsr` 从头 6000 步（B2 配方），`rfsr_rol5` = 从同种子第 6000 步做 K = 5 闭环展开微调 1500 步，与原版相同。训练时路由器要判整批事件，`RFS.MAX_ROWS` = 4,000,000 限制分块补齐后的大小，训练进程开 `expandable_segments`。
+  - 运行与结果（现行，账本 `#rfsu-20261113`）：
+    - 入口：仿真 `tools/rfsu/sim.py`（流式读数），真实 `tools/real/rfs.py`，EvRealHands 经 `tools/erh/run.py tools.real.rfs`。
+    - 出表：`python tools/rfsu/tables.py all`。仿真主行文件 `outputs/semkine/cmp_evhandtrack_rfsr_main_row.json` 在成本块之后写出。
+    - 真实数据（三位留出受试者合并、正常光，三种子）：18.12 / 10.40 / 13.22 / 7.71 / RA 14.39，对四个基线五项都最好。
+    - 仿真与 EvRealHands（两种子）2026-11-13 晚出结果。成本等 RFSU 的成本块。
+  - 方法文档 2026-11-13 按现行方法更新：`docs/EVHANDTRACK_EXPERIMENT_SETUP_20261110.md`、`docs/EvHandTrack_手节点聚合与运动学状态更新_逐段详解_20261111.md`。改前副本在 `outputs/rfsu/20261113/docs_backup_20261113/`。
+  - 身份文件 `outputs/evhandtrack/identity.json` 目前仍是原版。仿真两种子和成本块完成后换成现行版，原版归档。
+  - **原版 EvHandTrack（2026-11-10 定，先采样再路由，路由器 r_s2d；只作记录）：** PMR 设计 D1（R）+ rol5，三种子（`pmr_d1r_rol5_s3407/8/9`），输入同 B2（r_s2d 路由 + PFA → 事件—顶点关系编码 → 部位统计量）。
+    - 身份：`outputs/evhandtrack/identity.json`（`python -m tools.evhandtrack.identity write|verify`；记录检查点、配置、路由器、读数、成本、异步回执的 SHA）。2026-11-10 03:08 UTC 转为正式版（`run_after_cmp.sh`），30 个文件；三个种子的流式异步检验都 PASS（`outputs/evhandtrack/receipts/`）。
+    - **主行用流式形式**（用户 2026-11-09"主行最好用流式形式"；`semkine/tpd_str.py`，路由器 r_s2d 按更新间隔、豁免）：`outputs/semkine/evhandtrack_main_row.json`，三种子 12.13 / 9.33 / 9.90 / 8.02 / RA 10.63（10.20 / 10.76 / 10.94），是 PMR 已有的零训练流式读数。
+    - 出表：`python tools/report_table.py evhandtrack_s43 evhandtrack_packet evhandtrack --label evhandtrack="EvHandTrack（运动学树 D1 + rol5，三种子，流式形式）"`。
+      - `evhandtrack_s43` 是 S43 的精度配同块成本。
+      - `evhandtrack_packet` 是普通分包形式（12.50 / 9.17 / 10.32 / 7.80 / 10.72，不异步，只作描述）。
+    - 成本：`tools/evhandtrack/cost2.py`（`--arm`，默认 `d1r_rol5`），GPU 7 上一块测完（S43、分包、流式快速 / 参考实现；主机负载 1.0–1.5），主干用 `semkine/pmr_fast.py`。
+      - 流式 17.45 ms / 0.102 G / 0.90 M；同块 S43 10.90 ms。
+      - 对 S43：参数 0.32×、MACs 0.79×、行时延 1.60×、端到端 p50 1.73×（`#evhandtrack-d1-cost-20261110`）。
+    - 两份更早的旧身份留作记录，都不再叫 EvHandTrack：
+      - B2 + rol5（11-09 误定）：`outputs/evhandtrack/b2rol5/`，行 `b2rol5`（流式 12.95 / 7.96 / 10.70 / 6.46 / 10.28）、`b2rol5_packet`、`b2rol5_s43`；工具 `tools/evhandtrack/identity_b2rol5.py`、`cost.py`（CMP 引用，不改）。
+      - PMR ghand + rol5（11-10 02:20–02:50 误定）：`outputs/evhandtrack/ghand/`，行 `ghandrol5`（流式 11.96 / 9.32 / 9.80 / 7.99 / 10.55）、`ghandrol5_packet`、`ghandrol5_s43`；工具 `identity.py --arm d1ghand`。
+    - 账本 `docs/EXPERIMENT_RECORDS.md#evhandtrack-d1-20261110` 与 `#evhandtrack-d1-cost-20261110`，取代 `#evhandtrack-20261109`、`#evhandtrack-str-20261109`、`#evhandtrack-tree-20261110`。
   - 和 ESMNet 一样，只是论文命名：run 名、配置键、检查点保持原标识，不重训。S39 / S43 的地位不变（S43 是对照）。
-  - 账本 `docs/EXPERIMENT_RECORDS.md#evhandtrack-tree-20261110`，取代 `#evhandtrack-20261109`、`#evhandtrack-str-20261109`。
 
 ## GPU 借卡原则（用户 2026-11-09："现在可以使用全部卡，但是使用GPU0-3号时，用gpu-borrow run借卡指令"，要求固定为长期原则）
 
 - **范围：**
   - GPU 0–3 是借用卡。任何作业（训练、读数、冒烟、探针）要用它们，都必须经 `gpu-borrow run --gpus <卡> -- <命令>`，从不直接用。
-  - GPU 4–7 照旧直接用。
+  - GPU 4–7 可直接用；与借用卡组成同一作业时，整组经 `gpu-borrow run`。
   - 用户 2026-11-09 起允许全部 8 张卡（PMR goal 起），各研究里"只用 GPU 2–7 / 4–7"的旧写法不再禁止借卡。
 - **gpu-borrow 的规则：**
   - 位置：`~/.local/bin/gpu-borrow`，代码与说明在 `tools/gpu_borrow/`（README）。
@@ -37,11 +52,11 @@
   - 环境：子进程的 `CUDA_VISIBLE_DEVICES` 是卡的 UUID。
   - 只读查看：`gpu-borrow probe --gpus 0,1,2,3`、`gpu-borrow status`。
 - **用法约束：**
-  - 借卡作业与 4–7 上的作业分开启动，不把 0–7 绑成一个 DDP 作业。
+  - **用户 2026-11-10 新指令：借用卡与直连卡允许混合配对，例如 GPU 2 + 5。** 调度器在指定候选池内按空闲情况选择任意二卡组合；只要含 GPU 0–3，完整作业就经 `gpu-borrow run --gpus <整组卡号>`，所有 rank 一起等待、一起让卡。不得把借用 rank 绕开包装器直接启动。此条取代旧的“借卡与直连卡不得组成同一 DDP 作业”。
   - 一张借来的卡上只放一个作业：同卡上自己的另一个作业也会触发让卡。
   - fresh-only 的训练被让卡后，下次启动先把上次未完成的输出目录归档，再从头跑；不靠断点续训。PMR 的实现是 `tools/pmr/borrow_job.py`。
   - 冻结的读数工具按序号要求 GPU 在 2–7 之间，借卡时会被拒，所以读数不放在借来的卡上。
-  - gpu-borrow 的系统服务里文件句柄软上限是 1024：K = 5 的 rol5 微调在借卡上会报 `received 0 items of ancdata` 而失败（`#pmr-amend8-20261109`），只放直连卡；从头训练（约 500 个句柄）在借卡上正常。
+  - gpu-borrow 的系统服务默认文件句柄软上限是 1024：K = 5 的 rol5 微调曾因此报 `received 0 items of ancdata`（`#pmr-amend8-20261109`）。新 PMR 入口 `tools/pmr/borrow_job2.py` 在原硬上限内把软上限至少提升到 65536，再调用原归档 / fresh-only 入口；驱动 6 因此允许 rol5 使用借用 / 混合对。旧入口未处理此限制，仍按旧规则只在直连卡跑 rol5。2026-11-12 真实数据的路由器训练（两卡、每卡 16 个数据进程）在借用卡上又因此报 "Too many open files"（`#real-rfs-20261112`）：在借用卡上跑任何多进程数据加载，作业命令里一律先执行 `ulimit -n 65536`。
 - **systemd-oomd 风险与修复（2026-11-09）：** 旧版 gpu-borrow 作业落在 `user@1004.service` 下。该服务的 systemd-oomd 配置为内存压力 > 50% 持续 20 s；50% 指 PSI 内存停顿时间比例，不是 RAM 使用率。同一服务下还有 GNOME 桌面、ToDesk、Firefox。
   - 2026-11-09 借卡冒烟时，oomd 先杀了 Firefox，约 15 s 后又杀了冒烟本身（`#pmr-amend4-20261109`）。
   - 修复代码改为默认系统级后端：实际训练及全部 DDP 后代运行在独立的 `/gpuborrow.slice/` 下，仍用普通用户 `lyq`，不再通过 `systemd-run --user` 启动大内存训练。不关闭全局 oomd，也不靠 `ManagedOOMPreference=omit` 排除训练。
@@ -49,7 +64,235 @@
   - 管理员安装入口与核对步骤见 `tools/gpu_borrow/README.md`。本机已经安装过旧版系统后端；撤回服务器上旧版策略须执行安装器 `--user lyq --update` 并通过 `gpu-borrow check-system` 核对，不能把源码修改当成服务器策略已经撤回。后端缺失时默认拒绝启动，不回退旧用户 scope；`--isolation user` 只供受控轻量兼容测试，不能用于研究训练。
   - `check-system` 用极小 CPU 命令核对 UID、实际 cgroup 路径，以及工具此前添加的服务与 slice 上限已恢复为不设限；不启动 GPU 训练，也不修改研究驱动策略。OOM 或真实训练失败不按 GPU 抢占无限重试。
 - **原则生效前已在跑的作业：** gpu-borrow 不接管已在跑的进程。原则生效前已在 GPU 0–3 上跑的作业，要么停掉、经 gpu-borrow 重跑，要么挂守卫 `tools/pmr/borrow_guard.py`，按同一规则让卡。
-- **驱动：** PMR 驱动 4 `tools/pmr/chain4.py`（继承驱动 3、2；成本读数不提前清场，`#pmr-amend7-20261109`）已内置这些规则：借用对只跑训练，等不到卡就改到直连对（`#pmr-amend4-20261109`、`#pmr-amend5-20261109`）。以后的驱动照此写；停掉子进程后先回收（`Popen.wait`），再查它的进程组，否则僵尸会读成"活着"。
+- **驱动：** PMR 驱动 6 `tools/pmr/chain6.py`（继承驱动 4 / 3 / 2；`#pmr-amend10-20261110`）支持混合配对，任何含借用卡的训练都整组包装；冻结的旧驱动不改。读数仍只放直连卡；等不到借卡时可改到直连对。以后的驱动照此写；停掉子进程后先回收（`Popen.wait`），再查它的进程组，否则僵尸会读成“活着”。
+
+## PMR · D2 单种子筛选（用户 2026-11-10 约 06:45 UTC："你现在执行1试试，应该是有空卡"）
+
+- **范围：** 只做 S9 登记的 D2（`d1hubfull`：部位→手节点逐部位满秩映射）种子 3407：从头 6000 步 → rol5 → 分包与流式读数 → 写定判读。PMR 的 STOP 只为这一项解除；驱动 4 不重启、它的 STOP 文件不动；补种子 3408 / 3409 须用户下令。
+- **来历：** 事后分解（`outputs/evhandtrack/analysis/posthoc_20261110/`，零训练、未登记）显示 EvHandTrack 自己多出来的误差是 zgz_global 上绕相机 y 轴的根偏置（三种子 +4.64 / +5.09 / +4.73°，B2 + rol5 +2.3–2.8°），出在"根只读手节点、手节点收 16 条部位消息的平均"这一步。
+- **登记：** `docs/EXPERIMENT_RECORDS.md#pmr-amend9-20261110`（驱动 5）、`#pmr-d2-screen-prereg-20261110`（判读）、`#pmr-d2-screen-cost-20261110`（成本描述读数与出表）。冻结 `outputs/pmr/20261109/manifests/amend9.json`、`s9xcost.json`。
+- **现役驱动 6：** `tools/pmr/chain6.py`（`setsid nohup … run`，状态 `outputs/pmr/20261109/driver6/`；`#pmr-amend10-20261110`）。驱动 5 已 drain，其完成记录与冻结文件保留。
+  - 训练池 0 / 1 / 2 / 5 / 7 中任意二卡组合，优先纯直连 (5, 7)，含借用卡就整对经 gpu-borrow；GPU 2 + 5 可用。rol5 也允许借用 / 混合对，通过 `borrow_job2.py` 提升文件句柄软限。读数只放 GPU 5 / 7；GPU 3、4、6 留给 CMP。
+  - CMP 的 `cost:*` 在跑或即将开始时不派发新作业。CMP 那边有门作业 `wait:quiet:a8`，本用户的 GPU 进程清空 60 秒后才开成本块。
+  - 原作业 `jobs/s9x.json`、`s9x_cost.json`（键前缀 `s9x:`）；命令与配置逐条取自 S9 的 `jobs16.py`。新队列 `jobs/driver6_migrated.json` 由 `tools/pmr/jobs18.py` 迁移未开始作业，只解除两个 rol5 作业的固定 (5, 7) 调度约束，并加 `amend10` 冻结检查；过程见 `driver6/migration.json`。
+- **判读（`python -m tools.pmr.analyze13 screen`，只算一次）：** 对同种子的 D1 R + rol5（流式 11.69 / 8.90 / 9.59 / 7.56 / 10.20，yb +4.64°，只算根的 global 8.42）。
+  - MECH：|yb| 降 ≥ 1.0° 且只算根的 global 降 ≥ 0.4 mm；METRIC：RA 降 ≥ 0.3、MPJPE-G 降 ≥ 0.5、MPJPE-L 不差超过 0.5。
+  - `D2_SCREEN_PASS` / `D2_MECH_ONLY` / `D2_METRIC_ONLY` / `D2_NULL`；结果写 `decisions/s9x_d2_screen.json`。
+  - 不论结果，EvHandTrack 的身份、主行与 CMP 主表不变。
+- **结果（`#pmr-d2-screen-results-20261110`，10:27 UTC 驱动 6 COMPLETE，20 个作业全过）：`D2_NULL`。**
+  - D2 + rol5 流式 12.32 / 9.08 / 9.95 / 8.02 / 10.58，五项都比同种子的 D1 R + rol5 差（+0.63 / +0.18 / +0.36 / +0.45 / +0.39）。
+  - 机制不成立：yb +4.64° → +4.58°，只算根的 global 8.42 → 8.10。手节点收消息的容量不是 global 根偏置的原因。
+  - 从头训练时 D2 的 RA 比 D1 R 低 0.48，rol5 之后反过来：单种子从头的差异仍是种子噪声。
+  - rol5 之后的 y 偏置按"节点输入"分族：PMR 这一族 +3.6° 以上（含拼接读出），B2 +2.31°。只是归纳，没有检验。
+  - D2 到此为止，不补种子；驱动 6 不再追加作业。
+  - 同块成本（参考实现，GPU 5 连测）：D2 24.15 ms / 0.106 G / 1.69 M，D1 R 23.24 ms / 0.105 G / 0.90 M。
+- **注意：**
+  - `semkine/pmr_fast.py` 的快速实现会漏掉 D2 的逐部位映射，D2 的成本只能用参考实现测（`tools/pmr/cost8.py`，D1 与 D2 同块连测）。
+  - 11-09 被终止的 3407 现场在 `formal_failed/s9_stopped_20261109/`；3408 / 3409 被终止的目录还在 `runs/` 下，没读过，重跑前先归档。
+
+## REAL · 真实 DAVIS346 数据上训练与实测三个基线（用户 2026-11-10："12人训练，1个人用来调参，2个人用来测试……先把这些定下来"；修订 1："所有方法拿同一条输入，即去畸变后的 DAVIS346 原生 346×260 事件流；之后每个方法按它自己论文的官方预处理来做，我们不替任何方法额外降采样。0-3号卡，全量训练。"）
+
+- **数据：** 原始 `/data1/lyq/data/hand_data_real/data_collection`（README 在那里）。转换 `tools/real/convert.py --canvas n346|n256`：同一虚拟针孔（640×480 网格 f = 480 px）写成 `hand_data_real_n346`（346×260，uint16，EventHands 整幅 / EvHandPose 裁 128×128）与 `hand_data_real_n256`（256×192 = EventHPE 官方 `img_size 256`，EventHPE 与其光流阶段 epf），都在 `/data1/lyq/code/mesh/EventHands/data/`；正常光标签 +6 ms。划分 `splits_real.json`：测试 kqj、lqh，调参 wh（按标签质量在仿真集外 10 人中选，定死），训练其余 12 人（含 `_v2/_v3/_v4`）。`hand_data_real51`（240×180）是作废批次的记录。
+- **范围：** `eho`、`epxf`→`epx`、`epf`→`ehpe` 三种子，配方原样（只换数据与画布、每训练 10 个数据进程、EvHandPose 裁剪系平移均值换成真实训练集的、域随机化平移按画布宽同比）。EvHandTrack 暂不训（用户）。不改 hand_data51、`splits_semkine.json` 与已有判读。
+- **修订 2（`#real-amend2-20261110`）：** 加 `fme`（FastMETRO-Event，整幅 346×260 补到 352×288，用户选的可部署形式；每 4000 步存检查点）；被让卡后允许从最新可读检查点续训（用户；偏离 fresh-only，`tools/real/train.py` 自动续，`cmp_resume_<k>.json` 记录），冒烟 / 读数 / 验收仍归档重跑。冻结 `manifests/r3.json`。
+- **登记：** `docs/EXPERIMENT_RECORDS.md#real-prereg-20261110`、`#real-amend1-20261110`；冻结 `outputs/real/20261110/manifests/r3.json`（`python tools/real/freeze.py verify --stage r3`；r2 为修订 1；r1 / r1b 是作废的 240×180 批次，产物在 `superseded_240x180/`）。
+- **代码：** `tools/real/`（convert、means、ns（命名空间：CMP 代码原样，按臂选画布；评测进程要 `ns.set_frame(cfg)`）、train、run（accept / e1）、pack、freeze、table）；配置 `configs/real_20261110/`；产物 `outputs/real/20261110/`。
+- **调度：** GPU 0–3 各一个 `gpu-borrow run --gpus <k> -- … tools/real/pack.py run --card <k>`（用户级 unit `real-pack-<k>`）；一个借卡作业内由调度器同时跑多个单卡训练（`pack/policy.json` 在线调：每卡至多 4 个、估计显存合计 ≤ 42 GiB、FastMETRO 每卡至多 2 个、EventHPE 每卡至多 2 个），各卡共用任务表 `pack/state.json`。冒烟全过自动开训（用户授权）。`touch outputs/real/20261110/pack/STOP` 停派发；`python tools/real/pack.py status` 看状态。
+  - 修订 3（`#real-amend3-20261111`，用户 2026-11-11："4-5双卡你用着"）：GPU 4、5 是直连卡，各直接起一个调度器（`CUDA_VISIBLE_DEVICES=<k> setsid nohup … pack.py run --card <k>`，不经 gpu-borrow）。被让卡的任务由心跳过期收回到别的卡；训练续训，读数重跑。
+  - 修订 4（`#real-amend4-20261111`，用户 2026-11-11 约 11:00 UTC："把 6、7 也给真实数据这边用"）：GPU 6、7 同样各直接起一个调度器（输出 `pack/card<k>.out`）。
+  - 起调度器时 `$!` 拿到的是 setsid 的父进程（随即退出）；真正的进程号看 `pack.py status` 的 card 行。
+  - 在跑的训练要换卡用 `tools/real/move.py --task train:<臂>:<种子> --to <卡>`（先 `--dry-run`）：等新检查点、临时调低 `max_jobs` 让只有目标卡有空位、杀掉后改回 PENDING 续训。不要直接杀训练进程：调度器会记 FAILED 并连带跳过读数与出表。
+    - 有多张空卡时，move.py 会拒绝（它要求只有目标卡有空位）。这时用 `tools/real/move_off.py --task <键>`（先 `--dry-run`）：不改 policy，靠 steer 已设的 max_jobs 让源卡没有空位，任何有空位的卡都可以接走（2026-11-12 把 ERH 的 ehpe 3407 / 3408 从卡 3 挪走）。
+- **读数：** E1 先测试 8 条再调参 4 条；正常光 / 暗光分开报。论文只用正常光（用户 2026-11-12："放在论文里的话，就用正常光照就行了"；两种光照合并的 table3 只作记录），并把三位留出受试者 kqj、lqh、wh 合并（用户 2026-11-12："你三位受试者算平均就行"；`python tools/real/table4.py` → `table4.md`，对比表 + 消融表）。EvHandTrack 保持原版流程，"先路由、再采样"只是零训练诊断；成本列：EvHandPose / EventHPE 沿用 CMP 的读数（网络与张量尺寸相同），EventHands（346×260）要在训练结束后的独占块里另测。2026-11-12 13:23 UTC 已测（`tools/real/cost.py`，GPU 4 独占）：EventHands 1.90 ms / 3.426 G / 11.18 M，FastMETRO-Event 26.54 ms / 11.432 G / 45.39 M，EvHandTrack 流式 17.33 ms / 0.168 G / 0.90 M。CMP 的成本块 `wait:quiet:a8` 要等本用户 GPU 进程清空，本研究训练期间会一直等。
+- **修订 5（`#real-amend5-20261111`，用户 2026-11-11："Evhandtrack这个方法也进行实验也加进去。在真实数据集下进行试验。2.补上我图中的消融试验，在真实数据集下的"）：** 取代"EvHandTrack 暂不训"。
+  - 臂（三种子）：完整模型 `d1r_rol5`（EvHandTrack）；图中消融 (a) w/o surface association = `abgeo_rol5`、Global MLP update = `d1m_rol5`、State-independent gating = `d1g0_rol5`，(b) Single-step only = `d1r_rol1`。配置 = 仿真登记表同臂同种子原样 + 真实数据改动（`tools/real/evht.py` 的 docstring）：n346 画布、像素长度 × 346 / 240、路由器 r_s2d 配方在真实训练集上重训、单卡 512 × 累积 2、无验证轮。
+  - 代码：`tools/real/evht.py`（登记表、`enter()` 帧补丁、accept、read）、`evht_train.py`（冻结的 train11 / train_rol7 原样，换登记检查）、`evht_router.py`、`xag_build.py`（XAG 伪源，输出 `outputs/real/20261110/xag_sources/`）、`evht_jobs.py`（`ev:` 任务；`ev:router` 是外部任务，路由器完成后 `router-done`）、`table2.py`（对比表 + EvHandTrack 行 + 图中消融表）、`table3.py`（对比表的两种光照合并，按标注帧数加权，与消融表"正常光 + 暗光"同口径；用户 2026-11-12 要"正常光照 + 黑暗光照求均值"；成本块之后与 table2 一起重跑）。配置 `configs/real_20261110/pmr/`，产物 `outputs/real/20261110/pmr/`。
+  - 路由器链 `outputs/real/20261110/pmr/router_chain.sh`（XAG → 路由器冒烟 → 正式路由器 GPU 4、5 双卡 DDP，同时跑 d1r 冒烟链 → router-done）。
+  - PMR 入口是 fresh-only：借卡被收回后，`evht_train.py` 先把旧运行目录归档到 `pack/preempted/` 再从头跑。
+  - policy：`max_per_arm.evht` 控制每卡 EvHandTrack 训练数（起始 1，卡空出后放宽并记 edits）。
+  - 主机内存（503 GB）是瓶颈：单卡 EvHandTrack 训练 6 个数据进程约 16 GB（12 个约 31 GB），FastMETRO 约 26 GB。内存闸门 `tools/real/memgate.py`（日志 `pack/memgate.log`）按可用内存逐个放行挂起的任务（`ev:hold:mem`、`erh:hold:*`、ERH 路由器链），不杀进程。
+  - 按负载放卡 `tools/real/steer.py`（日志 `pack/steer.log`）：让 `max_jobs` = 最空的可接卡任务数 + 1，新任务落到最空的卡（单独一卡的训练约快 3 倍）。用 `move.py` 前先停它（按进程组号）。
+  - 主机重启后的恢复（2026-11-12 01:13 UTC 停机后照此做，`#real-amend5-run-20261111`）：
+    - 直连卡：`CUDA_VISIBLE_DEVICES=<k> setsid nohup … pack.py run --card <k>`。
+    - 借用卡：`systemd-run --user --unit=real-pack-<k> --collect --working-directory=<仓库> -p KillMode=control-group ~/.local/bin/gpu-borrow run --gpus <k> -- <python> tools/real/pack.py run --card <k>`。
+    - 调度器启动时自己回收停机前在跑的任务：CMP 训练续训，EvHandTrack 从头跑，读数归档重跑。
+    - 借用卡加入前 `max_jobs` 设 2，加入后再起 steer（`pack/steer_after_borrow.sh`），否则任务会全挤到直连卡上。
+    - `tools/real/holdgate.py` 让 ERH 非 FastMETRO 训练等真实数据训练跑完再放行。用户 2026-11-12 要求"把卡占满"后已停用、全部放行。
+  - FastMETRO 独占一卡：policy `est_gib.fme` = 40（接近每卡上限 42）。它受 GPU 限制，同卡挤别的任务会慢 2–3 倍，而 ERH 的三个 FastMETRO 是最长的一条。
+  - (a) w/o surface association 按仿真做法处理（用户 2026-11-12）：
+    - 表里报 rol5 训练结果，读数失败的种子不进均值，并在表下注明。
+    - 另读微调前对照 `ev:e1:d1r:<种子>` / `ev:e1:abgeo:<种子>`（从头基座，描述），列出闭环微调中的关联比例。
+    - 这三块由 `tools/real/table2.py` 一并输出。`ev:table` 被跳过，读数结束后手动运行。
+- **事后分析（2026-11-12，`#real-amend5-run-20261111` 的 13:15 UTC 条，零训练、描述）：** 真实数据上 EvHandTrack 优势变小，原因是手外事件。
+  - 现象：真实 DAVIS 的 local 序列只有约 15–30 % 的事件在手附近，正常光下主要是背景静态边缘与前臂，暗光下是传感器噪声；仿真约 90 %。
+  - 机制（14:35 再更正）：
+    - 路由器判手上很准，但被拒的节点会进 S45 的残差槽，照样输入主干。
+    - 手外事件（同一张桌面、前臂）被所有网络当作判断手朝向的线索：在调参 wh 上有用，在测试 kqj、lqh 上把朝向带偏约 10°。EvHandTrack 再把朝向误差累积下去。
+    - 只改测试时的采样或过滤（先路由、near30、真值掩码），测试受试者变好，wh 变差（RA 13.23 → 16.9–21.3），按协议不能采用。
+    - 相机与背景在各场次一致。
+  - 验证：真值掩码、先路由、near30 等零训练读数见账本 `#real-amend5-run-20261111` 的 13:15 / 13:36 / 14:35 UTC 三条。
+  - 工具：`outputs/real/20261110/analysis/onhand/read.py`（`--variant onhand|baf<T>`，换掉 `tools/pfo/nets.py` 的 `sequence` 返回的事件，输出另写，不碰研究读数）、`compare.py`；标签对齐与分解在 `analysis/local_floor/`。补救方向待用户决定。
+- **RFS（`#real-rfs-20261112`，用户 2026-11-12："EvHandTrack 先路由，残差槽只收手边事件，这部分给我实验。想想怎么提升路由质量"）：** EvHandTrack 改为先路由再采样，是用户决定的方法改动。
+  - 规则：路由器先判断包内全部事件，节点只从"判为手上的事件 + 离它们 16 像素以内的手外事件"里按原规则采样，其余不变。代码 `semkine/rfs.py`，测试 `tests/test_rfs.py`。
+  - 训练与读数：`tools/real/rfs.py`（臂 `rfs` / `rfs_rol5`，进程内加入登记表，冻结文件不改）；驱动 `outputs/real/20261110/pmr/rfs_chain.sh`，三种子在 GPU 4–6。
+  - RFS 的入口必须同时重绑 `semkine.s45sm` / `semkine.pfo_router` 的 `stride_sample`：原版路由路径中路由器会自己再采一遍节点，并检查和主干的节点是否一致。
+  - 路由质量：留出受试者的路由真值 `outputs/real/20261110/analysis/router/xag_heldout.py`，评测 `router_eval.py`，候选路由器 `tools/real/router_variant.py`（`ROUTER_VARIANT` 环境变量指定）。
+  - 路由器判定（2026-11-12 18:28 UTC；`analysis/router/decide.py`，按写定规则只算一次）：r_s2dx2（宽度加倍，58 万参数）入选，写入 `outputs/real/20261110/routers/chosen.json`，之后不改。r_s1x2 同样达标，但只好 0.001，按规则取成本低的。
+  - 新臂 `rfsr` / `rfsr_rol5` = RFS + 入选路由器，配方同 `rfs`。驱动 `outputs/real/20261110/pmr/rfsr_chain.sh <种子>`（GPU 7 直连，借用卡 0、1 经 gpu-borrow；重启时跳过已验收阶段）。
+  - 出表：`python tools/real/table5.py`（table4 的对比表加两行 RFS）。
+  - 结果（2026-11-12 21:35 UTC，`rfs_rol5`，三位留出受试者、正常光）：
+    - 五项 19.08 / 12.71 / 14.01 / 9.11 / RA 16.00（16.04 / 15.55 / 16.43）；原版 22.11 / 17.70 / 15.38 / 10.82 / 19.98。
+    - 三位受试者都变好，wh 也是（13.23 → 12.63）：零训练换入时 wh 变差的代价，训练后没有出现。
+    - 对基线：四项最好，只有 MPJPE-G 比 FastMETRO-Event 差 0.41。
+  - 成本工具 `tools/real/rfs_cost.py`：
+    - 可部署形式：每包只跑一次路由器（判全部事件），历史窗口的资格沿用上一包，节点的路由直接取用。
+    - 计时前先核对：与读数实现逐包比较，冒烟 20 / 20 个包节点相同，状态最大差 3.6e-7。
+    - 节点选择算在每步之内（`--select step`）。原版另按两种口径在同块重测。
+    - 原定的正式块 `outputs/real/20261110/pmr/rfs_cost_block.sh` 已于 23:41 UTC 停掉，挪到 RFSU 全部重训之后，与仿真的先路由行同块测（见下面 RFSU 一节）。
+- **ERH（`#erh-prereg-20261111`）：** 五个方法在 EvRealHands 上同一套配方训练与测试，见下面 ERH 一节。任务与 REAL 共用同一个调度器任务表（`erh:` 前缀）。
+- **论文的事件输入图（用户 2026-11-13）：** `tools/real/event_stream_figure.py` → `docs/assets/event_stream_input_20261113/`。
+  - 内容：ch_global 正常光 34.25–35.42 s 的原始事件（未去畸变）画成 (x, y, t) 时空流。红 = ON，蓝 = OFF。
+  - **论文用 `events` 版式（默认）**，用户的要求按先后：先让人看清输入的是什么，再让审稿人看出单位是事件而不是图片。
+    - 只留最前面一张投影（35.42 s 前 35 ms 的事件），保证显示器底座、键盘、鼠标和手认得出；中间不放切片（三张切片像抽帧）。不要再提纯点云、没有任何投影的版本，用户看过说认不出内容。
+    - 视角接近正对投影面：水平转角 20°、俯角 15°。用户看过 30° / 22° 的版本后要求"稍微平行这个平面一点"。
+    - 不带放大镜：用户看过带放大镜的版本后让删掉。图上的标注只有 x、y、t 和 p = ±1 图例。
+    - 图上只说输入是一个个事件。路由器仍按包读事件图，图注不要写成"事件到达即处理"。
+  - 另外三种是先前的版本：
+    - `lens`：视角更斜（30° / 22°），带放大镜。放大镜里是拇指根部 8×7 像素、最后 12 ms 的 43 个事件，每个画成一颗小球，立在自己的像素上、停在自己的时刻；标 e_i = (x_i, y_i, t_i, p_i)。
+    - `diagonal`（三张切片）、`stack`（时间竖直）。
+  - 每种版式有完整的透明底、白底，以及去掉文字（`events`、`lens`）或去掉时间轴的透明底，参数与事件数记在同名 json。
+  - 只用 CPU，`events` 约 1 分钟，四种一起（`--layout all`）约 6 分钟；用 `/data1/lyq/miniconda3/envs/EventHands/bin/python`（要 cv2）。改参数用 `--set key=json`（如 `az=-16 el=12` 更正、`az=-24 el=18` 更斜），先加 `--preview` 和 `width=1400` 看效果。
+  - 只为显示做了邻域过滤（8 邻域 ±5 ms 内少于 3 个其它事件的不画，支持弱的画淡）。
+- **论文 pipeline 图第一部分 (a) 事件—表面关联（用户 2026-11-13："你现在直接给我画出来"）：** `tools/real/pipeline_part_a.py` → `docs/assets/pipeline_part_a_20261113/`（PDF / SVG 文字可编辑，PNG 600 dpi，`assets/` 下是四块透明底素材，json 记参数与事件数）。
+  - 构图：上行"手上哪一点（只看事件）"，依次为事件流、ESMNet（冻结）、先路由后的事件；下行"空间里在哪（前态）"，依次为 x_{k−1}、MANO、前态网格。两行之间的对应连线就是表面关联；右侧放大图画 δ_i，箭头指向 (b)。设计尺寸 140 × 78 mm，字号 7 pt 左右。
+  - 内容全部是真实计算，不是示意：
+    - ch_global 去畸变后的 346 × 260 流（网络实际读的那份），更新区间 k = 转换后 ms (35357, 35407]，就是事件输入图最前面那 50 ms。
+    - 真实数据的 ESMNet（r_s2dx2，`routers/chosen.json`）判全部 26,908 个事件：在手上 8,871 个，加 16 px 手边带共 11,559 个进入取样。
+    - 对应点和 δ_i 用 PFA 的公式在前态网格上算。δ_i 中位 3.3 px / 6.8 mm，方向一致朝上，因为手在这 50 ms 内上移约 5 px。
+  - 前态 x_{k−1} 用区间起点的标签代替跟踪器的状态（图注要写明）。ch 是训练受试者，这张图只作示意。
+  - 两步运行：`EventHandsTrain` 环境跑 `data`（torch、CPU，约 1 分钟），`EventHands` 环境跑 `render`（cv2 + matplotlib，约 40 秒；`--preview` 出低分辨率到 `outputs/real/20261110/analysis/figure_pipeline_a/preview/`）。
+  - 配色：部位色为掌浅棕、拇指橙、食指金黄、中指绿、无名指紫、小指粉，近端到远端三档深浅。红 / 蓝只表示极性；手边带深灰，丢弃浅灰。
+- **论文的 ESMNet 关节归属图（用户 2026-11-13："画一个ESMNet处理后的event信息图……最好让人能看出来是属于哪个关节"）：** `tools/real/esmnet_joint_figure.py` → `docs/assets/esmnet_joint_assignment_20261113/`。
+  - 左：与事件输入图同一个 50 ms 包（ch_global，转换后 ms 35358–35407，即原始流 35.37–35.42 s）。真实数据的 ESMNet（r_s2dx2）在 CPU 上判全部 26,908 个事件，调用与先路由流程相同。图上画包内最新 35 ms，n346 画布上每个事件按所属关节上色；手上概率 < 0.5 的事件画浅灰。每个像素取多数关节。
+  - 右：颜色说明。MANO 模板手掌面朝前（手指朝上、拇指在右，与左图同向），16 个部位用同样的颜色，叠加关节和骨架；指名用该指的颜色，小指旁标 MCP / PIP / DIP。模板细分两次，蒙皮权重做 3 轮邻域平均，只为显示时边界平滑。
+  - 配色沿用 pipeline (a) 的手指基色，只在 OKLCH 里把三节的亮度拉开（−0.12 / 0 / +0.10），否则同一根手指的三个关节分不出来。(a) 本身仍是 ×0.86 / +32 %。
+  - 版式 `full`（默认）/ `events` / `key`，每种都有透明底、白底、无字版（与带字版同尺寸、同位置）。json 记路由器 SHA、包、计数，以及与 XAG 标签的一致率（部位 0.83、手指 0.91；ch 是训练受试者，属样本内）。
+  - 用 `EventHandsTrain` 环境（要 torch，不要 cv2），约 1 分钟；改参数用 `--set key=json`，先加 `--preview` 看效果。
+
+## RFSU · 全文统一成先路由（用户 2026-11-12 约 23:30 UTC："全文统一成先路由"；2026-11-13 约 02:33 UTC："论文用 r_s2dx2，真实数据，仿真数据，和 EvRealHands 两个真实数据集都换成 r_s2dx2"）
+
+- **范围：** 论文里 EvHandTrack 的流程统一为先路由、再采样（`semkine/rfs.py`），路由器在三个数据集上都换成各自训练集上训练的 r_s2dx2（宽度 32/64/96/128，FPN 64，头 128，58.0 万参数）。用到它的地方都重训。臂名带 `rfsr`。
+  - 仿真：
+    - 先训仿真 r_s2dx2：`tools/rfsu/router_sim.py`，PFO r_s2d 的仿真配方原样，只换网络；产物 `outputs/rfsu/20261113/sim/routers/r_s2dx2/`。
+    - 主行 `rfsr` → `rfsr_rol5`。图中消融：`rfsrgeo(_rol5)`（w/o surface association）；`rfsrm(_rol5)` / `rfsrg0(_rol5)`，两种子 3407 / 3408，同原表；`rfsr_rol1`（Single-step only）。
+  - EvRealHands：
+    - 先训它自己的 r_s2dx2：`tools/real/router_variant.py` 经 `tools/erh/run.py`；产物 `outputs/erh/20261111/routers/r_s2dx2/`。
+    - 主行 `rfsr` → `rfsr_rol5`。
+  - 真实数据：主行 `rfsr_rol5` 已有。消融 `rfsrgeo(_rol5)`、`rfsrm(_rol5)`、`rfsrg0(_rol5)`、`rfsr_rol1`。
+  - 用 r_s2d 的先路由臂（`rfs*`）作废、留作记录，不进论文：真实 `rfs_rol5`、EvRealHands `rfs_rol5`、仿真 `rfs` 3408 的基座。
+- **种子（用户 2026-11-13 约 07:25 UTC："不用那么多种子啊，种子2个就行"）：** 未完成的单元只跑 3407、3408。
+  - 七个未开始的 3409 单元记 SKIPPED：仿真 rfsr / rfsrnp / rfsrgeo / rfsr_rol1，真实 rfsrgeo / rfsrm / rfsrg0。
+  - 在跑的 `erh:rfsr:3409` 07:29:47 UTC 停在从头训练第 5500 步之后，记 SKIPPED（不是失败）。
+  - 已完成的三种子（真实主行 `rfsr_rol5`、`rfsr_rol1`）照用。
+  - `tools/rfsu/tables.py` 在仿真 3407 / 3408 都有读数时写仿真主行文件（`n_seeds` 2）。
+  - NOPART 同样改两种子（`#nopart-amend2-20261113`）。
+- **规则：** τ = 0.5；手边半径在 346 宽画布 16 像素、仿真 240 宽画布 11 像素（都约等于 640 网格 30 像素）。无表面关联的臂另载该数据集的路由器只用于采样（`RFS.ROUTER_CHECKPOINT`），关联仍是射线关联。
+- **登记：** `docs/EXPERIMENT_RECORDS.md#rfsu-20261113`。
+- **代码：**
+  - `tools/rfsu/sim.py`：仿真登记、训练、验收、流式读数。DDP 第二进程以 `sim.py --config <配置>` 重启，入口已处理。
+  - `tools/real/rfs.py`：加了消融臂；EvRealHands 经 `tools/erh/run.py tools.real.rfs …` 运行。`#real-rfs-20261112` 的四个臂配置不变。
+  - 驱动 `tools/rfsu/lane.py`：每张卡（或每对卡）一个 lane，从 `outputs/rfsu/20261113/queue.json` 领任务。
+    - 状态：`python tools/rfsu/lane.py status`。
+    - `touch outputs/rfsu/20261113/STOP` 停止领取，在跑的任务照常跑完。
+    - 阶段按验收回执 / 读数报告跳过。借用卡让卡后由 gpu-borrow 重启，训练入口归档旧目录、从头跑。
+    - 依赖记 FAIL / SKIPPED / SUPERSEDED 的单元永远开不了，会被记 SKIPPED，否则 lane 不退出、成本块一直等。外部单元可写 `owner`（负责标记它的单元）；owner 结束而它没被标记时，按 owner 的结果补记 DONE / FAIL。新 lane 每次领任务时做；2026-11-13 04:31 UTC 前启动的旧 lane 由后台 `lane.py skip-blocked --loop 300` 补做。
+    - 别的会话往队列加单元（如 NOPART 的 `router:simnp`、`sim:rfsrnp:*`）时，在 lane 的锁里原子写 queue.json。
+- **卡：**
+  - 直连对 (4, 5) 先训仿真路由器（`router_sim.sh`），借用对 (0, 1) 先训 EvRealHands 路由器（`router_erh.sh`，用户级 unit `rfsu-erh-router-p01`）。之后两对卡作为 lane p45、p01 跑仿真。
+  - 直连 6、7 与借用 2、3 跑单卡。仿真领完后，双卡 lane 拆成两个单卡 lane。
+  - 单卡队列领完、单卡 lane 退出后，若还有未领的仿真单元，`tools/rfsu/pairup.py`（setsid 后台，日志 `logs/pairup.log`）会把空出的两张卡组成新的双卡 lane；含借用卡的整对经 gpu-borrow。它不碰在跑的 lane。
+  - 外部单元 `router:sim` / `router:erh` 由路由器脚本用 `lane.py mark` 标记。`gate_configs.sh` 在路由器完成后写 trunk 配置，再打开 `configs:sim` / `configs:erh`。lane 自己不写配置。
+  - 真实消融也挂在 `configs:erh` 后面，好让 EvRealHands 主行先占单卡。
+  - 日志 `outputs/rfsu/20261113/logs/`。
+- **成本：** 全部重训之后，仿真与真实的先路由行和原版在一个安静独占块里同测。脚本 `outputs/rfsu/20261113/cost_block.sh` 已在后台等待，状态在 `cost_block.status`。工具：真实 `tools/real/rfs_cost.py`，仿真 `tools/rfsu/cost.py`。
+- **出表：** `python tools/rfsu/tables.py all` → `outputs/rfsu/20261113/tables/{sim,real,erh}.md`。论文各表的 EvHandTrack 行与消融行换成 `rfsr` 臂；表下记录原版，以及有 r_s2d 先路由行的地方。仿真主行文件 `outputs/semkine/cmp_evhandtrack_rfsr_main_row.json`（成本测完后写出）。
+- **显存（工程修订 1）：** 先路由训练时路由器要判整批事件，新臂在配置 `RFS.MAX_ROWS = 4,000,000` 里限制分块补齐后的大小；lane 的训练进程开 `expandable_segments`。
+
+## NOPART · ESMNet 训练时去掉部位损失（用户 2026-11-13 约 03:20 UTC："如果训练时也去掉部位损失，c_i 本身会不会变好或变差……你现在进行重新训练，最后给我一个完整的结论"；排期用户选"排在仿真主模型后"）
+
+- **登记：** `docs/EXPERIMENT_RECORDS.md#nopart-prereg-20261113`（写定规则）。来历是 `#esmnet-nopart-20261113` 的零训练解码对照。
+- **内容：**
+  - 路由器 `r_s2dx2np`：仿真 r_s2dx2 的配方原样，只把部位损失权重设为 0（`tools/nopart/router_sim.py`，产物 `outputs/nopart/20261113/sim/routers/`）。
+  - 检查点带 `nopart` 标志。`semkine/nopart.py` 的 `enable()` 让这种检查点只用 c_i 解码：全手 1538 个面里取最近的模板面质心。
+  - 主干 `rfsrnp` → `rfsrnp_rol5` = `rfsr` → `rfsr_rol5` 只换路由器，与 RFSU 的主行同种子配对。
+  - 种子：两个，3407 / 3408（用户 2026-11-13 约 07:25 UTC："种子2个就行"；`#nopart-amend2-20261113`）。`sim:rfsrnp:3409` 与 `sim:rfsr:3409` 都已记 SKIPPED。
+- **接入 RFSU（只做加法）：**
+  - `tools/rfsu/sim.py` 末尾有带保护的钩子，经 `tools/nopart/sim_ext.py` 加两臂；已有臂的配置逐字节不变（`tests/test_nopart.py`）。
+  - 队列里有 `router:simnp`（外部单元）和 `sim:rfsrnp:<种子>`，排在 `sim:rfsr:3409` 之后（`tools/nopart/queue_add.py`）。
+  - 路由器在 `sim:rfsrnp:3407` 的训练阶段里先训，训完由 `sim_ext.ensure_router` 标记 `router:simnp`，并跑路由器对比 `tools/nopart/router_compare.py`（结果在 `outputs/nopart/20261113/router_compare/`）。
+- **出表：** `python tools/nopart/table2.py`（路由器层面 + 主干配对差与两种子写定判读；冻结的三种子版 `table.py` 不再用）。冻结 `outputs/nopart/20261113/manifests/r1.json`（`python tools/nopart/freeze.py verify`）与 `r2.json`（table2）。
+
+## ERH · EvRealHands 上训练与实测五个方法（用户 2026-11-11："/data1/lyq/code/mesh/data1/EvRealHands这个数据也是，按照EventHands，EvHandPose，EventHPE，FastMETRO-Event ，EvHandTrack全跑一遍"）
+
+- **登记：** `docs/EXPERIMENT_RECORDS.md#erh-prereg-20261111`。本研究里 EvRealHands 用于训练 + 测试；`#mv2-decisions-20261025` 的"只作最终测试"不再适用于本研究。hand_data51 与 `splits_semkine.json` 不变。
+- **数据：** `tools/erh/convert.py` → `/data1/lyq/code/mesh/EventHands/data/erh_n346`、`erh_n256`。
+  - 划分 `splits_erh.json`（官方 `pretrain.yml`）：训练受试者 0 2 4 5 6 8 9，调参 7，测试 1 3。
+  - 两只手都用，左手镜像 + `manos_flip`；2D-only 的四个快速 trial 排除。
+  - 标签 15 fps；有效段对齐到"标签 + 1 ms"，使 50 ms 端点每 200 ms 落在标签上。
+  - 每序列 `_motion.npz` 存逐标签运动分档（3 = local，4 = global）。
+- **命名空间：** `tools/erh/ns.py` 重定向 `tools/real/ns.py`；真实数据研究的工具一律经 `python tools/erh/run.py <模块> …` 运行（如 `tools.real.train`、`tools.real.run`、`tools.real.evht_train`、`tools.real.evht`、`tools.real.xag_build`、`tools.erh.table`）。
+  - EvHandTrack 工具在 ERH_NAMESPACE=1 时自己装入命名空间（DDP rank 1 重启继承环境变量）。
+  - 读数引擎会在 PYTHONHASHSEED ≠ 3407 时把自己重新执行一遍（`tools/xcl/evaluate.py` `configure_environment`）。重新执行的是 `sys.argv` 指向的脚本，这会让进程跳出命名空间。
+    - 2026-11-12 起，`tools/erh/run.py` 在装入命名空间前，先以 POLICY_ENV 重新执行包装器本身，读数类命令都这样。
+    - 别的包装器若改写 `sys.argv` 再调用读数，也要这样处理。
+  - `tools/erh/ns.py` 的 BINDERS 列出的模块不能在 `install()` 之前导入。`tools/erh/jobs.py` 先导入 `tools.real.pack`，再装命名空间：调度器任务表是 REAL 的。
+- **配方：** 与真实数据研究完全相同（eho / epxf→epx / epf→ehpe / fme / EvHandTrack d1r→d1r_rol5，三种子）；EvHandPose 裁剪均值按 ERH 训练集重算（`tools/erh/means.py`）；EvHandTrack 的路由器与 XAG 伪源在 ERH 训练集上重建（`outputs/erh/20261111/pmr/router_chain.sh`，GPU 6、7）。
+- **调度：** `tools/erh/jobs.py add` 已加 78 个 `erh:` 任务。
+  - 正式训练挂 `erh:hold:<种子>`（外部任务），由内存闸门放行；除 FastMETRO 外的正式训练另挂 `erh:hold:mem`，同样由闸门逐个解除。FastMETRO 每个种子约 19 h，先跑；之后依次是 epf→ehpe、EvHandTrack d1r、eho、epxf→epx（`#real-amend5-run-20261111`）。
+  - EvHandTrack 路由器完成后 `tools/erh/jobs.py router-done`（链脚本自动做）。
+- **出表：** `python tools/erh/run.py tools.erh.table` → `outputs/erh/20261111/table.md`。
+  - 只在标注时刻计分；local / global 按逐标签运动分档，RA 为全部标签。
+  - 测试按场景 normal / highlight / flash 分表，另有全部场景；调参只作描述。
+  - 成本沿用真实数据研究的读数。
+
+## RDR · 同成本路由器重设计（用户 2026-11-10 约 13:30 UTC："改动 1 单独、1 + 2、1 + 2 + 3 各一个，4-7，几个卡全部空着，你充分利用GPU，现在剩下的时间不多了"）
+
+- **来历：** 事后分析（`#evhandtrack-lever-analysis-20261110`、`#router-design-analysis-20261110`）：有重复证据的杠杆是路由器质量（T0P 训练并测试的五个主干 10.60–11.56，sr1 的四个 12.18–13.00）；主干真正敏感的是"包 × 部位"的相干偏移；手只占图像的 6–13 %。用户要求在不增加参数、时延、FLOPs 的前提下重新设计。
+- **登记：** `docs/EXPERIMENT_RECORDS.md#rdr-prereg-20261110`（路由器筛选）、`#rdr-amend1-20261110`（主机瓶颈与双卡布局）、`#rdr-trunk-prereg-20261110`（主干阶段）。冻结 `outputs/pmr/20261109/manifests/rdr.json`。
+- **路由器（`semkine/rdr_router.py`、`tools/rdr/train.py`，产物 `outputs/rdr/20261110/`）：**
+  - `v1`：稠密主干只算事件定的 112 × 112 裁剪框（框心 = 事件坐标 5 % / 95 % 分位数的中点，不读前态），全分辨率 stem，特征图在框的 1/2 分辨率；平滑卷积改可分离。
+  - `v2` = v1 + 损失里的"包 × 标签部位"均值项；`v3` = v2 + 279 个表面块分类头。
+  - 成本：v1 / v2 129,668 参数、62.0 M MACs；v3 134,395 参数、71.2 M；r_s2d 137,252 参数、74.5 M。对照 v0 没训，参照是已发布的 r_s2d。
+- **筛选量与规则：** 相干偏移（`outputs/evhandtrack/analysis/posthoc_20261110/router_capture.py --rdr` 抓取，`python -m tools.rdr.decide` 判）。对 r_s2d（ylf_local 7.8、zgz_local 8.0、zgz_global 3.4）：三条都降且平均降 ≥ 10 % 为 `BETTER`。
+- **主干阶段（登记表 `tools/pmr/arms10.py`）：** 入选路由器 v<k> → `d1rv<k>`（D1 R 用它从头训练）+ `d1rv<k>_rol5`（主要读数），`d1rw<k>_rol5`（D1 R 的检查点直接用新路由器做 rol5，旁证）。对同种子 EvHandTrack（流式 RA 10.20）：RA 降 ≥ 0.5 且 MPJPE-L / G 不差超过 0.3 为 `TRUNK_BETTER`。补种子、换身份须用户决定。
+- **钩子：** `semkine/rdr_hooks.enable()` 让 "pfr" 这个路由器种类按检查点类型加载 RDR 网络，PMR 已冻结的工具经薄包装原样运行（`tools/pmr/train10.py`、`run10.py`、`train_rol5.py`、`run_rol5.py`、`run_forms5.py`）。
+- **驱动：** `outputs/rdr/20261110/chain2.sh`（`setsid nohup`，只等文件）：v2 / v3 训完 → 抓取与判读（`chain_result.txt`、`decisions/screen_a.json`）→ 主干两条链（`trunk_scratch.sh` 在 GPU 6–7、`trunk_warm.sh` 在 GPU 4–5，状态 `trunk_<臂>.status`、结果 `trunk_<臂>.result.txt`）→ v1。
+- **注意：**
+  - 瓶颈是主机内存与主进程，不是 GPU：同机有另一会话 REAL 研究的约 110 个进程。四个单卡训练（每包 1024）把内存压力推到 25 % 并停摆过。用原配方的双卡布局（四张卡两个训练），预取 1，开训前要求可用内存 ≥ 150 GiB。
+  - 停进程按进程组号，不用会匹配到自身命令行的 `pkill -f`。
+
+## ABL · EvHandTrack 关键模块消融（用户 2026-11-10 约 15:50 UTC："你先安排上1.如果你现在的实验方法有效果，就按照你现在的方法进行横向实验。2.如果你现在的方法不管用，那还是用现在已经定的EventTrack，进行横向实验……到时候所有的GPU剩下的全部安排上，效率高点，我时间不够了"）
+
+- **登记：** `docs/EXPERIMENT_RECORDS.md#abl-prereg-20261111`（另有 RDR 筛选结果 `#rdr-screen-results-20261110`：v2 / v3 都 `BETTER`，选中 v3）。冻结 `outputs/pmr/20261109/manifests/abl1.json`、`abl2.json`。
+- **路线（`tools/pmr/abl.py`）：** RDR v3 的主干 `d1rv3_rol5` 判 `TRUNK_BETTER` → 路线 1（完整模型 = D1 R + RDR v3 + rol5）；否则路线 2（完整模型 = EvHandTrack）。门作业 `a:gate:p1:v3` / `a:gate:p2`，判读写 `outputs/pmr/20261109/decisions/abl_gate_*.json`。
+- **六个变体（登记表 `tools/pmr/arms11.py`）：** (a) `abgeo` 几何邻近（射线）关联替代路由器；(b) `abnr` / `abnrv3` 去事件—前态残差（`semkine/pmr_trunk11.py`）；(c) `d1m` / `abmv3` 拼接 + MLP；(d) `d1g0` / `abg0v3` 静态分型边门控；(e) `d1h0` / `abh0v3` 去整手—部位通信；(f) `d1r_rol1` / `d1rv3_rol1` 单步微调（K = 1）。都是从头 6000 步 + rol5，(f) 只把 rol5 换成 rol1。
+- **出表：** 流式 E1，zgz_local / zgz_global 的 MPJPE、MPVPE（用户指定只报这四个）；观测不足部位（每包该部位标注事件 < 10）的关节误差；长时误差曲线。描述性消融，不设门；路线 2 再补种子 3408 / 3409。
+- **结果：** RDR v3 主干 `TRUNK_NULL`（RA 10.44 对 10.20，`#rdr-trunk-results-20261110`），2026-11-10 18:10 UTC 走路线 2（已定的 EvHandTrack）。v1 路由器 `EQUIVALENT`。中间消融表见 `#abl-amend1-20261111` 与 `outputs/pmr/20261109/analysis/abl_table_interim.md`。
+- **修订 2（`#abl-amend2-20261111`，用户 2026-11-11 约 02:00 UTC："我只要证明每步是有效的，不一定非要遍历所有的方法吧"）：** 收缩为三步各一个消融，三种子：第 1 步 (a) `abgeo_rol5`，第 2 步 `d1n_rol5`（传播消息置零，即 S2 的 R-noprop），第 3 步 (f) `d1r_rol1`。(b)–(e) 不再补种子，已有种子只作补充行。
+- **最终结果（`#abl-results-20261111`；终表 `python -m tools.pmr.abltable3 table` → `outputs/pmr/20261109/analysis/abl_table.md`，含 abltable2 的表）：** 流式 E1，Local / Global 的 MPJPE、MPVPE，三种子均值。
+  - 完整 EvHandTrack：12.13 / 9.90，9.33 / 8.02。
+  - 第 2 步（传播置零）：13.74 / 11.13，11.39 / 8.99。三种子四项同向变差，+1.0–2.1 mm。
+  - 第 3 步（rol1）：13.18 / 10.60，9.22 / 7.77。Local 三种子同向变差约 1 mm；Global 不变（略好）。
+  - 第 1 步（几何邻近关联）：59.89 / 43.54，95.61 / 65.68，三个种子在 rol5 里都发散 / 漂移：射线关联对着前态网格，前态一偏就打不到网格。有效关联比例 0.80 → 0.01–0.13，3407 / 3409 没恢复；EvHandTrack 全程 0.80。
+    - 这一步的幅度看微调前对照（从头 6000 步，同配方同数据流）：流式 (a) 18.71 / 15.09，11.78 / 9.42，对 EvHandTrack 基座 13.22 / 10.80，9.81 / 8.04，三种子四项同向。读数用 `tools/pmr/run_forms7.py`（冻结 `manifests/abl5.json`），是看到发散后加的，属事后描述。
+  - 第 3 步再分解：单步微调只改善 Global（约 −0.6），Local 不变；五步闭环才让 Local 降约 1.1。
+  - 观测不足部位：去掉传播后观测不足与充分的部位都变差，不特异。对完整模型，观测不足的部位反而不比充分的难（分组把"不动"也算进了观测不足）。
+  - **论文用表（`#abl-paper-table-20261111`）：** 用户 2026-11-11 说"你训出来什么结果就是什么结果"，各行一律报训练结果（rol5 / rol1，流式），不换读数形式。
+    - 出表：`python -m tools.pmr.abltable4 table` → `analysis/abl_table_paper.md`，按论文变体名，含同种子配对差。
+    - 种子：(b)–(e) 两种子，补第三个须用户下令。
+- **驱动：** 驱动 7、8 DRAINED；驱动 9（`tools/pmr/chain9.py`，状态 `outputs/pmr/20261109/driver9/`）2026-11-11 05:50 UTC 关闭队列，记 COMPLETE。不再追加作业。
+- **修订 1（`#abl-amend1-20261111`）：** `semkine/tpd_rol.py` 的 ROLModel 只接受 PFA 关联，(a) 的 rol5 改用 `semkine/abl_rol.py` 的 `RayROLModel`（入口 `tools/pmr/train_rol7.py`）。
+- **包装入口：** `tools/pmr/train11.py`、`run11.py`、`train_rol6.py`、`run_rol6.py`、`run_forms6.py`（并集登记表 6，`tools/pmr/ablrt.py` 处理 r_s2d / RDR / 无路由器三种路由块）。
 
 ## CMP · 五方法对比实验（用户 2026-11-09 约 17:00 UTC："现在进行整体的实验，你给我使用全卡，分别进行EventHands，EvHandPose，Event encoder + previous-state MLP，Event encoder + GRU，EvHandTrack。这几个，作为对比试验"）
 
@@ -65,10 +308,16 @@
   - `em` → `emrol5` = 编码器 + 前态 MLP，再加 EvHandTrack 的 rol5 微调；
   - `eg` = 从 `eh` 起步的编码器 + GRU（16 包滑窗）；
   - `epf` → `ep` = EvHandPose 官方网络（`semkine/evhandpose_official/`），全帧，网格光流预训练 FlowNet 后冻结，12 包滑窗。
+  - `epxf` → `epx`（修订 6，主表的 EvHandPose 行）= 裁剪版 EvHandPose 按在线跟踪的条件训练：框取"GT + 前态噪声"并缩放 [1 / 1.5, 1.5]，历史 1–12 包；网络、损失、调度、评测适配器同 `epcf` / `epc`。
+  - `ehpe`（修订 7）= EventHPE（ICCV 2021）：官方 EventTrackNet 与损失，换成 MANO；8 包片段，光流用冻结的 `epf`；45,000 步，每个种子约 3 h。
+  - `fme`（修订 8，表里叫 FastMETRO-Event）= EvRGBHand 官方仓库里事件输入的 FastMETRO：全帧、100 ms 窗口、官方损失与优化器；192,000 步，每个种子约 7.3 h。输出是网格不是 MANO 状态，读数走 `ext_fme.e1`，MPJPE 用关节 token。
 - **代码：**
   - 模型与数据：`semkine/cmp_models.py`、`cmp_seq.py`、`cmp_evhp.py`、`cmp_eho.py`（修订 4）；
   - 工具：`tools/cmp/`（train、run（accept / e1）、nets（引擎适配器）、cost、rows、chain、borrow_job）。
   - 已冻结的文件不改，新行为放新文件。
+  - 修订 6 起新臂走扩展接口：臂定义放 `tools/cmp/ext_<名>.py`（`ARMS`、`EVAL`、`configure`、`build_dataset`、`CODE`，可选自带的 `e1` 与适配器 `Adapter`），模型类放 `semkine/` 并登记在 `cmp_models.py` 的 `EXT_MODELS`。
+    - `arms.write_configs()` 不带臂名会把所有已登记臂（含扩展臂）的正式配置写出来；新臂登记前只写 `write_configs("smoke", [臂])`。
+    - 训练与读数用 `/data1/lyq/miniconda3/envs/EventHandsTrain/bin/python`；默认 `python` 没有 Lightning。
 - **驱动：** `tools/cmp/chain.py`（`setsid nohup … run`，状态 `outputs/cmp/20261110/driver/`）。
   - 训练先用直连卡 4–7，再经 gpu-borrow 用 0–3；读数与成本块只放 4–7。
   - `HOLD` 文件让驱动在队列空时继续等新作业；`drain` 只停派发；STOP 只在紧急时用。
@@ -84,15 +333,39 @@
     - `rows.py` 的 evhandtrack 行改标签与成本标签；B2 + rol5 移入描述行 `b2rol5`，旧主行移到 `outputs/cmp/20261110/superseded_amend5/`。
     - 新 EvHandTrack 的成本紧接 `cost:eho` 在 GPU 4 独占测（`tools/evhandtrack/cost2.py --out outputs/cmp/20261110`），然后 `rows:a5` 重写行。
     - 冻结 `manifests/amend5.json`，作业 `jobs/amend5.json`。
+  - 修订 5b（`#cmp-amend5b-20261110`，2026-11-10，会话 eventhands1-13）：用户再次纠正，EvHandTrack 是 D1（R）+ rol5，不是 ghand + rol5。
+    - `rows.py` 改标签；`cost2.py` 加 `--arm`，默认 `d1r_rol5`，所以修订 5 已排队的成本作业测的是 D1 R。
+    - 身份在 `rows:a5` 之前换成 D1 R 的临时版。
+    - `diag:history:a4` 按 ghand 算过，所以加了 `diag:history:a5b`、`rows:a5b` 重算；最终主表以 `rows:a5b` 之后为准。
+    - 冻结 `manifests/amend5b.json`。
+    - `cost:eho` 曾与本会话的 CPU 作业重叠约 13 秒；CMP 会话加了 `cost:eho:r2` 重测（`jobs/amend4r2.json`）。
+  - 修订 6（`#cmp-amend6-20261110`，2026-11-10，写于任何 `epx` 读数之前）：用户要求修好 EvHandPose。
+    - 诊断：`epc` 在线发散是深度跑飞（Z = t'z · s，训练框恒为 GT 大小，网络没学会从裁剪读深度；段首历史不足 12 包）。
+    - 新增 `epxf` → `epx`，主表的 EvHandPose 行改为 `epx`，`epc` / `epcl` 改作描述行。
+    - 冻结 `manifests/amend6.json`，作业 `jobs/amend6.json`；驱动 03:44 UTC 在原状态目录重启，带 `HOLD` 文件。
+  - 修订 7（`#cmp-amend7-20261110`，写于任何 `ehpe` 读数之前）：加入 EventHPE（`ehpe`）；冻结 `manifests/amend7.json`，作业 `jobs/amend7.json`。
+  - 修订 8（`#cmp-amend8-20261110`，写于任何 `fme` 读数之前）：加入 FastMETRO-Event（`fme`）；冻结 `manifests/amend8.json`，作业 `jobs/amend8.json`。
+    - 三项成本（`cost:epx` → `cost:ehpe` → `cost:fme`）改到全部训练与读数之后连着测：独占作业一旦就绪就会卡住排在后面的作业。两个 PENDING 作业的依赖修改记在 `driver/queue_edits.json`。
+    - 带成本的行（`rows:a6` / `a7` / `a8`）在成本块之后写出；之前要看精度，直接读 `readings/<臂>/e1/report.json`。
+    - 主表行序（`rows.py` 的 `MAIN`）：eho、epx、ehpe、fme、emrol5、eg、evhandtrack。
+  - 修订 9（`#cmp-amend9-20261110`，事后、描述）：EventHPE 的读法 `gtinit`（官方评测方式：每 8 个包从 GT 姿态起步，不可部署）；成本块前的门作业 `wait:quiet:a8`（`tools/cmp/quiet.py`）。
+- **修订 6–9 的结果（`#cmp-amend6-results-20261110`、`#cmp-amend9-20261110`、`#cmp-amend8-results-20261110`；2026-11-10 12:57 UTC，184 个作业全部完成）：** 三种子 MPJPE-L / G、MPVPE-L / G、RA，成本为时延 / MACs / 参数。
+  - EvHandPose 修复版 `epx`：15.73 / 10.45 / 12.95 / 8.78 / 12.90；5.76 ms / 3.675 G / 49.66 M。在线不再发散，与 GT 框读法只差 0.23 mm。
+  - EventHPE `ehpe`（在线）：27.29 / 90.53 / 24.15 / 58.77 / 61.13；8.98 ms / 14.129 G / 63.04 M。纯增量积分，长序列漂移；`gtinit` 读法 5.20（同样给真值而不更新是 8.06）。论文表里放哪一行待用户决定。
+  - FastMETRO-Event `fme`：18.21 / 9.84 / 15.01 / 8.29 / 13.73；26.76 ms / 6.935 G / 45.39 M。
+  - 总表：`python -m tools.cmp.rows table`。EvHandTrack 的两项 local 与 RA 全表最低，global 两项最低的是 GRU。
+  - 上下限表（用户要求：对比算法取最差种子、EvHandTrack 取最好种子）：`python -m tools.cmp.bounds_table`。
+  - 驱动带 `HOLD` 空转，没有待跑作业。
 - **结果（`#cmp-results-20261110`，2026-11-09 23:57 UTC，104 个作业全部完成）：**
   - 三种子 MPJPE-L / G、MPVPE-L / G、RA：
-    - EvHandTrack（修订 5 起为运动学树方法）11.96 / 9.32 / 9.80 / 7.99 / 10.55；修订 5 之前这一行是 B2 + rol5，12.95 / 7.96 / 10.70 / 6.46 / 10.28（现为描述行 `b2rol5`）；
-    - EventHands 网络 + B2 合同（`eh`，修订 4 起为描述行）12.81 / 8.47 / 11.00 / 7.32 / 10.49；原版 `eho` 见修订 4 的结果；
+    - EvHandTrack（修订 5b 起为 D1 R + rol5，流式）12.13 / 9.33 / 9.90 / 8.02 / 10.63；修订 5 之前这一行是 B2 + rol5，12.95 / 7.96 / 10.70 / 6.46 / 10.28（现为描述行 `b2rol5`）；
+    - EventHands 原版（`eho`，`#cmp-amend4-results-20261110`）28.41 / 11.42 / 24.15 / 9.52 / 19.32；官方卡尔曼滤波不改善（19.51 / 19.43）；成本 1.90 ms / 1.644 G / 11.18 M（独占重测）；
+    - EventHands 网络 + B2 合同（`eh`，修订 4 起为描述行）12.81 / 8.47 / 11.00 / 7.32 / 10.49：原来与 EvHandTrack 近乎持平，靠的是本研究的训练合同，不是 EventHands 方法本身；
     - GRU 14.17 / 8.41 / 11.98 / 7.27 / 11.08；
     - 前态 MLP + rol5 13.81 / 9.28 / 11.77 / 7.75 / 11.38；
     - EvHandPose 在线裁剪发散（RA 44.65），全帧 14.80，补足历史后 12.54，GT 框 3 倍步数 12.05（不可部署）。
-  - 稳态段（历史 ≥ 550 ms）`eh` 与 B2 + rol5 持平（10.28 / 10.30）；B2 + rol5 的 RA 优势主要来自段首冷启动。运动学树 EvHandTrack 的这一读数由 `diag:history:a4` 重算。
-  - 安静主机同块成本：B2 + rol5 14.94 ms / 0.236 G / 0.59 M，EventHands 网络 1.75 ms / 1.644 G / 11.20 M。运动学树 EvHandTrack 的 CMP 成本由修订 5 的作业测。
+  - 稳态段（历史 ≥ 550 ms）`eh` 与 B2 + rol5 持平（10.28 / 10.30）；B2 + rol5 的 RA 优势主要来自段首冷启动。D1 R EvHandTrack 的这一读数由 `diag:history:a5b` 重算。
+  - 安静主机同块成本：B2 + rol5 14.94 ms / 0.236 G / 0.59 M，EventHands 网络 1.75 ms / 1.644 G / 11.20 M。D1 R EvHandTrack 的 CMP 成本由修订 5 / 5b 的作业测。
 
 ## 代码清理（用户 2026-11-01"这批代码有点乱，你清理删除一下，屎山代码你也清理一下"）
 

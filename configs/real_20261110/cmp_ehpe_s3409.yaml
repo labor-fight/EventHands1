@@ -1,0 +1,114 @@
+AUG:
+  DOMRAND:
+    ENABLED: false
+  SPEED_AUG: false
+  POLARITY_FLIP: false
+  PIXEL_POLARITY_SWAP: false
+DATA:
+  HEIGHT: 192
+  INPUT_MODE: legacy_lnes
+  ROOT: /data1/lyq/code/mesh/EventHands/data/hand_data_real_n256
+  SPLITS_MANIFEST: /data1/lyq/code/mesh/EventHands/data/hand_data_real_n256/splits_real.json
+  USE_MEMMAP: true
+  WIDTH: 256
+  WINDOW_MAX: 300
+  WINDOW_MIN: 30
+LOSS:
+  FK_WEIGHT: 2.0
+  LAMBDA_POSE: 450.0
+  LAMBDA_R: 60.0
+  LAMBDA_T: 30000.0
+  LOG10: true
+  NORMALIZER: 51
+  ROT_WEIGHT: 1.0
+  TRANS_WEIGHT: 1.0
+  TYPE: so3_trans_fk
+MANO:
+  ADD_MEAN: true
+  BETA_SOURCE: sequence_gt
+  NPZ: /data1/lyq/code/mesh/EventHands1/assets/mano_right.npz
+TRACK:
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_P_CORR: 0.2
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_T: 0.005
+SEED: 3409
+MODEL:
+  BACKBONE: resnet18
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: false
+  PREVPOS_EMBED: false
+  PREV_RENDER: false
+  ZERO_EVENT_GATE: false
+  RENDER_H: 192
+  RENDER_W: 256
+  RENDER_SCALE: 0.4
+  RENDER_CHUNK: 256
+  INIT_FROM: /data1/lyq/code/mesh/EventHands1/outputs/real/20261110/runs/cmp_epf_s3409/cmp_epf_s3409-step=3000.ckpt
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 8
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 10
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 0.001
+  WARMUP_STEPS: 500
+  MAX_STEPS: 45000
+  VAL_CHECK_INTERVAL: 2000
+  SAVE_EVERY_N_STEPS: 5000
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: /data1/lyq/code/mesh/EventHands1/outputs/real/20261110/runs/cmp_ehpe_s3409
+  RUN_NAME: cmp_ehpe_s3409
+  LR_SCHEDULE: cosine
+  LIMIT_VAL_BATCHES: 0
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: /data1/lyq/code/mesh/EventHands1/outputs/real/20261110/runs/cmp_ehpe_s3409/eval
+CMP:
+  ARM: ehpe
+  SEED: 3409
+  PHASE: formal
+  MODEL: ehpe
+  STAGE: seq
+  STUDY: REAL_20261110
+  SECTION: real-prereg-20261110
+  SEQ:
+    PACKET_MS: 50
+    K: 8
+    VOXEL_BINS: 5
+    EVENT_BINS: 8
+  EVAL:
+    WINDOW_MS: 50
+    HISTORY: 1
+  INIT:
+    ARM: epf
+    STEP: 3000
+  LOSS:
+    DELTA_TRAN: 0.0
+    TRAN: 1.0
+    THETA: 10.0
+    JOINTS3D: 1.0
+    JOINTS2D: 10.0
+    FLOW: 0.1
+    GEODESIC: true
+    FLOW_VALID_PX: 4.0
+REAL:
+  SECTION: real-prereg-20261110
+  AMENDMENT: real-amend1-20261110
+  CANVAS: n256
+  SPLITS_SHA256: 86c6460c9d066e81e01f1ff943a9aabaa27fe7a9a71dcbe32b7e0b81aa4a9709
+  CONVERSION: /data1/lyq/code/mesh/EventHands/data/hand_data_real_n256/conversion.json

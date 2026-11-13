@@ -28,7 +28,10 @@ SEQS = ("zgz_local", "zgz_global")
 def readings():
     out = {}
     for name in ("eh", "eh__w50", "eh__warm", "emrol5", "eg", "eg__rolling", "eg__warm", "ep", "ep__warm", "epc",
-                 "epc__warm", "epc__gtcrop", "epcl", "epcl__warm", "epcl__gtcrop", "eho", "eho__kf", "eho__kff"):
+                 "epc__warm", "epc__gtcrop", "epcl", "epcl__warm", "epcl__gtcrop", "eho", "eho__kf", "eho__kff",
+                 "epx", "epx__warm", "epx__gtcrop",                # amendment 6
+                 "ehpe", "ehpe__carry", "ehpe__gtinit",            # amendments 7, 9
+                 "fme"):                                           # amendment 8
         arm, _, form = name.partition("__")
         paths = [OUT / "readings" / (f"cmp_{arm}_s{s}" + (f"__{form}" if form else "")) / "e1" / "states.npz" for s in SEEDS]
         if all(p.exists() for p in paths):

@@ -79,7 +79,14 @@ CUDA_VISIBLE_DEVICES=0,1 gpu-borrow run -- python train.py --config config.yaml
 
 多卡命令是一个整体。若借用 `0,1`，老师只使用卡 `0`，整个双卡作业也必须退出，不能只停掉其中一个 DDP rank。老师仅使用所选卡之外的 GPU 时，不会因此抢占这条借用命令。
 
-将借用任务与 GPU 4–7 的常驻任务分开启动。不要把 `0–7` 绑成一个 DDP 作业，否则让出借用卡时也会中断自己在 4–7 上的工作。
+借用卡可与直连卡组成同一个 DDP 作业（用户 2026-11-10 授权）。例如 GPU 2 和 GPU 5 空闲时：
+
+```bash
+gpu-borrow run --gpus 2,5 -- \
+  python -m torch.distributed.run --nproc_per_node=2 train.py --config config.yaml
+```
+
+只要作业含借用卡，就把完整组合交给包装器；两张卡都连续空闲 600 秒后启动，任一卡需要让出时所有 rank 一起退出。GPU 4–7 上独立运行的其他作业各自启动。PMR 的新驱动 `tools/pmr/chain6.py` 在其候选池内支持全部二卡组合；`borrow_job2.py` 在原硬上限内提升训练进程的文件句柄软限，解决旧系统服务默认 1024 导致的 rol5 限制。
 
 ## 抢占、空闲计时与退出
 

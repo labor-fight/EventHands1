@@ -1,0 +1,11 @@
+[
+ "tools/pmr/chain9.py",
+ "tools/pmr/chain8.py",
+ "tools/pmr/jobs22.py",
+ "tools/pmr/migrate.py",
+ "tools/pmr/train_rol4.py",
+ "tools/pmr/run_rol4.py",
+ "tools/pmr/run_forms.py",
+ "tools/pmr/train_rol7.py",
+ "semkine/abl_rol.py"
+]

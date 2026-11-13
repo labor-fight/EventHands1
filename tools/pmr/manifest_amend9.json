@@ -1,0 +1,16 @@
+[
+ "tools/pmr/chain5.py",
+ "tools/pmr/chain4.py",
+ "tools/pmr/chain3.py",
+ "tools/pmr/chain2.py",
+ "tools/pmr/chain.py",
+ "tools/pmr/borrow_job.py",
+ "tools/pmr/jobs17.py",
+ "tools/pmr/run_forms4.py",
+ "tools/pmr/run_forms.py",
+ "semkine/tpd_str.py",
+ "tools/pmr/analyze13.py",
+ "tools/pmr/analyze.py",
+ "tools/evf/mech.py",
+ "tests/test_pmr_amend9.py"
+]

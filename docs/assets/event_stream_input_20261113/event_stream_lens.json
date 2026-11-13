@@ -1,0 +1,165 @@
+{
+ "config": {
+  "session": "ch_global",
+  "stream": "event",
+  "t_start": 34.25,
+  "t_end": 35.42,
+  "slices": [
+   35.42
+  ],
+  "slice_ms": 35,
+  "length": 720,
+  "up": "y",
+  "az": -30,
+  "el": 22,
+  "dist": 3600,
+  "roll": 0,
+  "width": 3200,
+  "margin": 60,
+  "ss": 2,
+  "support_dt_us": 5000,
+  "support_min": 3,
+  "support_lo": 3,
+  "support_hi": 9,
+  "support_floor": 0.25,
+  "pane_support_min": 2,
+  "red": [
+   222,
+   45,
+   38
+  ],
+  "blue": [
+   33,
+   88,
+   214
+  ],
+  "dot": 1.2,
+  "alpha": 1.0,
+  "fade": 0.8,
+  "fade_gamma": 1.0,
+  "tint": 0.08,
+  "tail": 0.18,
+  "sublayers": 24,
+  "tex_scale": 8,
+  "pane_fill": [
+   0.955,
+   0.962,
+   0.98
+  ],
+  "pane_alpha": 0.55,
+  "pane_alpha_last": 0.86,
+  "pane_dot": 1.2,
+  "border_px": 1.0,
+  "border_col": [
+   64,
+   68,
+   82
+  ],
+  "border_alpha": 0.95,
+  "rails": true,
+  "rails_tail": 610,
+  "rails_lw": 1.0,
+  "rails_col": [
+   64,
+   68,
+   82
+  ],
+  "rails_alpha": 0.38,
+  "axis": true,
+  "axis_xy": [
+   -189.0,
+   -146.0
+  ],
+  "axis_z0": 120,
+  "axis_z1": 70,
+  "axis_pad": 40,
+  "axis_dash": [
+   16,
+   11
+  ],
+  "axis_lw": 2.4,
+  "axis_head": 7.5,
+  "axis_col": [
+   64,
+   68,
+   82
+  ],
+  "axis_alpha": 0.95,
+  "axis_label": "",
+  "axis_font": 46,
+  "crop_margin": 28,
+  "crop_alpha": 0.06,
+  "pad": [
+   0,
+   330,
+   110,
+   0
+  ],
+  "lens": {
+   "x0": 211,
+   "x1": 218,
+   "y0": 120,
+   "y1": 126,
+   "ms": 12
+  },
+  "lens_d": 0.27,
+  "lens_pos": [
+   -0.5,
+   -0.88
+  ],
+  "lens_fill": [
+   0.972,
+   0.977,
+   0.99
+  ],
+  "lens_bead": 0.78,
+  "lens_fit": 0.43,
+  "lens_shift": [
+   0.0,
+   -0.045
+  ],
+  "lens_lw": 1.7,
+  "text_col": [
+   64,
+   68,
+   82
+  ],
+  "text_em": 44,
+  "formula": "$e_i=(x_i,\\,y_i,\\,t_i,\\,p_i)$",
+  "formula_em": 41,
+  "event_label": "$e_i$",
+  "event_em": 36,
+  "event_at": [
+   0.1,
+   0.62
+  ],
+  "xy_labels": true,
+  "legend": true,
+  "legend_em": 36
+ },
+ "stats": {
+  "events_in_window": 402925,
+  "events_drawn": 224487,
+  "slices": {
+   "35.420": 15518
+  },
+  "lens": {
+   "events": 43,
+   "on": 22,
+   "t": [
+    35.408,
+    35.42
+   ],
+   "pixels": [
+    211,
+    218,
+    120,
+    126
+   ]
+  },
+  "size": [
+   3199,
+   3300
+  ]
+ }
+}

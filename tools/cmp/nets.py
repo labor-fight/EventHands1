@@ -38,6 +38,11 @@ FORMS = ("main", "rolling") + tuple(f"w{w}" for w in (50, 100, 200)) + ("warm", 
 #: amendment 4 (#cmp-amend4-20261110): the official EventHands Kalman filters, (R scale, Q variance) of filter/filter.py
 #: (`kf`) and filter/filter_fast.py (`kff`); dt = 1 ms, the filters run on the 1 kHz outputs
 KF = {"kf": (5.0, 0.1), "kff": (1.0, 3.0)}
+#: amendment 6 (#cmp-amend6-20261110): the deployed step of an extension arm's model kind is an `Adapter(net)` of its own
+#: module (bind(ctx), step(ctx, end, prev) -> 51-D state, FORMS, and for the cost tool history, cost_build(ctx, end, a,
+#: prev) -> item, cost_step(item, prev, state) -> state tensor, extra_macs(state)); CMP.EVAL.AS evaluates a model kind
+#: with the adapter code of another (epx: the cropped EvHandPose's)
+EXT_ADAPTERS = {"ehpe": "tools.cmp.ext_ehpe", "fme": "tools.cmp.ext_fme"}
 KF_DT = 1e-3
 KF_BATCH = 50
 
@@ -85,12 +90,16 @@ class CmpNet:
 
     def __init__(self, name, model, cfg, device, identity, form):
         self.name, self.model, self.cfg, self.device, self.identity = name, model, cfg, device, identity
-        self.model_kind = cfg["CMP"]["MODEL"]
-        self.form = form
         ev = cfg["CMP"].get("EVAL", {})
+        self.model_kind = ev.get("AS", cfg["CMP"]["MODEL"])
+        self.form = form
+        self.ext = None
+        if self.model_kind in EXT_ADAPTERS:                                    # amendment 6
+            import importlib
+            self.ext = importlib.import_module(EXT_ADAPTERS[self.model_kind]).Adapter(self)
         self.window = int(form[1:]) if form[:1] == "w" and form[1:].isdigit() else int(ev.get("WINDOW_MS", PACKET_MS))
         self.history = int(ev.get("HISTORY", 1))
-        require(form in FORMS, "unknown form " + form)
+        require(form in (FORMS if self.ext is None else self.ext.FORMS), "unknown form " + form)
         require(not (form.startswith("w") and form != "warm") or self.model_kind == "eh", "window forms are EventHands readings")
         require(form != "rolling" or self.model_kind == "eg", "the rolling form is the GRU's")
         require(form != "warm" or self.model_kind in ("eh", "eg", "ep", "epc"), "warm history: eh / eg / ep / epc")
@@ -107,6 +116,8 @@ class CmpNet:
         self.model.set_hand_context(ctx.betas, ctx.K)
         self.runs = np.asarray(ctx.aux["valid_runs_ms"], np.int64).reshape(-1, 2)
         self.cache, self.rolling, self.kf = {}, None, None
+        if self.ext is not None:
+            self.ext.bind(ctx)
 
     def run_start(self, end):
         i = int(np.searchsorted(self.runs[:, 0], end, side="right")) - 1
@@ -189,6 +200,11 @@ class CmpNet:
     def step(self, ctx, end, prev):
         import torch
         end = int(end)
+        if self.ext is not None:                                               # amendment 6
+            value = np.asarray(self.ext.step(ctx, end, prev), np.float32)
+            if value.shape != (51,) or not np.isfinite(value).all():
+                raise FloatingPointError(f"nonfinite endpoint retained as failure: {ctx.seq}:{end}")
+            return value
         a = self.run_start(end)
         prev_t = torch.from_numpy(np.ascontiguousarray(prev, np.float32)).view(1, -1).to(self.device)
         if self.model_kind == "eho":                                           # amendment 4

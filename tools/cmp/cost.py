@@ -87,6 +87,8 @@ def run(arm, seed, policy="default", smoke=False):
         groups[name.split(".")[0]] = groups.get(name.split(".")[0], 0) + p.numel()
     params_total = int(sum(groups.values()))
     history = net.history if kind in ("eg", "ep") else 1
+    if net.ext is not None:                                     # amendment 6: an extension arm's deployed step
+        history = int(getattr(net.ext, "history", 1))
 
     def build(end, a, prev=None):
         """Host part of an update: window cut + representation + H2D (epc: + the crop around `prev`, its FK on the GPU)."""
@@ -120,10 +122,16 @@ def run(arm, seed, policy="default", smoke=False):
         return model.run(feats)[0][:, -1] if kind == "eg" else model.sequence_state(feats)
 
     def gru_macs():
+        if net.ext is not None:
+            return int(net.ext.extra_macs(state)) if hasattr(net.ext, "extra_macs") else 0
         if kind != "eg":
             return 0
         g = model.gru
         return 3 * (g.input_size + g.hidden_size) * g.hidden_size * state["gru_steps"]
+
+    if net.ext is not None:
+        build = lambda end, a, prev=None: net.ext.cost_build(ctx, end, a, prev)  # noqa: E731
+        step = lambda item, prev: net.ext.cost_step(item, prev, state)           # noqa: E731
 
     with torch.no_grad():
         staged = [(build(e, a, torch.from_numpy(p).view(1, -1).to(device)), torch.from_numpy(p).view(1, -1).to(device))

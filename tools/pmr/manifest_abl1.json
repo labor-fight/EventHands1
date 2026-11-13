@@ -1,0 +1,11 @@
+[
+ "tools/pmr/chain7.py",
+ "tools/pmr/chain6.py",
+ "tools/pmr/borrow_job2.py",
+ "tools/pmr/abl.py",
+ "tools/pmr/jobs19.py",
+ "tools/rdr/decide.py",
+ "outputs/evhandtrack/analysis/posthoc_20261110/router_capture.py",
+ "outputs/evhandtrack/analysis/posthoc_20261110/router_stats.py",
+ "outputs/evhandtrack/analysis/posthoc_20261110/router_decomp.py"
+]

@@ -28,6 +28,13 @@ effective batch for the frame stages), Adam, bf16, warm-up then cosine, determin
           fp32, fixed 100 ms LNES windows, no augmentation (no domrand, speed, polarity flip or swap); 96000 steps = the
           6000 x 1024 samples of eh; B2's DATA / MANO / TRACK blocks (the TRACK block only sets the protocol's
           segment-start noise, the network never reads the previous state)
+
+Amendment 6 (#cmp-amend6-20261110): further arms live in their own modules, tools/cmp/ext_<name>.py (`EXTENSIONS`),
+and register here at import: `ARMS` (this registry's schema), `EVAL` and, optionally, `configure(cfg, arm, seed,
+phase) -> cfg` (the last step of `build_config`), `build_dataset(ds, cfg, split)` (tools/cmp/train.py), `CODE` (files of
+the launch audit) and `e1(arm, seed, form)` (a reading of its own in place of the engine's, tools/cmp/run.py). The model
+kinds of such arms are classes of semkine/cmp_models.py `EXT_MODELS`, their deployed step an `Adapter` of
+tools/cmp/nets.py `EXT_ADAPTERS`. The registered arms above and their configs are unchanged.
 """
 from __future__ import annotations
 
@@ -80,6 +87,9 @@ EVAL = {"eh": {"WINDOW_MS": 100}, "em": {"WINDOW_MS": 50}, "eg": {"WINDOW_MS": 5
         "ep": {"WINDOW_MS": 50, "HISTORY": 12}, "epc": {"WINDOW_MS": 50, "HISTORY": 12}, "eho": {"WINDOW_MS": 100}}
 PHASES = ("formal", "smoke")
 SMOKE_STEPS = 20
+#: amendment 6: extension modules (tools/cmp/ext_<name>.py) and the module of every arm they register
+EXTENSIONS = ("epx", "ehpe", "fme")
+EXT = {}
 
 
 def config_path(arm, seed, phase="formal"):
@@ -144,6 +154,8 @@ def build_config(arm, seed, phase="formal"):
     if a.get("crop"):
         cmp_["CROP"] = dict(CROP)
     cfg["CMP"] = cmp_
+    if arm in EXT and hasattr(EXT[arm], "configure"):          # amendment 6: the extension's own blocks
+        cfg = EXT[arm].configure(cfg, arm, seed, phase)
     return cfg
 
 
@@ -160,6 +172,26 @@ def write_configs(phase="formal", arms=None):
                 p.write_text(text)
             out.append(p)
     return out
+
+
+def _load_extensions():
+    import importlib
+    for name in EXTENSIONS:
+        module = f"tools.cmp.ext_{name}"
+        try:
+            mod = importlib.import_module(module)
+        except ModuleNotFoundError as e:
+            if e.name != module:
+                raise
+            continue
+        for arm, spec in mod.ARMS.items():
+            require(arm not in ARMS, "extension arm already registered: " + arm)
+            ARMS[arm] = spec
+            EXT[arm] = mod
+        EVAL.update(getattr(mod, "EVAL", {}))
+
+
+_load_extensions()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,114 @@
+AUG:
+  DOMRAND:
+    ENABLED: false
+  SPEED_AUG: false
+  POLARITY_FLIP: false
+  PIXEL_POLARITY_SWAP: false
+DATA:
+  HEIGHT: 192
+  INPUT_MODE: legacy_lnes
+  ROOT: /data1/lyq/code/mesh/EventHands/data/erh_n256
+  SPLITS_MANIFEST: /data1/lyq/code/mesh/EventHands/data/erh_n256/splits_erh.json
+  USE_MEMMAP: true
+  WIDTH: 256
+  WINDOW_MAX: 300
+  WINDOW_MIN: 30
+LOSS:
+  FK_WEIGHT: 2.0
+  LAMBDA_POSE: 450.0
+  LAMBDA_R: 60.0
+  LAMBDA_T: 30000.0
+  LOG10: true
+  NORMALIZER: 51
+  ROT_WEIGHT: 1.0
+  TRANS_WEIGHT: 1.0
+  TYPE: so3_trans_fk
+MANO:
+  ADD_MEAN: true
+  BETA_SOURCE: sequence_gt
+  NPZ: /data1/lyq/code/mesh/EventHands1/assets/mano_right.npz
+TRACK:
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_P_CORR: 0.2
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_T: 0.005
+SEED: 3408
+MODEL:
+  BACKBONE: resnet18
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: false
+  PREVPOS_EMBED: false
+  PREV_RENDER: false
+  ZERO_EVENT_GATE: false
+  RENDER_H: 192
+  RENDER_W: 256
+  RENDER_SCALE: 0.4
+  RENDER_CHUNK: 256
+  INIT_FROM: /data1/lyq/code/mesh/EventHands1/outputs/erh/20261111/runs/cmp_epf_s3408_smoke/cmp_epf_s3408_smoke-step=20.ckpt
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: bf16
+  BATCH_SIZE_PER_GPU: 8
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 4
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adam
+  LR: 0.001
+  WARMUP_STEPS: 5
+  MAX_STEPS: 20
+  VAL_CHECK_INTERVAL: 2000
+  SAVE_EVERY_N_STEPS: 10
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: /data1/lyq/code/mesh/EventHands1/outputs/erh/20261111/runs/cmp_ehpe_s3408_smoke
+  RUN_NAME: cmp_ehpe_s3408_smoke
+  LR_SCHEDULE: cosine
+  LIMIT_VAL_BATCHES: 0
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: /data1/lyq/code/mesh/EventHands1/outputs/erh/20261111/runs/cmp_ehpe_s3408_smoke/eval
+CMP:
+  ARM: ehpe
+  SEED: 3408
+  PHASE: smoke
+  MODEL: ehpe
+  STAGE: seq
+  STUDY: ERH_20261111
+  SECTION: erh-prereg-20261111
+  SEQ:
+    PACKET_MS: 50
+    K: 8
+    VOXEL_BINS: 5
+    EVENT_BINS: 8
+  EVAL:
+    WINDOW_MS: 50
+    HISTORY: 1
+  INIT:
+    ARM: epf
+    STEP: 3000
+  LOSS:
+    DELTA_TRAN: 0.0
+    TRAN: 1.0
+    THETA: 10.0
+    JOINTS3D: 1.0
+    JOINTS2D: 10.0
+    FLOW: 0.1
+    GEODESIC: true
+    FLOW_VALID_PX: 4.0
+REAL:
+  SECTION: erh-prereg-20261111
+  AMENDMENT: erh-prereg-20261111
+  CANVAS: n256
+  SPLITS_SHA256: 0c52f67908ce6094e7a0dd88462c97e3faef4065f2d723a44776fb2d59b70ec8
+  CONVERSION: /data1/lyq/code/mesh/EventHands/data/erh_n256/conversion.json

@@ -21,7 +21,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "model")]
 
-from tools.cmp.arms import ARMS, checkpoint, config_path  # noqa: E402
+from tools.cmp.arms import ARMS, EXT, checkpoint, config_path  # noqa: E402
 from tools.cmp.common import OUT, now, read, require, run_dir, save, sha  # noqa: E402
 
 
@@ -56,6 +56,8 @@ def accept(arm, seed):
 
 
 def e1(arm, seed, form="main"):
+    if arm in EXT and hasattr(EXT[arm], "e1"):                  # amendment 6: a reading of the extension's own
+        return EXT[arm].e1(arm, seed, form)
     from tools.pfo import common as PC
     from tools.pfo import engine as E
     from tools.pfo import nets as PN

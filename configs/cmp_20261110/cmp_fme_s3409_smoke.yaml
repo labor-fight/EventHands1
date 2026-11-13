@@ -1,0 +1,138 @@
+AUG:
+  DOMRAND:
+    ENABLED: true
+    ROLL_DEG: 22.92
+    SCALE_MIN: 0.9
+    SCALE_MAX: 1.1
+    SHIFT_PX: 0.0
+    KEEP_MIN: 1.0
+    KEEP_MAX: 1.0
+    HOT_PIXEL_RATE: 0.0
+    SCALE_MODE: focal
+  SPEED_AUG: false
+  POLARITY_FLIP: false
+  PIXEL_POLARITY_SWAP: false
+DATA:
+  HEIGHT: 180
+  INPUT_MODE: legacy_lnes
+  ROOT: /data1/lyq/code/mesh/EventHands/data/hand_data51
+  SPLITS_MANIFEST: /data1/lyq/code/mesh/EventHands/data/hand_data51/splits_semkine.json
+  USE_MEMMAP: true
+  WIDTH: 240
+  WINDOW_MAX: 100
+  WINDOW_MIN: 100
+  FAST_PIPE: true
+LOSS:
+  FK_WEIGHT: 2.0
+  LAMBDA_POSE: 450.0
+  LAMBDA_R: 60.0
+  LAMBDA_T: 30000.0
+  LOG10: true
+  NORMALIZER: 51
+  ROT_WEIGHT: 1.0
+  TRANS_WEIGHT: 1.0
+  TYPE: so3_trans_fk
+MANO:
+  ADD_MEAN: true
+  BETA_SOURCE: sequence_gt
+  NPZ: /data1/lyq/code/mesh/EventHands1/assets/mano_right.npz
+TRACK:
+  PREV_NOISE_LARGE_POSE: 0.3
+  PREV_NOISE_LARGE_R: 0.3
+  PREV_NOISE_LARGE_T: 0.05
+  PREV_NOISE_MODE: mixed
+  PREV_NOISE_POSE: 0.05
+  PREV_NOISE_P_CORR: 0.2
+  PREV_NOISE_P_LARGE: 0.3
+  PREV_NOISE_P_SMALL: 0.5
+  PREV_NOISE_R: 0.05
+  PREV_NOISE_T: 0.005
+SEED: 3409
+MODEL:
+  BACKBONE: resnet34
+  POSE_REPR: mano_full_axis_angle
+  OUTPUT_DIM: 51
+  MANO_NCOMPS: 45
+  PREDICT_BETA: false
+  PREDICT_DELTA: false
+  PREVPOS_EMBED: false
+  PREV_RENDER: false
+  ZERO_EVENT_GATE: false
+  RENDER_H: 180
+  RENDER_W: 240
+  RENDER_SCALE: 0.375
+  RENDER_CHUNK: 256
+TRAIN:
+  DEVICES: 1
+  STRATEGY: ddp
+  PRECISION: 32
+  BATCH_SIZE_PER_GPU: 8
+  ACCUMULATE_GRAD_BATCHES: 1
+  NUM_WORKERS: 4
+  PERSISTENT_WORKERS: true
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  OPTIMIZER: adamw
+  LR: 0.0001
+  WARMUP_STEPS: 5
+  MAX_STEPS: 20
+  VAL_CHECK_INTERVAL: 2000
+  SAVE_EVERY_N_STEPS: 10
+  SYNC_BATCHNORM: false
+  OUTPUT_DIR: /data1/lyq/code/mesh/EventHands1/outputs/cmp/20261110/runs/cmp_fme_s3409_smoke
+  RUN_NAME: cmp_fme_s3409_smoke
+  LR_SCHEDULE: cosine
+  LIMIT_VAL_BATCHES: 8
+EVAL:
+  WINDOW_MS: 50
+  OUTPUT_DIR: /data1/lyq/code/mesh/EventHands1/outputs/cmp/20261110/runs/cmp_fme_s3409_smoke/eval
+CMP:
+  ARM: fme
+  SEED: 3409
+  PHASE: smoke
+  MODEL: fme
+  STAGE: frame
+  STUDY: CMP_20261110
+  SECTION: cmp-prereg-20261110
+  EVAL:
+    WINDOW_MS: 100
+  FME:
+    NET:
+      BACKBONE: resnet34
+      PRETRAINED: true
+      HIDDEN_DIM_1: 512
+      DIM_FEEDFORWARD_1: 2048
+      HIDDEN_DIM_2: 128
+      DIM_FEEDFORWARD_2: 512
+      ENC_LAYERS: 3
+      DEC_LAYERS: 3
+      NHEAD: 8
+      DROPOUT: 0.1
+    PAD:
+    - 8
+    - 8
+    - 6
+    - 6
+    LOSS:
+      VERTICES: 100.0
+      VERTICES_SUB: 100.0
+      JOINTS_3D: 500.0
+      JOINTS_3D_FROM_MESH: 500.0
+      BETA: 0.01
+    OPT:
+      LR_BACKBONE: 1.0e-05
+      BACKBONE_NAMES:
+      - backbone.layer
+      WEIGHT_DECAY: 0.0001
+      BETAS:
+      - 0.9
+      - 0.999
+      CLIP_NORM: 1.0
+      ETA_MIN: 1.0e-06
+    PHOTOMETRY:
+      GAUSS_P: 0.1
+      GAUSS_VAR:
+      - 0.05
+      - 0.1
+      SALT_PEPPER_P: 0.1
+      SALT_PEPPER_RATE: 0.05
